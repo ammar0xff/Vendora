@@ -1,0 +1,91 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { categoriesApi, subcategoriesApi } from '../../api/endpoints'
+
+export default function ProductForm({ product, onSave, onClose }: any) {
+  const [form, setForm] = useState(product || {
+    name: '', unit: 'عدد', retail_price: 0, wholesale_price: 0,
+    cost_price: 0, barcode: '', subcategory_id: '', company: '',
+  })
+  const [categoryId, setCategoryId] = useState('')
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
+
+  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
+  const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: () => subcategoriesApi.list() })
+
+  // Auto-select category when editing existing product
+  const effectiveCategoryId = categoryId || (
+    subcategories?.find((s: any) => s.id === form.subcategory_id)?.category_id || ''
+  )
+  const filteredSubs = subcategories?.filter((s: any) => s.category_id === effectiveCategoryId) || []
+
+  return (
+    <form onSubmit={e => { e.preventDefault(); onSave(form) }} className="space-y-4">
+
+      {/* Name — full width */}
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-1">اسم المنتج *</label>
+        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} required autoFocus />
+      </div>
+
+      {/* Category cascade */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">التصنيف الرئيسي *</label>
+          <select className="input" value={effectiveCategoryId} onChange={e => { setCategoryId(e.target.value); set('subcategory_id', '') }} required>
+            <option value="">اختر التصنيف...</option>
+            {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">التصنيف الفرعي *</label>
+          <select className="input" value={form.subcategory_id} onChange={e => set('subcategory_id', e.target.value)} required disabled={!effectiveCategoryId}>
+            <option value="">{effectiveCategoryId ? 'اختر...' : 'اختر التصنيف الرئيسي أولاً'}</option>
+            {filteredSubs.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Unit + Company */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">الوحدة</label>
+          <select className="input" value={form.unit} onChange={e => set('unit', e.target.value)}>
+            {['عدد', 'كيلو', 'متر', 'ماسورة', 'طقم', 'علبة', 'كرتونة'].map(u => <option key={u}>{u}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">الشركة</label>
+          <input className="input" value={form.company || ''} onChange={e => set('company', e.target.value)} />
+        </div>
+      </div>
+
+      {/* Prices */}
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">سعر التكلفة</label>
+          <input type="number" step="0.01" className="input" value={form.cost_price} onChange={e => set('cost_price', e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">سعر القطاعي</label>
+          <input type="number" step="0.01" className="input" value={form.retail_price} onChange={e => set('retail_price', e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">سعر الجملة</label>
+          <input type="number" step="0.01" className="input" value={form.wholesale_price} onChange={e => set('wholesale_price', e.target.value)} />
+        </div>
+      </div>
+
+      {/* Barcode */}
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-1">الباركود</label>
+        <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
+      </div>
+
+      <div className="flex gap-3 justify-end pt-2">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+      </div>
+    </form>
+  )
+}

@@ -1,0 +1,56 @@
+import uuid
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
+from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Enum as SAEnum, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from app.db.base import Base
+import enum
+
+
+class SaleMode(str, enum.Enum):
+    retail = "retail"
+    wholesale = "wholesale"
+
+
+class SaleStatus(str, enum.Enum):
+    draft = "draft"
+    quotation = "quotation"   # عرض سعر — لم يُخصم من المخزون بعد
+    confirmed = "confirmed"
+    returned = "returned"
+    cancelled = "cancelled"
+
+
+class Sale(Base):
+    __tablename__ = "sales"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    invoice_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
+    warehouse_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id"), nullable=False)
+    cashier_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    shift_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shifts.id"), nullable=True, index=True)
+    sale_mode: Mapped[SaleMode] = mapped_column(SAEnum(SaleMode, name="sale_mode_enum"), default=SaleMode.retail)
+    status: Mapped[SaleStatus] = mapped_column(SAEnum(SaleStatus, name="sale_status_enum"), default=SaleStatus.confirmed)
+    discount_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    is_credit: Mapped[bool] = mapped_column(Boolean, default=False)  # آجل
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    items: Mapped[list["SaleItem"]] = relationship(back_populates="sale", cascade="all, delete-orphan")
+
+
+class SaleItem(Base):
+    __tablename__ = "sale_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sale_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales.id", ondelete="CASCADE"), index=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), index=True)
+    qty: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    discount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+
+    sale: Mapped["Sale"] = relationship(back_populates="items")

@@ -1,0 +1,26 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.env
+*.log
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Docker volumes / uploads
+backend/uploads/
+
+# DB backups (too large for git — keep separately)
+backups/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
