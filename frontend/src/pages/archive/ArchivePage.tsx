@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { archiveApi } from '../../api/endpoints'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ClipboardList, ShoppingBag, Info } from 'lucide-react'
+import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ClipboardList, ShoppingBag, Info, Wallet } from 'lucide-react'
 
 const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
 const printUrl = (path: string) => `/api${path}?token=${getToken()}`
@@ -28,6 +28,7 @@ const TYPE_FILTERS = [
   { key: 'shift_handover', label: 'تسليم عهدة' },
   { key: 'goods_receipt',  label: 'استلام بضاعة' },
   { key: 'purchase_invoice', label: 'فواتير مشتريات' },
+  { key: 'safe_deposit', label: 'توريد خزنة' },
 ]
 
 export default function ArchivePage() {
@@ -77,6 +78,10 @@ export default function ArchivePage() {
           summary = d.customer_name || 'عميل نقدي'
           if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`
           if (meta.items?.length) sub += `  ·  ${meta.items.length} صنف`
+        } else if (d.doc_type === 'safe_deposit') {
+          summary = meta.safe_name || 'خزنة'
+          if (meta.received_by) sub = `استلم: ${meta.received_by}`
+          if (d.amount) sub += `  ·  ${Number(d.amount).toLocaleString('ar-EG')} ج.م`
         } else if (d.doc_type === 'purchase_invoice') {
           summary = meta.supplier || 'مورد غير محدد'
           if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`

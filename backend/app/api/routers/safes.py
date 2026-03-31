@@ -1,0 +1,115 @@
+"""Safes (خزنات) — treasury management."""
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_role
+from app.models.user import User
+from datetime import datetime
+import uuid
+
+router = APIRouter(prefix="/safes", tags=["safes"])
+
+
+@router.get("")
+async def list_safes(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    rows = await db.execute(text("SELECT * FROM safes WHERE is_active=true ORDER BY name"))
+    return [dict(r._mapping) for r in rows.fetchall()]
+
+
+@router.post("", status_code=201)
+async def create_safe(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    r = await db.execute(text(
+        "INSERT INTO safes (name, location) VALUES (:name, :loc) RETURNING *"
+    ), {"name": data["name"], "loc": data.get("location", "")})
+    await db.commit()
+    return dict(r.fetchone()._mapping)
+
+
+@router.post("/{safe_id}/deposit")
+async def deposit_to_safe(
+    safe_id: uuid.UUID,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Record a cash deposit to a safe.
+    Body: { amount, shift_id?, warehouse_id?, received_by_id?, notes? }
+    """
+    # Generate doc number
+    seq = (await db.execute(text("SELECT nextval('invoice_seq')"))).scalar()
+    doc_number = f"DEP-{seq:06d}"
+
+    # Get receiver name
+    received_by_id = data.get("received_by_id")
+    received_by_name = ""
+    if received_by_id:
+        row = await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": received_by_id})
+        received_by_name = row.scalar() or ""
+
+    # Insert deposit
+    await db.execute(text("""
+        INSERT INTO safe_deposits
+            (safe_id, shift_id, warehouse_id, amount, received_by, received_by_name,
+             deposited_by, deposited_by_name, notes, doc_number)
+        VALUES (:sid, :shift, :wh, :amt, :recv, :recv_name, :dep, :dep_name, :notes, :doc)
+    """), {
+        "sid": safe_id,
+        "shift": data.get("shift_id"),
+        "wh": data.get("warehouse_id"),
+        "amt": data["amount"],
+        "recv": received_by_id,
+        "recv_name": received_by_name,
+        "dep": current_user.id,
+        "dep_name": current_user.full_name,
+        "notes": data.get("notes", ""),
+        "doc": doc_number,
+    })
+
+    # Update safe balance
+    await db.execute(text(
+        "UPDATE safes SET balance = balance + :amt WHERE id = :id"
+    ), {"amt": data["amount"], "id": safe_id})
+
+    # Archive the deposit document
+    safe_name = (await db.execute(text("SELECT name FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
+    wh_name = ""
+    if data.get("warehouse_id"):
+        wh_name = (await db.execute(text("SELECT name FROM warehouses WHERE id=:id"), {"id": data["warehouse_id"]})).scalar() or ""
+
+    await db.execute(text("""
+        INSERT INTO archived_documents (id, doc_number, doc_type, amount, created_by, metadata)
+        VALUES (gen_random_uuid(), :doc, 'safe_deposit', :amt, :uid, cast(:meta as jsonb))
+    """), {
+        "doc": doc_number,
+        "amt": data["amount"],
+        "uid": current_user.id,
+        "meta": __import__('json').dumps({
+            "safe_name": safe_name or "",
+            "warehouse": wh_name,
+            "received_by": received_by_name,
+            "deposited_by": current_user.full_name,
+            "notes": data.get("notes", ""),
+        })
+    })
+
+    await db.commit()
+    return {
+        "doc_number": doc_number,
+        "amount": data["amount"],
+        "safe": safe_name,
+        "received_by": received_by_name,
+    }
+
+
+@router.get("/{safe_id}/history")
+async def safe_history(safe_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    rows = await db.execute(text("""
+        SELECT sd.*, w.name as warehouse_name
+        FROM safe_deposits sd
+        LEFT JOIN warehouses w ON w.id = sd.warehouse_id
+        WHERE sd.safe_id = :id
+        ORDER BY sd.created_at DESC LIMIT 100
+    """), {"id": safe_id})
+    return [dict(r._mapping) for r in rows.fetchall()]

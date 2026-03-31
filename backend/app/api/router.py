@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.api.routers import auth, users, products, stock, sales, shifts, reports, parties, purchases, archive, payroll, settings, operations
 from app.api.routers import ledger as ledger_router
-from app.api.routers import hr, finance, suppliers, admin_overview
+from app.api.routers import hr, finance, suppliers, admin_overview, safes
 from app.api.routers import print_router
 
 router = APIRouter()
@@ -25,3 +25,4 @@ router.include_router(finance.router)
 router.include_router(suppliers.router)
 router.include_router(print_router.router)
 router.include_router(admin_overview.router)
+router.include_router(safes.router)
