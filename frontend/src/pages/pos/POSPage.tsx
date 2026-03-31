@@ -4,7 +4,6 @@ import { productsApi, salesApi, stockApi, shiftsApi, customersApi } from '../../
 import api from '../../api/client'
 import { usePOSStore } from '../../store/pos'
 import { PageLoader } from '../../components/ui/Loaders'
-import InvoicePrint from '../../components/ui/InvoicePrint'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import {

@@ -91,6 +91,9 @@ echo [5/5] Building and starting ERP system...
 echo     (This may take 5-10 minutes on first run)
 echo.
 cd /d "%DIR%"
+
+:: Ensure fresh DB volume so init_data.sql loads correctly
+docker compose down -v >nul 2>&1
 docker compose up -d --build
 if %errorLevel% neq 0 (
     echo [!] Failed to start ERP system. Check Docker Desktop is running.
