@@ -4,7 +4,6 @@ import { reportsApi, stockApi } from '../../api/endpoints'
 import api from '../../api/client'
 import { useAppStore } from '../../store/app'
 import { PageLoader } from '../../components/ui/Loaders'
-import InventoryReportPrint from '../../components/ui/InventoryReportPrint'
 import toast from 'react-hot-toast'
 import { format, subMonths } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
@@ -37,13 +36,11 @@ export default function ReportsContent() {
     queryKey: ['valuation', mainWh], queryFn: () => stockApi.valuation(mainWh!), enabled: !!mainWh
   })
 
-  const [inventoryPrintData, setInventoryPrintData] = useState<any>(null)
-  const handleInventoryPrint = async () => {
-    if (!mainWh) return
-    try { setInventoryPrintData(await api.get(`/reports/inventory/print?warehouse_id=${mainWh}`).then(r => r.data)) }
-    catch { toast.error('فشل في تحميل تقرير المخزون') }
+  const handleInventoryPrint = () => {
+    if (!mainWh) return toast.error('اختر فرعاً أولاً')
+    const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
+    window.open(`/api/print/inventory/${mainWh}?token=${token}`, '_blank')
   }
-  if (inventoryPrintData) return <InventoryReportPrint data={inventoryPrintData} onClose={() => setInventoryPrintData(null)} />
 
   // Monthly trend
   const months = Array.from({ length: 6 }, (_, i) => {
