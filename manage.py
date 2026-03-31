@@ -34,9 +34,14 @@ def status():
 
 
 def deploy():
-    print("🚀 Building and starting all services...")
-    compose("up", "-d", "--build")
-    print("\n✅ Deployed. Opening http://localhost")
+    print("🚀 Deploying update...")
+    print("💾 Step 1/3: Backup current data...")
+    backup()
+    print("🔨 Step 2/3: Build new images...")
+    compose("build")
+    print("▶️  Step 3/3: Restart services...")
+    compose("up", "-d")
+    print("\n✅ Deployed successfully.")
     status()
 
 
