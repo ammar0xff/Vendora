@@ -105,10 +105,10 @@ export default function InventoryPage() {
     : null
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-3rem)]">
+    <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-3rem)]">
 
       {/* ── Tree Sidebar ─────────────────────────────────────────── */}
-      <aside className="w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <aside className="w-full lg:w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">التصنيفات</p>
         </div>
