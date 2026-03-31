@@ -9,6 +9,7 @@ import ReportsContent from './ReportsContent'
 import FinanceLedgerContent from './FinanceLedgerContent'
 import SalesReportContent from './SalesReportContent'
 import DebtsContent from './DebtsContent'
+import SafesContent from './SafesContent'
 
 const TABS = [
   { id: 'overview',  label: '📊 لوحة التحكم',      roles: ['admin','manager'] },
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'ledger',    label: '⚖️ الميزان المالي',    roles: ['admin','manager','accountant'] },
   { id: 'sales',     label: '🧾 تقارير المبيعات',   roles: ['admin','manager','accountant','cashier'] },
   { id: 'debts',     label: '💳 المديونيات',         roles: ['admin','manager','accountant'] },
+  { id: 'safes',     label: '🏦 الخزنات',            roles: ['admin','manager','accountant'] },
 ]
 
 export default function AccountingPage() {
@@ -49,6 +51,7 @@ export default function AccountingPage() {
       {tab === 'ledger'   && <FinanceLedgerContent />}
       {tab === 'sales'    && <SalesReportContent />}
       {tab === 'debts'    && <DebtsContent />}
+      {tab === 'safes'    && <SafesContent />}
     </div>
   )
 }

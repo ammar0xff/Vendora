@@ -115,6 +115,10 @@ async def company_overview(
     """))
     cash_data = [dict(r._mapping) for r in cash_drawers.fetchall()]
 
+    # 6b. Safes total
+    safes_total_row = await db.execute(text("SELECT COALESCE(SUM(balance),0) FROM safes WHERE is_active=true"))
+    total_safes = float(safes_total_row.scalar() or 0)
+
     # 7. Totals
     total_revenue = sum(float(b['revenue'] or 0) for b in branches_data)
     total_profit = sum(float(b['gross_profit'] or 0) for b in branches_data)
@@ -135,8 +139,9 @@ async def company_overview(
             "total_customer_debt": total_customer_debt,
             "total_supplier_debt": total_supplier_debt,
             "total_cash_in_drawers": total_cash,
+            "total_safes_balance": total_safes,
             # Capital = stock + cash - supplier debts
-            "net_capital": total_stock_cost + total_cash - total_supplier_debt,
+            "net_capital": total_stock_cost + total_cash + total_safes - total_supplier_debt,
         },
         "branches": branches_data,
         "stock_per_warehouse": [s for s in stock_data if float(s['stock_cost_value'] or 0) > 0],
