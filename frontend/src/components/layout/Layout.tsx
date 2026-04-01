@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, BarChart3,
   Archive, Settings, Users, LogOut, Wallet, FileText,
   Building2, Receipt, Truck, UserCheck, ShieldCheck,
-  DollarSign, Scale, ShoppingBag, ChevronLeft, ChevronRight
+  DollarSign, Scale, ShoppingBag, ChevronLeft, ChevronRight, ClipboardList
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
@@ -40,6 +40,7 @@ const NAV_GROUPS = [
       { to: '/purchase-orders', icon: ShoppingBag, label: 'اقتراحات الشراء', perm: 'inventory', warehouseTypes: ['all'] },
       { to: '/operations',        icon: Truck,       label: 'العمليات',       perm: 'operations', warehouseTypes: ['all'] },
       { to: '/stock-adjustments', icon: Package,    label: 'تسويات المخزون', perm: 'inventory',  warehouseTypes: ['all'] },
+      { to: '/stocktaking',      icon: ClipboardList, label: 'الجرد',           perm: 'inventory',  warehouseTypes: ['all'] },
     ]
   },
   {

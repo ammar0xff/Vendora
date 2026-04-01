@@ -14,6 +14,7 @@ import SuppliersPage from './pages/suppliers/SuppliersPage'
 import PurchasesPage from './pages/purchases/PurchasesPage'
 import PurchaseOrdersPage from './pages/purchases/PurchaseOrdersPage'
 import StockAdjustmentsPage from './pages/stock/StockAdjustmentsPage'
+import StocktakingPage from './pages/stock/StocktakingPage'
 import AccountingPage from './pages/accounting/AccountingPage'
 import UsersPage from './pages/users/UsersPage'
 import SettingsPage from './pages/settings/SettingsPage'
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
           <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrdersPage /></ProtectedRoute>} />
           <Route path="/stock-adjustments" element={<ProtectedRoute><StockAdjustmentsPage /></ProtectedRoute>} />
+          <Route path="/stocktaking" element={<ProtectedRoute><StocktakingPage /></ProtectedRoute>} />
           <Route path="/accounting" element={<ProtectedRoute><AccountingPage /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
