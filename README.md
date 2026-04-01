@@ -59,26 +59,30 @@ python manage.py logs             # Live logs
 
 ## Applying Updates
 
-### Safe deploy (recommended for production)
-Automatically backs up data before updating:
+### On existing machine (keeps your data)
 ```bash
-git pull
-python manage.py deploy
+git pull                          # get latest code
+python manage.py deploy           # backup → build → restart
 ```
 
-### Fast deploy (no backup)
-Faster but no safety net — use for minor/UI-only changes:
+### Fast update (no backup, UI/code changes only)
 ```bash
 git pull
-python manage.py deploy-fast
-# Type "yes" to confirm
+python manage.py deploy-fast      # type "yes" to confirm
+```
+
+### On a new machine (loads data from repo snapshot)
+```bash
+git clone https://github.com/ammar0xff/eg-co-erp.git
+cd eg-co-erp
+python manage.py deploy-fresh     # ⚠️ wipes any existing data, loads init_data.sql
 ```
 
 ### Rollback if something breaks
 ```bash
 git log --oneline -5              # find last good commit
-git checkout <commit-hash>        # go back
-python manage.py deploy-fast      # redeploy
+git checkout <commit-hash>
+python manage.py deploy-fast
 ```
 
 ---

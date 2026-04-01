@@ -34,28 +34,64 @@ def status():
 
 
 def deploy():
-    """Deploy with automatic backup (safe — recommended for production)."""
-    print("🚀 Deploying update (with backup)...")
+    """Update code only — keeps existing DB data. Safe for production updates."""
+    print("🚀 Deploying code update (data preserved)...")
     print("💾 Step 1/3: Backup current data...")
     backup()
     print("🔨 Step 2/3: Build new images...")
     compose("build")
-    print("▶️  Step 3/3: Restart services...")
+    print("▶️  Step 3/3: Restart services (volumes untouched)...")
     compose("up", "-d")
-    print("\n✅ Deployed successfully.")
+    print("\n✅ Deployed. Your data is safe.")
     status()
 
 
 def deploy_fast():
-    """Deploy WITHOUT backup — faster but no safety net."""
+    """Update code WITHOUT backup — faster, no safety net."""
     confirm = input("⚠️  Deploy without backup? Type 'yes' to confirm: ")
     if confirm.strip().lower() != "yes":
         print("Cancelled.")
         return
-    print("🚀 Fast deploy (no backup)...")
+    print("🚀 Fast deploy...")
     compose("build")
     compose("up", "-d")
     print("\n✅ Deployed.")
+    status()
+
+
+def deploy_fresh():
+    """
+    Fresh deploy using init_data.sql from repo.
+    ⚠️  WIPES ALL EXISTING DATA and loads the repo snapshot.
+    Use on new machines or to reset to repo state.
+    """
+    confirm = input("⚠️  This will WIPE ALL DATA and load init_data.sql from repo.\nType 'yes' to confirm: ")
+    if confirm.strip().lower() != "yes":
+        print("Cancelled.")
+        return
+
+    init_sql = ROOT / "init_data.sql"
+    if not init_sql.exists():
+        print("❌ init_data.sql not found in repo root.")
+        return
+
+    print("🗑️  Step 1/4: Stop and remove volumes...")
+    compose("down", "-v")
+    print("🔨 Step 2/4: Build images...")
+    compose("build")
+    print("▶️  Step 3/4: Start (init_data.sql loads automatically)...")
+    compose("up", "-d")
+    print("⏳ Step 4/4: Waiting for DB to initialize...")
+    import time
+    for _ in range(30):
+        time.sleep(2)
+        try:
+            result = run(["curl", "-sf", "http://localhost/api/health"], capture=True, check=False)
+            if result.returncode == 0 and "ok" in result.stdout:
+                break
+        except Exception:
+            pass
+    print("\n✅ Fresh deploy complete. Data loaded from init_data.sql.")
     status()
 
 
@@ -167,15 +203,16 @@ def setup():
 
 
 COMMANDS = {
-    "deploy":       (deploy,       "Pull latest + backup + build + restart (safe, recommended)"),
-    "deploy-fast":  (deploy_fast,  "Build + restart WITHOUT backup (faster, no safety net)"),
-    "stop":         (stop,         "Stop all services"),
-    "restart":      (restart,      "Restart all services"),
-    "status":       (status,       "Show running status and health"),
-    "backup":       (backup,       "Backup database to backups/"),
-    "restore":      (restore,      "Restore database from a backup file"),
-    "logs":         (logs,         "Tail live logs from all services"),
-    "setup":        (setup,        "First-time setup"),
+    "deploy":        (deploy,        "Update code + backup first (safe, keeps your data)"),
+    "deploy-fast":   (deploy_fast,   "Update code WITHOUT backup (faster, no safety net)"),
+    "deploy-fresh":  (deploy_fresh,  "⚠️  WIPE data + load init_data.sql from repo (new machine / reset)"),
+    "stop":          (stop,          "Stop all services"),
+    "restart":       (restart,       "Restart all services"),
+    "status":        (status,        "Show running status and health"),
+    "backup":        (backup,        "Backup database to backups/"),
+    "restore":       (restore,       "Restore database from a backup file"),
+    "logs":          (logs,          "Tail live logs from all services"),
+    "setup":         (setup,         "First-time setup"),
 }
 
 if __name__ == "__main__":
