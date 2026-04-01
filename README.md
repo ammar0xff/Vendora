@@ -50,11 +50,35 @@ Open **http://localhost** in your browser.
 ## Management Commands
 
 ```bash
-python manage.py status      # Check system health
-python manage.py backup      # Backup database → backups/
-python manage.py restore <file>  # Restore from backup
-python manage.py restart     # Restart all services
-python manage.py logs        # Live logs
+python manage.py status           # Check system health
+python manage.py backup           # Backup database → backups/
+python manage.py restore <file>   # Restore from backup
+python manage.py restart          # Restart all services
+python manage.py logs             # Live logs
+```
+
+## Applying Updates
+
+### Safe deploy (recommended for production)
+Automatically backs up data before updating:
+```bash
+git pull
+python manage.py deploy
+```
+
+### Fast deploy (no backup)
+Faster but no safety net — use for minor/UI-only changes:
+```bash
+git pull
+python manage.py deploy-fast
+# Type "yes" to confirm
+```
+
+### Rollback if something breaks
+```bash
+git log --oneline -5              # find last good commit
+git checkout <commit-hash>        # go back
+python manage.py deploy-fast      # redeploy
 ```
 
 ---

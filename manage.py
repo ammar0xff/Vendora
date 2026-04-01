@@ -34,7 +34,8 @@ def status():
 
 
 def deploy():
-    print("🚀 Deploying update...")
+    """Deploy with automatic backup (safe — recommended for production)."""
+    print("🚀 Deploying update (with backup)...")
     print("💾 Step 1/3: Backup current data...")
     backup()
     print("🔨 Step 2/3: Build new images...")
@@ -42,6 +43,19 @@ def deploy():
     print("▶️  Step 3/3: Restart services...")
     compose("up", "-d")
     print("\n✅ Deployed successfully.")
+    status()
+
+
+def deploy_fast():
+    """Deploy WITHOUT backup — faster but no safety net."""
+    confirm = input("⚠️  Deploy without backup? Type 'yes' to confirm: ")
+    if confirm.strip().lower() != "yes":
+        print("Cancelled.")
+        return
+    print("🚀 Fast deploy (no backup)...")
+    compose("build")
+    compose("up", "-d")
+    print("\n✅ Deployed.")
     status()
 
 
@@ -153,14 +167,15 @@ def setup():
 
 
 COMMANDS = {
-    "deploy":  (deploy,  "Build images and start all services"),
-    "stop":    (stop,    "Stop all services"),
-    "restart": (restart, "Restart all services"),
-    "status":  (status,  "Show running status and health"),
-    "backup":  (backup,  "Backup database to backups/"),
-    "restore": (restore, "Restore database from a backup file"),
-    "logs":    (logs,    "Tail live logs from all services"),
-    "setup":   (setup,   "First-time setup"),
+    "deploy":       (deploy,       "Pull latest + backup + build + restart (safe, recommended)"),
+    "deploy-fast":  (deploy_fast,  "Build + restart WITHOUT backup (faster, no safety net)"),
+    "stop":         (stop,         "Stop all services"),
+    "restart":      (restart,      "Restart all services"),
+    "status":       (status,       "Show running status and health"),
+    "backup":       (backup,       "Backup database to backups/"),
+    "restore":      (restore,      "Restore database from a backup file"),
+    "logs":         (logs,         "Tail live logs from all services"),
+    "setup":        (setup,        "First-time setup"),
 }
 
 if __name__ == "__main__":
