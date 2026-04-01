@@ -125,7 +125,7 @@ export default function StocktakingPage() {
               <tr>
                 <th style={{ minWidth: '200px' }}>المنتج</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</th>
-                <th style={{ width: '130px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
+                <th style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
               </tr>
             </thead>
@@ -153,7 +153,7 @@ export default function StocktakingPage() {
                         : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">✅ محدد</span>}
                     </td>
                     <td className="text-center">
-                      <select className="input text-xs py-1 w-full" value={e.type || 'opening_stock'}
+                      <select className="input text-xs py-1 w-full" style={{ minWidth: "150px" }} value={e.type || 'opening_stock'}
                         onChange={ev => setEntry(p.id, 'type', ev.target.value)}>
                         {Object.entries(MOVEMENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                       </select>
