@@ -23,6 +23,13 @@ async def _quotation_number(db) -> str:
     return f"QUO-{seq:06d}"
 
 
+
+async def _is_untracked(db, product_id) -> bool:
+    from sqlalchemy import text as sqlt
+    row = await db.execute(sqlt("SELECT stock_status FROM products WHERE id=:id"), {"id": product_id})
+    status = row.scalar()
+    return status == 'untracked'
+
 async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     """Create a quotation (عرض سعر) — no stock deduction, status=quotation."""
     sale = Sale(
@@ -65,9 +72,10 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
         raise BusinessError("Only quotations can be confirmed this way")
 
     for item in sale.items:
-        balance = await get_balance(db, item.product_id, sale.warehouse_id)
-        if balance < item.qty:
-            raise BusinessError(f"Insufficient stock for product {item.product_id}")
+        if not await _is_untracked(db, item.product_id):
+            balance = await get_balance(db, item.product_id, sale.warehouse_id)
+            if balance < item.qty:
+                raise BusinessError(f"Insufficient stock for product {item.product_id}")
 
     for item in sale.items:
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
@@ -83,11 +91,12 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
 
 
 async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
-    # Validate stock for all items first
+    # Validate stock for all items first (skip untracked products)
     for item in data.items:
-        balance = await get_balance(db, item.product_id, data.warehouse_id)
-        if balance < item.qty:
-            raise BusinessError(f"Insufficient stock for product {item.product_id}: available {balance}")
+        if not await _is_untracked(db, item.product_id):
+            balance = await get_balance(db, item.product_id, data.warehouse_id)
+            if balance < item.qty:
+                raise BusinessError(f"Insufficient stock for product {item.product_id}: available {balance}")
 
     sale = Sale(
         invoice_number=await _invoice_number(db),

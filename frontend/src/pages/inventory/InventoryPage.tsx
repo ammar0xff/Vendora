@@ -46,6 +46,9 @@ export default function InventoryPage() {
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null)
   const [breakdownProduct, setBreakdownProduct] = useState<any>(null)
+  const [openingStockProduct, setOpeningStockProduct] = useState<any>(null)
+  const [openingQty, setOpeningQty] = useState('')
+  const [openingCost, setOpeningCost] = useState('')
   const { activeWarehouseId } = useAppStore()
   const { user } = useAuthStore()
   const isAdmin = (user as any)?.role === 'admin'
@@ -208,6 +211,7 @@ export default function InventoryPage() {
                 </div>
               )},
               { key: 'qty', label: 'المخزون', sortable: true, render: (p: any) => {
+                if (p.stock_status === 'untracked') return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">⚠️ غير محدد</span>
                 // If balances loaded but product not in response → 0 stock
                 const qty = balances ? (balances[p.id] ?? 0) : null
                 if (qty === null) return <span className="text-slate-300 text-xs">جاري...</span>
@@ -219,6 +223,10 @@ export default function InventoryPage() {
               { key: 'cost_price', label: 'التكلفة', sortable: true, render: (p: any) => <span className="text-slate-500 text-sm">{Number(p.cost_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'actions', label: '', render: (p: any) => (
                 <div className="flex gap-1 justify-end">
+                  {p.stock_status === 'untracked' && (
+                    <button onClick={() => { setOpeningStockProduct(p); setOpeningQty(''); setOpeningCost(String(p.cost_price || 0)) }}
+                      className="px-2 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200" title="إدخال رصيد افتتاحي">رصيد</button>
+                  )}
                   {isAdmin && isCompanyView && (
                     <button onClick={() => setBreakdownProduct(p)} className="p-1.5 rounded-lg hover:bg-purple-50 text-slate-300 hover:text-purple-500" title="توزيع المخازن"><BarChart2 size={14} /></button>
                   )}
@@ -264,6 +272,48 @@ export default function InventoryPage() {
       {/* Breakdown per warehouse modal */}
       <Modal open={!!breakdownProduct} onClose={() => setBreakdownProduct(null)} title={`توزيع المخازن — ${breakdownProduct?.name}`}>
         <BreakdownModal productId={breakdownProduct?.id} unit={breakdownProduct?.unit} />
+      </Modal>
+
+      {/* Opening stock modal */}
+      <Modal open={!!openingStockProduct} onClose={() => setOpeningStockProduct(null)} title={`رصيد افتتاحي — ${openingStockProduct?.name}`}>
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+            ⚠️ هذا المنتج في وضع "كمية مجهولة" — بيتباع بدون مراقبة مخزون. أدخل الكمية الحالية لتفعيل المراقبة.
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">الكمية الحالية *</label>
+              <input type="number" className="input" value={openingQty} onChange={e => setOpeningQty(e.target.value)} min="0" step="any" autoFocus placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">سعر التكلفة</label>
+              <input type="number" className="input" value={openingCost} onChange={e => setOpeningCost(e.target.value)} min="0" step="0.01" />
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setOpeningStockProduct(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button disabled={!openingQty || !activeWarehouseId}
+              onClick={async () => {
+                if (!activeWarehouseId) return toast.error('اختر فرعاً أولاً')
+                await api.post('/stock/movements', {
+                  product_id: openingStockProduct.id,
+                  warehouse_id: activeWarehouseId,
+                  movement_type: 'opening_stock',
+                  qty: Number(openingQty),
+                  unit_cost: Number(openingCost) || 0,
+                  note: 'رصيد افتتاحي',
+                })
+                toast.success('تم إدخال الرصيد الافتتاحي')
+                setOpeningStockProduct(null)
+                qc.invalidateQueries({ queryKey: ['products'] })
+                qc.invalidateQueries({ queryKey: ['balances'] })
+              }}
+              className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#16a34a' }}>
+              تأكيد الرصيد
+            </button>
+          </div>
+          {!activeWarehouseId && <p className="text-xs text-red-500 text-center">⚠️ اختر فرعاً من القائمة الجانبية أولاً</p>}
+        </div>
       </Modal>
     </div>
   )
