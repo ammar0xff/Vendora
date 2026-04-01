@@ -77,6 +77,7 @@ class ProductOut(BaseModel):
     is_active: bool
     reorder_point: Decimal
     reorder_qty: Decimal
+    stock_status: str = "tracked"
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}
