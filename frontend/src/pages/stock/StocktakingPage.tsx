@@ -119,14 +119,14 @@ export default function StocktakingPage() {
 
       {/* Table */}
       <div className="card p-0 overflow-hidden">
-        <div className="table-wrap" style={{ maxHeight: 'calc(100vh - 300px)' }}>
-          <table>
+        <div className="table-wrap" style={{ maxHeight: "calc(100vh - 300px)", overflowX: "auto" }}>
+          <table style={{ minWidth: "600px" }}>
             <thead>
               <tr>
-                <th>المنتج</th>
-                <th style={{ width: '100px', textAlign: 'center' }}>الحالة</th>
-                <th style={{ width: '140px', textAlign: 'center' }}>نوع الحركة</th>
-                <th style={{ width: '110px', textAlign: 'center' }}>الكمية</th>
+                <th style={{ minWidth: '200px' }}>المنتج</th>
+                <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</th>
+                <th style={{ width: '130px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
+                <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
               </tr>
             </thead>
             <tbody>
@@ -144,7 +144,7 @@ export default function StocktakingPage() {
                 return (
                   <tr key={p.id} className={hasEntry ? 'bg-green-50' : ''}>
                     <td>
-                      <p className="font-semibold text-slate-800 text-sm">{p.name}</p>
+                      <p className="font-semibold text-slate-800 text-sm" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "280px" }}>{p.name}</p>
                       <p className="text-xs text-slate-400">{p.unit}{p.company ? ` · ${p.company}` : ''}</p>
                     </td>
                     <td className="text-center">
