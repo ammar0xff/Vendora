@@ -69,7 +69,8 @@ export default function StocktakingPage() {
       qc.invalidateQueries({ queryKey: ['products-all-stocktaking'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
     } catch (e: any) {
-      toast.error(e.response?.data?.detail || 'فشل الحفظ')
+      console.error('Save error:', e.response?.data || e.message)
+      toast.error(e.response?.data?.detail || e.message || 'فشل الحفظ')
     } finally {
       setSaving(false)
     }
