@@ -85,6 +85,8 @@ export default function POSPage() {
   const [managerIdForClose, setManagerIdForClose] = useState('')
   const [managerPasswordForClose, setManagerPasswordForClose] = useState('')
   const [isCredit, setIsCredit] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [paymentWalletId, setPaymentWalletId] = useState('')
   const [handoverUsername, setHandoverUsername] = useState('')
   const [handoverPassword, setHandoverPassword] = useState('')
   const [closingBalance, setClosingBalance] = useState('')
@@ -133,6 +135,7 @@ export default function POSPage() {
   const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
+  const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data) })
   const { data: finCategories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/financial-categories').then(r => r.data) })
 
   const { data: customerResults } = useQuery({
@@ -184,6 +187,8 @@ export default function POSPage() {
       is_credit: isCredit,
       customer_id: selectedCustomer?.id || null,
       discount_amount: totalDiscount(),
+      payment_method: isCredit ? 'credit' : paymentMethod,
+      wallet_id: paymentWalletId || undefined,
       items: items.map(i => {
         const lineTotal = i.qty * i.unit_price
         const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
@@ -619,6 +624,27 @@ export default function POSPage() {
                 {items.length > 0 && <button onClick={clear} className="text-white/50 hover:text-white text-xs">مسح</button>}
               </div>
             </div>
+
+            {/* Payment method — shown when not credit */}
+            {!isCredit && (
+              <div className="flex gap-2 mb-2">
+                {[
+                  { value: 'cash', label: '💵 نقدي' },
+                  ...((wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => ({
+                    value: w.id, label: w.type === 'vodafone_cash' ? `📱 ${w.name}` : `🏦 ${w.name}`
+                  })))
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => { setPaymentMethod(opt.value === 'cash' ? 'cash' : 'wallet'); setPaymentWalletId(opt.value === 'cash' ? '' : opt.value) }}
+                    className={clsx('px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex-shrink-0',
+                      (opt.value === 'cash' ? paymentMethod === 'cash' : paymentWalletId === opt.value)
+                        ? 'bg-blue-500 text-white border-blue-400'
+                        : 'border-white/20 text-white/60 hover:text-white')}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Customer smart search */}
             <div className="relative">
               <input

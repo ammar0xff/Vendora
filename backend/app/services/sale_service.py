@@ -98,6 +98,8 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         sale_mode=data.sale_mode,
         discount_amount=data.discount_amount,
         is_credit=data.is_credit,
+        payment_method=getattr(data, 'payment_method', 'cash') or 'cash',
+        wallet_id=getattr(data, 'wallet_id', None),
         notes=data.notes,
         created_by=cashier_id,
     )
@@ -146,6 +148,13 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         await db.execute(sqlt(
             "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
         ), {"amt": total, "cid": data.customer_id})
+
+    # Update wallet balance for electronic payments
+    if getattr(data, 'wallet_id', None) and not data.is_credit:
+        from sqlalchemy import text as sqlt
+        await db.execute(sqlt(
+            "UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"
+        ), {"amt": total, "wid": data.wallet_id})
 
     await db.commit()
     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))

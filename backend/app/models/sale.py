@@ -35,7 +35,9 @@ class Sale(Base):
     sale_mode: Mapped[SaleMode] = mapped_column(SAEnum(SaleMode, name="sale_mode_enum"), default=SaleMode.retail)
     status: Mapped[SaleStatus] = mapped_column(SAEnum(SaleStatus, name="sale_status_enum"), default=SaleStatus.confirmed)
     discount_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    is_credit: Mapped[bool] = mapped_column(Boolean, default=False)  # آجل
+    is_credit: Mapped[bool] = mapped_column(Boolean, default=False)
+    payment_method: Mapped[str] = mapped_column(String(32), default="cash")
+    wallet_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("payment_wallets.id", ondelete="SET NULL"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 

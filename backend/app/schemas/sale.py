@@ -21,6 +21,8 @@ class SaleCreate(BaseModel):
     sale_mode: SaleMode = SaleMode.retail
     discount_amount: Decimal = Decimal("0")
     is_credit: bool = False
+    payment_method: str = "cash"
+    wallet_id: Optional[uuid.UUID] = None
     notes: Optional[str] = None
     items: List[SaleItemCreate]
 

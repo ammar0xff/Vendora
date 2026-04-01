@@ -69,6 +69,22 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     expected = shift.initial_amount + sales - returns - expenses
     variance = (shift.closing_balance - expected) if shift.closing_balance is not None else None
     tx_count = await db.execute(select(func.count()).where(DrawerTransaction.shift_id == shift_id))
+
+    # Payment method breakdown
+    from sqlalchemy import text as sqlt
+    pay_rows = await db.execute(sqlt("""
+        SELECT COALESCE(s.payment_method, 'cash') as method,
+               pw.name as wallet_name, pw.type as wallet_type,
+               COUNT(s.id) as count,
+               COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) - COALESCE(MAX(s.discount_amount),0) as total
+        FROM sales s
+        LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
+        LEFT JOIN sale_items si ON si.sale_id = s.id
+        WHERE s.shift_id = :sid AND s.status = 'confirmed'
+        GROUP BY s.payment_method, pw.name, pw.type
+    """), {"sid": shift_id})
+    payment_breakdown = [dict(r._mapping) for r in pay_rows.fetchall()]
+
     return {
         "shift_id": shift_id,
         "initial_amount": shift.initial_amount,
@@ -79,6 +95,7 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "closing_balance": shift.closing_balance,
         "variance": variance,
         "transaction_count": tx_count.scalar_one(),
+        "payment_breakdown": payment_breakdown,
     }
 
 

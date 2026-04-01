@@ -111,6 +111,7 @@ export default function ShiftsPage() {
         <>
           {/* Current shift summary */}
           {shift && summary ? (
+            <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {[
                 { label: 'الرصيد الافتتاحي', value: summary.initial_amount, icon: Wallet, color: '#1e3a5f' },
@@ -127,6 +128,25 @@ export default function ShiftsPage() {
                 </div>
               ))}
             </div>
+
+            {/* Payment breakdown */}
+            {summary.payment_breakdown?.length > 0 && (
+              <div className="card p-4 mb-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">توزيع المبيعات بوسيلة الدفع</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {summary.payment_breakdown.map((p: any) => (
+                    <div key={p.method + p.wallet_name} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <p className="text-xs font-bold text-slate-500 mb-1">
+                        {p.method === 'cash' ? '💵 نقدي' : p.wallet_type === 'vodafone_cash' ? `📱 ${p.wallet_name}` : `🏦 ${p.wallet_name}`}
+                      </p>
+                      <p className="font-black text-slate-800">{Number(p.total).toLocaleString('ar-EG')} ج.م</p>
+                      <p className="text-xs text-slate-400">{p.count} فاتورة</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            </>
           ) : (
             <div className="card text-center py-12 mb-6">
               <Wallet size={48} className="mx-auto mb-4 text-slate-300" />
