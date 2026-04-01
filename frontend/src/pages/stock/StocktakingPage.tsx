@@ -142,7 +142,7 @@ export default function StocktakingPage() {
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية الحالية</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</th>
                 <th style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
-                <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
+                <th style={{ width: '140px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
               </tr>
             </thead>
             <tbody>
@@ -180,7 +180,7 @@ export default function StocktakingPage() {
                       </select>
                     </td>
                     <td className="text-center">
-                      <input type="number" className={`input text-sm text-center py-1 ${hasEntry ? 'border-green-400 bg-green-50' : ''}`}
+                      <input type="number" className={`input text-sm text-center py-1 ${hasEntry ? 'border-green-400 bg-green-50' : ''}`} style={{ minWidth: "120px" }}
                         placeholder="0" min="0" step="any"
                         value={e.qty || ''}
                         onChange={ev => setEntry(p.id, 'qty', ev.target.value)} />
