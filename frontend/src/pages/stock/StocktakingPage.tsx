@@ -149,8 +149,8 @@ export default function StocktakingPage() {
                     </td>
                     <td className="text-center">
                       {p.stock_status === 'untracked'
-                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">⚠️ غير محدد</span>
-                        : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">✅ محدد</span>}
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
+                        : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold whitespace-nowrap">✅ محدد</span>}
                     </td>
                     <td className="text-center">
                       <select className="input text-xs py-1 w-full" style={{ minWidth: "150px" }} value={e.type || 'opening_stock'}
