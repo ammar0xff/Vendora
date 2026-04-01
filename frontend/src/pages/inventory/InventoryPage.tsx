@@ -211,7 +211,7 @@ export default function InventoryPage() {
                 </div>
               )},
               { key: 'qty', label: 'المخزون', sortable: true, render: (p: any) => {
-                if (p.stock_status === 'untracked') return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">⚠️ غير محدد</span>
+                if (p.stock_status === 'untracked') return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
                 // If balances loaded but product not in response → 0 stock
                 const qty = balances ? (balances[p.id] ?? 0) : null
                 if (qty === null) return <span className="text-slate-300 text-xs">جاري...</span>
