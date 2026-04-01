@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 81eVqdV4iSXUzMBJq2tQQpepS9oXZtzcIlfRa8rOz4jE31qjouOdte7uH2Ttgnp
+\restrict SbLRruSp8YuqiBBhsDAzC0gmXHShJfg3x5cuA31HzBGeDIlSoa98iQqE82CA212
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -33,7 +33,8 @@ CREATE TYPE public.doc_type_enum AS ENUM (
     'goods_receipt',
     'stock_request',
     'shift_handover',
-    'purchase_invoice'
+    'purchase_invoice',
+    'safe_deposit'
 );
 
 
@@ -243,7 +244,9 @@ CREATE TABLE public.drawer_transactions (
     note text,
     created_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    category_id uuid
+    category_id uuid,
+    payment_method text DEFAULT 'cash'::text,
+    wallet_id uuid
 );
 
 
@@ -447,6 +450,24 @@ CREATE SEQUENCE public.invoice_seq
 ALTER SEQUENCE public.invoice_seq OWNER TO postgres;
 
 --
+-- Name: payment_wallets; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payment_wallets (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    type text NOT NULL,
+    phone text,
+    balance numeric(14,2) DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT payment_wallets_type_check CHECK ((type = ANY (ARRAY['vodafone_cash'::text, 'instapay'::text, 'cash'::text])))
+);
+
+
+ALTER TABLE public.payment_wallets OWNER TO postgres;
+
+--
 -- Name: payroll_entries; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -501,7 +522,9 @@ CREATE TABLE public.products (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     reorder_point numeric(12,3) DEFAULT 0,
-    reorder_qty numeric(12,3) DEFAULT 0
+    reorder_qty numeric(12,3) DEFAULT 0,
+    stock_status text DEFAULT 'tracked'::text NOT NULL,
+    CONSTRAINT products_stock_status_check CHECK ((stock_status = ANY (ARRAY['tracked'::text, 'untracked'::text])))
 );
 
 
@@ -592,6 +615,44 @@ CREATE SEQUENCE public.quotation_seq
 ALTER SEQUENCE public.quotation_seq OWNER TO postgres;
 
 --
+-- Name: safe_deposits; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.safe_deposits (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    safe_id uuid NOT NULL,
+    shift_id uuid,
+    warehouse_id uuid,
+    amount numeric(14,2) NOT NULL,
+    received_by uuid,
+    received_by_name text,
+    deposited_by uuid,
+    deposited_by_name text,
+    notes text,
+    doc_number text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.safe_deposits OWNER TO postgres;
+
+--
+-- Name: safes; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.safes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    location text,
+    balance numeric(14,2) DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.safes OWNER TO postgres;
+
+--
 -- Name: sale_items; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -625,7 +686,9 @@ CREATE TABLE public.sales (
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     is_credit boolean DEFAULT false NOT NULL,
-    created_by uuid
+    created_by uuid,
+    payment_method text DEFAULT 'cash'::text,
+    wallet_id uuid
 );
 
 
@@ -814,6 +877,8 @@ e0fce10e-4191-43b9-a55b-39c41353ce58	HND-0325224735	shift_handover	\N	500.00	\N	
 0ec5bfa2-4f7c-4fde-9990-30096e45c9d6	HND-0329172024	shift_handover	\N	190.00	\N	\N	{"notes": "", "amount": 190.0, "to_user": "7ef659d3-53f7-48b1-aca3-538ef5a1b3cd", "from_user": "f00d039c-caa7-5b00-adba-365ed90c5f10", "to_user_name": "احمد الكوك", "from_user_name": "عمار محمد السيد"}	4a7dd547-9642-4562-a0a8-1fa55de24162	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:20:24.162693+00
 ac9f4171-bbea-4cfe-ac1a-5897725fac78	PO-001004	purchase_invoice	\N	50.00	\N	\N	{"supplier": "", "items_count": 1, "received_by": "", "warehouse_id": "59a2b8d7-e26b-4979-ae0e-3984f1b711b2"}	362b6e0d-4f17-4662-875b-1e63005a2d44	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-30 04:16:19.209469+00
 1ea1f8db-992a-4710-8b6f-c4cda1450292	INV-001027	sale_invoice	\N	50.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 1}	deec8934-2282-4a63-bff3-44e6123420fb	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.647447+00
+25795185-18e2-4d2c-ab96-c2d59220a765	INV-001028	sale_invoice	\N	250.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 1}	199a9759-0bc7-467e-9689-5b55ed482852	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-31 11:42:55.888868+00
+14b03de8-b455-4842-a14b-0574314c6655	DEP-001031	safe_deposit	\N	1500.00	\N	\N	{"notes": "توريد يومي", "safe_name": "الخزنة الرئيسية", "warehouse": "معرض المؤمن", "received_by": "عمار محمد السيد", "deposited_by": "عمار محمد السيد"}	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-31 16:50:27.998146+00
 \.
 
 
@@ -875,8 +940,8 @@ a9bfa8a8-b7f9-4d14-9da8-9cbc37756650	ea70b37f-e40d-4d13-a014-52ed6cc34d9e	100.00
 
 COPY public.customers (id, name, phone, address, is_cash, created_at, balance) FROM stdin;
 ea70b37f-e40d-4d13-a014-52ed6cc34d9e	شركة النيل للتجارة	01012345678	\N	f	2026-03-26 00:07:36.965671+00	0.00
-973fbcf1-c2b3-450e-8584-a63cf0885350	ابو يوسف	010757557554	\N	f	2026-03-26 04:02:34.168886+00	0.00
 9338ff3f-c554-4648-9965-0b49d68aa7db	شركة الاختبار	\N	\N	f	2026-03-26 09:51:42.641516+00	25.00
+973fbcf1-c2b3-450e-8584-a63cf0885350	ابو يوسف	010757557554	\N	f	2026-03-26 04:02:34.168886+00	250.00
 \.
 
 
@@ -884,60 +949,61 @@ ea70b37f-e40d-4d13-a014-52ed6cc34d9e	شركة النيل للتجارة	01012345
 -- Data for Name: drawer_transactions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.drawer_transactions (id, shift_id, type, amount, ref_id, note, created_by, created_at, category_id) FROM stdin;
-11ca6cd2-d9c0-42e1-a9e8-e80ccc08978c	609eedda-701a-4531-abb5-91467eacc595	sale	385.00	\N	\N	\N	2026-02-07 16:52:08.542826+00	\N
-dde7e4a2-9b04-4145-824e-84ff0d2ca246	609eedda-701a-4531-abb5-91467eacc595	sale	700.00	\N	\N	\N	2026-02-07 16:55:31.453133+00	\N
-894e7f55-5ba3-41da-8c6a-7025199aa9ca	609eedda-701a-4531-abb5-91467eacc595	sale	7.00	\N	\N	\N	2026-02-07 16:57:59.61598+00	\N
-668fb2c6-cf8c-4b27-b5c2-c7a34be44a18	609eedda-701a-4531-abb5-91467eacc595	sale	7.00	\N	\N	\N	2026-02-07 16:58:17.525194+00	\N
-14228221-bee0-4b31-b8b4-73eb2312072e	609eedda-701a-4531-abb5-91467eacc595	sale	350.00	\N	\N	\N	2026-02-07 17:06:01.758293+00	\N
-d4e5d205-7e8d-4a88-b42e-5e0382077ad9	609eedda-701a-4531-abb5-91467eacc595	sale	7.00	\N	\N	\N	2026-02-07 17:09:35.129109+00	\N
-30bf98d5-11db-4cf1-bdd0-54a30f15612f	609eedda-701a-4531-abb5-91467eacc595	sale	350.00	\N	\N	\N	2026-02-07 17:11:12.810263+00	\N
-8c918676-b2f7-4127-9799-9cfe2fa62fd2	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-07 17:53:43.235896+00	\N
-521a1b8a-845e-4363-a3b0-348ec660fc0a	609eedda-701a-4531-abb5-91467eacc595	sale	42.00	\N	\N	\N	2026-02-07 17:54:44.926386+00	\N
-4af1999b-0961-4258-8330-44635b2d0b60	609eedda-701a-4531-abb5-91467eacc595	sale	1400.00	\N	\N	\N	2026-02-07 21:13:33.603046+00	\N
-3325b520-5299-4238-98b7-573f4c80b2e0	609eedda-701a-4531-abb5-91467eacc595	sale	35.00	\N	\N	\N	2026-02-07 21:18:42.656092+00	\N
-e097cf01-e343-420e-a315-41a910c4dfad	609eedda-701a-4531-abb5-91467eacc595	sale	21.00	\N	\N	\N	2026-02-07 21:23:31.463665+00	\N
-1941d12e-e2cd-4f49-a5b6-7e5243712275	609eedda-701a-4531-abb5-91467eacc595	sale	35.00	\N	\N	\N	2026-02-07 21:26:28.836201+00	\N
-e9cf5315-8eb9-43b8-baca-3df26b991ccb	609eedda-701a-4531-abb5-91467eacc595	sale	21.00	\N	\N	\N	2026-02-07 22:00:16.807736+00	\N
-22dca9c9-b7c1-4739-b160-1f6baf9990e6	609eedda-701a-4531-abb5-91467eacc595	sale	28.00	\N	\N	\N	2026-02-08 11:26:52.992775+00	\N
-7f4aac5c-1879-45c1-920e-ec1c4a41427e	609eedda-701a-4531-abb5-91467eacc595	sale	15.00	\N	\N	\N	2026-02-08 16:24:37.558158+00	\N
-647859d1-ab4f-42d9-92ba-49d965304a27	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-08 16:46:31.133491+00	\N
-4ca676d9-3f99-4583-9261-d7aa17f982e9	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-08 19:26:37.773692+00	\N
-dc352780-4fce-4bbc-90e7-5f3eb4978019	609eedda-701a-4531-abb5-91467eacc595	sale	14.00	\N	\N	\N	2026-02-09 20:25:39.354709+00	\N
-42e5a111-3054-428c-98b8-0b1efa9de40f	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-10 12:48:01.763736+00	\N
-5d5bd60b-fb9b-4ed3-86fb-8bcf36a989ba	609eedda-701a-4531-abb5-91467eacc595	sale	5.00	\N	\N	\N	2026-02-10 15:43:16.757607+00	\N
-2816a774-2051-4861-8113-e230a126b397	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-10 15:44:38.091412+00	\N
-8211f75a-7af9-49c0-b174-44524c677168	609eedda-701a-4531-abb5-91467eacc595	sale	680.00	\N	\N	\N	2026-02-10 15:58:08.454527+00	\N
-4564566f-6679-4286-98c2-8d2aa38f4bfc	8fb616cd-cbf6-4587-9eed-36cba02101b4	sale	0.00	\N	\N	\N	2026-03-24 10:56:08.703+00	\N
-246f19d8-fe50-4724-a103-86a23ab8b082	8fb616cd-cbf6-4587-9eed-36cba02101b4	sale	0.00	\N	\N	\N	2026-03-24 11:28:37.026919+00	\N
-2105487b-f540-4c57-b1b0-9cb23aacaa11	8fb616cd-cbf6-4587-9eed-36cba02101b4	expense	75.00	\N	مصروف	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 18:23:44.409309+00	\N
-0510177b-8b00-4608-9acd-b07e73f34241	8fb616cd-cbf6-4587-9eed-36cba02101b4	sale	340.00	fa635f6f-c835-40ac-a8e0-d17436acc603	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 19:18:12.618104+00	\N
-b566d987-1496-439e-84d6-a654be26ce52	8fb616cd-cbf6-4587-9eed-36cba02101b4	expense	25.00	\N	مصروف شاي وقهوة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 21:32:56.322235+00	\N
-cb6280da-1016-44c6-ad53-f9e3d34f866d	ba06a6e8-ef0b-405f-99ca-3870cef7ab96	expense	20.00	\N	مصروف	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 21:34:40.213108+00	\N
-142e639b-369c-4ff1-ba71-4eb4045ef602	55cbdec7-b42c-4183-b251-53aaa8f07c1b	sale	215.00	beea6ccd-679c-413a-8a04-5b820ff8df8f	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:02:06.343297+00	\N
-a031b8fd-00c2-4ed8-9088-1ef890933923	55cbdec7-b42c-4183-b251-53aaa8f07c1b	sale	215.00	a51ab5f1-a2ff-4913-8630-f872e1a6ca79	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:08:53.994403+00	\N
-6cd6cf86-260c-4eb5-8b86-b0e9cc19d97f	55cbdec7-b42c-4183-b251-53aaa8f07c1b	expense	30.00	\N	عيش	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:09:13.29495+00	\N
-501a87f8-cae0-4bc3-ad8e-0c55154c8335	55cbdec7-b42c-4183-b251-53aaa8f07c1b	return_	215.00	a51ab5f1-a2ff-4913-8630-f872e1a6ca79	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:09:25.975637+00	\N
-3065be2d-c6df-4f75-b1c2-8522feaa23ca	55cbdec7-b42c-4183-b251-53aaa8f07c1b	sale	60.00	8ffd2445-36b9-4860-b005-711c418cc856	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:11:11.184759+00	\N
-f7bb0cc2-5789-44e8-8025-87d6e380b61e	55cbdec7-b42c-4183-b251-53aaa8f07c1b	return_	60.00	8ffd2445-36b9-4860-b005-711c418cc856	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:11:24.303735+00	\N
-d675ae27-53b6-43c7-a63b-2bf3498ab60b	ff1dbe65-5402-4af3-a0c4-4b130ef8b11e	expense	10.00	\N	test	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 04:25:11.454619+00	\N
-ba0c10aa-1cd5-4ef9-a1ee-d5b2fa916e6e	1dc0d5f0-327a-4708-aff9-26c483ab313b	deposit	500.00	\N	مواصلات	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 05:29:48.274283+00	\N
-9a1b7c66-ff1e-4383-bb2e-ed834be6be8f	1dc0d5f0-327a-4708-aff9-26c483ab313b	sale	5250.00	de55ead7-27bd-4e29-ad9a-e7aef4b74978	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 05:30:34.229674+00	\N
-63970c64-7987-4053-9560-90b8c3c11a42	1dc0d5f0-327a-4708-aff9-26c483ab313b	deposit	350.00	\N	دفعة من شركة الاختبار	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 10:00:43.503152+00	\N
-ae9a6cc7-05e9-4c6f-b0f9-84bf7ab1e024	1dc0d5f0-327a-4708-aff9-26c483ab313b	sale	90.00	6dda74b4-cb34-4648-8f6e-44fb7a3672b5	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 10:41:03.717603+00	\N
-c058fa85-19c2-4ff6-82c4-e80784d4e7d7	3dcf287f-653a-4299-b80d-c840e1503e2b	sale	100.00	0dce5e50-b8c5-4941-a0f6-cf5a48fd046a	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-27 15:10:00.472241+00	\N
-6bf5cd59-49b8-4f5e-9116-2f97bf7303e0	3dcf287f-653a-4299-b80d-c840e1503e2b	expense	150.00	\N	إيجار شهر مارس	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-27 12:06:35.936893+00	\N
-ecf09251-185b-4fe6-854c-de55a0f260ed	3dcf287f-653a-4299-b80d-c840e1503e2b	deposit	-600.00	\N	دفعة من شركة النيل للتجارة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:01:55.803776+00	\N
-9d1acab4-58a7-408e-b4a1-41820237f565	3dcf287f-653a-4299-b80d-c840e1503e2b	deposit	100.00	\N	دفعة من شركة النيل للتجارة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:02:02.085509+00	\N
-a8ed6d06-04e0-4b59-a42a-9b06e65676ad	3dcf287f-653a-4299-b80d-c840e1503e2b	deposit	30.00	\N	عيش	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:02:23.484892+00	\N
-6024021a-b6d7-4a24-8502-97858928c199	3dcf287f-653a-4299-b80d-c840e1503e2b	sale	300.00	7189b418-dcf5-4925-ae01-eee514901aa4	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:02:49.494187+00	\N
-3c5aa4c7-2b63-4ec4-a4c1-45fae4c20c6a	4a7dd547-9642-4562-a0a8-1fa55de24162	sale	50.00	24d4ae60-0bf1-4056-a83c-a5faa958d10b	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 16:56:28.947849+00	\N
-3e5ff3ce-ee59-4b0b-982a-3423ab266a82	4a7dd547-9642-4562-a0a8-1fa55de24162	sale	250.00	75e919da-7d78-4dbe-ac0b-3ca8abb7407f	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:18:47.390297+00	\N
-6282a980-e92f-442f-b5e7-8057ff8a2a9f	4a7dd547-9642-4562-a0a8-1fa55de24162	sale	90.00	678a4d14-d028-4c24-a72f-0dbaa1bbb258	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:18:55.672741+00	\N
-fe76de03-c9d8-44ab-825e-a96391ab4f8f	4a7dd547-9642-4562-a0a8-1fa55de24162	deposit	25.00	\N	دفعة من شركة الاختبار	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:19:20.882728+00	\N
-fc5e3d3f-011d-462a-8c40-fee6af6920f1	4a7dd547-9642-4562-a0a8-1fa55de24162	deposit	550.00	\N	مواصلات	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:19:39.619664+00	\N
-34c2659b-d774-495e-8e92-bfdfffc8c693	4a7dd547-9642-4562-a0a8-1fa55de24162	expense	200.00	\N	تفويل فطوطة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:20:02.008717+00	\N
-e5696e65-bac1-4f81-a379-7b7c67f1392a	a4a070b3-e6f5-499f-9940-dcd41fcc2188	sale	50.00	deec8934-2282-4a63-bff3-44e6123420fb	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.40389+00	\N
+COPY public.drawer_transactions (id, shift_id, type, amount, ref_id, note, created_by, created_at, category_id, payment_method, wallet_id) FROM stdin;
+11ca6cd2-d9c0-42e1-a9e8-e80ccc08978c	609eedda-701a-4531-abb5-91467eacc595	sale	385.00	\N	\N	\N	2026-02-07 16:52:08.542826+00	\N	cash	\N
+dde7e4a2-9b04-4145-824e-84ff0d2ca246	609eedda-701a-4531-abb5-91467eacc595	sale	700.00	\N	\N	\N	2026-02-07 16:55:31.453133+00	\N	cash	\N
+894e7f55-5ba3-41da-8c6a-7025199aa9ca	609eedda-701a-4531-abb5-91467eacc595	sale	7.00	\N	\N	\N	2026-02-07 16:57:59.61598+00	\N	cash	\N
+668fb2c6-cf8c-4b27-b5c2-c7a34be44a18	609eedda-701a-4531-abb5-91467eacc595	sale	7.00	\N	\N	\N	2026-02-07 16:58:17.525194+00	\N	cash	\N
+14228221-bee0-4b31-b8b4-73eb2312072e	609eedda-701a-4531-abb5-91467eacc595	sale	350.00	\N	\N	\N	2026-02-07 17:06:01.758293+00	\N	cash	\N
+d4e5d205-7e8d-4a88-b42e-5e0382077ad9	609eedda-701a-4531-abb5-91467eacc595	sale	7.00	\N	\N	\N	2026-02-07 17:09:35.129109+00	\N	cash	\N
+30bf98d5-11db-4cf1-bdd0-54a30f15612f	609eedda-701a-4531-abb5-91467eacc595	sale	350.00	\N	\N	\N	2026-02-07 17:11:12.810263+00	\N	cash	\N
+8c918676-b2f7-4127-9799-9cfe2fa62fd2	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-07 17:53:43.235896+00	\N	cash	\N
+521a1b8a-845e-4363-a3b0-348ec660fc0a	609eedda-701a-4531-abb5-91467eacc595	sale	42.00	\N	\N	\N	2026-02-07 17:54:44.926386+00	\N	cash	\N
+4af1999b-0961-4258-8330-44635b2d0b60	609eedda-701a-4531-abb5-91467eacc595	sale	1400.00	\N	\N	\N	2026-02-07 21:13:33.603046+00	\N	cash	\N
+3325b520-5299-4238-98b7-573f4c80b2e0	609eedda-701a-4531-abb5-91467eacc595	sale	35.00	\N	\N	\N	2026-02-07 21:18:42.656092+00	\N	cash	\N
+e097cf01-e343-420e-a315-41a910c4dfad	609eedda-701a-4531-abb5-91467eacc595	sale	21.00	\N	\N	\N	2026-02-07 21:23:31.463665+00	\N	cash	\N
+1941d12e-e2cd-4f49-a5b6-7e5243712275	609eedda-701a-4531-abb5-91467eacc595	sale	35.00	\N	\N	\N	2026-02-07 21:26:28.836201+00	\N	cash	\N
+e9cf5315-8eb9-43b8-baca-3df26b991ccb	609eedda-701a-4531-abb5-91467eacc595	sale	21.00	\N	\N	\N	2026-02-07 22:00:16.807736+00	\N	cash	\N
+22dca9c9-b7c1-4739-b160-1f6baf9990e6	609eedda-701a-4531-abb5-91467eacc595	sale	28.00	\N	\N	\N	2026-02-08 11:26:52.992775+00	\N	cash	\N
+7f4aac5c-1879-45c1-920e-ec1c4a41427e	609eedda-701a-4531-abb5-91467eacc595	sale	15.00	\N	\N	\N	2026-02-08 16:24:37.558158+00	\N	cash	\N
+647859d1-ab4f-42d9-92ba-49d965304a27	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-08 16:46:31.133491+00	\N	cash	\N
+4ca676d9-3f99-4583-9261-d7aa17f982e9	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-08 19:26:37.773692+00	\N	cash	\N
+dc352780-4fce-4bbc-90e7-5f3eb4978019	609eedda-701a-4531-abb5-91467eacc595	sale	14.00	\N	\N	\N	2026-02-09 20:25:39.354709+00	\N	cash	\N
+42e5a111-3054-428c-98b8-0b1efa9de40f	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-10 12:48:01.763736+00	\N	cash	\N
+5d5bd60b-fb9b-4ed3-86fb-8bcf36a989ba	609eedda-701a-4531-abb5-91467eacc595	sale	5.00	\N	\N	\N	2026-02-10 15:43:16.757607+00	\N	cash	\N
+2816a774-2051-4861-8113-e230a126b397	609eedda-701a-4531-abb5-91467eacc595	sale	0.00	\N	\N	\N	2026-02-10 15:44:38.091412+00	\N	cash	\N
+8211f75a-7af9-49c0-b174-44524c677168	609eedda-701a-4531-abb5-91467eacc595	sale	680.00	\N	\N	\N	2026-02-10 15:58:08.454527+00	\N	cash	\N
+4564566f-6679-4286-98c2-8d2aa38f4bfc	8fb616cd-cbf6-4587-9eed-36cba02101b4	sale	0.00	\N	\N	\N	2026-03-24 10:56:08.703+00	\N	cash	\N
+246f19d8-fe50-4724-a103-86a23ab8b082	8fb616cd-cbf6-4587-9eed-36cba02101b4	sale	0.00	\N	\N	\N	2026-03-24 11:28:37.026919+00	\N	cash	\N
+2105487b-f540-4c57-b1b0-9cb23aacaa11	8fb616cd-cbf6-4587-9eed-36cba02101b4	expense	75.00	\N	مصروف	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 18:23:44.409309+00	\N	cash	\N
+0510177b-8b00-4608-9acd-b07e73f34241	8fb616cd-cbf6-4587-9eed-36cba02101b4	sale	340.00	fa635f6f-c835-40ac-a8e0-d17436acc603	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 19:18:12.618104+00	\N	cash	\N
+b566d987-1496-439e-84d6-a654be26ce52	8fb616cd-cbf6-4587-9eed-36cba02101b4	expense	25.00	\N	مصروف شاي وقهوة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 21:32:56.322235+00	\N	cash	\N
+cb6280da-1016-44c6-ad53-f9e3d34f866d	ba06a6e8-ef0b-405f-99ca-3870cef7ab96	expense	20.00	\N	مصروف	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 21:34:40.213108+00	\N	cash	\N
+142e639b-369c-4ff1-ba71-4eb4045ef602	55cbdec7-b42c-4183-b251-53aaa8f07c1b	sale	215.00	beea6ccd-679c-413a-8a04-5b820ff8df8f	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:02:06.343297+00	\N	cash	\N
+a031b8fd-00c2-4ed8-9088-1ef890933923	55cbdec7-b42c-4183-b251-53aaa8f07c1b	sale	215.00	a51ab5f1-a2ff-4913-8630-f872e1a6ca79	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:08:53.994403+00	\N	cash	\N
+6cd6cf86-260c-4eb5-8b86-b0e9cc19d97f	55cbdec7-b42c-4183-b251-53aaa8f07c1b	expense	30.00	\N	عيش	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:09:13.29495+00	\N	cash	\N
+501a87f8-cae0-4bc3-ad8e-0c55154c8335	55cbdec7-b42c-4183-b251-53aaa8f07c1b	return_	215.00	a51ab5f1-a2ff-4913-8630-f872e1a6ca79	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:09:25.975637+00	\N	cash	\N
+3065be2d-c6df-4f75-b1c2-8522feaa23ca	55cbdec7-b42c-4183-b251-53aaa8f07c1b	sale	60.00	8ffd2445-36b9-4860-b005-711c418cc856	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:11:11.184759+00	\N	cash	\N
+f7bb0cc2-5789-44e8-8025-87d6e380b61e	55cbdec7-b42c-4183-b251-53aaa8f07c1b	return_	60.00	8ffd2445-36b9-4860-b005-711c418cc856	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-25 22:11:24.303735+00	\N	cash	\N
+d675ae27-53b6-43c7-a63b-2bf3498ab60b	ff1dbe65-5402-4af3-a0c4-4b130ef8b11e	expense	10.00	\N	test	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 04:25:11.454619+00	\N	cash	\N
+ba0c10aa-1cd5-4ef9-a1ee-d5b2fa916e6e	1dc0d5f0-327a-4708-aff9-26c483ab313b	deposit	500.00	\N	مواصلات	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 05:29:48.274283+00	\N	cash	\N
+9a1b7c66-ff1e-4383-bb2e-ed834be6be8f	1dc0d5f0-327a-4708-aff9-26c483ab313b	sale	5250.00	de55ead7-27bd-4e29-ad9a-e7aef4b74978	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 05:30:34.229674+00	\N	cash	\N
+63970c64-7987-4053-9560-90b8c3c11a42	1dc0d5f0-327a-4708-aff9-26c483ab313b	deposit	350.00	\N	دفعة من شركة الاختبار	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 10:00:43.503152+00	\N	cash	\N
+ae9a6cc7-05e9-4c6f-b0f9-84bf7ab1e024	1dc0d5f0-327a-4708-aff9-26c483ab313b	sale	90.00	6dda74b4-cb34-4648-8f6e-44fb7a3672b5	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-26 10:41:03.717603+00	\N	cash	\N
+c058fa85-19c2-4ff6-82c4-e80784d4e7d7	3dcf287f-653a-4299-b80d-c840e1503e2b	sale	100.00	0dce5e50-b8c5-4941-a0f6-cf5a48fd046a	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-27 15:10:00.472241+00	\N	cash	\N
+6bf5cd59-49b8-4f5e-9116-2f97bf7303e0	3dcf287f-653a-4299-b80d-c840e1503e2b	expense	150.00	\N	إيجار شهر مارس	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-27 12:06:35.936893+00	\N	cash	\N
+ecf09251-185b-4fe6-854c-de55a0f260ed	3dcf287f-653a-4299-b80d-c840e1503e2b	deposit	-600.00	\N	دفعة من شركة النيل للتجارة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:01:55.803776+00	\N	cash	\N
+9d1acab4-58a7-408e-b4a1-41820237f565	3dcf287f-653a-4299-b80d-c840e1503e2b	deposit	100.00	\N	دفعة من شركة النيل للتجارة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:02:02.085509+00	\N	cash	\N
+a8ed6d06-04e0-4b59-a42a-9b06e65676ad	3dcf287f-653a-4299-b80d-c840e1503e2b	deposit	30.00	\N	عيش	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:02:23.484892+00	\N	cash	\N
+6024021a-b6d7-4a24-8502-97858928c199	3dcf287f-653a-4299-b80d-c840e1503e2b	sale	300.00	7189b418-dcf5-4925-ae01-eee514901aa4	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-28 12:02:49.494187+00	\N	cash	\N
+3c5aa4c7-2b63-4ec4-a4c1-45fae4c20c6a	4a7dd547-9642-4562-a0a8-1fa55de24162	sale	50.00	24d4ae60-0bf1-4056-a83c-a5faa958d10b	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 16:56:28.947849+00	\N	cash	\N
+3e5ff3ce-ee59-4b0b-982a-3423ab266a82	4a7dd547-9642-4562-a0a8-1fa55de24162	sale	250.00	75e919da-7d78-4dbe-ac0b-3ca8abb7407f	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:18:47.390297+00	\N	cash	\N
+6282a980-e92f-442f-b5e7-8057ff8a2a9f	4a7dd547-9642-4562-a0a8-1fa55de24162	sale	90.00	678a4d14-d028-4c24-a72f-0dbaa1bbb258	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:18:55.672741+00	\N	cash	\N
+fe76de03-c9d8-44ab-825e-a96391ab4f8f	4a7dd547-9642-4562-a0a8-1fa55de24162	deposit	25.00	\N	دفعة من شركة الاختبار	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:19:20.882728+00	\N	cash	\N
+fc5e3d3f-011d-462a-8c40-fee6af6920f1	4a7dd547-9642-4562-a0a8-1fa55de24162	deposit	550.00	\N	مواصلات	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:19:39.619664+00	\N	cash	\N
+34c2659b-d774-495e-8e92-bfdfffc8c693	4a7dd547-9642-4562-a0a8-1fa55de24162	expense	200.00	\N	تفويل فطوطة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:20:02.008717+00	\N	cash	\N
+e5696e65-bac1-4f81-a379-7b7c67f1392a	a4a070b3-e6f5-499f-9940-dcd41fcc2188	sale	50.00	deec8934-2282-4a63-bff3-44e6123420fb	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.40389+00	\N	cash	\N
+14f68ae2-6c12-4767-97af-9e46cf762bb1	a4a070b3-e6f5-499f-9940-dcd41fcc2188	sale	250.00	199a9759-0bc7-467e-9689-5b55ed482852	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-31 11:42:55.471697+00	\N	cash	\N
 \.
 
 
@@ -1906,6 +1972,17 @@ COPY public.hr_shifts (id, name, start_time, end_time, description) FROM stdin;
 
 
 --
+-- Data for Name: payment_wallets; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payment_wallets (id, name, type, phone, balance, is_active, created_at) FROM stdin;
+292f39d3-443e-454e-acc8-013a94f7de41	نقدي	cash	\N	0.00	t	2026-03-31 20:34:48.627361+00
+7dfd5ac6-bf14-48d5-aef9-1217f7144a8f	فودافون كاش — الشركة	vodafone_cash	01XXXXXXXXX	0.00	t	2026-03-31 20:34:48.627361+00
+1f746ad2-3ce3-4c5b-a584-31a2d9be359f	إنستا باي — الشركة	instapay	01XXXXXXXXX	0.00	t	2026-03-31 20:34:48.627361+00
+\.
+
+
+--
 -- Data for Name: payroll_entries; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -1925,729 +2002,729 @@ COPY public.payroll_periods (id, month, year, status, created_by, created_at) FR
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.products (id, subcategory_id, name, barcode, unit, retail_price, wholesale_price, cost_price, company, size, type, material, image_url, is_active, created_at, updated_at, reorder_point, reorder_qty) FROM stdin;
-c5e11e14-9dd2-487d-9c2e-27b59ba3408f	d17128f8-94aa-54ce-87d8-4dc515f98bf8	test product to delete	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	f	2026-03-25 18:45:45.235033+00	2026-03-25 18:45:45.331357+00	0.000	0.000
-af31725d-fa0f-42df-88d4-9041e36ad994	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور 1 ونص بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:12:18.345365+00	2026-01-18 20:12:18.345365+00	0.000	0.000
-b9b32325-fda4-46a7-b4f4-6da187863e4a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور بولي*بولي  1/2 بوصة (عمر)	\N	عدد	50.00	45.00	40.00	\N	\N	\N	\N	\N	t	2026-01-19 18:59:35.718523+00	2026-02-23 16:13:45.144576+00	0.000	0.000
-f0cd51f3-5b93-45a9-bad8-c7f76cc2c726	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور بولي*بولي 3/4 بوصة (عمر)	\N	عدد	75.00	65.00	60.00	\N	\N	\N	\N	\N	t	2026-01-19 18:59:57.014037+00	2026-02-23 16:14:07.85577+00	0.000	0.000
-ca985298-d266-4483-8a13-ff73c90536dc	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور بولي*بولي 1 بوصة (عمر)	\N	عدد	90.00	80.00	72.00	\N	\N	\N	\N	\N	t	2026-01-19 19:02:29.385696+00	2026-02-23 16:14:27.497537+00	0.000	0.000
-d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور فالكون 1/2 بوصة	\N	عدد	90.00	85.00	70.00	\N	\N	\N	\N	\N	t	2026-01-20 14:10:40.162417+00	2026-02-23 16:20:02.378763+00	0.000	0.000
-ffa8d86a-6352-4d4c-a6f1-76622d09b032	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 2" جويل (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:36:06.982384+00	2026-02-24 11:34:09.274652+00	0.000	0.000
-da68d7f2-f8d7-44bb-85a3-d91ab5d02ffa	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 2" PG pluse (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:36:50.56777+00	2026-01-21 09:36:50.56777+00	0.000	0.000
-2ac3dc85-e7cf-4ff1-8aff-01e6d8fd54a1	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 2" مياه (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:37:50.742321+00	2026-01-21 09:37:50.742321+00	0.000	0.000
-ab4ba887-5c44-4a22-b567-670c0001b603	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية بوصة ونص (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:41:05.350297+00	2026-01-21 09:41:05.350297+00	0.000	0.000
-c19f42ec-ad6d-4161-9f38-a9c4cecb643b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 3/4 سالمكو (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:43:07.366133+00	2026-01-21 09:43:07.366133+00	0.000	0.000
-6d2e9857-cc51-4c79-aa4d-d7b9e4208678	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 3/4 ِAG	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:43:28.77324+00	2026-01-21 09:43:28.77324+00	0.000	0.000
-67ba969e-da10-4bbd-9900-606bf254045b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية PG نص بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:47:44.278206+00	2026-01-21 09:47:44.278206+00	0.000	0.000
-d14ac884-8431-46ba-adcb-5190dbaf9da0	d17128f8-94aa-54ce-87d8-4dc515f98bf8	تي نيكل نص بوصة	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:48:02.678005+00	2026-02-24 13:36:49.420851+00	0.000	0.000
-695705d9-9757-4f2a-be89-fe096ffd87c2	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 1/2 بوصة AG	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:48:44.598128+00	2026-01-21 09:48:44.598128+00	0.000	0.000
-9f86c75d-e220-45e8-95a2-405be7b53488	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 1 بوصة سالمكو (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 10:53:10.372659+00	2026-01-21 10:53:10.372659+00	0.000	0.000
-b7d3a006-f7a1-40d6-b3d8-20192e7f93bf	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور سالمكو محمل 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 15:36:22.061533+00	2026-01-21 15:36:22.061533+00	0.000	0.000
-b41ae764-b97b-4662-b865-b572790ec127	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور عادي محمل 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 15:36:46.589467+00	2026-01-21 15:36:46.589467+00	0.000	0.000
-55cc2075-bfe4-4613-91de-05535390b28a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بلاستيك	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 16:36:03.564033+00	2026-02-21 21:45:13.511767+00	0.000	0.000
-85114c68-11e1-442b-a79d-0279c2bb798b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية سكاي 3/4	\N	عدد	220.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 16:37:17.691787+00	2026-02-23 19:46:18.799931+00	0.000	0.000
-056ef88b-f53d-4806-9e24-f9f931f54dcf	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية 3/4" PG (يوسف)	\N	عدد	280.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 17:57:09.849733+00	2026-02-23 19:46:14.704199+00	0.000	0.000
-0eb4a2fa-6d82-4005-bbb7-c958edcf281a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية نحاس بلية1 بوصة (يوسف)	\N	عدد	380.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 18:00:15.242202+00	2026-02-21 21:44:58.682402+00	0.000	0.000
-92a238d8-f2da-4c28-9127-fbc8cece0c0b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بوز بلاستيك AG (يوسف)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 18:20:28.450377+00	2026-02-21 15:14:45.910048+00	0.000	0.000
-53a3e08e-728d-4291-b2f7-9cc69a69cbac	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية ايطالي نص بوصة (يوسف)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 19:56:06.791359+00	2026-02-21 15:16:06.543079+00	0.000	0.000
-982d6fa2-8c29-4580-863a-215600003c9b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية نحاس AG نص بوصة (يوسف)	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 10:21:43.6071+00	2026-02-21 15:15:10.630101+00	0.000	0.000
-bca0c8ae-6b62-4ad0-a150-47fbd9955eab	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية كوبشة شيلد (عمار)	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:33:28.660709+00	2026-02-23 19:47:15.577099+00	0.000	0.000
-4008a90d-eda0-4bc9-b7d9-0401c419b3e1	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية كوبشة شجرة	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:34:25.603146+00	2026-02-23 19:47:19.616332+00	0.000	0.000
-bd473534-32ba-4522-912d-ab3c9f59ac24	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية غسالة تركي OM	\N	عدد	190.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:34:47.580728+00	2026-02-23 19:48:02.91339+00	0.000	0.000
-27b32f29-2ac8-445e-aaf4-531e4cabd48c	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية 3/4 بزبوز بلاستيك	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 13:07:55.312027+00	2026-02-23 19:49:11.168989+00	0.000	0.000
-811c48aa-84b6-4bed-9771-3e6dd162e9a6	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية استانلس فايف ستار	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000
-4b596a39-71ad-4be0-adcb-82637141438e	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية استانلس تورو	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000
-fd927c9a-2843-4740-b97e-c92f51424765	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية فايف ستار اسود	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000
-b09598b6-4537-4e39-b28b-d50cb6d8d19a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس سما	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000
-bf75d681-d9d1-4af8-871f-2ed687b63fd1	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية كعب نحاس	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000
-4c7f2b6e-8a67-489f-ad91-257ba78a7f51	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاويه اوزو	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-02-21 21:46:47.802043+00	0.000	0.000
-ec991740-f53e-42ea-9e48-6af7a7696248	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس فايف ستار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000
-5b18456a-9aee-431f-8344-81bda7d32061	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية مكة	\N	عدد	130.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:33.033144+00	2026-01-29 12:50:33.033144+00	0.000	0.000
-ed7dc576-4868-491e-847f-08379201a129	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور 3/4 BG	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 13:33:59.109432+00	2026-01-30 13:33:59.109432+00	0.000	0.000
-06030f57-05d3-4624-ab21-4f2dbd36628c	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بلاستيك تركي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 09:40:16.889555+00	2026-02-10 09:40:16.889555+00	0.000	0.000
-92d27d2a-5f22-47c2-a167-4b6fc0908e3e	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بلية 1/2 فيدمار	\N	قطعة	150.00	135.00	125.00	\N	\N	\N	\N	\N	t	2026-03-15 16:46:04.748045+00	2026-03-15 16:46:04.748045+00	0.000	0.000
-6c1a7601-4298-4f3f-be83-c3e4abdedaf4	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية	\N	قطعة	60.00	35.00	31.00	\N	\N	\N	\N	\N	t	2026-03-15 17:12:44.252251+00	2026-03-15 17:12:44.252251+00	0.000	0.000
-9d19a1d3-c280-4944-879b-0db02b1ebfc9	7f15ec9b-720f-580d-ad54-61fcb04a20d9	وش نيكل خفيف (عمر)	\N	عدد	20.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:55:34.840636+00	2026-02-23 19:51:36.048033+00	0.000	0.000
-244e72f6-2f15-49f4-8526-3b485ebb345b	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة فيدمار سوداء (الكوك)	\N	عدد	280.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:22:00.846063+00	2026-02-21 15:05:32.004398+00	0.000	0.000
-7652a593-90d8-4ba8-9bf0-d1f452915da4	7f15ec9b-720f-580d-ad54-61fcb04a20d9	ماسورة دش دفن مدورة (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:24:50.477843+00	2026-02-23 19:52:11.728847+00	0.000	0.000
-13ab7f8d-4d5c-495d-9665-b12b51ba8097	7f15ec9b-720f-580d-ad54-61fcb04a20d9	ماسورة دش دفن عكاز (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:27:22.798+00	2026-02-24 13:32:50.124984+00	0.000	0.000
-b3634d52-7df0-4e6c-89a9-2887f761f7aa	7f15ec9b-720f-580d-ad54-61fcb04a20d9	ماسورة دش دفن مربعة طويلة (الكوك)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:28:21.375167+00	2026-02-23 19:52:28.863685+00	0.000	0.000
-ae78cb21-9bf8-441a-a101-6be57eb4f2c0	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة لومي (يوسف)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:52:34.272681+00	0.000	0.000
-8cf7eef1-0a73-491c-b6cc-8222f3c45595	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش بلاستيك	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:53:02.464566+00	0.000	0.000
-bf47a971-4a38-4adf-84b7-0f838da38a57	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش ساليمكو	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:53:22.305053+00	0.000	0.000
-65907699-7b64-4dd9-9ea8-d9f8cb23c6f4	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة شاور ست	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-01-29 12:42:36.459591+00	0.000	0.000
-3e6b7157-4754-456c-a3ef-63d087e40dd3	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش هاند شاور	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-01-29 12:42:36.459591+00	0.000	0.000
-d1aa753f-65da-40f1-8548-eed1df9fac72	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش طيبة بلاستيك	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-24 13:33:27.884694+00	0.000	0.000
-0a078193-e0d3-4669-b71b-5a4fdda5f8f9	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش طيبة سرعات	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:53:52.30356+00	0.000	0.000
-d268cf2c-4306-4069-92de-d1879e230952	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محول سماعة صامولة	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:05.665427+00	0.000	0.000
-3a6f01a4-e9a4-4032-8b64-35410b5a8d5e	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محول سماعة بدون صاموصة	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:11.77727+00	0.000	0.000
-ff053f4f-7e5e-44a6-a452-893663ae65be	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة فايدمار سوداء	\N	عدد	280.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:42.39868+00	0.000	0.000
-d75fcff2-ef64-48b3-9cd8-e06d40e3a399	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة فيدمار بيضاء	\N	عدد	250.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:26.832+00	0.000	0.000
-17ef1e9c-6898-494a-8e97-ecf2af3f72fb	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دوش 1مم 20 * 20 استانلس رانك محملة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-23 19:54:57.02382+00	0.000	0.000
-871b0c43-957e-4eb5-b5f0-4609014c1885	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش مدورة كبيرة بلاستيك	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:30:55.406705+00	0.000	0.000
-a4d3df08-ac1d-4f42-82f3-da2fdbeb1958	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 15 * 15 بلاستيك	\N	عدد	100.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:32:28.835548+00	0.000	0.000
-c06966da-9cdb-4ed6-9296-177f3a63b307	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دوش 1" 20 * 20 استانلس روما محملة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-7838761b-9eb9-46bb-a99e-c09e677377a9	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 10 * 10 استلس لافينا	\N	عدد	90.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:33:59.227101+00	0.000	0.000
-7e625f21-6107-40ed-a03a-280e64655065	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 10 * 10 سنبرس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-432e6e7e-c5ea-4639-a2ca-b3cac3b07617	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش استانلس 10 * 10 جولدن ارو	\N	عدد	90.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:34:44.651586+00	0.000	0.000
-1a73646e-94d9-4857-92dc-496a90475520	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 20*20 سان ارساني (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-813e8a9d-af7f-496c-80da-0eab496e15df	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 15 * 15 ارساني	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-a59c2e11-fed2-4972-a7e5-bc34fd5266fd	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 10 * 10 ترنتي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-ba07f41a-a9f8-4e30-bb91-be5cfa125019	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 15 * 15 ترنتي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-4005644b-b6d1-45f8-8af9-7929eca4e075	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دوش 15 * 15 جولدن ارو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-ff6f769c-0bfb-49fc-86cf-e73805d51892	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 20 * 20 بلاستيك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000
-f0b0cc99-32e6-4b1a-8493-25be82e03e31	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طبة حوض نيكل(أنس)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 15:41:13.227521+00	2026-02-24 13:35:37.14787+00	0.000	0.000
-edf6547d-ee07-419d-a822-18de5c4ac63d	7f15ec9b-720f-580d-ad54-61fcb04a20d9	بوش نيكل 3/4*1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:57:47.40477+00	2026-02-01 16:57:47.40477+00	0.000	0.000
-83759832-7ee5-43fc-8828-695b2d8c7c3e	7f15ec9b-720f-580d-ad54-61fcb04a20d9	صامولة سيخ شطاف	\N	عدد	10.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:03:52.832692+00	2026-02-24 13:35:44.412006+00	0.000	0.000
-3892616c-8ad0-47d2-aebc-ba3c30cefb39	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محول سماعه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:41:52.557812+00	2026-02-01 17:41:52.557812+00	0.000	0.000
-cd3b2528-421e-4761-b84e-90651f4cfd3f	7f15ec9b-720f-580d-ad54-61fcb04a20d9	صبانه استالس	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:23:21.840221+00	2026-02-24 13:36:31.595819+00	0.000	0.000
-309e1a4a-3b5b-4aba-a3f0-375f8bb26b69	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 0.5 مللي فيدمار ك	\N	قطعة	750.00	520.00	465.00	\N	\N	\N	\N	\N	t	2026-03-15 16:37:15.629092+00	2026-03-15 16:48:26.281471+00	0.000	0.000
-f9256353-ac61-4e15-8dff-4cad2591bda2	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 0.5 فيدمار ص	\N	قطعة	480.00	380.00	285.00	\N	صغير	\N	\N	\N	t	2026-03-15 16:40:15.885174+00	2026-03-15 16:40:15.885174+00	0.000	0.000
-35f48cd9-aa95-45dc-91f8-239baa9e8572	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 1 ملي فيدمار ص	\N	قطعة	850.00	750.00	645.00	\N	\N	\N	\N	\N	t	2026-03-15 16:42:33.251321+00	2026-03-15 16:44:07.146783+00	0.000	0.000
-ff573b1e-dc23-4f5c-b48b-ca3aa2ae1a1a	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 5 زرار فيدمار	\N	قطعة	5500.00	4850.00	3750.00	\N	\N	\N	\N	\N	t	2026-03-15 16:47:55.014009+00	2026-03-15 16:47:55.014009+00	0.000	0.000
-7ff32213-f0de-403c-a2b4-df7c66a07a1f	7f15ec9b-720f-580d-ad54-61fcb04a20d9	جلبة تطويل استالس	\N	قطعة	45.00	26.00	21.00	\N	\N	\N	\N	\N	t	2026-03-15 17:00:35.852613+00	2026-03-15 17:00:35.852613+00	0.000	0.000
-9eff5877-e547-41bf-980d-10c679112e9c	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة لوكس تكات	\N	قطعة	150.00	95.00	80.00	\N	\N	\N	\N	\N	t	2026-03-15 17:15:33.643842+00	2026-03-15 17:15:33.643842+00	0.000	0.000
-1d1a007d-0b0d-40fe-9be0-7116cf80a675	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة عادية	\N	قطعة	130.00	85.00	70.00	\N	\N	\N	\N	\N	t	2026-03-15 17:17:02.331845+00	2026-03-15 17:17:02.331845+00	0.000	0.000
-128ffb7a-b57c-424e-bd25-b6e16dce002d	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة بلاستيك شفاف (عمار)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:14:12.808976+00	2026-02-21 14:58:56.295044+00	0.000	0.000
-9599e8f6-0e41-4ba6-af39-945ab7b97b91	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة جاجوار (ادهم)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:25:15.651997+00	2026-02-21 14:55:28.606925+00	0.000	0.000
-4e58a261-a2db-4aa2-8a1b-5a4a38ebfed2	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة وردة (ادهم)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:26:03.635992+00	2026-02-21 14:55:40.213622+00	0.000	0.000
-4223c273-9145-42c8-8bb6-e2faf2b7a9b4	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة بلاستيك (ادهم)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:26:48.852523+00	2026-02-21 15:00:07.253837+00	0.000	0.000
-c0897fde-d9e6-4626-b027-149b7ae5322e	903c8f75-9786-51d1-956e-f481e1dbf84f	يد هاند ميكسر عريضة محملة جداً (عمار)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:39:46.244078+00	2026-02-21 15:01:49.492589+00	0.000	0.000
-b1690bbc-ba39-4da5-85ea-7e75005ded9b	903c8f75-9786-51d1-956e-f481e1dbf84f	يد هاند ميكسر عريضة محملة (عمار)	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:41:45.683618+00	2026-02-21 15:01:54.47049+00	0.000	0.000
-d387eae9-d064-43d1-ad43-461553cf6a05	eac36a6f-f7ef-5e8e-9ca9-443292af7e18	نبل نيكل 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:43:22.452043+00	2026-01-20 13:43:22.452043+00	0.000	0.000
-958976e5-78b1-48dd-b90c-639ecac8608e	eac36a6f-f7ef-5e8e-9ca9-443292af7e18	نبل نيكل نص بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:45:52.790075+00	2026-01-21 09:45:52.790075+00	0.000	0.000
-84d19c17-a7a2-4523-9693-5c45c88a5e48	e2dfb819-1be4-50bd-8612-e411aaa719d5	لاكور بولي 3/4 بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:14:53.186684+00	2026-01-20 14:14:53.186684+00	0.000	0.000
-6a92aee9-a9f4-490d-bf5f-37ca073ba4f8	e2dfb819-1be4-50bd-8612-e411aaa719d5	لاكور بولي 1/2 بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:15:16.691315+00	2026-01-20 14:15:16.691315+00	0.000	0.000
-70afd455-12ab-4f85-9e1a-5868e01b1511	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	جلبة نيكل 2/1 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:02:53.393661+00	2026-01-20 15:02:53.393661+00	0.000	0.000
-6972c97c-fdb0-4a9b-b563-06ec0ac883c3	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	طبة نيكل 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:39:22.422214+00	2026-01-21 09:39:22.422214+00	0.000	0.000
-1fe12fb1-b560-4cda-b0cc-db6f35c24079	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	كوع عادة نص بوصة محمل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:42:21.574265+00	2026-01-21 09:42:21.574265+00	0.000	0.000
-340dd769-792d-4917-9d5e-5d73c4eb605d	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	افيز لاتش 2" (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:44:15.445975+00	2026-01-21 09:44:15.445975+00	0.000	0.000
-c9baaa25-10f2-481b-aa74-81d2c5a83f70	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	افيز لاتش نص بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:44:35.814227+00	2026-01-21 09:44:35.814227+00	0.000	0.000
-d29b5399-d05a-441e-907e-664b9caaded4	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	كعب خلاط استالنس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:46:58.581873+00	2026-02-23 16:46:08.349315+00	0.000	0.000
-980318ab-6084-4cf4-9ee7-b095ffcf96e6	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	جلبة سوستة طويلة	\N	قطعة	70.00	45.00	35.00	\N	\N	\N	\N	\N	t	2026-03-15 17:21:28.131328+00	2026-03-15 17:21:28.131328+00	0.000	0.000
-111bc6b3-d484-49b9-adab-2e9790badcde	de8ac890-fee4-5705-8bd1-25c72f48474c	كيس مسامير قلب خشن (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-20 16:41:50.943661+00	0.000	0.000
-d739fea9-b75f-4059-901f-eec4c0483b53	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر تكات كبير (عمار)	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:27:53.619265+00	2026-02-25 12:50:19.524203+00	0.000	0.000
-f3a41c82-cd3e-4ac8-a3cf-49c9a046410c	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بكعب صغير (عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:31:49.419637+00	2026-02-25 12:50:30.693523+00	0.000	0.000
-2eed92b4-8064-48ee-9f2d-7c302bbdb2aa	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بدون كعب صغير (عمار)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:32:28.500164+00	2026-02-25 12:50:38.166004+00	0.000	0.000
-b1a685ab-b142-4c3d-95c9-d9100774032d	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بدون كعب كبير (عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:33:17.684343+00	2026-02-25 12:50:44.563536+00	0.000	0.000
-0ae66dbf-16a0-48bf-b13e-eed2701f3cc6	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بكعب كبير (عمار)	\N	عدد	70.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:37:43.363781+00	2026-02-25 12:50:59.302635+00	0.000	0.000
-02108d69-33a5-41c9-82f6-6601fc7c7e56	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر تكات صغير (عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:38:44.947628+00	2026-02-25 12:51:18.99807+00	0.000	0.000
-e55b3b91-07db-49dd-a8c0-10d76d164e42	de8ac890-fee4-5705-8bd1-25c72f48474c	نبل نيكل 3/4 بوصة (عمار)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:44:02.371266+00	2026-02-25 12:51:28.836553+00	0.000	0.000
-2a2a52bb-b8d8-4af4-93d6-41ed8267a589	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 1/2	\N	عدد	40.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:44:10.223261+00	2026-02-25 12:47:47.14025+00	0.000	0.000
-66a706c3-065f-4965-b6f5-a416003ca375	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب جولد صغير	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:44:29.582588+00	2026-02-25 12:47:57.925671+00	0.000	0.000
-1e06fee4-89c2-4465-bc78-5b71826b797e	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 3.5 ايطالي	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:45:02.640757+00	2026-02-25 12:48:03.493108+00	0.000	0.000
-78539233-0e35-4584-8a63-835c6f128067	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 3 لينيا	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:45:48.201209+00	2026-02-25 12:48:17.700677+00	0.000	0.000
-e2623548-7fd4-4a00-99a6-d772fbc76efa	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 1/2	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:48:17.733307+00	2026-02-25 12:48:31.396701+00	0.000	0.000
-708b57dc-834f-466c-8df4-62b50eb8affb	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 3/4 صغير	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:48:39.412528+00	2026-02-25 12:48:49.318275+00	0.000	0.000
-c1186f95-835b-4480-96a0-8a0b3edfd1d6	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 3/4 كبير مربع	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:49:13.489254+00	2026-01-26 22:49:13.489254+00	0.000	0.000
-a710b7fe-897e-43da-808a-c193b7e5573e	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:49:33.00445+00	2026-01-26 22:49:33.00445+00	0.000	0.000
-1ab3227c-7697-46a5-8d66-861e81721181	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن كبير 3/4	\N	عدد	100.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:49:53.950398+00	2026-02-25 12:49:11.444792+00	0.000	0.000
-307e8ebe-dc59-4130-bdc0-363ea0d4caea	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب جولد كبير	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:50:48.984631+00	2026-02-25 12:49:17.124681+00	0.000	0.000
-446e88dc-63ad-49b3-9018-6042e55df88e	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل نحاس	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:52:55.978731+00	2026-02-25 12:49:25.734054+00	0.000	0.000
-76974cd1-2978-4467-ae5a-b558aa71c242	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل استانلس	\N	عدد	15.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:52:55.978731+00	2026-02-25 12:49:37.380574+00	0.000	0.000
-e6b6fddb-3d45-4e26-87b1-a5d13cd14132	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل استانلس 5 سم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:52:55.978731+00	2026-01-29 12:52:55.978731+00	0.000	0.000
-40cdebca-7a06-49c2-a5fa-850250936c54	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل نحاس (1)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:53:16.867499+00	2026-01-29 12:53:16.867499+00	0.000	0.000
-72d5081a-5a3c-42f1-af96-68799e6498d8	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل ماتور	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:53:16.867499+00	2026-01-29 12:53:16.867499+00	0.000	0.000
-e178893c-75cf-4e65-a118-70dd4ab0e610	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 3.5 عادي	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 15:14:21.377007+00	2026-02-25 12:51:49.25243+00	0.000	0.000
-db85a468-811d-49b2-8f84-89c4f1aaa3d5	f170e76b-4135-5781-b898-91e1259af14f	سوستة 60 محملة فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:29:02.765329+00	2026-01-22 15:29:02.765329+00	0.000	0.000
-24717bd9-9cb5-47b1-9e14-4780dd676eb3	f170e76b-4135-5781-b898-91e1259af14f	سوستة 60 محملة روتانا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:30:33.245796+00	2026-01-22 15:30:33.245796+00	0.000	0.000
-4b6005cc-aac8-4964-8031-d08ff8f50372	f170e76b-4135-5781-b898-91e1259af14f	سوستة 50 محملة روتانا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:33:15.214038+00	2026-01-22 15:33:15.214038+00	0.000	0.000
-cf47fda2-2f58-48c3-aa6e-e33743683878	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة محملة 60 فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:35:12.396915+00	2026-01-22 15:35:12.396915+00	0.000	0.000
-68051f41-2be1-42c1-bed7-53af6544d15b	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة حراري متر ونص فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:38:52.731585+00	2026-01-29 12:38:52.731585+00	0.000	0.000
-e34c6775-3e66-462d-80db-5bb4fff9601a	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة حراري 2 متر فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:38:52.731585+00	2026-01-29 12:38:52.731585+00	0.000	0.000
-1a29b242-fcb5-49a2-95fd-a12c0de7c030	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة الرحمة (الكوك)	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:38:52.731585+00	2026-02-21 14:35:52.182506+00	0.000	0.000
-879040b7-642e-443d-a467-cb4a3cbc5bc3	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة ستار محملة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000
-ae005153-de66-49ed-b132-23434ecacf5c	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة ستار خفيفة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000
-0fd12267-532b-4474-b66e-a1ffa378a6c9	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة جروهي (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000
-8efe2eb5-bd06-48bb-b1ae-b843129e85eb	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 60 سم (يوسف)	\N	عدد	40.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-02-21 14:35:41.541678+00	0.000	0.000
-72635b19-9fcc-4fd6-9ada-b9cf33bb50a0	f170e76b-4135-5781-b898-91e1259af14f	سوستة قنطرة الوان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000
-3d23ca07-4628-4207-a0a3-e34c38daf932	f170e76b-4135-5781-b898-91e1259af14f	سوستة ناشفة 60سم (انس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:49:36.400484+00	2026-01-30 14:49:36.400484+00	0.000	0.000
-19a8cf3f-9008-41b9-8383-3a361d6c6f59	f170e76b-4135-5781-b898-91e1259af14f	سوستة متر عادية (انس)	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:49:58.992836+00	2026-02-21 14:31:42.695296+00	0.000	0.000
-03c117ec-5a52-40c6-907f-ece60dddfe68	f170e76b-4135-5781-b898-91e1259af14f	سوستة 70سم (انس)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:50:42.384657+00	2026-02-21 14:31:18.551665+00	0.000	0.000
-2e2fe069-9320-4585-b0eb-b079dcf40692	f170e76b-4135-5781-b898-91e1259af14f	سوستة 90سم (انس)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:50:58.704623+00	2026-02-21 14:30:55.649113+00	0.000	0.000
-a1651be8-8cf4-4662-b40f-2173c9bef33d	f170e76b-4135-5781-b898-91e1259af14f	سوستة 80سم (انس)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:51:11.568774+00	2026-02-21 14:30:49.673894+00	0.000	0.000
-5f551abc-5798-4f04-8557-01afc73bb977	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 90سم (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:51:26.448063+00	2026-01-30 14:51:26.448063+00	0.000	0.000
-6e4b57c6-a303-4249-9f3c-7075f1a14bce	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 80سم (الكوك)	\N	عدد	55.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:51:40.22396+00	2026-02-21 14:35:34.906947+00	0.000	0.000
-a3b2e66c-e781-4009-a566-0a5285a513ef	f170e76b-4135-5781-b898-91e1259af14f	سوستة 70سم (الكوك)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:52:05.521177+00	2026-02-21 14:30:43.752266+00	0.000	0.000
-5660d767-7d28-4b31-a146-9c7071134ce8	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 50سم (يوسف والكوك)	\N	عدد	40.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:52:33.084658+00	2026-02-21 14:34:03.064735+00	0.000	0.000
-04e83173-2a26-4e61-b3be-456de3b641f9	f170e76b-4135-5781-b898-91e1259af14f	سوستة 60سم (انس)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:53:05.184302+00	2026-02-21 14:30:36.759252+00	0.000	0.000
-858d8c6c-94bc-4b7b-9bf6-f5aaf4cc7aca	f170e76b-4135-5781-b898-91e1259af14f	سوستة 50سم (انس)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:53:31.375983+00	2026-02-21 14:30:31.736236+00	0.000	0.000
-311f37ca-8c7f-4b3c-a32a-4bd675dd929b	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 40سم (الكوك)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:53:56.656353+00	2026-02-21 14:33:39.367351+00	0.000	0.000
-99d7b5a5-446f-44a9-82fc-17d6745c25f6	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 3/8 (عمر وميدو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:55:14.544742+00	2026-01-30 14:55:14.544742+00	0.000	0.000
-3e463d34-e6d9-43cb-b0c8-a6c76be8290a	f170e76b-4135-5781-b898-91e1259af14f	سوستة 3/8 * 3/8 (عمر وميدو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:55:43.701823+00	2026-01-30 14:55:43.701823+00	0.000	0.000
-4f371ebc-a80b-413d-8224-7c7458e3fc6a	f170e76b-4135-5781-b898-91e1259af14f	سوستة 10سم (الكوك)	\N	عدد	20.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:56:22.223581+00	2026-02-21 14:30:08.421871+00	0.000	0.000
-a470a716-8bc7-4c3b-a4d2-ada3f0dafdd9	f170e76b-4135-5781-b898-91e1259af14f	سوستة 3/8 * 3/8 محملة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:56:46.094901+00	2026-01-30 14:56:46.094901+00	0.000	0.000
-d4f387cf-2b6a-4ca0-ba1c-099b594a5949	f170e76b-4135-5781-b898-91e1259af14f	سوستة 40سم (انس)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:57:01.999862+00	2026-02-21 14:29:54.517735+00	0.000	0.000
-357dad92-ae44-40df-98d6-135586d4f7c9	f170e76b-4135-5781-b898-91e1259af14f	سوستة 30سم (انس)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:57:11.11977+00	2026-01-30 14:57:11.11977+00	0.000	0.000
-d159b603-06ca-4d80-b251-120ca04bd0ee	f170e76b-4135-5781-b898-91e1259af14f	سوستة 20سم (انس)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:57:23.792768+00	2026-01-30 14:57:23.792768+00	0.000	0.000
-aabb6a08-a5c6-4a2c-b7dd-66ec1e019393	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة ايطالي متر ونص	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:28:55.910952+00	2026-02-10 13:28:55.910952+00	0.000	0.000
-88420337-987a-48a0-a9db-fb0769395f8b	f170e76b-4135-5781-b898-91e1259af14f	سوستة سخان 50 سم	\N	قطعة	35.00	14.00	10.00	\N	\N	\N	\N	\N	t	2026-03-15 17:27:24.635008+00	2026-03-15 17:27:24.635008+00	0.000	0.000
-e529e2cf-83ac-4047-a94a-d0089030b1a4	f170e76b-4135-5781-b898-91e1259af14f	سوستة سخان 30 سم	\N	قطعة	35.00	14.00	10.00	\N	\N	\N	\N	\N	t	2026-03-15 17:28:34.179202+00	2026-03-15 17:28:34.179202+00	0.000	0.000
-85be72d3-5d91-4bc1-8bc8-73b53c083490	f170e76b-4135-5781-b898-91e1259af14f	سوستة 70 سم	\N	قطعة	50.00	19.00	15.00	\N	\N	\N	\N	\N	t	2026-03-15 17:30:24.066428+00	2026-03-15 17:31:09.569293+00	0.000	0.000
-200ed75f-470f-490a-9dbb-56886e13ecd0	f170e76b-4135-5781-b898-91e1259af14f	سوستة 80 سم	\N	قطعة	60.00	19.00	15.00	\N	\N	\N	\N	\N	t	2026-03-15 17:32:35.923758+00	2026-03-15 17:32:35.923758+00	0.000	0.000
-50d2a42b-4735-4fb8-924d-8d86cbdcd133	f170e76b-4135-5781-b898-91e1259af14f	سوستة 100 سم	\N	قطعة	70.00	19.00	15.00	\N	\N	\N	\N	\N	t	2026-03-15 17:33:50.515367+00	2026-03-15 17:33:50.515367+00	0.000	0.000
-a21a8080-f94d-4927-bf0b-2390e2500059	3990e818-7790-55bf-9cf9-6a7e45c45026	صامولة زنق نحاس 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:54:36.9018+00	2026-02-01 16:54:36.9018+00	0.000	0.000
-a7861f0d-2057-4965-97f3-26b745cbbc8b	3990e818-7790-55bf-9cf9-6a7e45c45026	صامولة زنق نحاس 1بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:55:54.273374+00	2026-02-01 16:55:54.273374+00	0.000	0.000
-7e3e1e0b-859d-4b02-abd3-95199402ec4c	0a625299-9939-57bf-9214-75c4fa91e993	ثمن لزق 900 بارد (الكوك)	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:44:45.685867+00	0.000	0.000
-eef8c1af-7cf9-4222-8baa-43bf0094c923	0a625299-9939-57bf-9214-75c4fa91e993	ثمن لزق 914 حار (الكوك)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:45:14.35981+00	0.000	0.000
-dbdb45fe-083e-42bb-b3c8-df69ec408f8d	0a625299-9939-57bf-9214-75c4fa91e993	ربع لزق 900 بارد (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:49:57.301562+00	0.000	0.000
-8edab49c-8f12-47b1-963d-8adea2c8ce02	0a625299-9939-57bf-9214-75c4fa91e993	ربع لزق 914 حار (عمار)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:50:08.486495+00	0.000	0.000
-13d75310-8904-479f-9803-f13687b3bb57	0a625299-9939-57bf-9214-75c4fa91e993	نص لزق 914 حار (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:00:25.803028+00	2026-01-18 19:00:25.803028+00	0.000	0.000
-cd65e985-404b-46db-819e-af8c5163937a	0a625299-9939-57bf-9214-75c4fa91e993	لزق مواسير عريض كبير (ادهم)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:01:31.323747+00	2026-02-21 14:51:14.965896+00	0.000	0.000
-09ac1895-0aa4-46d7-bf13-4f5d0a4d5c60	0a625299-9939-57bf-9214-75c4fa91e993	لزق مواسير عريض صغير (ادهم)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:01:59.450741+00	2026-02-21 14:51:57.510829+00	0.000	0.000
-0f662576-a144-4692-ad0b-937314746bdc	0a625299-9939-57bf-9214-75c4fa91e993	نص لزق 900 بارد (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:56:00.681382+00	2026-01-18 19:56:00.681382+00	0.000	0.000
-14089411-b7a2-4a4e-b9d0-f4efb8cc75c0	0a625299-9939-57bf-9214-75c4fa91e993	ربع لحام رمادي 917 (احمد حماية الله)	\N	عدد	170.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:56:53.225459+00	2026-02-21 14:53:42.359321+00	0.000	0.000
-27f3d0ff-1203-4b97-81e8-3be4720852e2	0a625299-9939-57bf-9214-75c4fa91e993	سليكون عضم ابيض (عمر)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:54:13.696396+00	2026-02-21 14:54:07.302153+00	0.000	0.000
-2063f0a4-2037-4436-937e-bb771626b4d0	0a625299-9939-57bf-9214-75c4fa91e993	سيليكون عضم رمادي (عمر)	\N	عدد	130.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:54:21.896209+00	2026-02-21 14:54:29.015895+00	0.000	0.000
-a57e4eab-cbcf-4bf5-b649-33206c8e5efd	0a625299-9939-57bf-9214-75c4fa91e993	ثمن لزق رمادي 917 (عمر)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 21:04:34.039761+00	2026-02-21 14:54:37.206924+00	0.000	0.000
-8d3a98f2-685a-417d-9600-8d0b51d74d97	0a625299-9939-57bf-9214-75c4fa91e993	لزق اوزو حار (عمار)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 20:27:41.543325+00	2026-02-21 14:54:46.484037+00	0.000	0.000
-a4997b77-66bf-4b4f-ae74-74762dd0712c	3eafb215-ee16-58c9-b9ec-7033aa951137	بكرة تفلون صغيرة (احمد حماية الله)	\N	عدد	5.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 18:53:32.586762+00	2026-01-18 18:53:32.586762+00	0.000	0.000
-5f8e2238-5325-4ff2-b77e-05d6398eb000	3eafb215-ee16-58c9-b9ec-7033aa951137	بكرة تفلون وسط (عمر)	\N	عدد	10.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:00:20.898163+00	2026-02-21 14:40:24.136019+00	0.000	0.000
-8b6e0771-fc64-4898-9a82-e408dec91136	3eafb215-ee16-58c9-b9ec-7033aa951137	بكرة تفلون بوش (عمر)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:00:29.83319+00	2026-02-21 21:37:08.0089+00	0.000	0.000
-2f3e5183-d945-419c-aba7-63cde2d18b66	3eafb215-ee16-58c9-b9ec-7033aa951137	سيليكون عادي (عمر)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:09:36.338117+00	2026-02-21 21:47:45.17857+00	0.000	0.000
-43b85fea-b00f-4300-b4e2-48505f28e8c5	3eafb215-ee16-58c9-b9ec-7033aa951137	تفلون شنطة ص	\N	قطعة	5.00	3.50	2.50	\N	\N	\N	\N	\N	t	2026-03-15 17:02:41.692515+00	2026-03-15 17:02:41.692515+00	0.000	0.000
-79901430-1032-480c-b559-9ddc203f643f	3eafb215-ee16-58c9-b9ec-7033aa951137	تفلون مضغوط (بوش)	\N	قطعة	30.00	14.00	10.50	\N	\N	\N	\N	\N	t	2026-03-15 17:04:59.620263+00	2026-03-15 17:04:59.620263+00	0.000	0.000
-c00d945c-163e-4291-9788-c7c48cde10b6	7b07a8a7-291e-504c-82ec-e7b14467ff8c	شكرتون كهرباء عادي	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 16:37:07.609221+00	2026-01-27 16:37:07.609221+00	0.000	0.000
-e738439d-440a-4f78-9dc6-83fe84f8670d	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20*20 محمل عادة فايف ستار (الكوك)	\N	عدد	195.00	175.00	163.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-23 16:35:00.9513+00	0.000	0.000
-767f8dde-1ac2-4a50-8afb-982ff0b34fa9	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15*15 محمل عادة فايف ستار بلاطة	\N	عدد	150.00	130.00	118.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-23 16:33:59.990167+00	0.000	0.000
-0aa136ff-9388-4688-bbb1-a3a344d9cde5	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 10*10 محمل عادة فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-20 16:41:50.943661+00	0.000	0.000
-38f70be7-6eda-4e3f-8f5d-cc664f4588e2	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 نيو سيجما (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:16:45.388774+00	2026-01-29 12:16:45.388774+00	0.000	0.000
-bf14d1ca-8f4d-4a9f-a8ff-435203615af8	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 لافنا (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:38.052074+00	2026-01-29 12:23:38.052074+00	0.000	0.000
-ff494980-4c73-4a61-81a8-2cdb3ad57c2c	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 ساليمكو (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:45.548065+00	2026-01-29 12:23:45.548065+00	0.000	0.000
-0d793ff6-689e-42c9-b1c5-3d1518459fb4	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 اللؤلؤ (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:51.300812+00	2026-01-29 12:23:51.300812+00	0.000	0.000
-8c31b689-b723-4b4f-b7a5-3657a4733077	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 السهم الذهبي (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:58.045634+00	2026-01-29 12:23:58.045634+00	0.000	0.000
-8c5b88b7-459f-4831-b67c-61bfc16c6496	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 سبانش (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:03.581273+00	2026-01-29 12:24:03.581273+00	0.000	0.000
-d32342b1-8699-4cab-a46d-c599555abf3c	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 لازا (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:11.413259+00	2026-01-29 12:24:11.413259+00	0.000	0.000
-c3a1165c-ac37-4772-b198-5e973ff7ca06	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 ريباني (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:22.97243+00	2026-01-29 12:24:22.97243+00	0.000	0.000
-6cf339ab-5c51-4d0c-a096-98aa08096dbb	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 ساليمكو (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:30.876672+00	2026-01-29 12:24:30.876672+00	0.000	0.000
-dfd4135f-7efa-4f2e-96b3-02e44342a7ab	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 تاتش لومي (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:45.34786+00	2026-01-29 12:24:45.34786+00	0.000	0.000
-26592f03-3ad9-436b-8eb1-c97d23551fb2	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 الصقر (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:59.836683+00	2026-01-29 12:24:59.836683+00	0.000	0.000
-fffc498b-ab89-446f-bf7e-43ad31c86527	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20*20 تاتش لومي (يوسف)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:26:11.412927+00	2026-02-21 21:49:01.482285+00	0.000	0.000
-60569b7c-dcce-4e35-a474-19916aa35ca3	6e48e18f-bfe0-59e7-81ac-090ada6061b2	جلبة سن داخلي 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:39:46.172566+00	2026-02-08 14:39:46.172566+00	0.000	0.000
-e204e8a5-b604-4547-9484-1f498d6dc46d	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 تاتش AM (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:26:20.132173+00	2026-01-29 12:26:20.132173+00	0.000	0.000
-0d6d6f68-4a79-41fb-9c7c-2d8274a55354	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 تاتش MK (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:26:30.691931+00	2026-01-29 12:26:30.691931+00	0.000	0.000
-b6fb8546-4a43-4944-a315-be3ee1ea1fcb	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 ريبلان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:34:22.867705+00	2026-01-29 12:34:22.867705+00	0.000	0.000
-aed26ebb-13d6-470e-b3be-18c28441b516	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 نوفا تركي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:34:22.867705+00	2026-01-29 12:34:22.867705+00	0.000	0.000
-d7760ccb-4830-42c2-942f-517aed6b57ab	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 فرداني عادي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:34:22.867705+00	2026-01-29 12:34:22.867705+00	0.000	0.000
-c3238e7f-7d91-40b4-8df2-6cd9161fc09a	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة محمل 20 * 20 المنبع	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000
-ca20b458-786d-4bed-b94a-a91b10a6c621	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة بلاستيك 20 * 20 ساليمكو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000
-988e63a2-5543-487a-9f20-e8caf9133c05	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة بلاستيك 20 * 20 كيلوباترا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000
-3614e70f-96f3-4b69-9104-188a0574085d	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 فولكانو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000
-c952ae33-8b9e-4eb8-b67f-56fb587e7314	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 عادي PFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000
-01060665-4be6-4d76-b3cc-374e0d2e1d4a	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة نيو سيجما تاتش 15 * 15	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000
-9cba759f-0edf-4d87-aa6b-d7fb7c7ced9e	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة تاتش سوبر ستار 15 * 15	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000
-c14b87a0-3545-4545-8c7f-f00de35c208f	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة ماتدور 15 * 15	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000
-39f5ed3b-7c34-4b75-9331-32a95c7d8b81	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة تاتتش 15 * 15 النورس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000
-adc37b18-86dc-4fbb-bea1-856a682a5095	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة تاتش 20 * 20  pvs	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000
-f0c427f2-000f-4197-b044-9cb16ef86801	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1/2 محمل (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:37:22.332383+00	2026-01-22 18:37:22.332383+00	0.000	0.000
-35ad6cc3-4464-483f-9c63-7426eeee828a	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز نص خفيف 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:38:06.827415+00	2026-01-22 18:38:06.827415+00	0.000	0.000
-0bc85e43-0849-4d93-a656-73ffe8cb39eb	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:38:34.843504+00	2026-01-22 18:38:34.843504+00	0.000	0.000
-3afc718e-22cb-40f5-85b6-f36a9aefa8b5	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 2" خفيف (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:42:24.569801+00	2026-01-25 10:42:24.569801+00	0.000	0.000
-e2a0d6b0-083c-4d18-a788-795dbc4bf1df	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 2" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:42:58.654475+00	2026-01-25 10:42:58.654475+00	0.000	0.000
-ec85f3a5-9492-404a-bb1e-ad401f624d53	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 3" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:43:40.257346+00	2026-01-25 10:43:40.257346+00	0.000	0.000
-80f8c742-7ee3-47cb-96cf-7fd5819cc7c1	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 3" خفيف (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:44:16.853683+00	2026-01-25 10:44:16.853683+00	0.000	0.000
-760b0215-4244-4bdb-8309-21894890e616	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 4" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:45:46.415871+00	2026-01-25 10:45:46.415871+00	0.000	0.000
-4dd2c933-9bb8-4496-8f14-e5cf55e14a62	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 4" خفيف (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:46:17.954431+00	2026-01-25 10:46:17.954431+00	0.000	0.000
-df95ab62-3460-4fd8-97b3-d041e121aa96	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 6" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:47:31.376609+00	2026-01-25 10:47:31.376609+00	0.000	0.000
-7b92bee1-e9df-4679-8856-f13f1491aa2d	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1 و1/2" شعبي (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:48:35.136908+00	2026-01-25 10:48:35.136908+00	0.000	0.000
-ebb8fe3a-e453-4bf8-b931-c01008a6a192	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1 و1/2" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:49:04.319186+00	2026-01-25 10:49:04.319186+00	0.000	0.000
-c7c52aa2-562e-477a-a972-d04f35efcb87	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز بجوان 3/4" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:49:35.689487+00	2026-01-25 10:49:35.689487+00	0.000	0.000
-4defd0e4-66bd-483d-95d2-805d2132cacf	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 13:07:27.808173+00	2026-01-25 13:07:27.808173+00	0.000	0.000
-0f4beb3a-88e1-4869-9add-eca39c3a738a	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 2 و1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 10:12:35.204666+00	2026-01-27 10:12:35.204666+00	0.000	0.000
-49f4d737-1d66-4bbf-8011-44949b013133	df634c7a-d345-505a-82a4-2bdc2e899a7b	مانيجه سوسته ايطالى (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:33:58.596563+00	2026-02-01 16:33:58.596563+00	0.000	0.000
-43262301-8bc0-4e5e-98f8-df79b0032751	df634c7a-d345-505a-82a4-2bdc2e899a7b	منيجا عدله (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 18:28:53.021728+00	2026-02-02 18:28:53.021728+00	0.000	0.000
-9c6b491e-0f64-46ba-983d-e9512587b4c1	df634c7a-d345-505a-82a4-2bdc2e899a7b	منيجا موجه (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 18:29:54.169036+00	2026-02-02 18:29:54.169036+00	0.000	0.000
-e3ef3606-53ce-4847-a9ae-7357efdea79a	df634c7a-d345-505a-82a4-2bdc2e899a7b	مانيجه سوسته تركى	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-25 23:14:04.662874+00	2026-02-25 23:14:04.662874+00	0.000	0.000
-27e4b81d-9590-4576-b818-2a69da7afafd	df634c7a-d345-505a-82a4-2bdc2e899a7b	مانيحه استالس	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-25 23:16:10.366716+00	2026-02-25 23:16:10.366716+00	0.000	0.000
-cb153139-9139-4c4b-b341-9cabab43c132	69f9914c-e165-5167-a85b-6ba46173bba3	حنفيه أسانسير كعب بلاستيك تربو طاتش(يوسف)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 15:49:11.82749+00	2026-02-21 21:50:20.058226+00	0.000	0.000
-d5442bca-dd7e-4793-aded-ef8d13f3d2b9	69f9914c-e165-5167-a85b-6ba46173bba3	حنفيه أسانسير كعب نحاس نيوجولد(عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:01:15.78419+00	2026-02-21 21:50:13.256771+00	0.000	0.000
-329b40d0-86df-4887-b985-ea2bc7990b83	69f9914c-e165-5167-a85b-6ba46173bba3	حنفيه أسانسير كعب بلاستيك نيوجولد (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:04:07.2767+00	2026-02-01 16:04:07.2767+00	0.000	0.000
-5bb79780-a8aa-4007-b778-5ad0dbb78e6e	69f9914c-e165-5167-a85b-6ba46173bba3	عوامه جمب السكرى(يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:18:09.42226+00	2026-02-01 16:18:09.42226+00	0.000	0.000
-21587981-5f52-41a0-8aad-f7a573837b0a	69f9914c-e165-5167-a85b-6ba46173bba3	شداد طويل (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 18:22:52.679189+00	2026-02-02 18:22:52.679189+00	0.000	0.000
-1220b394-a688-46f9-a9c5-6c815cef43d0	69f9914c-e165-5167-a85b-6ba46173bba3	زرار ضغط	\N	قطعة	20.00	13.00	9.00	\N	\N	\N	\N	\N	t	2026-03-15 16:58:42.15504+00	2026-03-15 16:58:42.15504+00	0.000	0.000
-93f907c6-3b84-4d95-b1a5-b57483e81451	0fe9fe9a-ca99-5bac-85da-bf506d92be69	ماكينه ضغط كيس(يوسف)	\N	عدد	95.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:09:18.786823+00	2026-02-21 21:49:48.922933+00	0.000	0.000
-11ebff6a-eec6-4331-92fe-aac2c3373c9c	0fe9fe9a-ca99-5bac-85da-bf506d92be69	ماكينه تركي	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:58:49.261182+00	2026-03-04 13:58:49.261182+00	0.000	0.000
-38e871be-2c5b-4e85-b0a6-f5c1eceb0b50	0fe9fe9a-ca99-5bac-85da-bf506d92be69	ماكينة ايديال	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:59:01.060385+00	2026-03-04 13:59:01.060385+00	0.000	0.000
-33f55188-0fe1-4788-9809-3591288e60f3	0fe9fe9a-ca99-5bac-85da-bf506d92be69	مكنة تربو	\N	قطعة	120.00	85.00	58.00	\N	\N	\N	\N	\N	t	2026-03-15 16:55:34.652521+00	2026-03-15 16:55:34.652521+00	0.000	0.000
-6638cc77-52db-4850-8515-7336252846cf	0fe9fe9a-ca99-5bac-85da-bf506d92be69	مكنة ضغط نوفا	\N	قطعة	120.00	85.00	60.00	\N	\N	\N	\N	\N	t	2026-03-15 16:56:59.683521+00	2026-03-15 16:56:59.683521+00	0.000	0.000
-4ebdc6b6-72e6-43cd-83eb-389d25b5c5ec	daf8935a-6a30-5667-ac81-f4a398cbc305	ماسورة وراق بلاستيك (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 12:02:39.378525+00	2026-01-25 12:02:39.378525+00	0.000	0.000
-67f5d187-e095-4c7d-b864-5789fc3290ec	daf8935a-6a30-5667-ac81-f4a398cbc305	ماسورة وراق استانلس (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 12:03:00.927509+00	2026-01-25 12:03:00.927509+00	0.000	0.000
-de12a113-2bee-459d-a18b-971c54badbeb	daf8935a-6a30-5667-ac81-f4a398cbc305	وراقة مناديل ايفون	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:55:07.811048+00	2026-01-29 12:55:07.811048+00	0.000	0.000
-883f0d1e-6801-402e-9168-1e7f3435d336	daf8935a-6a30-5667-ac81-f4a398cbc305	اوكرة جنب استانلس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:56:03.427526+00	2026-01-29 12:56:03.427526+00	0.000	0.000
-5d2c6496-0b93-4d27-8f33-ab6c72e3ab08	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار صبانات (عمر واللو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:58:59.760059+00	2026-01-30 14:58:59.760059+00	0.000	0.000
-728d6023-951b-4a19-8cfb-d62631ab5736	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار قعدة (عمر واللو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:59:24.143925+00	2026-01-30 14:59:24.143925+00	0.000	0.000
-23856709-a9eb-49e8-a93d-8d659ff16a26	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار سخان (عمر واللو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:59:38.943772+00	2026-01-30 14:59:38.943772+00	0.000	0.000
-71cc6095-c87f-4909-b84c-f89eb5660fa7	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار حوض (عمر وميدو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 15:00:01.823495+00	2026-01-30 15:00:01.823495+00	0.000	0.000
-c44ffb44-d7cc-4ab0-b7c7-6b0c073b059e	daf8935a-6a30-5667-ac81-f4a398cbc305	نوزل شطاف بالخرطوم كامل (أنس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:30:58.500228+00	2026-02-01 16:30:58.500228+00	0.000	0.000
-94c0f2c9-04d7-467c-ae8a-eb553591eac7	daf8935a-6a30-5667-ac81-f4a398cbc305	طبة حوض ستار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 12:52:11.951551+00	2026-02-10 12:52:11.951551+00	0.000	0.000
-013dc815-ab1d-46f5-b3ce-3c09ec80c29b	a77bbc03-437a-5071-b287-7a1cb6a9ac77	مسمار سديلي  L معدن (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000
-2de745f3-490c-458f-8d80-f8ef4fe03cb9	a77bbc03-437a-5071-b287-7a1cb6a9ac77	مسمار سديلي جرار (أنس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:03:17.755964+00	2026-01-18 19:03:17.755964+00	0.000	0.000
-2e415055-50d3-403c-b6b6-132cc06cac09	a77bbc03-437a-5071-b287-7a1cb6a9ac77	مسمار سديلي L بلاستيك (أنس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 17:14:10.101598+00	2026-01-22 17:14:10.101598+00	0.000	0.000
-bffd258f-b84e-4beb-8d18-ae23f611015d	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 2 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 12:09:17.936616+00	2026-01-22 12:09:17.936616+00	0.000	0.000
-d2879635-0b3c-4c36-8199-9f2b94a535ab	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 1 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:31:36.798765+00	2026-01-22 14:31:36.798765+00	0.000	0.000
-fb3622ca-2180-4ed7-811e-479b4d54f849	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 4 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:32:55.085674+00	2026-01-22 14:32:55.085674+00	0.000	0.000
-9c1e6d13-9d15-46d1-9779-623dbc89684f	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 3 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:33:45.821867+00	2026-01-22 14:33:45.821867+00	0.000	0.000
-4afdd266-b0cd-49ab-aa95-b46ea2fdc5a5	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حنفية فلتر اوكر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:13.899449+00	2026-01-29 12:50:13.899449+00	0.000	0.000
-a4bc8fa2-5b9b-4d21-8b22-788662938fcd	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حنفية فلتر محمل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:13.899449+00	2026-01-29 12:50:13.899449+00	0.000	0.000
-59b1408c-5d92-4b6b-b109-28c7a39f41fd	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	قنطرة فيلتر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:54:27.585787+00	2026-01-29 12:54:27.585787+00	0.000	0.000
-0ba7d154-06d4-4148-bf47-71dbe931348a	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	وصله سريعه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:59:52.874967+00	2026-02-01 16:59:52.874967+00	0.000	0.000
-53baae4e-9523-419b-b62f-ef1b43737105	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	نطرة فلتر 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:01:37.122142+00	2026-02-01 17:01:37.122142+00	0.000	0.000
-ed6fb4fe-6aa7-4a8f-8856-bbdd3b7b7625	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	محول فلتر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:02:20.851609+00	2026-02-01 17:02:20.851609+00	0.000	0.000
-5167fb35-085a-42cc-82ea-73e3684bea9a	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حنفية كولمان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:05:12.898574+00	2026-02-01 17:05:12.898574+00	0.000	0.000
-e5e9bcf1-22ad-40e2-a443-9b4acdbbe426	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حامل حنفية فلتر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:13:30.784739+00	2026-02-01 17:13:30.784739+00	0.000	0.000
-577cd1d9-5876-4b11-be1c-cd338c878aa2	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	محبس فلتر استالس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:36:27.970155+00	2026-02-01 17:36:27.970155+00	0.000	0.000
-39e8ca5e-8abc-4918-8e32-052d5862db47	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف شيلد نحاس 3/4 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:47:42.676159+00	2026-01-20 13:47:42.676159+00	0.000	0.000
-b5459d2a-95fc-418b-99f9-f21a8406b6f1	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 1/2 بوصة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:12:16.803625+00	2026-01-20 14:12:16.803625+00	0.000	0.000
-79880071-7ae2-49d2-bda2-46c567d90c8e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 3/4 (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:12:47.458892+00	2026-01-20 14:12:47.458892+00	0.000	0.000
-ae608ba9-9030-4a2d-89d6-fa70769c09a7	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 1 بوصة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:13:36.339435+00	2026-01-20 14:13:36.339435+00	0.000	0.000
-c2b0f8d3-5a8b-4744-8cb6-c51fc74a019f	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 2 بوصة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:13:44.386965+00	2026-01-20 14:13:44.386965+00	0.000	0.000
-f3f5bc34-6e8a-4fce-aaff-440ca5fd8a9a	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف سخان (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:16:14.851146+00	2026-01-20 14:16:14.851146+00	0.000	0.000
-8860ce8d-06ec-41f7-9fa2-87e2979c660c	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف لاكور 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:17:17.027115+00	2026-01-20 14:17:17.027115+00	0.000	0.000
-d1cc6cac-ad63-4fda-93d9-913571e3fe9e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 1 و 1/2 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:33:10.336915+00	2026-01-20 15:33:10.336915+00	0.000	0.000
-7f5190eb-4444-470d-87ec-f037f1b4d36a	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بوابة 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:55:29.280372+00	2026-01-20 15:55:29.280372+00	0.000	0.000
-3a1f1896-d864-4700-a1df-a92942f60e58	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:56:10.576738+00	2026-01-20 15:56:10.576738+00	0.000	0.000
-5a69e732-8a23-459e-8321-aaabf2d24e8e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 3/4 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:56:57.601327+00	2026-01-20 15:56:57.601327+00	0.000	0.000
-d2fd8ca2-1dba-4cf1-81fb-82dc5a323a7f	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 1/2 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:57:58.480216+00	2026-01-20 15:57:58.480216+00	0.000	0.000
-5dc65401-81f9-49c1-8995-94b48888200f	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 17:52:25.757162+00	2026-01-20 17:52:25.757162+00	0.000	0.000
-966eee6d-776d-4e2c-a7a1-2e93df03e90d	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف لاكور 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:34:25.206656+00	2026-01-21 09:34:25.206656+00	0.000	0.000
-95e488af-8082-4dac-903d-ae4ea9039e8e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس محمل بسوستة 1/2 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:15:53.456983+00	2026-01-22 11:15:53.456983+00	0.000	0.000
-77d16d51-67f9-479c-aa04-d7e44d41976d	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة محمل نص بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 11:56:44.752842+00	2026-01-25 11:56:44.752842+00	0.000	0.000
-523adcc8-e4e9-4766-981b-e5165d723e43	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-0a5287eb-3d47-4451-ac01-b6d97287ada1	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 1" و1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-21720bca-49df-4dd9-84aa-4858271209cd	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن خارجي 2" و1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-177bed74-3f94-4fed-93a0-e23cb13847f4	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن خارجي 1" * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-44357f2a-f7f8-441c-bdd8-f9f1af4487a8	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن خارجي محمل 1 و1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-8a00f949-0c0c-4c21-8d44-c6ffaae33aa9	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-fe3b4b4b-f997-4e20-8a71-11df8a4c2e63	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور 3/4  سن خارجي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-b1bd2473-dbe5-409d-999a-342ece893357	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور 3/4 سن داخلي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-0f4ae4a8-89db-4d5d-85d5-704f681f9764	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور 1/2 بسن خارجي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-c1895f9b-5d9b-4507-9ac8-be10dd5c08d0	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000
-4ee4ef31-bccf-4cf0-b768-53db7d80ea36	ac497863-17f1-5a7a-8ac1-274f86b4001b	فلوماك صيني	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:55:21.374679+00	2026-03-04 13:55:21.374679+00	0.000	0.000
-65d744cb-8b17-49e8-b485-e114e01b9987	ac497863-17f1-5a7a-8ac1-274f86b4001b	فلوماك ايطالي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:58:06.724196+00	2026-03-04 13:58:06.724196+00	0.000	0.000
-db501a5e-8889-470a-abac-1aae9f62414b	ac497863-17f1-5a7a-8ac1-274f86b4001b	فلوماك كوباية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:58:19.357574+00	2026-03-04 13:58:19.357574+00	0.000	0.000
-dd7fe2ec-0f4e-4de5-8f45-a7891f0bce59	5b970d56-5ee8-594e-bcde-6ce50c1d47c3	ماتور ايطالي 1 حصان	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:45:50.975615+00	2026-03-04 13:45:50.975615+00	0.000	0.000
-f8dd4fea-855d-402a-8de3-c62d5dc51df0	5b970d56-5ee8-594e-bcde-6ce50c1d47c3	ماتور ايطالي 1/2 حصان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:46:14.534908+00	2026-03-04 13:46:14.534908+00	0.000	0.000
-45f0395c-d566-4c2b-b586-3cd2d1d99f7b	5b970d56-5ee8-594e-bcde-6ce50c1d47c3	ماتور صيني 1/2 حصان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:48:13.142898+00	2026-03-04 13:48:13.142898+00	0.000	0.000
-7c033855-5e8a-44e7-a03a-c91729b55080	753bd696-70ef-5e78-bd15-456428b31687	كوع عاده 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:06:54.889056+00	2026-02-08 14:06:54.889056+00	0.000	0.000
-fb232540-a7f2-4037-b600-1ee220be7b4d	753bd696-70ef-5e78-bd15-456428b31687	جلبة 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:11:35.389255+00	2026-02-08 14:11:35.389255+00	0.000	0.000
-1dc0dbc5-8c7d-45d7-b240-e343b6bc50fa	753bd696-70ef-5e78-bd15-456428b31687	تي 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:11:59.999094+00	2026-02-08 14:11:59.999094+00	0.000	0.000
-b277559f-9416-4077-b01d-108ca5d2ad84	753bd696-70ef-5e78-bd15-456428b31687	واي 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:24:30.685307+00	2026-02-08 14:24:30.685307+00	0.000	0.000
-7c32ca44-d362-41fb-94c8-843a6c2b6eb1	753bd696-70ef-5e78-bd15-456428b31687	طبة كاب 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:34:10.669716+00	2026-02-08 14:34:10.669716+00	0.000	0.000
-c45f5e63-c8f4-46b5-bd72-ba04bfad276e	6e48e18f-bfe0-59e7-81ac-090ada6061b2	طبة تسليك 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:45:56.317097+00	2026-02-08 12:45:56.317097+00	0.000	0.000
-bb158824-4c3b-4a7e-b7ab-3f7478148361	6e48e18f-bfe0-59e7-81ac-090ada6061b2	طبة كاب 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:59:57.327557+00	2026-02-08 12:59:57.327557+00	0.000	0.000
-60f411d9-101b-4fac-9476-9c3156ca32e5	6e48e18f-bfe0-59e7-81ac-090ada6061b2	تي 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:02:31.006671+00	2026-02-08 13:02:31.006671+00	0.000	0.000
-8e2b3882-c6fc-42c0-85b9-1ce43ec06076	6e48e18f-bfe0-59e7-81ac-090ada6061b2	تي 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:31:49.745179+00	2026-02-08 14:31:49.745179+00	0.000	0.000
-892d2704-38a2-4e62-a752-066a045fe36e	6e48e18f-bfe0-59e7-81ac-090ada6061b2	كوع سن داخلي 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:35:15.357294+00	2026-02-08 14:35:15.357294+00	0.000	0.000
-b667424e-e746-44bc-9c47-839e858bc00a	69c8851c-0e49-50f6-aa84-346755ef3132	مشترك باب 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:09.557466+00	2026-02-08 12:46:09.557466+00	0.000	0.000
-baeea72c-a311-41bf-9680-40ae18dca71c	69c8851c-0e49-50f6-aa84-346755ef3132	جلبة 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:17.630758+00	2026-02-08 12:46:17.630758+00	0.000	0.000
-39742801-02c4-47fe-bdf9-55c330e781ca	69c8851c-0e49-50f6-aa84-346755ef3132	واي 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:26.81403+00	2026-02-08 12:46:26.81403+00	0.000	0.000
-e6fd727d-e3c4-4364-a327-d6718553c39b	69c8851c-0e49-50f6-aa84-346755ef3132	طبة كاب 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:39.949684+00	2026-02-08 12:46:39.949684+00	0.000	0.000
-0b66cdef-de0b-4e0d-a091-0c6478c6edd0	69c8851c-0e49-50f6-aa84-346755ef3132	كوع باب 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:23:02.439219+00	2026-02-08 13:23:02.439219+00	0.000	0.000
-4856275a-91cb-4889-bc57-4e10e1b703c9	69c8851c-0e49-50f6-aa84-346755ef3132	هواية 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:23:50.82904+00	2026-02-08 14:23:50.82904+00	0.000	0.000
-888d9a19-395c-4cbe-b334-346cb8006b9a	69c8851c-0e49-50f6-aa84-346755ef3132	جلبة سن داخلي 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:36:26.909287+00	2026-02-08 14:36:26.909287+00	0.000	0.000
-77badf35-82f3-4f15-9645-864081747352	69c8851c-0e49-50f6-aa84-346755ef3132	قشرة 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:43:30.573237+00	2026-02-08 14:43:30.573237+00	0.000	0.000
-fe50fee1-d638-4dbb-9e55-d8ee6d6716ec	5c708129-4240-5f6a-bd5d-7ed1c5434d1e	نقاص 2 * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:51:54.81516+00	2026-02-08 12:51:54.81516+00	0.000	0.000
-e7eb5039-f585-4133-8a5c-30d2c64211d1	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	طبة تسليك 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:55:40.174127+00	2026-02-08 12:55:40.174127+00	0.000	0.000
-e660c870-680d-4c0d-ac35-ad6c4e0740a6	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	طبة كاب 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:59:14.46174+00	2026-02-08 12:59:14.46174+00	0.000	0.000
-23644c4a-953b-46df-8f24-f28a6f04466e	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	هواية 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:23:13.549607+00	2026-02-08 14:23:13.549607+00	0.000	0.000
-8f92156d-4980-4897-a21d-6bb7a3001734	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	جرجوري 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:43:11.372835+00	2026-02-08 14:43:11.372835+00	0.000	0.000
-8671c2bd-ccab-45f7-8ef1-6c75e1c56809	33f73ec5-118e-5a83-bf95-62e0ba535dff	طبة كاب 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:58:43.480198+00	2026-02-08 12:58:43.480198+00	0.000	0.000
-9a23640f-c9b3-4037-866f-df3e018fe0b6	33f73ec5-118e-5a83-bf95-62e0ba535dff	طبة تسليك 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:04:25.583595+00	2026-02-08 13:04:25.583595+00	0.000	0.000
-182d1f97-9302-4f7b-9482-dbbd0206af9d	33f73ec5-118e-5a83-bf95-62e0ba535dff	هواية 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:14:20.365837+00	2026-02-08 14:14:20.365837+00	0.000	0.000
-8733206d-6230-4c5d-8b7d-eb3f9fd26123	33f73ec5-118e-5a83-bf95-62e0ba535dff	جرجوري 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:41:12.668569+00	2026-02-08 14:41:12.668569+00	0.000	0.000
-ab4ea6d5-f256-48e0-ac8b-cfa800182482	fab03014-2cfb-57bf-aa2f-7998e3b33df2	نقاص 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:13:45.774354+00	2026-02-08 13:13:45.774354+00	0.000	0.000
-53746d4e-4530-4d61-9b35-294b61f4618c	e51e11b8-471d-57ed-96e7-1fbe83eb4965	نقاص 1.5 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:21:56.575712+00	2026-02-08 13:21:56.575712+00	0.000	0.000
-57925e1a-2021-417f-8be6-34d1bdef1dfb	692519e0-6295-5892-9d1d-91cad5f3dd85	نقاص 2 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:24:04.046593+00	2026-02-08 13:24:04.046593+00	0.000	0.000
-2f0bead1-730a-45f1-9ce9-71f11246b94f	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2/3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:31:44.286884+00	2026-02-08 13:31:44.286884+00	0.000	0.000
-bb5f4a08-269d-41b4-993b-2ea33302507a	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:53:05.869834+00	2026-02-08 13:53:05.869834+00	0.000	0.000
-2de17cf9-3fe3-4533-a032-818ffdb0eea5	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2/2 عالية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:55:32.159269+00	2026-02-08 13:55:32.159269+00	0.000	0.000
-9df6119f-d341-4c6d-a93e-674107276697	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2 * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:01:15.933689+00	2026-02-08 14:01:15.933689+00	0.000	0.000
-e3a7418f-9d48-48df-b265-6e20a4c0667a	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2 * 1.5 عالية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:01:55.965237+00	2026-02-08 14:01:55.965237+00	0.000	0.000
-40faef4c-37c9-4ecb-a603-b377687bed9c	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة شاور 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:02:36.061897+00	2026-02-08 14:02:36.061897+00	0.000	0.000
-46653e57-d6d2-4fa1-9ea9-c4095da20503	dd2b913d-417a-55cf-8fa4-c539aa173fc3	جلبة 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:22:34.239712+00	2026-01-22 11:22:34.239712+00	0.000	0.000
-2efc200a-fa8f-4bc8-8b04-ddc3491110df	dd2b913d-417a-55cf-8fa4-c539aa173fc3	تي 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:23:13.728784+00	2026-01-22 11:23:13.728784+00	0.000	0.000
-ea231ea8-7b79-4616-b5ff-7133ce3b9355	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كوع بسن 1/2 (بلال)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:24:56.592898+00	2026-01-22 11:24:56.592898+00	0.000	0.000
-f9ab2612-e5b6-448b-b85b-a41883850361	dd2b913d-417a-55cf-8fa4-c539aa173fc3	تي بسن 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:32:33.403478+00	2026-01-22 18:32:33.403478+00	0.000	0.000
-fbe38b09-fe9a-4053-9587-bbf370223390	dd2b913d-417a-55cf-8fa4-c539aa173fc3	جلبة سن داخلي نص بوصة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:33:04.378991+00	2026-01-22 18:33:04.378991+00	0.000	0.000
-d144b604-d157-4c59-8006-25da0df08daf	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كوع لحام نص بوصة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:33:28.412125+00	2026-01-22 18:33:28.412125+00	0.000	0.000
-5261d27a-2f3f-43db-97de-7d90d039facf	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كرنك 1/2" طويل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:37:33.986183+00	2026-01-25 10:37:33.986183+00	0.000	0.000
-f1ff0933-c92e-41d2-a794-809088048e47	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كوع بسن داخلي 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 13:43:08.04037+00	2026-01-27 13:43:08.04037+00	0.000	0.000
-3fa1f00e-e4e3-4884-81b3-404b8de81e1b	605f3728-7c52-5f81-a820-2f56527a37b2	كوع 3/4 (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:21:32.032575+00	2026-01-22 11:21:32.032575+00	0.000	0.000
-320e8a3d-d0df-4ac8-ba39-cc0fcd9e9b99	605f3728-7c52-5f81-a820-2f56527a37b2	جلبة 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:21:54.654868+00	2026-01-22 11:21:54.654868+00	0.000	0.000
-e74dc2f7-3677-4e8c-912e-9ef271bbba67	605f3728-7c52-5f81-a820-2f56527a37b2	تي 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:26:47.72345+00	2026-01-22 18:26:47.72345+00	0.000	0.000
-1a2576db-4e4b-4e7f-8c93-d601687d5cd3	605f3728-7c52-5f81-a820-2f56527a37b2	كرنك 3/4" صغير (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:38:47.313577+00	2026-01-25 10:38:47.313577+00	0.000	0.000
-422b5b97-7734-4947-afd8-cd7171cdc1b3	605f3728-7c52-5f81-a820-2f56527a37b2	كرنك 3/4" كبير (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:39:07.953462+00	2026-01-25 10:39:07.953462+00	0.000	0.000
-a2afe05f-3beb-49bd-a5ba-36565fdd14cb	605f3728-7c52-5f81-a820-2f56527a37b2	جلبة لحام 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 14:37:19.811175+00	2026-01-27 14:37:19.811175+00	0.000	0.000
-88fdb5d9-d19d-4087-aba0-19adfca71918	605f3728-7c52-5f81-a820-2f56527a37b2	تي لحام 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 14:37:45.667488+00	2026-01-27 14:37:45.667488+00	0.000	0.000
-f1e6d3ae-1a60-4187-af58-d0309ad4de89	412d5f95-e302-5cfc-aa6b-12cb95411b3f	جلبة سن خارجي 1/2*1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:23:52.353189+00	2026-01-22 11:23:52.353189+00	0.000	0.000
-d05db9fb-adba-4899-8736-7c7d1c8172e1	412d5f95-e302-5cfc-aa6b-12cb95411b3f	تي سن داخلي 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 16:35:13.25749+00	2026-01-27 16:35:13.25749+00	0.000	0.000
-e124b922-be63-4889-9c39-d2c339ac546e	c6db36fa-a81c-58bc-b7d6-608f8d3ae1d1	كوع لحام 1/2 * 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 15:14:06.928674+00	2026-01-27 15:14:06.928674+00	0.000	0.000
-914922e9-da51-442c-9e3f-8839b9fa251f	5e9fdd71-7989-5122-b2d6-49bc9ba8851c	كوع بسن داخلي 3/4 * 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:28:15.515477+00	2026-01-22 18:28:15.515477+00	0.000	0.000
-f6de776c-d026-48e0-a682-85eebc4b4cbd	ab9446cf-95d8-5574-b37a-e54d68e708fe	كوع بسن داخلي 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:27:26.332496+00	2026-03-24 12:33:07.688217+00	0.000	0.000
-01466b3d-dd2f-47f7-991f-988d273d3a3b	978af021-a666-5101-af9e-ed05c156645b	ماسورة 75 (3")	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:35:03.878094+00	2026-02-10 13:35:03.878094+00	0.000	0.000
-b18c3367-ee65-4e16-8e4f-a1148284aaae	978af021-a666-5101-af9e-ed05c156645b	ماسورة 4"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:36:40.870273+00	2026-02-10 13:36:40.870273+00	0.000	0.000
-e3171dc4-a972-40ef-8452-ade0250302fa	978af021-a666-5101-af9e-ed05c156645b	ماسورة 2	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:37:28.557743+00	2026-02-10 13:37:28.557743+00	0.000	0.000
-4a86af6d-e32f-4b72-a561-f98020e19e26	978af021-a666-5101-af9e-ed05c156645b	ماسورة 1.5"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:38:55.086831+00	2026-02-10 13:38:55.086831+00	0.000	0.000
-006eaf5f-789b-47a7-9106-944764fdc08b	978af021-a666-5101-af9e-ed05c156645b	ماسورة 1"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:39:16.678477+00	2026-02-10 13:39:16.678477+00	0.000	0.000
-74460fc9-5b94-427c-b129-876231ab5674	978af021-a666-5101-af9e-ed05c156645b	قواطع ماسورة 75	\N	متر	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:40:19.983297+00	2026-02-10 13:40:19.983297+00	0.000	0.000
-ff0e6f72-8440-4a9c-9a71-470453065413	978af021-a666-5101-af9e-ed05c156645b	قواطع ماسورة 2"	\N	متر	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:40:58.11851+00	2026-02-10 13:40:58.11851+00	0.000	0.000
-54b51aca-a22a-4638-a14d-f4052eddb90a	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	كوع لحام 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:30:04.076514+00	2026-01-26 20:30:04.076514+00	0.000	0.000
-d90ce028-6aeb-4cbe-916b-d5941eb564d3	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	جلبة لحام 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:31:02.904767+00	2026-01-26 20:31:02.904767+00	0.000	0.000
-1d039edf-9ba6-45b7-ac98-cbf42cf7ef49	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	تي لحام 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:32:42.822347+00	2026-01-26 20:32:42.822347+00	0.000	0.000
-efa431de-b26f-4add-b34c-b4bb0c6a1f3d	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	طبة كاب 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:34:09.788818+00	2026-01-26 20:34:09.788818+00	0.000	0.000
-ac0cbfea-84d2-4e19-9d5c-130b926174e9	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	محبس لاكور 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:36:07.194753+00	2026-01-26 20:36:07.194753+00	0.000	0.000
-3b4c474b-bcca-4785-8c8e-29b2b42e5a79	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	كرنك 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:36:42.246455+00	2026-01-26 20:36:42.246455+00	0.000	0.000
-c43bc70d-9e2d-49b9-89df-7e8396361190	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	كرنك طويل 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:40:30.035555+00	2026-01-26 20:40:30.035555+00	0.000	0.000
-a7c6cd69-4a08-4d2a-9ebf-817df83510f6	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	طبه اختبار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:22:29.439955+00	2026-01-26 21:22:29.439955+00	0.000	0.000
-f9f94c31-4ab6-4b16-860c-42b07f2fe7ac	63e2904c-e0db-55e5-9f40-d5f84a85a501	كوع لحام 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:15:16.749339+00	2026-01-26 21:15:16.749339+00	0.000	0.000
-bb6e8e5f-10ce-4074-a838-5afc4bfd8c9b	63e2904c-e0db-55e5-9f40-d5f84a85a501	محبس دفن 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:15:45.928637+00	2026-01-26 21:15:45.928637+00	0.000	0.000
-dc4dcdc4-6c4c-422a-b43a-64a95dd46387	63e2904c-e0db-55e5-9f40-d5f84a85a501	محبس لاكور 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:16:04.063738+00	2026-01-26 21:16:04.063738+00	0.000	0.000
-43e5a9ca-78c2-4f05-affc-4c6e2491605a	63e2904c-e0db-55e5-9f40-d5f84a85a501	جلبة لحام 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:16:35.061885+00	2026-01-26 21:16:35.061885+00	0.000	0.000
-7568b958-f282-4aa1-85b5-24349625f9db	63e2904c-e0db-55e5-9f40-d5f84a85a501	تي لحام 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:17:08.717317+00	2026-01-26 21:17:08.717317+00	0.000	0.000
-9cffbe6c-1071-48ce-8973-fcd035c61762	63e2904c-e0db-55e5-9f40-d5f84a85a501	طبه كاب 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:19:54.664464+00	2026-01-26 21:19:54.664464+00	0.000	0.000
-9cce9245-5bbe-42c5-b6b2-f4fc4e5ec8e3	63e2904c-e0db-55e5-9f40-d5f84a85a501	كرنك 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:20:25.437116+00	2026-01-26 21:20:25.437116+00	0.000	0.000
-85a51c91-a72c-4762-91ee-38a342e74c48	63e2904c-e0db-55e5-9f40-d5f84a85a501	كوع لحام 3/4 مفتوح	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:28:28.462952+00	2026-01-31 14:28:28.462952+00	0.000	0.000
-3a4c0ba0-e011-4496-b6b8-2cdc7dc89c88	63e2904c-e0db-55e5-9f40-d5f84a85a501	طبة كاب 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:33:59.537256+00	2026-01-31 14:33:59.537256+00	0.000	0.000
-19ad03e8-e71e-4be7-90ef-08bd6572f06f	9a3e6604-1d9e-59a2-9306-b96751e63a08	طبه  1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:46:51.352013+00	2026-01-26 21:46:51.352013+00	0.000	0.000
-d2ffb803-9a86-4990-b834-9a3d7413444d	9a3e6604-1d9e-59a2-9306-b96751e63a08	كوع لحام 1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:50:05.188327+00	2026-01-26 21:50:05.188327+00	0.000	0.000
-12d44342-c0ea-4093-8344-8a3fe616b946	9a3e6604-1d9e-59a2-9306-b96751e63a08	جلبة لحام 1 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:50:32.28219+00	2026-01-26 21:50:32.28219+00	0.000	0.000
-3b1471c3-f7f4-4a7d-a28d-06206542e170	9a3e6604-1d9e-59a2-9306-b96751e63a08	تي لحام 1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:50:57.378248+00	2026-01-26 21:50:57.378248+00	0.000	0.000
-4fc7f1f8-8b6a-42fa-b439-eb37e404f119	9a3e6604-1d9e-59a2-9306-b96751e63a08	محبس لاكور 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-28 10:10:59.544879+00	2026-01-28 10:10:59.544879+00	0.000	0.000
-6a6a73a1-51e7-48ae-8455-0e176997bed6	7cb8a098-41ca-53d9-b4e0-cdb8907a18d9	شيك بلف لاكور 1.5 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:00:34.456897+00	2026-01-26 22:00:34.456897+00	0.000	0.000
-4d5e6616-df0c-41a0-a88c-bad074a514af	7cb8a098-41ca-53d9-b4e0-cdb8907a18d9	جلبة بسن خارجي 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:01:09.086358+00	2026-01-26 22:01:09.086358+00	0.000	0.000
-868ab4a9-b2ef-435e-a292-fdbc7e3752d6	a8e4d683-3422-50bf-bd7c-91584afca4c4	جلبة لحام 3" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:41:47.014108+00	2026-01-26 20:41:47.014108+00	0.000	0.000
-56ae25fe-9036-4f6d-a788-b665157a3301	a8e4d683-3422-50bf-bd7c-91584afca4c4	جلبة سن داخلي 3" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:43:20.189943+00	2026-01-26 20:43:20.189943+00	0.000	0.000
-5c2aab48-9df3-4dce-b31f-0ec0746050c0	3bdaca2a-6e9c-5e2b-b964-711663449202	جلبة لحام 4" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:28:37.455045+00	2026-01-26 20:28:37.455045+00	0.000	0.000
-b3c35aa0-469b-4e4e-8560-1dec134adfbf	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	كوع بسن 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:03:06.498596+00	2026-01-26 21:03:06.498596+00	0.000	0.000
-338cbd11-8f82-4e1f-851b-c36446f165a0	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	جلبة بسن داخلي 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:04:39.88191+00	2026-01-26 21:04:39.88191+00	0.000	0.000
-45d11bd8-b3a6-42f3-8c0e-6db0e73093f0	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	جلبة بسن خارجي 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:05:07.12304+00	2026-01-26 21:05:07.12304+00	0.000	0.000
-720df594-4b7f-46b4-b602-884e803ed8f9	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	تي بسن 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:05:39.788358+00	2026-01-26 21:05:39.788358+00	0.000	0.000
-e6f44831-450b-4431-8b3b-898c83545db9	1da2db1b-955b-5530-885e-33ed2ab7e7d3	تي محبس 1/2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:23:09.209938+00	2026-01-26 21:23:09.209938+00	0.000	0.000
-d14d6889-b9b2-454e-a5eb-ac5744e8939b	1da2db1b-955b-5530-885e-33ed2ab7e7d3	جلبة بسن خارجي 1/2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:08:59.903959+00	2026-01-26 22:08:59.903959+00	0.000	0.000
-6ae3a388-329b-4811-a338-c61a5d690642	c286bcb5-a984-59c2-b633-ef3ebf4da01f	تي محبس دفن 3/4 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:38:31.164992+00	2026-01-26 21:38:31.164992+00	0.000	0.000
-760b529d-dbde-4e70-919c-610ce46ee71a	c286bcb5-a984-59c2-b633-ef3ebf4da01f	جلبة بسن خارجي 3/4 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:39:18.575886+00	2026-01-26 21:39:18.575886+00	0.000	0.000
-48662f9e-7606-4818-b2a8-375230a4923a	c286bcb5-a984-59c2-b633-ef3ebf4da01f	جلبة بسن داخلي 3/4 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:39:48.229897+00	2026-01-26 21:39:48.229897+00	0.000	0.000
-49e6c837-6ec8-4ff1-9b10-214b6df66b33	765f5e85-edfb-58dc-bf2b-4790017fb2f8	تي لحام 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:44:55.657012+00	2026-01-26 20:44:55.657012+00	0.000	0.000
-26a4f674-5c48-4ff6-8634-143def01cd85	765f5e85-edfb-58dc-bf2b-4790017fb2f8	كوع بسن 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:46:07.696375+00	2026-01-26 20:46:07.696375+00	0.000	0.000
-c9835638-133e-40e3-86d5-76725f3b9751	765f5e85-edfb-58dc-bf2b-4790017fb2f8	تي بسن 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:46:48.177685+00	2026-01-26 20:46:48.177685+00	0.000	0.000
-b771a653-3406-4c85-8d38-55002fcfc673	765f5e85-edfb-58dc-bf2b-4790017fb2f8	جلبة سن داخلي 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:47:42.874794+00	2026-01-26 20:47:42.874794+00	0.000	0.000
-541617c9-27f4-4738-9d7f-dffd1fb8975e	765f5e85-edfb-58dc-bf2b-4790017fb2f8	جلبة لحام 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:29:52.672492+00	2026-01-31 14:29:52.672492+00	0.000	0.000
-202995e6-bfba-49cd-9985-735486af9c35	9dc6edb6-19f2-5c9d-8c52-5a335ced3880	تي لحام 1" * 3/4" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:56:16.056423+00	2026-01-26 20:56:16.056423+00	0.000	0.000
-3a563ab6-c4d5-4458-bfca-5ac51e029c72	9dc6edb6-19f2-5c9d-8c52-5a335ced3880	جلبة لحام 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:08:49.904267+00	2026-01-26 21:08:49.904267+00	0.000	0.000
-59c5ef97-35e2-45d5-bcbc-94c0a854195e	aeffa6be-df79-58c1-93ba-30d4f612d48e	تي لحام  1* 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:07:34.70497+00	2026-01-26 21:07:34.70497+00	0.000	0.000
-2a583630-04db-4a74-927a-0f8ef4d83d03	20ecf9c0-8655-5221-a299-7a517bc5c6ec	جلبة 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:13:21.310816+00	2026-01-26 21:13:21.310816+00	0.000	0.000
-7bbeec16-c5dd-434c-9415-643d647ed54c	59148d2a-fc7e-58d6-adf7-e6e87869724c	جلبة لحام 1.5 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:14:47.991815+00	2026-01-26 21:14:47.991815+00	0.000	0.000
-afa1092c-9aba-4b1a-ac8e-8b91bb308469	46f96c6a-23fd-5740-849e-61de853f07aa	جلبة بسن داخلي 1 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:58:53.401604+00	2026-01-26 21:58:53.401604+00	0.000	0.000
-198fe32c-37df-43bf-9d75-db5bf327abfb	46f96c6a-23fd-5740-849e-61de853f07aa	جلبة بسن خارجي 1 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:59:34.73245+00	2026-01-26 21:59:34.73245+00	0.000	0.000
-4b615637-457b-4c61-b4c8-e69607aff352	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 1.5"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:42:32.606727+00	2026-02-10 13:42:32.606727+00	0.000	0.000
-4a9db8a4-6cdf-4666-ae94-28002243bce6	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 1"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:43:36.471241+00	2026-02-10 13:43:36.471241+00	0.000	0.000
-d119f961-855e-4209-ae8f-00e30ed71e3c	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 3/4"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:44:16.949695+00	2026-02-10 13:44:16.949695+00	0.000	0.000
-3ba8e991-c7c9-4ee0-b3e8-265a9b8e13c4	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 1/2"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:45:01.933868+00	2026-02-10 13:45:01.933868+00	0.000	0.000
-fc34d4b3-7215-42ae-9c64-eb7d8b003cda	32aad4e8-9baf-5f6b-b52f-e17675e4bcd9	عوامة خزان استانلس بوصة (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000
-857d4856-aca0-4f69-89d8-59ed2d1b86d0	32aad4e8-9baf-5f6b-b52f-e17675e4bcd9	عوامة خزان نحاس بالونة بلاستيك بوصة (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000
-da12de49-d1d6-4554-b5ae-43e76227ca90	32aad4e8-9baf-5f6b-b52f-e17675e4bcd9	عوامة نحاس بالونة بلاستيك 3/4 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000
-ad598ec1-2ff3-43fd-97b7-c957aa24375f	24dcb16c-9713-518d-8af0-a48722e900dc	بشبوري (الكوك و ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000
-155fa0fb-6b2b-44db-8541-db6e2250448b	24dcb16c-9713-518d-8af0-a48722e900dc	سيخ شطاف الومونيوم (الكوك)	\N	عدد	35.00	13.50	9.50	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-23 16:31:15.151033+00	0.000	0.000
-7e302e33-3bb9-436d-b2a6-f64f71fa113e	24dcb16c-9713-518d-8af0-a48722e900dc	سيخ شطاف نحاس (الكوك)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-21 15:02:47.061757+00	0.000	0.000
-15902323-3734-41df-bb0e-732074b9a1aa	24dcb16c-9713-518d-8af0-a48722e900dc	خرطوم شطاف الوان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:03:44.986461+00	2026-01-18 19:03:44.986461+00	0.000	0.000
-e5bc8d66-e55d-4fe6-a17a-cf8f6ff8cd1b	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي جروهي (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:19:45.630201+00	2026-01-22 14:19:45.630201+00	0.000	0.000
-55e08b76-5995-4930-91ae-2c3ab291202e	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي نيكل سالمكو (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.080983+00	2026-01-29 12:49:38.080983+00	0.000	0.000
-a98b567b-37a4-4c42-9801-a5902cb3ef95	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي اسود ساليمكو (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000
-9228f6d9-1d01-45dc-a79f-9b80a68c3c55	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي روما (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000
-9ad31176-b502-43b7-b47a-57cdaa1e623f	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي كيس ستار (ادهم)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-02-21 15:05:00.917042+00	0.000	0.000
-c3887692-7b86-4407-a0ce-78ecc804fadc	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي سولو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000
-6244a9bf-08bb-41a8-9bec-b8cc3df96f19	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي سوبر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000
-48fba67d-dbc6-424b-b2eb-497fdc9b7bd1	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي إينوفا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000
-d285b94f-1298-4c3a-b7ac-0042de1e97ea	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي ماست	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000
-65bfbf00-27bf-4323-ab25-1ccd994cddc4	24dcb16c-9713-518d-8af0-a48722e900dc	يد شطاف خارجي	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-02-21 15:03:39.300701+00	0.000	0.000
-6b464626-fbe4-4656-bd1a-d571d6836693	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2" صيني رمادي	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:24:10.827742+00	2026-02-21 21:38:10.234836+00	0.000	0.000
-fb762949-d7b9-450d-982b-102fb9ceed95	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	حنفية جنب اسانسير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:25:43.003892+00	2026-02-02 15:25:43.003892+00	0.000	0.000
-3ef92e16-40ee-44f0-98ca-671ee3a5805b	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	كاوتشة سيفون 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:28:10.806647+00	2026-02-02 15:28:10.806647+00	0.000	0.000
-d50650fc-9afe-4e35-b5d9-eb8dd047b187	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	كاوتشة سيفون 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:28:23.912166+00	2026-02-02 15:28:23.912166+00	0.000	0.000
-32f48e5f-5ab9-419b-8916-585ded0e8320	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مكنة سيفون كاملة فيرست	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:28:48.340611+00	2026-02-02 15:28:48.340611+00	0.000	0.000
-bf9ce757-b348-4b75-bbb4-0c6bf8efc605	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه كوع	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:08.6693+00	2026-02-02 15:29:08.6693+00	0.000	0.000
-fd1d4d05-a75f-4b1e-bab1-26b542487294	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه استانلس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:25.074519+00	2026-02-02 15:29:25.074519+00	0.000	0.000
-c3c27efc-96b1-4a23-bdab-93e04c7e9940	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه فار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:39.724353+00	2026-02-02 15:29:39.724353+00	0.000	0.000
-1db05d34-4a6f-4897-9a7c-619aa7351406	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه عادية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:48.842245+00	2026-02-02 15:29:48.842245+00	0.000	0.000
-c7423fe8-0195-4f61-894f-5692b13601c9	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	حامل سماعة متحرك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:30:06.112259+00	2026-02-02 15:30:06.112259+00	0.000	0.000
-29837797-dac6-4388-b18f-4513160e8d31	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	حامل شطاف عادي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:30:30.859666+00	2026-02-02 15:30:30.859666+00	0.000	0.000
-538af4af-6d6c-4210-be3c-0ffaecc7a7ed	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه قصيره	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:35:09.987893+00	2026-02-02 15:35:09.987893+00	0.000	0.000
-cb81213b-7bb7-4274-abb4-2d974f8a60cb	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	شداد طويل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:35:28.975017+00	2026-02-02 15:35:28.975017+00	0.000	0.000
-58991d0b-13f2-4dff-80e7-41c64abe1120	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه عدلة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:35:46.899174+00	2026-02-02 15:35:46.899174+00	0.000	0.000
-6d01a666-06e8-4462-9315-00ba9f599a34	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه موجة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:02.450285+00	2026-02-02 15:36:02.450285+00	0.000	0.000
-fa3c71db-d1ce-4a46-9ee5-9b8b4c2158e1	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مسمار قعدة كيلوباترا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:21.69907+00	2026-02-02 15:36:21.69907+00	0.000	0.000
-30150049-3f07-44c8-a64d-f23fd7141fdc	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مسمار قعدة الما	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:35.687663+00	2026-02-02 15:36:35.687663+00	0.000	0.000
-f0a893bd-5ba6-4416-9f76-2f89c54a7767	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مسمار قعدة ايطالي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:54.790817+00	2026-02-02 15:36:54.790817+00	0.000	0.000
-111240d0-c336-4cf3-9cd2-6779a85cb709	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي مجوز 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:37:24.090484+00	2026-02-02 15:37:24.090484+00	0.000	0.000
-6ec910b4-8783-403d-a1b3-3010fa7db258	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي لاتش 3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:38:08.931853+00	2026-02-02 15:38:08.931853+00	0.000	0.000
-1743d3fb-848e-476a-8cab-5e48149abdc3	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي لاتش 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:39:26.862435+00	2026-02-02 15:39:26.862435+00	0.000	0.000
-41c01f1c-ff76-4391-85d4-f5079c3787ce	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي فردي 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:39:54.460178+00	2026-02-02 15:39:54.460178+00	0.000	0.000
-32cac645-8208-4dac-9da8-01986e061b8c	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 1.5 ماليزى	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:06:44.180499+00	2026-02-21 21:40:25.304995+00	0.000	0.000
-3475e3b2-b002-47e6-88ee-85a33cd7f837	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2 بوصه ماليزى	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:07:21.784587+00	2026-02-21 21:40:36.875084+00	0.000	0.000
-625c7018-17e7-4090-9e8a-fbbedab8d3e2	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 1.5 رمادى	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:09:46.434495+00	2026-02-21 21:40:48.138474+00	0.000	0.000
-e0066fb9-2326-421b-a886-489c8b5863ab	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2 بوصه رمادى	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:10:08.971445+00	2026-02-21 21:41:04.522003+00	0.000	0.000
-45b07094-6fd8-4438-aa7b-4ba17e5ed897	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه أبيض	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:10:48.025512+00	2026-02-21 21:41:22.426883+00	0.000	0.000
-3f69fa98-e1f0-4102-a092-d17b3924abf9	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون3 بوصه بفايظ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:13:58.857832+00	2026-02-02 19:13:58.857832+00	0.000	0.000
-f7f12634-4eb0-4c26-8f20-691639ed46fa	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه بروحين	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:14:35.730526+00	2026-02-02 19:14:35.730526+00	0.000	0.000
-a6701d83-54db-4c36-968d-2354d17328ec	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2 بوصه بروحين	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:15:22.467925+00	2026-02-02 19:15:22.467925+00	0.000	0.000
-89153ada-a2e6-45ff-965d-a610fca6a73f	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه بزباله بلاستيك	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:16:05.314159+00	2026-02-21 21:42:02.445075+00	0.000	0.000
-b81afeec-6c16-455a-8aed-b6a43abd3b9b	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 1.5 كبايه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:16:38.530868+00	2026-02-02 19:16:38.530868+00	0.000	0.000
-cf75658d-4804-42d6-bd8f-edf3a77549be	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه رمادى	\N	عدد	75.00	38.00	30.00	\N	\N	\N	\N	\N	t	2026-02-02 19:16:58.666155+00	2026-03-15 17:10:44.53093+00	0.000	0.000
-d78e3631-becb-459d-bcb7-f626d9bdae58	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون بانيو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:17:15.44432+00	2026-02-02 19:17:15.44432+00	0.000	0.000
-2e9f519a-ab35-4cc7-a168-bd51332e9700	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه بزباله استالس	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:17:51.624571+00	2026-02-21 21:43:30.922208+00	0.000	0.000
-605b00e5-e53a-42e8-b98d-53030c4f7284	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون صينى 1.5	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:19:01.181735+00	2026-02-21 21:43:47.495468+00	0.000	0.000
-48745b7a-4ef7-4583-a151-234efc18dbe7	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون صينى 2 بوصه	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:19:28.108334+00	2026-02-21 21:44:00.953521+00	0.000	0.000
-db4063c5-f89d-40d9-abd9-968984ad74f8	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي فردي 3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 21:26:32.249983+00	2026-02-02 21:26:32.249983+00	0.000	0.000
-66e9c7ca-229c-4dbb-9f3a-345225214c9f	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي مجوز 3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 21:30:11.403724+00	2026-02-02 21:30:11.403724+00	0.000	0.000
-0c3f197e-b856-4f1f-b96f-fdb8e806da50	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3" ماليزي	\N	قطعة	70.00	35.00	30.00	\N	\N	\N	\N	\N	t	2026-03-15 17:09:04.979474+00	2026-03-15 17:09:04.979474+00	0.000	0.000
-ec82ff6e-c170-46cd-8bf4-56341eb31632	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون رمادي 2"	\N	قطعة	50.00	27.00	21.00	\N	\N	\N	\N	\N	t	2026-03-15 17:36:40.441539+00	2026-03-15 17:36:40.441539+00	0.000	0.000
-9ac24b13-ee09-4646-9bb8-249a9b471037	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه 3 متر جولدن فلو (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:30.120497+00	2026-02-21 14:39:51.846576+00	0.000	0.000
-19d71c4a-8090-4996-a85c-2df2eb0ee554	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه متر ونص جولدن فلو (الكوك)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:34.503756+00	2026-02-21 14:39:45.801646+00	0.000	0.000
-a392d3d8-9dc7-4509-92c6-96e52892dc45	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه متر ونص جولدن تركي (الكوك)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:45.952747+00	2026-02-21 14:39:25.335134+00	0.000	0.000
-543dae04-a219-44b2-a24c-8e663ec4c865	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه 3 متر جولدن تركي (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:52.496582+00	2026-02-21 14:39:18.134764+00	0.000	0.000
-c9d9c6cf-9b3c-464e-acb8-89e7b9e60117	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة صرف 3 متر (ادهم)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:14:53.843401+00	2026-02-21 14:38:55.431289+00	0.000	0.000
-a677536b-b254-402f-861c-caa5d4baf82f	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة صرف متر ونص (ادهم)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:15:24.714112+00	2026-02-21 14:38:48.103872+00	0.000	0.000
-189b8e6e-6161-40ba-ab29-98d73b32232e	682ba68b-ea1b-565a-972d-e92063da3cbb	حنفية غسالة (عمار)	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:35:22.486394+00	2026-02-21 14:38:21.602117+00	0.000	0.000
-8fae6b9b-5008-41b4-a965-9a6c1ded4518	682ba68b-ea1b-565a-972d-e92063da3cbb	حنفية غسالة روفا (بلال)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 19:38:43.959582+00	2026-02-21 14:38:28.854569+00	0.000	0.000
-aaa9b0ea-6fca-4ea2-9b68-59b22b719e6c	2732421b-5c80-556c-9323-4c8f800ad58e	مشترك 1 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:05:44.248619+00	2026-01-19 19:05:44.248619+00	0.000	0.000
-aebc30af-cb2d-40a1-a4aa-7a7f438a864a	6e264538-d570-56e8-ab82-3a3db2f04764	مشترك سن داخلي - سن 1/2 * 3/4 (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:03:41.558684+00	2026-01-19 19:03:41.558684+00	0.000	0.000
-bfde9b7d-4434-46e2-9972-bc39262ad6ac	6e264538-d570-56e8-ab82-3a3db2f04764	كوع سن داخلي - سن 1/2 * 3/4  (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:03:52.399587+00	2026-01-19 19:03:52.399587+00	0.000	0.000
-04584170-0c95-4aec-9669-fc9bc5778b8e	6e264538-d570-56e8-ab82-3a3db2f04764	جلبة سن داخلي - سن 1/2 * 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:04:00.511238+00	2026-01-19 19:04:00.511238+00	0.000	0.000
-855d8d44-57d9-4704-9908-8fdefbf12615	6e264538-d570-56e8-ab82-3a3db2f04764	جلبة سن خارجي - سن 1/2 * 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:04:07.237227+00	2026-01-19 19:04:07.237227+00	0.000	0.000
-62f17a04-2661-4859-8678-a0d17bbc0a0d	24af384e-9a22-58fd-bd52-970a3c97cad0	مشترك 3/4 * 3/4 سن داخلي (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:04:13.150707+00	2026-01-19 19:04:13.150707+00	0.000	0.000
-3ccc958f-8b6a-4bd8-a9d0-47bba9de7485	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دش روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 12:10:41.758539+00	2026-01-22 12:10:41.758539+00	0.000	0.000
-751a8dd7-078f-4709-9144-9c29d8b89762	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط موكا دش (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:00:28.285706+00	2026-01-22 14:00:28.285706+00	0.000	0.000
-cbb6ab60-767c-4ddb-be13-89063020cabc	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:02:07.150454+00	2026-01-22 14:02:07.150454+00	0.000	0.000
-06095b8b-ee17-4436-9942-c9976657fd63	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ لومي (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:02:47.405899+00	2026-01-22 14:02:47.405899+00	0.000	0.000
-1b0a5385-3616-4c3a-b745-a85f92393217	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ موكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:04:02.189476+00	2026-01-22 14:04:02.189476+00	0.000	0.000
-1cda0ceb-91d1-46c2-966c-39fb3afa37af	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ سالمكو ابيض (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:07:27.101698+00	2026-01-22 14:07:27.101698+00	0.000	0.000
-313c6041-991c-4284-86ba-400fc94cb85f	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش اليريا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:08:34.638235+00	2026-03-24 11:28:04.936399+00	0.000	0.000
-0f6dcd53-d686-43ae-8d75-54b1a8d2fcfe	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ جولد روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:09:49.421859+00	2026-01-22 14:09:49.421859+00	0.000	0.000
-ca3d769f-2e88-4ab4-a664-10168fd3f444	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش جولد روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:10:24.3023+00	2026-01-22 14:10:24.3023+00	0.000	0.000
-42080636-8663-44f5-b4c1-9b39aaac1507	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش اوكر لومي (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:13:25.965227+00	2026-01-22 14:13:25.965227+00	0.000	0.000
-6fbb04b8-4330-4c11-bfa4-8b1109d55f89	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط اوكر سالمكو ابيض (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:16:39.260973+00	2026-01-22 14:16:39.260973+00	0.000	0.000
-21f29f18-4d31-44eb-8cbe-787b049dfa55	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش كوكو موكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:40:53.885962+00	2026-01-22 14:40:53.885962+00	0.000	0.000
-6c320719-401e-47ac-bee3-21e7b61769b5	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش ساليمكو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:43:18.814499+00	2026-01-22 14:43:18.814499+00	0.000	0.000
-10fad07e-e235-4c23-8975-fbf164f85ea0	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:46:39.725569+00	2026-01-22 14:46:39.725569+00	0.000	0.000
-e4a2fec7-1530-4b1c-b279-8ea6e7fb894e	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ فيتو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:53:15.741383+00	2026-01-22 14:53:15.741383+00	0.000	0.000
-9b47cbd8-d805-47d6-bd39-8452ad291acc	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ سينزو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:53:53.533228+00	2026-01-22 14:53:53.533228+00	0.000	0.000
-0053a86b-d8a7-4da3-92dd-fd92a4e9bcc8	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ موكا احمر  (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:54:17.309819+00	2026-01-22 14:54:17.309819+00	0.000	0.000
-dad20297-7d49-4231-bfd1-812ecb3ded63	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف ليمار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:55:06.989326+00	2026-01-22 14:55:06.989326+00	0.000	0.000
-a4e213ae-e816-4c03-a379-402ec0d79454	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف سينزو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:55:27.229806+00	2026-01-22 14:55:27.229806+00	0.000	0.000
-95070eb6-92ac-49bb-9242-b9d24fcfd7bb	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف روك MG (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:56:20.109743+00	2026-01-22 14:56:20.109743+00	0.000	0.000
-5cd2a754-00cb-4a1c-a7bd-3ea5e0147927	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف سينيور (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:56:58.253773+00	2026-01-22 14:56:58.253773+00	0.000	0.000
-f1f57c68-4a58-447a-85ac-8147d2acd1d9	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف النيل (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:57:26.765701+00	2026-01-22 14:57:26.765701+00	0.000	0.000
-c412d1be-d6c6-417b-9f67-48f9129e145d	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط 1/2 بارد جنا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:01:58.830456+00	2026-01-22 15:01:58.830456+00	0.000	0.000
-d3fec787-b312-4d8d-83f4-918c4b1add15	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة دش ديتوريا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:03:06.732934+00	2026-01-22 15:03:06.732934+00	0.000	0.000
-24fb14a1-81cd-4bff-934c-979871903865	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة وش 1/2 محمل ديتوريا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:06:35.725891+00	2026-01-22 15:06:35.725891+00	0.000	0.000
-97565e26-97a2-4284-ba09-ae9b8f8b6be2	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة دش اوكر (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:08:25.838261+00	2026-01-22 15:08:25.838261+00	0.000	0.000
-58a4a59e-3495-4e62-b2d0-472aaebd65d6	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دش سينزو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:08:55.197365+00	2026-01-22 15:08:55.197365+00	0.000	0.000
-06ddd19d-3ce2-4821-af81-09a1691dbd66	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش جولدن ايجل (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:13:20.237613+00	2026-01-22 15:13:20.237613+00	0.000	0.000
-112dcd47-c1b5-48e5-8c35-a607803fbab9	50aac995-d284-5518-bbb9-019cfdeb1378	طبة حوض ستار (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:00:28.989011+00	2026-01-25 17:00:28.989011+00	0.000	0.000
-f03dd423-06f8-47ff-9f3f-38aeac20a897	50aac995-d284-5518-bbb9-019cfdeb1378	محبس مجوز محمل (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:03:16.445111+00	2026-01-25 17:03:16.445111+00	0.000	0.000
-9f43f345-bb0d-4097-9ce2-8fc11499c952	50aac995-d284-5518-bbb9-019cfdeb1378	محبس مجوز خفيف (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:03:29.659999+00	2026-01-25 17:03:29.659999+00	0.000	0.000
-0022d9ed-8597-4847-aa41-496c0f5f6fdc	50aac995-d284-5518-bbb9-019cfdeb1378	خزان شاور (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:04:10.236359+00	2026-01-25 17:04:10.236359+00	0.000	0.000
-acd67601-084b-4d50-9c35-121344944338	50aac995-d284-5518-bbb9-019cfdeb1378	محبس جولد (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:04:35.499663+00	2026-01-25 17:04:35.499663+00	0.000	0.000
-11cbf451-8e09-4ceb-b1d6-1093e8704a2f	50aac995-d284-5518-bbb9-019cfdeb1378	حنفية غسالة هواي (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:04:54.796142+00	2026-01-25 17:04:54.796142+00	0.000	0.000
-364cf46d-c57a-4d8e-bb4d-76c81c41110b	50aac995-d284-5518-bbb9-019cfdeb1378	محبس هاينز (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:05:12.299668+00	2026-01-25 17:05:12.299668+00	0.000	0.000
-d7ce890d-87cd-46af-8486-d92bce906566	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط موكا مطبخ (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 21:03:25.955866+00	2026-01-25 21:03:25.955866+00	0.000	0.000
-8ee97fac-d9e7-46f2-87d2-6f252272cc43	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط موكا وش (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 21:03:46.179096+00	2026-01-25 21:03:46.179096+00	0.000	0.000
-1bdf30f3-f488-4e03-a464-31e600a3c012	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دش جولدن ايجل	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:59:26.741401+00	2026-03-04 13:59:26.741401+00	0.000	0.000
-ecdbb38a-6d75-4400-85a5-3aab9d88372b	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دوش اوكر	\N	قطعة	650.00	580.00	520.00	\N	\N	\N	\N	\N	t	2026-03-15 16:51:10.228907+00	2026-03-15 16:51:10.228907+00	0.000	0.000
-9270a294-f2ee-4bf5-8871-ba778fc8e784	50aac995-d284-5518-bbb9-019cfdeb1378	طقم خلاط اوكر	\N	طقم	1550.00	1450.00	1200.00	\N	\N	\N	\N	\N	t	2026-03-15 16:53:55.748347+00	2026-03-15 16:53:55.748347+00	0.000	0.000
-f12652f3-f3c6-43ae-8afa-04fafd701c2f	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة استالس	\N	قطعة	600.00	420.00	300.00	\N	\N	\N	\N	\N	t	2026-03-15 17:06:36.203073+00	2026-03-15 17:06:36.203073+00	0.000	0.000
-a0bb2d53-4a9c-4d5f-bce9-69f0f7092fa4	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط 1/2 استالس مط	\N	قطعة	250.00	190.00	100.00	\N	\N	\N	\N	\N	t	2026-03-15 17:20:14.050966+00	2026-03-15 17:20:14.050966+00	0.000	0.000
-f9e48d97-167b-443e-bb9f-0dcc047bad58	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة حمام هاند ميكسر وش (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-39a64571-ec16-476d-be59-88ceef71426a	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة مطبخ هاند ميكسر وش (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-de2a4366-eab4-4c04-9bd0-362a29eab7e8	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة عكاز هاند ميكسر (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-5d31eb67-6989-4113-8936-43dc6ae1a959	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 5 لينيا وش	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-66dfac46-fd00-4ebf-93de-f48f6110b778	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 5 لينيا مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-85d12824-8b4e-4805-a439-94123944367c	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 6 لينيا مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-2a0cb6d2-3bf2-48b5-9454-37cd53b23c9e	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 6 لينيا وش	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-0a184115-b9d7-4ab5-9d82-c864eb702b45	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة وش هاند ميكسر قصيرة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-b656dab6-3e5f-43f4-9405-9c2dd680411f	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة مطبخ هاند ميكسر مقلوبة صغيرة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-9d992477-0510-4e5d-82c2-89b66cc8658c	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة وش هاند ميكسر طويلة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-8bfd6725-3128-4c54-b869-fc2a959df714	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة هاند ميكسر مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-37ee2418-56bb-4d8e-b0ec-fe9ffb1fc333	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة عكاز وش صغير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-d6a1126f-180e-480d-9924-1fb69414f686	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة عكاز وش كبير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-729d42f1-7d09-46f9-a4bf-58d11104de7b	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة مطبخ هاند ميكسر مقلوبة كبيرة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000
-f28d6018-f8ef-4e25-b404-1830ea0d3708	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة هاند ميكسر غكاز مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:51.761397+00	2026-01-29 12:50:51.761397+00	0.000	0.000
-3facfe2f-f0db-410c-b679-7e7082704488	201504f6-3716-569b-9502-2a404a8cbb03	هلاله مسمار 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:06:07.674285+00	2026-02-01 17:06:07.674285+00	0.000	0.000
-bf8c300e-e7d6-4072-9c5f-c1745542bf46	201504f6-3716-569b-9502-2a404a8cbb03	هلاله 2 مسمار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:06:27.799151+00	2026-02-01 17:06:27.799151+00	0.000	0.000
-7dbbf287-1956-44eb-8f05-20c48068fa87	201504f6-3716-569b-9502-2a404a8cbb03	طقم كرنك خلاط استالس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:07:27.044835+00	2026-02-01 17:07:27.044835+00	0.000	0.000
-1d30a4fe-fbfe-4d3e-886d-d7c5ec544240	201504f6-3716-569b-9502-2a404a8cbb03	صامولة قنطرة 6 لنيا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:09:23.581078+00	2026-02-01 17:09:23.581078+00	0.000	0.000
-6c53ac78-8c67-4b7d-9417-fe21bb9cad2c	201504f6-3716-569b-9502-2a404a8cbb03	صامولة زنق هاند ميكسر نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:10:35.219759+00	2026-02-01 17:10:35.219759+00	0.000	0.000
-e196b412-5f2c-4a18-81ee-3c50385a03fc	201504f6-3716-569b-9502-2a404a8cbb03	وصلت خلاط 5 لنيا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:11:27.335241+00	2026-02-01 17:11:27.335241+00	0.000	0.000
-87d4538d-0e02-44ee-976a-53651c8e11ab	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبلة خزان 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:04:56.586921+00	2026-01-29 13:04:56.586921+00	0.000	0.000
-015510b5-5c17-40eb-8099-378255764017	86600a27-d5d3-56ab-a8ed-e3ea152ea390	مشترك نحاس 1/2 محمل	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:05:20.202709+00	2026-02-21 21:52:50.698951+00	0.000	0.000
-eabea370-6202-46ed-836d-89822831f083	86600a27-d5d3-56ab-a8ed-e3ea152ea390	كوع عادة محمل 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:06:01.8035+00	2026-01-29 13:06:01.8035+00	0.000	0.000
-fbc41295-0338-4e49-b61e-79e99e9f5667	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل نحاس 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:09:04.443198+00	2026-01-29 13:09:04.443198+00	0.000	0.000
-a2cdd98c-fbff-4718-bb70-ebb3eb940b55	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل نحاس 3/5 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:11:59.962066+00	2026-01-29 13:11:59.962066+00	0.000	0.000
-6652a94b-e908-4557-a060-95e8a2d1c9c3	86600a27-d5d3-56ab-a8ed-e3ea152ea390	كوع صنارة محمل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:26:04.321138+00	2026-01-29 13:26:04.321138+00	0.000	0.000
-2bd5ddec-5128-4551-a96d-f826eaaec686	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل 3/4 نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:31:32.249287+00	2026-01-29 13:31:32.249287+00	0.000	0.000
-129089d7-95d4-42cc-94ef-2e54da0be9f1	86600a27-d5d3-56ab-a8ed-e3ea152ea390	طبة 1/2 نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:33:31.976981+00	2026-01-29 13:33:31.976981+00	0.000	0.000
-b4d85961-96ba-4080-aa56-285b5489712c	86600a27-d5d3-56ab-a8ed-e3ea152ea390	جلبة سماعة نيكل 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:39:26.104821+00	2026-01-29 13:39:26.104821+00	0.000	0.000
-e0e6359a-6bf8-43ed-bb47-0b0e63e10d65	86600a27-d5d3-56ab-a8ed-e3ea152ea390	جلبة سماعة نيكل 3/4 * 1/2 نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:02.808686+00	2026-01-29 13:40:02.808686+00	0.000	0.000
-fc080463-994d-4137-87fb-c0544751b8ac	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل خلاط صغير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:16.840735+00	2026-01-29 13:40:16.840735+00	0.000	0.000
-4c4aa1f7-2214-4e18-86fc-792298942132	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل خلاط كبير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:35.207902+00	2026-01-29 13:40:35.207902+00	0.000	0.000
-731e6d42-8a1f-466f-b80e-97784861e90c	86600a27-d5d3-56ab-a8ed-e3ea152ea390	كعب خلاط نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:51.095914+00	2026-01-29 13:40:51.095914+00	0.000	0.000
-242e2fb5-5a2d-4d00-ba37-e9f08f40c31f	f0906684-99d3-55aa-9994-9427e941823e	كوع 1" عادة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:10:14.72849+00	2026-02-04 14:10:14.72849+00	0.000	0.000
-2a10fa6f-8cec-43fc-868a-d9c6b614e101	f0906684-99d3-55aa-9994-9427e941823e	كوع 1" مفتوح سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:12:26.727776+00	2026-02-04 14:12:26.727776+00	0.000	0.000
-3896b31c-7763-425a-8bc2-d52a6b6ed94f	f0906684-99d3-55aa-9994-9427e941823e	جلبة 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:12:55.784626+00	2026-02-04 14:12:55.784626+00	0.000	0.000
-48ff7790-a0dc-4c11-b27f-e1c8c92ca52f	f0906684-99d3-55aa-9994-9427e941823e	مشترك تي 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:13:35.832428+00	2026-02-04 14:13:35.832428+00	0.000	0.000
-2d83aef3-45b0-41bb-9475-b1b64ab3bded	f0906684-99d3-55aa-9994-9427e941823e	مشترك واي 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:14:42.896833+00	2026-02-04 14:14:42.896833+00	0.000	0.000
-58972db3-c507-4f0a-a8aa-77ba90cd06fd	f0906684-99d3-55aa-9994-9427e941823e	كوع عادة 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:16:09.84822+00	2026-02-04 14:16:09.84822+00	0.000	0.000
-8e2e8783-9d76-478b-b10f-e9342e98e16f	f0906684-99d3-55aa-9994-9427e941823e	مشترك واي 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:16:44.775591+00	2026-02-04 14:16:44.775591+00	0.000	0.000
-5a69faeb-91af-4ec9-85f2-6939c22df3d1	f0906684-99d3-55aa-9994-9427e941823e	كوع مفتوح 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 15:09:53.89195+00	2026-02-04 15:09:53.89195+00	0.000	0.000
-8f7aafa6-b4da-421c-a7bd-f27fa96b1974	f0906684-99d3-55aa-9994-9427e941823e	جلبة عادة 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 15:22:56.563347+00	2026-02-04 15:22:56.563347+00	0.000	0.000
-16215c47-6d07-4eab-a055-de8f98d0b6d8	f0906684-99d3-55aa-9994-9427e941823e	كوع 2" عادة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:02:16.529075+00	2026-02-04 16:02:16.529075+00	0.000	0.000
-75f27b8f-be6b-4bb7-90cd-6604cf2a14c1	f0906684-99d3-55aa-9994-9427e941823e	تي 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:05:12.25651+00	2026-02-04 16:05:12.25651+00	0.000	0.000
-9bdfe990-a632-4e4a-a461-c97627f66aa2	f0906684-99d3-55aa-9994-9427e941823e	كوع مفتوح 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:05:35.775817+00	2026-02-04 16:05:35.775817+00	0.000	0.000
-6bce2691-dbf2-484b-bd68-b1ca3e7404ed	f0906684-99d3-55aa-9994-9427e941823e	كوع عادة بباب 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:17:36.974994+00	2026-02-04 16:17:36.974994+00	0.000	0.000
-8c61aff3-78b7-499c-a20c-f2e2d06f31c2	f0906684-99d3-55aa-9994-9427e941823e	تي 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:19:43.150728+00	2026-02-04 16:19:43.150728+00	0.000	0.000
-04955fdd-d0f5-4355-a51b-4c78e6fa51b5	f0906684-99d3-55aa-9994-9427e941823e	واي 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:20:17.1682+00	2026-02-04 16:20:17.1682+00	0.000	0.000
-74f991b9-037e-480f-b6d4-e47da50d2e4a	f0906684-99d3-55aa-9994-9427e941823e	تي بباب 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:24:20.57455+00	2026-02-04 16:24:20.57455+00	0.000	0.000
-c9d4bbe8-5763-41f3-8fca-6328191b54c6	f0906684-99d3-55aa-9994-9427e941823e	كوع بباب 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:26:10.590267+00	2026-02-04 16:26:10.590267+00	0.000	0.000
-01345ffe-fb1e-4b0b-9ccc-b52ce0716020	f0906684-99d3-55aa-9994-9427e941823e	تي 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:33:49.525696+00	2026-02-04 16:33:49.525696+00	0.000	0.000
-ef927bc2-dd52-4c27-af97-abef6001cb3d	f0906684-99d3-55aa-9994-9427e941823e	جلبة 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:38:33.48579+00	2026-02-04 16:38:33.48579+00	0.000	0.000
-7da00ad0-bb2c-4d44-b9d0-52caf278cd55	f0906684-99d3-55aa-9994-9427e941823e	طبة تسليك سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:40:02.365338+00	2026-02-04 16:40:02.365338+00	0.000	0.000
-95397be8-d564-4c4d-a4d4-52bc321fb9e5	f0906684-99d3-55aa-9994-9427e941823e	تي بباب 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:15:36.281301+00	2026-02-04 19:15:36.281301+00	0.000	0.000
-7516d39d-1ba9-4514-8694-b156c4b3f404	f0906684-99d3-55aa-9994-9427e941823e	جلبة لحام 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:16:50.471338+00	2026-02-04 19:16:50.471338+00	0.000	0.000
-446eca70-ca36-48ac-86a0-10f6e18c01a9	f0906684-99d3-55aa-9994-9427e941823e	تي 4" عادة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:18:56.727941+00	2026-02-04 19:18:56.727941+00	0.000	0.000
-8d300a64-8928-47af-9d61-e8cda073dcc3	f0906684-99d3-55aa-9994-9427e941823e	كوع مفتوح 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:20:28.168356+00	2026-02-04 19:20:28.168356+00	0.000	0.000
-4d4366c5-3ee6-44bf-ac5a-a341aaf15057	f0906684-99d3-55aa-9994-9427e941823e	برقع بلاعة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:22:12.903896+00	2026-02-04 19:22:12.903896+00	0.000	0.000
-1cd6083f-f377-478d-b54e-a3a0b8a66595	f0906684-99d3-55aa-9994-9427e941823e	نقاص 2 * 1.5 سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:23:01.208091+00	2026-02-04 19:23:01.208091+00	0.000	0.000
-2653d564-e6ce-4bd7-86f0-f84f09d3c529	f0906684-99d3-55aa-9994-9427e941823e	نقاص 1.5 * 1 سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:23:32.151448+00	2026-02-04 19:23:32.151448+00	0.000	0.000
-0df5e9da-aa4e-44b8-aa5b-bf926888b7c6	f0906684-99d3-55aa-9994-9427e941823e	هواية 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:24:15.993677+00	2026-02-04 19:24:15.993677+00	0.000	0.000
-b2695def-80ca-4556-85df-e9cf5440d08d	f0906684-99d3-55aa-9994-9427e941823e	هواية 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:25:31.479382+00	2026-02-04 19:25:31.479382+00	0.000	0.000
-a092d113-7153-47dd-8589-2a48f7807e6d	f0906684-99d3-55aa-9994-9427e941823e	واي 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:27:36.55209+00	2026-02-04 19:27:36.55209+00	0.000	0.000
-ea08286a-83e1-4151-8221-3ad4cbf6fd9d	f0906684-99d3-55aa-9994-9427e941823e	وصلة تمدد 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:32:54.583146+00	2026-02-04 19:32:54.583146+00	0.000	0.000
-a01fae38-7472-40c8-a340-7915a7359b6b	f0906684-99d3-55aa-9994-9427e941823e	كوع بسن داخلي 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:34:37.70368+00	2026-02-04 19:34:37.70368+00	0.000	0.000
-1697cc2b-8aa6-40c8-8d42-412bcb10dca9	f0906684-99d3-55aa-9994-9427e941823e	اختبار	\N	عدد	111.00	0.00	0.00	\N	small	standard	plastic	\N	t	2026-02-06 22:00:13.12123+00	2026-02-06 22:00:13.12123+00	0.000	0.000
-cca800ba-631f-49da-94c9-8ea5b8e8ea6b	92d22b39-ff32-572a-a53e-3e3942306976	طبة 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 16:25:42.309536+00	2026-02-05 16:25:42.309536+00	0.000	0.000
-ffd44b52-646c-48dd-ad49-7a955a9dcb21	92d22b39-ff32-572a-a53e-3e3942306976	طبة كاب 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 16:30:06.145087+00	2026-02-05 16:30:06.145087+00	0.000	0.000
-d468aa72-a661-4d6a-bac0-431892931b0b	92d22b39-ff32-572a-a53e-3e3942306976	طبة كاب 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:06:40.193488+00	2026-02-05 17:06:40.193488+00	0.000	0.000
-fdbf99f3-062b-4011-814f-e8e50634b02d	92d22b39-ff32-572a-a53e-3e3942306976	تي 1.5 * 0.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:08:11.609015+00	2026-02-05 17:08:11.609015+00	0.000	0.000
-74d2c47d-ad15-41de-98b4-b4d6d98c659c	92d22b39-ff32-572a-a53e-3e3942306976	تي 2" * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:55:14.189288+00	2026-02-05 17:55:14.189288+00	0.000	0.000
-f305a965-af31-433c-9514-e050f4508875	92d22b39-ff32-572a-a53e-3e3942306976	تي 2" * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:55:44.690649+00	2026-02-05 17:55:44.690649+00	0.000	0.000
-df868d6f-bda5-4441-893a-9fe733f91e32	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1.5 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:59:49.503819+00	2026-02-05 17:59:49.503819+00	0.000	0.000
-1f687959-dffd-407a-83d6-63980b3fb35e	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:07:35.726949+00	2026-02-05 18:07:35.726949+00	0.000	0.000
-7e96927a-e82c-40dd-b730-40452540550b	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:09:45.183057+00	2026-02-05 18:09:45.183057+00	0.000	0.000
-b93d809f-b9c2-462f-b50f-584a05e408f7	92d22b39-ff32-572a-a53e-3e3942306976	تي 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:10:11.359066+00	2026-02-05 18:10:11.359066+00	0.000	0.000
-7e82c0ee-eb1a-48c8-8c31-d57c4ee62112	92d22b39-ff32-572a-a53e-3e3942306976	طبة اختبار الوان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:12:26.36636+00	2026-02-05 18:12:26.36636+00	0.000	0.000
-5582619d-2012-4f07-83c0-c904f6e57bc3	92d22b39-ff32-572a-a53e-3e3942306976	طبة 2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:13:57.381539+00	2026-02-05 18:13:57.381539+00	0.000	0.000
-ffa0d3cc-9d21-44ee-8ac7-5e3b17ddee92	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 1.5 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:15:28.382625+00	2026-02-05 18:15:28.382625+00	0.000	0.000
-3da95089-bfa4-407c-ba9d-8b096302c4ef	92d22b39-ff32-572a-a53e-3e3942306976	تي 2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:16:10.846336+00	2026-02-05 18:16:10.846336+00	0.000	0.000
-46401744-e12c-435b-baa4-5fd53469118e	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 2 * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:18:47.855139+00	2026-02-05 18:18:47.855139+00	0.000	0.000
-658992d5-1f93-4309-afb5-22dd41777f6c	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:19:46.542462+00	2026-02-05 18:19:46.542462+00	0.000	0.000
-9dcdf30e-a5b5-4636-af3b-a8491cb82704	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 1" * 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:21:11.054137+00	2026-02-05 18:21:11.054137+00	0.000	0.000
-429fcc2b-56f4-4e32-a3bf-3437b64a3201	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:21:36.974283+00	2026-02-05 18:21:36.974283+00	0.000	0.000
-99bec8cc-8f51-4bff-b8c4-6c79bef4892e	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:25:47.389968+00	2026-02-05 18:25:47.389968+00	0.000	0.000
-9fa7f793-227b-44d7-a95c-c88c5705e89c	92d22b39-ff32-572a-a53e-3e3942306976	كوع لحام 1 * 0.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:26:25.710839+00	2026-02-05 18:26:25.710839+00	0.000	0.000
-b0010911-a553-4480-9d0d-d51e432e61b6	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:27:11.517947+00	2026-02-05 18:27:11.517947+00	0.000	0.000
-4ff0fa6b-1b53-4064-98b5-30bba06b1dfa	92d22b39-ff32-572a-a53e-3e3942306976	كوع 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:27:37.822443+00	2026-02-05 18:27:37.822443+00	0.000	0.000
-92565437-4f18-408f-ac3d-ffc4624663ed	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1.5 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:28:53.022014+00	2026-02-05 18:28:53.022014+00	0.000	0.000
-55612a96-6a02-474c-ac65-009a45ab9d9f	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:30:26.142125+00	2026-02-05 18:30:26.142125+00	0.000	0.000
-55747c66-cd99-453d-be45-ecd7ce155ec3	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:33:01.949471+00	2026-02-05 18:33:01.949471+00	0.000	0.000
-64c281e1-8184-463e-bee6-0e83f1b9b7aa	8f28d905-151c-55b6-8379-1d5332eced40	كوع عادة 4" BFS	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:27:12.223007+00	2026-02-17 17:27:12.223007+00	0.000	0.000
-48d5fc8b-2739-48e2-9ee4-3c0fab0d6bf7	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:27:41.838572+00	2026-02-17 17:27:41.838572+00	0.000	0.000
-dfa66d4f-7243-48a9-a33c-5e072222cac4	8f28d905-151c-55b6-8379-1d5332eced40	كوع بباب 4" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:28:08.527426+00	2026-02-17 17:28:08.527426+00	0.000	0.000
-6567f7cf-c146-4df8-a3be-8650e082cad7	8f28d905-151c-55b6-8379-1d5332eced40	كوع باب 4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:28:35.854887+00	2026-02-17 17:28:35.854887+00	0.000	0.000
-dcaf8c13-ddc1-4fb6-849b-694a0c59edc2	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام 4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:29:00.27245+00	2026-02-17 17:29:00.27245+00	0.000	0.000
-fc3a49eb-0812-42b7-9f84-08333b2559d8	8f28d905-151c-55b6-8379-1d5332eced40	جلبة اصلاح 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:30:02.215396+00	2026-02-17 17:30:02.215396+00	0.000	0.000
-ca29c5d5-7258-4543-9775-474b7a2e2256	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:30:43.439673+00	2026-02-17 17:30:43.439673+00	0.000	0.000
-597008d4-6870-4765-96e9-29436230b29e	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 3 على 2 روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:34:22.734638+00	2026-02-17 17:34:22.734638+00	0.000	0.000
-9f1b35b7-6bd2-40cd-8453-c6288391b2a8	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 3 على 2 باب روك	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:37:19.487416+00	2026-02-17 17:37:19.487416+00	0.000	0.000
-63f63c8e-27f5-479a-a4ed-48d8ef15c1e0	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 6 على 4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:37:36.206737+00	2026-02-17 17:37:36.206737+00	0.000	0.000
-9230b14e-5c16-482b-998a-c3cc6242c67a	8f28d905-151c-55b6-8379-1d5332eced40	صليبة 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:39:44.590162+00	2026-02-17 17:39:44.590162+00	0.000	0.000
-9838af29-0eeb-401b-b8b9-e7272e248cc2	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 4 على 3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:40:22.670993+00	2026-02-17 17:40:22.670993+00	0.000	0.000
-89c711d3-026a-4080-90e5-5854aadbfad2	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 3 على 2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:40:54.669555+00	2026-02-17 17:40:54.669555+00	0.000	0.000
-80955f9e-f1a7-4dd6-b254-d0aae0786059	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 4 على 2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:41:33.598368+00	2026-02-17 17:41:33.598368+00	0.000	0.000
-5d19848f-34eb-48f2-8d0e-bff2658bb264	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 3" بباب روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:41:50.718026+00	2026-02-17 17:41:50.718026+00	0.000	0.000
-71e6c269-0b0a-4ff3-95bd-a105988cdda0	8f28d905-151c-55b6-8379-1d5332eced40	واي 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:42:12.735868+00	2026-02-17 17:42:12.735868+00	0.000	0.000
-ea4801eb-2031-4f2d-a875-16e122174ba1	8f28d905-151c-55b6-8379-1d5332eced40	مشترك واي 4"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:00:06.469912+00	2026-02-20 19:00:06.469912+00	0.000	0.000
-27ae4b21-56ff-449e-bdc0-e3412e63d57c	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4 على 2 بباب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:00:37.78151+00	2026-02-20 19:00:37.78151+00	0.000	0.000
-5a9a1c42-136b-45d4-93f1-0ca22ca48e21	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4 على 2 عادة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:01:26.605874+00	2026-02-20 19:01:26.605874+00	0.000	0.000
-53a965c4-ec9f-4331-8c09-7ae3eb11c2bc	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4 على 3 بباب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:03:19.581906+00	2026-02-20 19:03:19.581906+00	0.000	0.000
-0b532dc7-1461-473d-a967-fca1cef3817c	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام 6" 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:09:15.685113+00	2026-02-20 19:09:45.006064+00	0.000	0.000
-d886bc4f-a8d0-425d-8919-b03e171ca969	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام  6" 160	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:10:13.045315+00	2026-02-20 19:10:13.045315+00	0.000	0.000
-f3d9f278-2361-45dc-b5c3-9b12be2f20e8	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6" 160 بباب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:10:38.32447+00	2026-02-20 19:10:38.32447+00	0.000	0.000
-18ef625c-0276-44dd-890c-8917d875580e	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6" 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:15.28564+00	2026-02-20 19:11:15.28564+00	0.000	0.000
-19df2fa4-493a-4977-9f28-df694c4fa19e	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6" عادة 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:29.877766+00	2026-02-20 19:11:29.877766+00	0.000	0.000
-c48b78b3-b5bf-41f2-8a1e-dd3cb2497de6	8f28d905-151c-55b6-8379-1d5332eced40	كوع 6" بباب 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:42.548745+00	2026-02-20 19:11:42.548745+00	0.000	0.000
-9d9a0a7f-d9f6-4032-89ba-e04abc66217f	8f28d905-151c-55b6-8379-1d5332eced40	كوع 6" بوصة بباب 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:53.589739+00	2026-02-20 19:11:53.589739+00	0.000	0.000
-274c2b30-5c67-452d-8668-d0e04a0f3752	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 6"بباب 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:12:24.357203+00	2026-02-20 19:12:24.357203+00	0.000	0.000
-d936244e-daa6-4f8e-a484-e8976bd04eb7	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/2 عاده	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:11:53.080656+00	2026-02-21 21:11:53.080656+00	0.000	0.000
-f2dee181-2ff3-4ca5-a5eb-610dc49f5969	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3 باب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:12:37.221354+00	2026-02-21 21:12:37.221354+00	0.000	0.000
-c3e347d9-49ce-471d-95b9-e53b8aef5a65	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3 عاده	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:13:39.109783+00	2026-02-21 21:13:39.109783+00	0.000	0.000
-87d7c4ab-4a5e-4140-9b56-693d38a64a63	8f28d905-151c-55b6-8379-1d5332eced40	جلبه لحام 6 بوصه168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:17:12.917242+00	2026-02-21 21:17:12.917242+00	0.000	0.000
-a44e2af6-528b-4e34-9e0e-a8b4a4ab7198	8f28d905-151c-55b6-8379-1d5332eced40	جلبه لحام 6 بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:17:53.237769+00	2026-02-21 21:17:53.237769+00	0.000	0.000
-c8ed0258-b82f-46df-b1d5-a9cca14ff8fa	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6 بوصه 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:18:37.299647+00	2026-02-21 21:18:37.299647+00	0.000	0.000
-6deedd3b-0c5a-4535-b6e9-df2e2ae52399	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 6 بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:19:32.292231+00	2026-02-21 21:19:32.292231+00	0.000	0.000
-b6cc78ec-f150-4350-90b6-f3ae1f4068d3	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:20:26.886073+00	2026-02-21 21:20:26.886073+00	0.000	0.000
-1ce1c5c8-03bb-4f93-8e4c-84a6b69f386c	8f28d905-151c-55b6-8379-1d5332eced40	كوع باب 6 بوصه 168 روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:21:26.531987+00	2026-02-21 21:21:26.531987+00	0.000	0.000
-1587c12f-d8dc-40f5-8d22-d051af0287fd	8f28d905-151c-55b6-8379-1d5332eced40	كوع باب 6 بوصه 160 روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:22:21.540549+00	2026-02-21 21:22:21.540549+00	0.000	0.000
-433f723b-d4d3-4dbe-9866-49c9fcd6c040	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 6 بوصه 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:23:01.828092+00	2026-02-21 21:23:01.828092+00	0.000	0.000
-c973aa90-e274-4a13-bd63-fb0141d26fb5	8f28d905-151c-55b6-8379-1d5332eced40	كوع عاده 6 بوصه 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:23:38.899672+00	2026-02-21 21:23:38.899672+00	0.000	0.000
-429a54f9-6312-4e78-a0f0-3621129feb75	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 6 بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:24:14.886048+00	2026-02-21 21:24:14.886048+00	0.000	0.000
-48272cca-653d-4506-b8fd-d5e3a4f1835f	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6/4 160*110	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:25:05.66843+00	2026-02-21 21:25:05.66843+00	0.000	0.000
-4e81ce7f-47a6-4813-ae27-30d0d1753051	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6/4 168*114	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:25:54.564452+00	2026-02-21 21:25:54.564452+00	0.000	0.000
-125dffb9-8af1-4a61-b5b6-89d48a631935	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:26:58.852132+00	2026-02-21 21:26:58.852132+00	0.000	0.000
-c987d093-12be-452d-b2b7-bc0eebcf8389	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 4/3 البحر الأحمر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:28:06.131785+00	2026-02-21 21:28:06.131785+00	0.000	0.000
-c7f3e93a-438f-480a-977a-4b1c03769984	8f28d905-151c-55b6-8379-1d5332eced40	صليبه 4/2 الأهرام	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:28:45.65167+00	2026-02-21 21:28:45.65167+00	0.000	0.000
-c1a296c0-6471-45fd-bb5e-5f91f68e77fd	8f28d905-151c-55b6-8379-1d5332eced40	جلبه لحام 4 بوصه روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:29:27.395828+00	2026-02-21 21:29:27.395828+00	0.000	0.000
-e8064580-f5a5-42d8-a083-bd3e3d3f4481	8f28d905-151c-55b6-8379-1d5332eced40	جلبه اصلاح 4 بوصه روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:30:08.77231+00	2026-02-21 21:30:08.77231+00	0.000	0.000
-7bd70918-ce49-4b75-b72c-18154bd2f79a	8f28d905-151c-55b6-8379-1d5332eced40	واى 4 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:32:32.709138+00	2026-02-21 21:32:32.709138+00	0.000	0.000
-0fe7c2a0-f60e-4f15-b284-2c8b1b12d7dc	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 4/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:33:11.363362+00	2026-02-21 21:33:11.363362+00	0.000	0.000
-ec568ee9-0b5f-4dc4-a628-fd3f5fe9db4d	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:33:51.187818+00	2026-02-21 21:33:51.187818+00	0.000	0.000
-de486650-4431-4dde-aa4d-4ce6be1554d8	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 4/3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:34:49.379716+00	2026-02-21 21:34:49.379716+00	0.000	0.000
-e7cb2e9b-10a3-42a5-9c43-04f5fc233e88	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:35:23.395697+00	2026-02-21 21:35:23.395697+00	0.000	0.000
-150417bc-5700-4216-b3b2-8025ab306799	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1" BFS	\N	قطعة	0.00	0.00	0.00	BFS	1 بوصة	\N	بولي	\N	t	2026-02-17 16:17:16.570873+00	2026-02-17 16:17:16.570873+00	0.000	0.000
-7637f2f6-5553-4362-9abe-b79b9b211e66	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 2" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:17:58.17133+00	2026-02-17 16:17:58.17133+00	0.000	0.000
-612e2397-4ece-4c57-a7f9-842843bed5be	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:19:05.506041+00	2026-02-17 16:19:05.506041+00	0.000	0.000
-955997b7-2036-4f64-adf6-26ee55975902	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 1.5 اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:21:11.874888+00	2026-02-17 16:21:11.874888+00	0.000	0.000
-25786994-56ff-4a82-9b45-c8d30fc092c8	36041da5-c9a4-574f-9538-790b9601a464	كوع بسن داخلي 1*3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:22:12.169365+00	2026-02-17 16:22:12.169365+00	0.000	0.000
-8f6beea1-072b-4f7d-9bc6-8591373b292e	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 2" اكوا روك	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:24:05.394756+00	2026-02-17 16:24:05.394756+00	0.000	0.000
-3d6cff07-15a4-4c75-992d-ce195ec48a0c	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:25:41.826927+00	2026-02-17 16:25:41.826927+00	0.000	0.000
-d2a03983-48c8-42f0-8675-2b0aeec3e469	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 1" كايرو ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:26:24.833411+00	2026-02-17 16:26:24.833411+00	0.000	0.000
-356ad760-f17e-4108-aa87-3f44b452fbd0	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 1" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:27:24.738933+00	2026-02-17 16:27:24.738933+00	0.000	0.000
-511fc549-b298-481f-ae1a-d0cc9b4dfe9d	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:28:24.929834+00	2026-02-17 16:28:24.929834+00	0.000	0.000
-3fc85ed1-884e-4034-9ac6-2dd78c114a4b	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:29:08.465047+00	2026-02-17 16:29:08.465047+00	0.000	0.000
-4c046095-bd35-4fe7-ba57-b3fe61d3b3b9	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1.5" معزول BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:30:14.513404+00	2026-02-17 16:30:14.513404+00	0.000	0.000
-fb5099b2-64e9-452e-b4d6-2c3591a1b042	36041da5-c9a4-574f-9538-790b9601a464	تي سن 1 * 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:31:07.986514+00	2026-02-17 16:31:07.986514+00	0.000	0.000
-556f835a-5c2b-44a5-a3a2-086a96b984d3	36041da5-c9a4-574f-9538-790b9601a464	كوع بسن 1" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:31:57.905305+00	2026-02-17 16:31:57.905305+00	0.000	0.000
-2cc00c44-0fde-4eaf-9a50-927b79ab7097	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 1" اكوا روك	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:33:34.561086+00	2026-02-17 16:33:34.561086+00	0.000	0.000
-46051af4-1f3c-4cb8-8018-08c7158d73c4	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 2" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:34:17.409953+00	2026-02-17 16:34:17.409953+00	0.000	0.000
-762e3eca-4c16-438c-bde5-49aebf6d8be9	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 1" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:35:01.264861+00	2026-02-17 16:35:01.264861+00	0.000	0.000
-8f408e6d-5856-4378-a341-ef62648949ea	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 2" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:35:32.866681+00	2026-02-17 16:35:32.866681+00	0.000	0.000
-6bacb56d-ae76-419f-93ce-564835dd276f	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:36:26.161745+00	2026-02-17 16:36:26.161745+00	0.000	0.000
-50092680-cdcf-4383-8803-ec896ba51cb9	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:37:15.041683+00	2026-02-17 16:37:15.041683+00	0.000	0.000
-d60038ee-8ce8-44e1-8e87-3e0e75660752	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1*3/4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:39:37.13686+00	2026-02-17 16:39:37.13686+00	0.000	0.000
-44a29ecc-7b57-44f8-9298-01d1a42f76d4	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:40:24.241494+00	2026-02-17 16:40:24.241494+00	0.000	0.000
-9f22d4f4-5c38-4ca7-9078-a9d451317a5f	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1*3/4 كايرو ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:42:32.658476+00	2026-02-17 16:42:32.658476+00	0.000	0.000
-92a0b6e4-83c5-4abe-8dad-32bdf4c0df62	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1" كايرو ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:43:09.825812+00	2026-02-17 16:43:09.825812+00	0.000	0.000
-6416cbb3-ef5c-4b48-910c-e1f891054f13	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1.5 بوصة BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:43:37.217406+00	2026-02-17 16:43:37.217406+00	0.000	0.000
-9430efeb-9681-4466-b405-c11f7fd0411e	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1.5" معزول اكوا جرين	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:44:19.088721+00	2026-02-17 16:44:19.088721+00	0.000	0.000
-3041ec21-6f51-4485-8515-b10a24942254	36041da5-c9a4-574f-9538-790b9601a464	تي سن داخلي عادي 1" اكوا ستار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:44:59.408798+00	2026-02-17 16:44:59.408798+00	0.000	0.000
-753605cc-8cdb-4fa2-a0c3-174686ddedf4	36041da5-c9a4-574f-9538-790b9601a464	تي سن داخلي عالي 1" اكوا ستار	\N	عدد	0.00	0.00	0.00	\N	\N	ض	\N	\N	t	2026-02-17 16:45:23.904255+00	2026-02-17 16:45:23.904255+00	0.000	0.000
-a4924db4-ea93-4351-9379-4280a11f5b6f	36041da5-c9a4-574f-9538-790b9601a464	كوع بسن داخلي 1*3/4" لافيستا	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:07:52.017481+00	2026-02-17 17:07:52.017481+00	0.000	0.000
-51d95493-39bf-475c-9813-c22378608033	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 2" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:08:23.232776+00	2026-02-17 17:08:23.232776+00	0.000	0.000
-a42630ba-4abb-49ad-b469-7860b870c6bd	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 2" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:17:27.78349+00	2026-02-17 17:17:27.78349+00	0.000	0.000
-81b8e587-43f6-4aa7-89f4-2a959a309ccd	36041da5-c9a4-574f-9538-790b9601a464	تي محبس دفن 1*3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:20:28.3524+00	2026-02-17 17:20:28.3524+00	0.000	0.000
-bba112a6-5123-4eec-8359-ab2005280f18	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 3/4 ستار ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:22:52.6234+00	2026-02-17 17:22:52.6234+00	0.000	0.000
-dc7a612e-4896-4e1b-992c-445b206f40f7	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 3/4 ستار ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:23:34.527814+00	2026-02-17 17:23:34.527814+00	0.000	0.000
-3c49a84e-2451-459c-81a9-50577aa031ff	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1" معزول BFS	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:24:27.167207+00	2026-02-17 17:24:27.167207+00	0.000	0.000
-5a108d5a-5cd0-4061-a61a-8487514cd407	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1" معزول BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:25:02.719521+00	2026-02-17 17:25:02.719521+00	0.000	0.000
-6aa50703-922e-4b64-a284-90ed8be49d64	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 2" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:26:08.143744+00	2026-02-17 17:26:08.143744+00	0.000	0.000
-c3fa9713-cfff-4df1-a1be-e67923363d0a	ae20d096-97b0-524d-bf38-e8865a491102	خرطوم سوستة	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 00:59:41.182496+00	2026-03-10 00:59:41.182496+00	0.000	0.000
-69c84270-5d73-406f-a0f6-4509aa6ffd14	ae20d096-97b0-524d-bf38-e8865a491102	مشتمل دفن	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 00:59:53.495774+00	2026-03-10 00:59:53.495774+00	0.000	0.000
-5b317e75-8dcd-4ae8-8a1e-ee0de4afc793	ae20d096-97b0-524d-bf38-e8865a491102	شيك بلف 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:03.95927+00	2026-03-10 01:01:03.95927+00	0.000	0.000
-a2f62574-cda1-4f08-b38e-4cb5d32188b6	ae20d096-97b0-524d-bf38-e8865a491102	مجرى خرج مجوز	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:18.567212+00	2026-03-10 01:01:18.567212+00	0.000	0.000
-c5f83958-3304-4314-a56f-7fe15431bc7b	ae20d096-97b0-524d-bf38-e8865a491102	كوع نزل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:28.455547+00	2026-03-10 01:01:28.455547+00	0.000	0.000
-81f74c2a-1ec7-4771-9329-92b0d0eb7ddd	ae20d096-97b0-524d-bf38-e8865a491102	شيك بلف لاكور 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:52.695222+00	2026-03-10 01:01:52.695222+00	0.000	0.000
-561a1696-03a7-4801-8efd-a117a2121f3b	ae20d096-97b0-524d-bf38-e8865a491102	شيك بلف لاكور 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:02:12.903167+00	2026-03-10 01:02:12.903167+00	0.000	0.000
-8bf8a752-b3fe-4e2c-9f0f-6396f484f085	d17128f8-94aa-54ce-87d8-4dc515f98bf8	منتج تجريبي	\N	عدد	0.00	0.00	10.00		\N	\N	\N	\N	t	2026-03-30 01:42:54.200292+00	2026-03-30 01:42:54.200292+00	0.000	0.000
-c8b78e53-a457-4b32-8897-c449f3fe1e4f	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محبس بالأكور سالمكو محمل بوصة (ادهم)	\N	عدد	320.00	220.00	10.00	\N	\N	\N	\N	\N	t	2026-01-18 19:53:20.393421+00	2026-03-28 15:00:49.234672+00	0.000	0.000
+COPY public.products (id, subcategory_id, name, barcode, unit, retail_price, wholesale_price, cost_price, company, size, type, material, image_url, is_active, created_at, updated_at, reorder_point, reorder_qty, stock_status) FROM stdin;
+c5e11e14-9dd2-487d-9c2e-27b59ba3408f	d17128f8-94aa-54ce-87d8-4dc515f98bf8	test product to delete	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	f	2026-03-25 18:45:45.235033+00	2026-03-25 18:45:45.331357+00	0.000	0.000	tracked
+af31725d-fa0f-42df-88d4-9041e36ad994	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور 1 ونص بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:12:18.345365+00	2026-01-18 20:12:18.345365+00	0.000	0.000	untracked
+b9b32325-fda4-46a7-b4f4-6da187863e4a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور بولي*بولي  1/2 بوصة (عمر)	\N	عدد	50.00	45.00	40.00	\N	\N	\N	\N	\N	t	2026-01-19 18:59:35.718523+00	2026-02-23 16:13:45.144576+00	0.000	0.000	untracked
+f0cd51f3-5b93-45a9-bad8-c7f76cc2c726	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور بولي*بولي 3/4 بوصة (عمر)	\N	عدد	75.00	65.00	60.00	\N	\N	\N	\N	\N	t	2026-01-19 18:59:57.014037+00	2026-02-23 16:14:07.85577+00	0.000	0.000	untracked
+ca985298-d266-4483-8a13-ff73c90536dc	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور بولي*بولي 1 بوصة (عمر)	\N	عدد	90.00	80.00	72.00	\N	\N	\N	\N	\N	t	2026-01-19 19:02:29.385696+00	2026-02-23 16:14:27.497537+00	0.000	0.000	untracked
+d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور فالكون 1/2 بوصة	\N	عدد	90.00	85.00	70.00	\N	\N	\N	\N	\N	t	2026-01-20 14:10:40.162417+00	2026-02-23 16:20:02.378763+00	0.000	0.000	untracked
+ffa8d86a-6352-4d4c-a6f1-76622d09b032	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 2" جويل (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:36:06.982384+00	2026-02-24 11:34:09.274652+00	0.000	0.000	untracked
+da68d7f2-f8d7-44bb-85a3-d91ab5d02ffa	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 2" PG pluse (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:36:50.56777+00	2026-01-21 09:36:50.56777+00	0.000	0.000	untracked
+2ac3dc85-e7cf-4ff1-8aff-01e6d8fd54a1	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 2" مياه (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:37:50.742321+00	2026-01-21 09:37:50.742321+00	0.000	0.000	untracked
+ab4ba887-5c44-4a22-b567-670c0001b603	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية بوصة ونص (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:41:05.350297+00	2026-01-21 09:41:05.350297+00	0.000	0.000	untracked
+c19f42ec-ad6d-4161-9f38-a9c4cecb643b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 3/4 سالمكو (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:43:07.366133+00	2026-01-21 09:43:07.366133+00	0.000	0.000	untracked
+6d2e9857-cc51-4c79-aa4d-d7b9e4208678	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 3/4 ِAG	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:43:28.77324+00	2026-01-21 09:43:28.77324+00	0.000	0.000	untracked
+67ba969e-da10-4bbd-9900-606bf254045b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية PG نص بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:47:44.278206+00	2026-01-21 09:47:44.278206+00	0.000	0.000	untracked
+d14ac884-8431-46ba-adcb-5190dbaf9da0	d17128f8-94aa-54ce-87d8-4dc515f98bf8	تي نيكل نص بوصة	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:48:02.678005+00	2026-02-24 13:36:49.420851+00	0.000	0.000	untracked
+695705d9-9757-4f2a-be89-fe096ffd87c2	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 1/2 بوصة AG	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:48:44.598128+00	2026-01-21 09:48:44.598128+00	0.000	0.000	untracked
+9f86c75d-e220-45e8-95a2-405be7b53488	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بلية 1 بوصة سالمكو (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 10:53:10.372659+00	2026-01-21 10:53:10.372659+00	0.000	0.000	untracked
+b7d3a006-f7a1-40d6-b3d8-20192e7f93bf	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور سالمكو محمل 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 15:36:22.061533+00	2026-01-21 15:36:22.061533+00	0.000	0.000	untracked
+b41ae764-b97b-4662-b865-b572790ec127	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور عادي محمل 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 15:36:46.589467+00	2026-01-21 15:36:46.589467+00	0.000	0.000	untracked
+55cc2075-bfe4-4613-91de-05535390b28a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بلاستيك	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 16:36:03.564033+00	2026-02-21 21:45:13.511767+00	0.000	0.000	untracked
+85114c68-11e1-442b-a79d-0279c2bb798b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية سكاي 3/4	\N	عدد	220.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 16:37:17.691787+00	2026-02-23 19:46:18.799931+00	0.000	0.000	untracked
+056ef88b-f53d-4806-9e24-f9f931f54dcf	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية 3/4" PG (يوسف)	\N	عدد	280.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 17:57:09.849733+00	2026-02-23 19:46:14.704199+00	0.000	0.000	untracked
+0eb4a2fa-6d82-4005-bbb7-c958edcf281a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية نحاس بلية1 بوصة (يوسف)	\N	عدد	380.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 18:00:15.242202+00	2026-02-21 21:44:58.682402+00	0.000	0.000	untracked
+92a238d8-f2da-4c28-9127-fbc8cece0c0b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بوز بلاستيك AG (يوسف)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 18:20:28.450377+00	2026-02-21 15:14:45.910048+00	0.000	0.000	untracked
+53a3e08e-728d-4291-b2f7-9cc69a69cbac	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية ايطالي نص بوصة (يوسف)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 19:56:06.791359+00	2026-02-21 15:16:06.543079+00	0.000	0.000	untracked
+982d6fa2-8c29-4580-863a-215600003c9b	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية نحاس AG نص بوصة (يوسف)	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 10:21:43.6071+00	2026-02-21 15:15:10.630101+00	0.000	0.000	untracked
+bca0c8ae-6b62-4ad0-a150-47fbd9955eab	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية كوبشة شيلد (عمار)	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:33:28.660709+00	2026-02-23 19:47:15.577099+00	0.000	0.000	untracked
+4008a90d-eda0-4bc9-b7d9-0401c419b3e1	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية كوبشة شجرة	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:34:25.603146+00	2026-02-23 19:47:19.616332+00	0.000	0.000	untracked
+bd473534-32ba-4522-912d-ab3c9f59ac24	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية غسالة تركي OM	\N	عدد	190.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:34:47.580728+00	2026-02-23 19:48:02.91339+00	0.000	0.000	untracked
+27b32f29-2ac8-445e-aaf4-531e4cabd48c	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية 3/4 بزبوز بلاستيك	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 13:07:55.312027+00	2026-02-23 19:49:11.168989+00	0.000	0.000	untracked
+811c48aa-84b6-4bed-9771-3e6dd162e9a6	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية استانلس فايف ستار	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000	untracked
+4b596a39-71ad-4be0-adcb-82637141438e	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية استانلس تورو	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000	untracked
+fd927c9a-2843-4740-b97e-c92f51424765	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية فايف ستار اسود	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000	untracked
+b09598b6-4537-4e39-b28b-d50cb6d8d19a	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس سما	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000	untracked
+bf75d681-d9d1-4af8-871f-2ed687b63fd1	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية كعب نحاس	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000	untracked
+4c7f2b6e-8a67-489f-ad91-257ba78a7f51	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاويه اوزو	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-02-21 21:46:47.802043+00	0.000	0.000	untracked
+ec991740-f53e-42ea-9e48-6af7a7696248	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس فايف ستار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:46:12.866726+00	2026-01-29 12:46:12.866726+00	0.000	0.000	untracked
+5b18456a-9aee-431f-8344-81bda7d32061	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية مكة	\N	عدد	130.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:33.033144+00	2026-01-29 12:50:33.033144+00	0.000	0.000	untracked
+ed7dc576-4868-491e-847f-08379201a129	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس بالأكور 3/4 BG	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 13:33:59.109432+00	2026-01-30 13:33:59.109432+00	0.000	0.000	untracked
+06030f57-05d3-4624-ab21-4f2dbd36628c	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بلاستيك تركي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 09:40:16.889555+00	2026-02-10 09:40:16.889555+00	0.000	0.000	untracked
+92d27d2a-5f22-47c2-a167-4b6fc0908e3e	d17128f8-94aa-54ce-87d8-4dc515f98bf8	حنفية بلية 1/2 فيدمار	\N	قطعة	150.00	135.00	125.00	\N	\N	\N	\N	\N	t	2026-03-15 16:46:04.748045+00	2026-03-15 16:46:04.748045+00	0.000	0.000	untracked
+6c1a7601-4298-4f3f-be83-c3e4abdedaf4	d17128f8-94aa-54ce-87d8-4dc515f98bf8	محبس زاوية	\N	قطعة	60.00	35.00	31.00	\N	\N	\N	\N	\N	t	2026-03-15 17:12:44.252251+00	2026-03-15 17:12:44.252251+00	0.000	0.000	untracked
+9d19a1d3-c280-4944-879b-0db02b1ebfc9	7f15ec9b-720f-580d-ad54-61fcb04a20d9	وش نيكل خفيف (عمر)	\N	عدد	20.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:55:34.840636+00	2026-02-23 19:51:36.048033+00	0.000	0.000	untracked
+244e72f6-2f15-49f4-8526-3b485ebb345b	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة فيدمار سوداء (الكوك)	\N	عدد	280.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:22:00.846063+00	2026-02-21 15:05:32.004398+00	0.000	0.000	untracked
+7652a593-90d8-4ba8-9bf0-d1f452915da4	7f15ec9b-720f-580d-ad54-61fcb04a20d9	ماسورة دش دفن مدورة (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:24:50.477843+00	2026-02-23 19:52:11.728847+00	0.000	0.000	untracked
+13ab7f8d-4d5c-495d-9665-b12b51ba8097	7f15ec9b-720f-580d-ad54-61fcb04a20d9	ماسورة دش دفن عكاز (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:27:22.798+00	2026-02-24 13:32:50.124984+00	0.000	0.000	untracked
+b3634d52-7df0-4e6c-89a9-2887f761f7aa	7f15ec9b-720f-580d-ad54-61fcb04a20d9	ماسورة دش دفن مربعة طويلة (الكوك)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:28:21.375167+00	2026-02-23 19:52:28.863685+00	0.000	0.000	untracked
+ae78cb21-9bf8-441a-a101-6be57eb4f2c0	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة لومي (يوسف)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:52:34.272681+00	0.000	0.000	untracked
+8cf7eef1-0a73-491c-b6cc-8222f3c45595	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش بلاستيك	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:53:02.464566+00	0.000	0.000	untracked
+bf47a971-4a38-4adf-84b7-0f838da38a57	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش ساليمكو	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:53:22.305053+00	0.000	0.000	untracked
+65907699-7b64-4dd9-9ea8-d9f8cb23c6f4	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة شاور ست	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-01-29 12:42:36.459591+00	0.000	0.000	untracked
+3e6b7157-4754-456c-a3ef-63d087e40dd3	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش هاند شاور	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-01-29 12:42:36.459591+00	0.000	0.000	untracked
+d1aa753f-65da-40f1-8548-eed1df9fac72	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش طيبة بلاستيك	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-24 13:33:27.884694+00	0.000	0.000	untracked
+77badf35-82f3-4f15-9645-864081747352	69c8851c-0e49-50f6-aa84-346755ef3132	قشرة 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:43:30.573237+00	2026-02-08 14:43:30.573237+00	0.000	0.000	untracked
+0a078193-e0d3-4669-b71b-5a4fdda5f8f9	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة دش طيبة سرعات	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:53:52.30356+00	0.000	0.000	untracked
+d268cf2c-4306-4069-92de-d1879e230952	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محول سماعة صامولة	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:05.665427+00	0.000	0.000	untracked
+3a6f01a4-e9a4-4032-8b64-35410b5a8d5e	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محول سماعة بدون صاموصة	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:11.77727+00	0.000	0.000	untracked
+ff053f4f-7e5e-44a6-a452-893663ae65be	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة فايدمار سوداء	\N	عدد	280.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:42.39868+00	0.000	0.000	untracked
+d75fcff2-ef64-48b3-9cd8-e06d40e3a399	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة فيدمار بيضاء	\N	عدد	250.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:42:36.459591+00	2026-02-23 19:54:26.832+00	0.000	0.000	untracked
+17ef1e9c-6898-494a-8e97-ecf2af3f72fb	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دوش 1مم 20 * 20 استانلس رانك محملة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-23 19:54:57.02382+00	0.000	0.000	untracked
+871b0c43-957e-4eb5-b5f0-4609014c1885	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش مدورة كبيرة بلاستيك	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:30:55.406705+00	0.000	0.000	untracked
+a4d3df08-ac1d-4f42-82f3-da2fdbeb1958	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 15 * 15 بلاستيك	\N	عدد	100.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:32:28.835548+00	0.000	0.000	untracked
+c06966da-9cdb-4ed6-9296-177f3a63b307	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دوش 1" 20 * 20 استانلس روما محملة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+7838761b-9eb9-46bb-a99e-c09e677377a9	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 10 * 10 استلس لافينا	\N	عدد	90.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:33:59.227101+00	0.000	0.000	untracked
+7e625f21-6107-40ed-a03a-280e64655065	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 10 * 10 سنبرس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+432e6e7e-c5ea-4639-a2ca-b3cac3b07617	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش استانلس 10 * 10 جولدن ارو	\N	عدد	90.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-02-24 13:34:44.651586+00	0.000	0.000	untracked
+1a73646e-94d9-4857-92dc-496a90475520	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 20*20 سان ارساني (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+813e8a9d-af7f-496c-80da-0eab496e15df	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 15 * 15 ارساني	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+a59c2e11-fed2-4972-a7e5-bc34fd5266fd	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 10 * 10 ترنتي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+ba07f41a-a9f8-4e30-bb91-be5cfa125019	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 15 * 15 ترنتي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+4005644b-b6d1-45f8-8af9-7929eca4e075	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دوش 15 * 15 جولدن ارو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+ff6f769c-0bfb-49fc-86cf-e73805d51892	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طاسة دش 20 * 20 بلاستيك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:43:30.531794+00	2026-01-29 12:43:30.531794+00	0.000	0.000	untracked
+f0b0cc99-32e6-4b1a-8493-25be82e03e31	7f15ec9b-720f-580d-ad54-61fcb04a20d9	طبة حوض نيكل(أنس)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 15:41:13.227521+00	2026-02-24 13:35:37.14787+00	0.000	0.000	untracked
+edf6547d-ee07-419d-a822-18de5c4ac63d	7f15ec9b-720f-580d-ad54-61fcb04a20d9	بوش نيكل 3/4*1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:57:47.40477+00	2026-02-01 16:57:47.40477+00	0.000	0.000	untracked
+83759832-7ee5-43fc-8828-695b2d8c7c3e	7f15ec9b-720f-580d-ad54-61fcb04a20d9	صامولة سيخ شطاف	\N	عدد	10.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:03:52.832692+00	2026-02-24 13:35:44.412006+00	0.000	0.000	untracked
+3892616c-8ad0-47d2-aebc-ba3c30cefb39	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محول سماعه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:41:52.557812+00	2026-02-01 17:41:52.557812+00	0.000	0.000	untracked
+cd3b2528-421e-4761-b84e-90651f4cfd3f	7f15ec9b-720f-580d-ad54-61fcb04a20d9	صبانه استالس	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:23:21.840221+00	2026-02-24 13:36:31.595819+00	0.000	0.000	untracked
+309e1a4a-3b5b-4aba-a3f0-375f8bb26b69	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 0.5 مللي فيدمار ك	\N	قطعة	750.00	520.00	465.00	\N	\N	\N	\N	\N	t	2026-03-15 16:37:15.629092+00	2026-03-15 16:48:26.281471+00	0.000	0.000	untracked
+f9256353-ac61-4e15-8dff-4cad2591bda2	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 0.5 فيدمار ص	\N	قطعة	480.00	380.00	285.00	\N	صغير	\N	\N	\N	t	2026-03-15 16:40:15.885174+00	2026-03-15 16:40:15.885174+00	0.000	0.000	untracked
+35f48cd9-aa95-45dc-91f8-239baa9e8572	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 1 ملي فيدمار ص	\N	قطعة	850.00	750.00	645.00	\N	\N	\N	\N	\N	t	2026-03-15 16:42:33.251321+00	2026-03-15 16:44:07.146783+00	0.000	0.000	untracked
+ff573b1e-dc23-4f5c-b48b-ca3aa2ae1a1a	7f15ec9b-720f-580d-ad54-61fcb04a20d9	حله 5 زرار فيدمار	\N	قطعة	5500.00	4850.00	3750.00	\N	\N	\N	\N	\N	t	2026-03-15 16:47:55.014009+00	2026-03-15 16:47:55.014009+00	0.000	0.000	untracked
+7ff32213-f0de-403c-a2b4-df7c66a07a1f	7f15ec9b-720f-580d-ad54-61fcb04a20d9	جلبة تطويل استالس	\N	قطعة	45.00	26.00	21.00	\N	\N	\N	\N	\N	t	2026-03-15 17:00:35.852613+00	2026-03-15 17:00:35.852613+00	0.000	0.000	untracked
+9eff5877-e547-41bf-980d-10c679112e9c	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة لوكس تكات	\N	قطعة	150.00	95.00	80.00	\N	\N	\N	\N	\N	t	2026-03-15 17:15:33.643842+00	2026-03-15 17:15:33.643842+00	0.000	0.000	untracked
+1d1a007d-0b0d-40fe-9be0-7116cf80a675	7f15ec9b-720f-580d-ad54-61fcb04a20d9	سماعة عادية	\N	قطعة	130.00	85.00	70.00	\N	\N	\N	\N	\N	t	2026-03-15 17:17:02.331845+00	2026-03-15 17:17:02.331845+00	0.000	0.000	untracked
+128ffb7a-b57c-424e-bd25-b6e16dce002d	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة بلاستيك شفاف (عمار)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:14:12.808976+00	2026-02-21 14:58:56.295044+00	0.000	0.000	untracked
+9599e8f6-0e41-4ba6-af39-945ab7b97b91	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة جاجوار (ادهم)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:25:15.651997+00	2026-02-21 14:55:28.606925+00	0.000	0.000	untracked
+4e58a261-a2db-4aa2-8a1b-5a4a38ebfed2	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة وردة (ادهم)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:26:03.635992+00	2026-02-21 14:55:40.213622+00	0.000	0.000	untracked
+4223c273-9145-42c8-8bb6-e2faf2b7a9b4	903c8f75-9786-51d1-956e-f481e1dbf84f	اوكرة بلاستيك (ادهم)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:26:48.852523+00	2026-02-21 15:00:07.253837+00	0.000	0.000	untracked
+c0897fde-d9e6-4626-b027-149b7ae5322e	903c8f75-9786-51d1-956e-f481e1dbf84f	يد هاند ميكسر عريضة محملة جداً (عمار)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:39:46.244078+00	2026-02-21 15:01:49.492589+00	0.000	0.000	untracked
+b1690bbc-ba39-4da5-85ea-7e75005ded9b	903c8f75-9786-51d1-956e-f481e1dbf84f	يد هاند ميكسر عريضة محملة (عمار)	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:41:45.683618+00	2026-02-21 15:01:54.47049+00	0.000	0.000	untracked
+d387eae9-d064-43d1-ad43-461553cf6a05	eac36a6f-f7ef-5e8e-9ca9-443292af7e18	نبل نيكل 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:43:22.452043+00	2026-01-20 13:43:22.452043+00	0.000	0.000	untracked
+958976e5-78b1-48dd-b90c-639ecac8608e	eac36a6f-f7ef-5e8e-9ca9-443292af7e18	نبل نيكل نص بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:45:52.790075+00	2026-01-21 09:45:52.790075+00	0.000	0.000	untracked
+84d19c17-a7a2-4523-9693-5c45c88a5e48	e2dfb819-1be4-50bd-8612-e411aaa719d5	لاكور بولي 3/4 بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:14:53.186684+00	2026-01-20 14:14:53.186684+00	0.000	0.000	untracked
+6a92aee9-a9f4-490d-bf5f-37ca073ba4f8	e2dfb819-1be4-50bd-8612-e411aaa719d5	لاكور بولي 1/2 بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:15:16.691315+00	2026-01-20 14:15:16.691315+00	0.000	0.000	untracked
+70afd455-12ab-4f85-9e1a-5868e01b1511	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	جلبة نيكل 2/1 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:02:53.393661+00	2026-01-20 15:02:53.393661+00	0.000	0.000	untracked
+6972c97c-fdb0-4a9b-b563-06ec0ac883c3	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	طبة نيكل 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:39:22.422214+00	2026-01-21 09:39:22.422214+00	0.000	0.000	untracked
+1fe12fb1-b560-4cda-b0cc-db6f35c24079	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	كوع عادة نص بوصة محمل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:42:21.574265+00	2026-01-21 09:42:21.574265+00	0.000	0.000	untracked
+340dd769-792d-4917-9d5e-5d73c4eb605d	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	افيز لاتش 2" (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:44:15.445975+00	2026-01-21 09:44:15.445975+00	0.000	0.000	untracked
+c9baaa25-10f2-481b-aa74-81d2c5a83f70	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	افيز لاتش نص بوصة (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:44:35.814227+00	2026-01-21 09:44:35.814227+00	0.000	0.000	untracked
+d29b5399-d05a-441e-907e-664b9caaded4	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	كعب خلاط استالنس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:46:58.581873+00	2026-02-23 16:46:08.349315+00	0.000	0.000	untracked
+980318ab-6084-4cf4-9ee7-b095ffcf96e6	8a44ea94-e593-5cc1-bce2-d57efdfa53f3	جلبة سوستة طويلة	\N	قطعة	70.00	45.00	35.00	\N	\N	\N	\N	\N	t	2026-03-15 17:21:28.131328+00	2026-03-15 17:21:28.131328+00	0.000	0.000	untracked
+111bc6b3-d484-49b9-adab-2e9790badcde	de8ac890-fee4-5705-8bd1-25c72f48474c	كيس مسامير قلب خشن (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-20 16:41:50.943661+00	0.000	0.000	untracked
+d739fea9-b75f-4059-901f-eec4c0483b53	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر تكات كبير (عمار)	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:27:53.619265+00	2026-02-25 12:50:19.524203+00	0.000	0.000	untracked
+f3a41c82-cd3e-4ac8-a3cf-49c9a046410c	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بكعب صغير (عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:31:49.419637+00	2026-02-25 12:50:30.693523+00	0.000	0.000	untracked
+2eed92b4-8064-48ee-9f2d-7c302bbdb2aa	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بدون كعب صغير (عمار)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:32:28.500164+00	2026-02-25 12:50:38.166004+00	0.000	0.000	untracked
+b1a685ab-b142-4c3d-95c9-d9100774032d	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بدون كعب كبير (عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:33:17.684343+00	2026-02-25 12:50:44.563536+00	0.000	0.000	untracked
+fe50fee1-d638-4dbb-9e55-d8ee6d6716ec	5c708129-4240-5f6a-bd5d-7ed1c5434d1e	نقاص 2 * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:51:54.81516+00	2026-02-08 12:51:54.81516+00	0.000	0.000	untracked
+0ae66dbf-16a0-48bf-b13e-eed2701f3cc6	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر بكعب كبير (عمار)	\N	عدد	70.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:37:43.363781+00	2026-02-25 12:50:59.302635+00	0.000	0.000	untracked
+02108d69-33a5-41c9-82f6-6601fc7c7e56	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب هاند ميكسر تكات صغير (عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:38:44.947628+00	2026-02-25 12:51:18.99807+00	0.000	0.000	untracked
+e55b3b91-07db-49dd-a8c0-10d76d164e42	de8ac890-fee4-5705-8bd1-25c72f48474c	نبل نيكل 3/4 بوصة (عمار)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:44:02.371266+00	2026-02-25 12:51:28.836553+00	0.000	0.000	untracked
+2a2a52bb-b8d8-4af4-93d6-41ed8267a589	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 1/2	\N	عدد	40.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:44:10.223261+00	2026-02-25 12:47:47.14025+00	0.000	0.000	untracked
+66a706c3-065f-4965-b6f5-a416003ca375	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب جولد صغير	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:44:29.582588+00	2026-02-25 12:47:57.925671+00	0.000	0.000	untracked
+1e06fee4-89c2-4465-bc78-5b71826b797e	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 3.5 ايطالي	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:45:02.640757+00	2026-02-25 12:48:03.493108+00	0.000	0.000	untracked
+78539233-0e35-4584-8a63-835c6f128067	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 3 لينيا	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:45:48.201209+00	2026-02-25 12:48:17.700677+00	0.000	0.000	untracked
+e2623548-7fd4-4a00-99a6-d772fbc76efa	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 1/2	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:48:17.733307+00	2026-02-25 12:48:31.396701+00	0.000	0.000	untracked
+708b57dc-834f-466c-8df4-62b50eb8affb	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 3/4 صغير	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:48:39.412528+00	2026-02-25 12:48:49.318275+00	0.000	0.000	untracked
+c1186f95-835b-4480-96a0-8a0b3edfd1d6	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 3/4 كبير مربع	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:49:13.489254+00	2026-01-26 22:49:13.489254+00	0.000	0.000	untracked
+a710b7fe-897e-43da-808a-c193b7e5573e	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن 1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:49:33.00445+00	2026-01-26 22:49:33.00445+00	0.000	0.000	untracked
+1ab3227c-7697-46a5-8d66-861e81721181	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب دفن كبير 3/4	\N	عدد	100.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:49:53.950398+00	2026-02-25 12:49:11.444792+00	0.000	0.000	untracked
+307e8ebe-dc59-4130-bdc0-363ea0d4caea	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب جولد كبير	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:50:48.984631+00	2026-02-25 12:49:17.124681+00	0.000	0.000	untracked
+446e88dc-63ad-49b3-9018-6042e55df88e	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل نحاس	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:52:55.978731+00	2026-02-25 12:49:25.734054+00	0.000	0.000	untracked
+76974cd1-2978-4467-ae5a-b558aa71c242	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل استانلس	\N	عدد	15.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:52:55.978731+00	2026-02-25 12:49:37.380574+00	0.000	0.000	untracked
+e6b6fddb-3d45-4e26-87b1-a5d13cd14132	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل استانلس 5 سم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:52:55.978731+00	2026-01-29 12:52:55.978731+00	0.000	0.000	untracked
+40cdebca-7a06-49c2-a5fa-850250936c54	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل نحاس (1)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:53:16.867499+00	2026-01-29 12:53:16.867499+00	0.000	0.000	untracked
+72d5081a-5a3c-42f1-af96-68799e6498d8	de8ac890-fee4-5705-8bd1-25c72f48474c	جلبة تطويل ماتور	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:53:16.867499+00	2026-01-29 12:53:16.867499+00	0.000	0.000	untracked
+e178893c-75cf-4e65-a118-70dd4ab0e610	de8ac890-fee4-5705-8bd1-25c72f48474c	قلب 3.5 عادي	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 15:14:21.377007+00	2026-02-25 12:51:49.25243+00	0.000	0.000	untracked
+db85a468-811d-49b2-8f84-89c4f1aaa3d5	f170e76b-4135-5781-b898-91e1259af14f	سوستة 60 محملة فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:29:02.765329+00	2026-01-22 15:29:02.765329+00	0.000	0.000	untracked
+24717bd9-9cb5-47b1-9e14-4780dd676eb3	f170e76b-4135-5781-b898-91e1259af14f	سوستة 60 محملة روتانا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:30:33.245796+00	2026-01-22 15:30:33.245796+00	0.000	0.000	untracked
+4b6005cc-aac8-4964-8031-d08ff8f50372	f170e76b-4135-5781-b898-91e1259af14f	سوستة 50 محملة روتانا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:33:15.214038+00	2026-01-22 15:33:15.214038+00	0.000	0.000	untracked
+cf47fda2-2f58-48c3-aa6e-e33743683878	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة محملة 60 فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:35:12.396915+00	2026-01-22 15:35:12.396915+00	0.000	0.000	untracked
+68051f41-2be1-42c1-bed7-53af6544d15b	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة حراري متر ونص فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:38:52.731585+00	2026-01-29 12:38:52.731585+00	0.000	0.000	untracked
+e34c6775-3e66-462d-80db-5bb4fff9601a	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة حراري 2 متر فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:38:52.731585+00	2026-01-29 12:38:52.731585+00	0.000	0.000	untracked
+1a29b242-fcb5-49a2-95fd-a12c0de7c030	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة الرحمة (الكوك)	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:38:52.731585+00	2026-02-21 14:35:52.182506+00	0.000	0.000	untracked
+879040b7-642e-443d-a467-cb4a3cbc5bc3	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة ستار محملة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000	untracked
+ae005153-de66-49ed-b132-23434ecacf5c	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة ستار خفيفة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000	untracked
+0fd12267-532b-4474-b66e-a1ffa378a6c9	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة جروهي (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000	untracked
+8efe2eb5-bd06-48bb-b1ae-b843129e85eb	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 60 سم (يوسف)	\N	عدد	40.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-02-21 14:35:41.541678+00	0.000	0.000	untracked
+72635b19-9fcc-4fd6-9ada-b9cf33bb50a0	f170e76b-4135-5781-b898-91e1259af14f	سوستة قنطرة الوان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:39:59.0912+00	2026-01-29 12:39:59.0912+00	0.000	0.000	untracked
+3d23ca07-4628-4207-a0a3-e34c38daf932	f170e76b-4135-5781-b898-91e1259af14f	سوستة ناشفة 60سم (انس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:49:36.400484+00	2026-01-30 14:49:36.400484+00	0.000	0.000	untracked
+19a8cf3f-9008-41b9-8383-3a361d6c6f59	f170e76b-4135-5781-b898-91e1259af14f	سوستة متر عادية (انس)	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:49:58.992836+00	2026-02-21 14:31:42.695296+00	0.000	0.000	untracked
+03c117ec-5a52-40c6-907f-ece60dddfe68	f170e76b-4135-5781-b898-91e1259af14f	سوستة 70سم (انس)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:50:42.384657+00	2026-02-21 14:31:18.551665+00	0.000	0.000	untracked
+2e2fe069-9320-4585-b0eb-b079dcf40692	f170e76b-4135-5781-b898-91e1259af14f	سوستة 90سم (انس)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:50:58.704623+00	2026-02-21 14:30:55.649113+00	0.000	0.000	untracked
+a1651be8-8cf4-4662-b40f-2173c9bef33d	f170e76b-4135-5781-b898-91e1259af14f	سوستة 80سم (انس)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:51:11.568774+00	2026-02-21 14:30:49.673894+00	0.000	0.000	untracked
+5f551abc-5798-4f04-8557-01afc73bb977	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 90سم (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:51:26.448063+00	2026-01-30 14:51:26.448063+00	0.000	0.000	untracked
+6e4b57c6-a303-4249-9f3c-7075f1a14bce	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 80سم (الكوك)	\N	عدد	55.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:51:40.22396+00	2026-02-21 14:35:34.906947+00	0.000	0.000	untracked
+a3b2e66c-e781-4009-a566-0a5285a513ef	f170e76b-4135-5781-b898-91e1259af14f	سوستة 70سم (الكوك)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:52:05.521177+00	2026-02-21 14:30:43.752266+00	0.000	0.000	untracked
+5660d767-7d28-4b31-a146-9c7071134ce8	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 50سم (يوسف والكوك)	\N	عدد	40.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:52:33.084658+00	2026-02-21 14:34:03.064735+00	0.000	0.000	untracked
+04e83173-2a26-4e61-b3be-456de3b641f9	f170e76b-4135-5781-b898-91e1259af14f	سوستة 60سم (انس)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:53:05.184302+00	2026-02-21 14:30:36.759252+00	0.000	0.000	untracked
+858d8c6c-94bc-4b7b-9bf6-f5aaf4cc7aca	f170e76b-4135-5781-b898-91e1259af14f	سوستة 50سم (انس)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:53:31.375983+00	2026-02-21 14:30:31.736236+00	0.000	0.000	untracked
+311f37ca-8c7f-4b3c-a32a-4bd675dd929b	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 40سم (الكوك)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:53:56.656353+00	2026-02-21 14:33:39.367351+00	0.000	0.000	untracked
+99d7b5a5-446f-44a9-82fc-17d6745c25f6	f170e76b-4135-5781-b898-91e1259af14f	سوستة شجرة 3/8 (عمر وميدو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:55:14.544742+00	2026-01-30 14:55:14.544742+00	0.000	0.000	untracked
+3e463d34-e6d9-43cb-b0c8-a6c76be8290a	f170e76b-4135-5781-b898-91e1259af14f	سوستة 3/8 * 3/8 (عمر وميدو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:55:43.701823+00	2026-01-30 14:55:43.701823+00	0.000	0.000	untracked
+4f371ebc-a80b-413d-8224-7c7458e3fc6a	f170e76b-4135-5781-b898-91e1259af14f	سوستة 10سم (الكوك)	\N	عدد	20.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:56:22.223581+00	2026-02-21 14:30:08.421871+00	0.000	0.000	untracked
+a470a716-8bc7-4c3b-a4d2-ada3f0dafdd9	f170e76b-4135-5781-b898-91e1259af14f	سوستة 3/8 * 3/8 محملة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:56:46.094901+00	2026-01-30 14:56:46.094901+00	0.000	0.000	untracked
+d4f387cf-2b6a-4ca0-ba1c-099b594a5949	f170e76b-4135-5781-b898-91e1259af14f	سوستة 40سم (انس)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:57:01.999862+00	2026-02-21 14:29:54.517735+00	0.000	0.000	untracked
+357dad92-ae44-40df-98d6-135586d4f7c9	f170e76b-4135-5781-b898-91e1259af14f	سوستة 30سم (انس)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:57:11.11977+00	2026-01-30 14:57:11.11977+00	0.000	0.000	untracked
+d159b603-06ca-4d80-b251-120ca04bd0ee	f170e76b-4135-5781-b898-91e1259af14f	سوستة 20سم (انس)	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:57:23.792768+00	2026-01-30 14:57:23.792768+00	0.000	0.000	untracked
+aabb6a08-a5c6-4a2c-b7dd-66ec1e019393	f170e76b-4135-5781-b898-91e1259af14f	سوستة سماعة ايطالي متر ونص	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:28:55.910952+00	2026-02-10 13:28:55.910952+00	0.000	0.000	untracked
+88420337-987a-48a0-a9db-fb0769395f8b	f170e76b-4135-5781-b898-91e1259af14f	سوستة سخان 50 سم	\N	قطعة	35.00	14.00	10.00	\N	\N	\N	\N	\N	t	2026-03-15 17:27:24.635008+00	2026-03-15 17:27:24.635008+00	0.000	0.000	untracked
+e529e2cf-83ac-4047-a94a-d0089030b1a4	f170e76b-4135-5781-b898-91e1259af14f	سوستة سخان 30 سم	\N	قطعة	35.00	14.00	10.00	\N	\N	\N	\N	\N	t	2026-03-15 17:28:34.179202+00	2026-03-15 17:28:34.179202+00	0.000	0.000	untracked
+85be72d3-5d91-4bc1-8bc8-73b53c083490	f170e76b-4135-5781-b898-91e1259af14f	سوستة 70 سم	\N	قطعة	50.00	19.00	15.00	\N	\N	\N	\N	\N	t	2026-03-15 17:30:24.066428+00	2026-03-15 17:31:09.569293+00	0.000	0.000	untracked
+200ed75f-470f-490a-9dbb-56886e13ecd0	f170e76b-4135-5781-b898-91e1259af14f	سوستة 80 سم	\N	قطعة	60.00	19.00	15.00	\N	\N	\N	\N	\N	t	2026-03-15 17:32:35.923758+00	2026-03-15 17:32:35.923758+00	0.000	0.000	untracked
+50d2a42b-4735-4fb8-924d-8d86cbdcd133	f170e76b-4135-5781-b898-91e1259af14f	سوستة 100 سم	\N	قطعة	70.00	19.00	15.00	\N	\N	\N	\N	\N	t	2026-03-15 17:33:50.515367+00	2026-03-15 17:33:50.515367+00	0.000	0.000	untracked
+a21a8080-f94d-4927-bf0b-2390e2500059	3990e818-7790-55bf-9cf9-6a7e45c45026	صامولة زنق نحاس 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:54:36.9018+00	2026-02-01 16:54:36.9018+00	0.000	0.000	untracked
+a7861f0d-2057-4965-97f3-26b745cbbc8b	3990e818-7790-55bf-9cf9-6a7e45c45026	صامولة زنق نحاس 1بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:55:54.273374+00	2026-02-01 16:55:54.273374+00	0.000	0.000	untracked
+7e3e1e0b-859d-4b02-abd3-95199402ec4c	0a625299-9939-57bf-9214-75c4fa91e993	ثمن لزق 900 بارد (الكوك)	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:44:45.685867+00	0.000	0.000	untracked
+eef8c1af-7cf9-4222-8baa-43bf0094c923	0a625299-9939-57bf-9214-75c4fa91e993	ثمن لزق 914 حار (الكوك)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:45:14.35981+00	0.000	0.000	untracked
+dbdb45fe-083e-42bb-b3c8-df69ec408f8d	0a625299-9939-57bf-9214-75c4fa91e993	ربع لزق 900 بارد (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:49:57.301562+00	0.000	0.000	untracked
+8edab49c-8f12-47b1-963d-8adea2c8ce02	0a625299-9939-57bf-9214-75c4fa91e993	ربع لزق 914 حار (عمار)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-21 14:50:08.486495+00	0.000	0.000	untracked
+13d75310-8904-479f-9803-f13687b3bb57	0a625299-9939-57bf-9214-75c4fa91e993	نص لزق 914 حار (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:00:25.803028+00	2026-01-18 19:00:25.803028+00	0.000	0.000	untracked
+cd65e985-404b-46db-819e-af8c5163937a	0a625299-9939-57bf-9214-75c4fa91e993	لزق مواسير عريض كبير (ادهم)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:01:31.323747+00	2026-02-21 14:51:14.965896+00	0.000	0.000	untracked
+09ac1895-0aa4-46d7-bf13-4f5d0a4d5c60	0a625299-9939-57bf-9214-75c4fa91e993	لزق مواسير عريض صغير (ادهم)	\N	عدد	30.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:01:59.450741+00	2026-02-21 14:51:57.510829+00	0.000	0.000	untracked
+0f662576-a144-4692-ad0b-937314746bdc	0a625299-9939-57bf-9214-75c4fa91e993	نص لزق 900 بارد (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:56:00.681382+00	2026-01-18 19:56:00.681382+00	0.000	0.000	untracked
+14089411-b7a2-4a4e-b9d0-f4efb8cc75c0	0a625299-9939-57bf-9214-75c4fa91e993	ربع لحام رمادي 917 (احمد حماية الله)	\N	عدد	170.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:56:53.225459+00	2026-02-21 14:53:42.359321+00	0.000	0.000	untracked
+27f3d0ff-1203-4b97-81e8-3be4720852e2	0a625299-9939-57bf-9214-75c4fa91e993	سليكون عضم ابيض (عمر)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:54:13.696396+00	2026-02-21 14:54:07.302153+00	0.000	0.000	untracked
+2063f0a4-2037-4436-937e-bb771626b4d0	0a625299-9939-57bf-9214-75c4fa91e993	سيليكون عضم رمادي (عمر)	\N	عدد	130.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:54:21.896209+00	2026-02-21 14:54:29.015895+00	0.000	0.000	untracked
+a57e4eab-cbcf-4bf5-b649-33206c8e5efd	0a625299-9939-57bf-9214-75c4fa91e993	ثمن لزق رمادي 917 (عمر)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 21:04:34.039761+00	2026-02-21 14:54:37.206924+00	0.000	0.000	untracked
+8d3a98f2-685a-417d-9600-8d0b51d74d97	0a625299-9939-57bf-9214-75c4fa91e993	لزق اوزو حار (عمار)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 20:27:41.543325+00	2026-02-21 14:54:46.484037+00	0.000	0.000	untracked
+a4997b77-66bf-4b4f-ae74-74762dd0712c	3eafb215-ee16-58c9-b9ec-7033aa951137	بكرة تفلون صغيرة (احمد حماية الله)	\N	عدد	5.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 18:53:32.586762+00	2026-01-18 18:53:32.586762+00	0.000	0.000	untracked
+5f8e2238-5325-4ff2-b77e-05d6398eb000	3eafb215-ee16-58c9-b9ec-7033aa951137	بكرة تفلون وسط (عمر)	\N	عدد	10.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:00:20.898163+00	2026-02-21 14:40:24.136019+00	0.000	0.000	untracked
+8b6e0771-fc64-4898-9a82-e408dec91136	3eafb215-ee16-58c9-b9ec-7033aa951137	بكرة تفلون بوش (عمر)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:00:29.83319+00	2026-02-21 21:37:08.0089+00	0.000	0.000	untracked
+2f3e5183-d945-419c-aba7-63cde2d18b66	3eafb215-ee16-58c9-b9ec-7033aa951137	سيليكون عادي (عمر)	\N	عدد	75.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 20:09:36.338117+00	2026-02-21 21:47:45.17857+00	0.000	0.000	untracked
+43b85fea-b00f-4300-b4e2-48505f28e8c5	3eafb215-ee16-58c9-b9ec-7033aa951137	تفلون شنطة ص	\N	قطعة	5.00	3.50	2.50	\N	\N	\N	\N	\N	t	2026-03-15 17:02:41.692515+00	2026-03-15 17:02:41.692515+00	0.000	0.000	untracked
+79901430-1032-480c-b559-9ddc203f643f	3eafb215-ee16-58c9-b9ec-7033aa951137	تفلون مضغوط (بوش)	\N	قطعة	30.00	14.00	10.50	\N	\N	\N	\N	\N	t	2026-03-15 17:04:59.620263+00	2026-03-15 17:04:59.620263+00	0.000	0.000	untracked
+c00d945c-163e-4291-9788-c7c48cde10b6	7b07a8a7-291e-504c-82ec-e7b14467ff8c	شكرتون كهرباء عادي	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 16:37:07.609221+00	2026-01-27 16:37:07.609221+00	0.000	0.000	untracked
+e738439d-440a-4f78-9dc6-83fe84f8670d	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20*20 محمل عادة فايف ستار (الكوك)	\N	عدد	195.00	175.00	163.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-23 16:35:00.9513+00	0.000	0.000	untracked
+767f8dde-1ac2-4a50-8afb-982ff0b34fa9	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15*15 محمل عادة فايف ستار بلاطة	\N	عدد	150.00	130.00	118.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-23 16:33:59.990167+00	0.000	0.000	untracked
+0aa136ff-9388-4688-bbb1-a3a344d9cde5	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 10*10 محمل عادة فايف ستار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.943661+00	2026-02-20 16:41:50.943661+00	0.000	0.000	untracked
+38f70be7-6eda-4e3f-8f5d-cc664f4588e2	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 نيو سيجما (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:16:45.388774+00	2026-01-29 12:16:45.388774+00	0.000	0.000	untracked
+bf14d1ca-8f4d-4a9f-a8ff-435203615af8	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 لافنا (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:38.052074+00	2026-01-29 12:23:38.052074+00	0.000	0.000	untracked
+ff494980-4c73-4a61-81a8-2cdb3ad57c2c	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 ساليمكو (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:45.548065+00	2026-01-29 12:23:45.548065+00	0.000	0.000	untracked
+0d793ff6-689e-42c9-b1c5-3d1518459fb4	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 اللؤلؤ (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:51.300812+00	2026-01-29 12:23:51.300812+00	0.000	0.000	untracked
+8c31b689-b723-4b4f-b7a5-3657a4733077	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 السهم الذهبي (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:23:58.045634+00	2026-01-29 12:23:58.045634+00	0.000	0.000	untracked
+8c5b88b7-459f-4831-b67c-61bfc16c6496	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 سبانش (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:03.581273+00	2026-01-29 12:24:03.581273+00	0.000	0.000	untracked
+d32342b1-8699-4cab-a46d-c599555abf3c	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 لازا (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:11.413259+00	2026-01-29 12:24:11.413259+00	0.000	0.000	untracked
+c3a1165c-ac37-4772-b198-5e973ff7ca06	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 ريباني (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:22.97243+00	2026-01-29 12:24:22.97243+00	0.000	0.000	untracked
+6cf339ab-5c51-4d0c-a096-98aa08096dbb	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 ساليمكو (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:30.876672+00	2026-01-29 12:24:30.876672+00	0.000	0.000	untracked
+dfd4135f-7efa-4f2e-96b3-02e44342a7ab	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 تاتش لومي (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:45.34786+00	2026-01-29 12:24:45.34786+00	0.000	0.000	untracked
+26592f03-3ad9-436b-8eb1-c97d23551fb2	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 الصقر (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:24:59.836683+00	2026-01-29 12:24:59.836683+00	0.000	0.000	untracked
+fffc498b-ab89-446f-bf7e-43ad31c86527	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20*20 تاتش لومي (يوسف)	\N	عدد	150.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:26:11.412927+00	2026-02-21 21:49:01.482285+00	0.000	0.000	untracked
+60569b7c-dcce-4e35-a474-19916aa35ca3	6e48e18f-bfe0-59e7-81ac-090ada6061b2	جلبة سن داخلي 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:39:46.172566+00	2026-02-08 14:39:46.172566+00	0.000	0.000	untracked
+e204e8a5-b604-4547-9484-1f498d6dc46d	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 تاتش AM (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:26:20.132173+00	2026-01-29 12:26:20.132173+00	0.000	0.000	untracked
+0d6d6f68-4a79-41fb-9c7c-2d8274a55354	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 تاتش MK (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:26:30.691931+00	2026-01-29 12:26:30.691931+00	0.000	0.000	untracked
+b6fb8546-4a43-4944-a315-be3ee1ea1fcb	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 ريبلان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:34:22.867705+00	2026-01-29 12:34:22.867705+00	0.000	0.000	untracked
+aed26ebb-13d6-470e-b3be-18c28441b516	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 نوفا تركي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:34:22.867705+00	2026-01-29 12:34:22.867705+00	0.000	0.000	untracked
+d7760ccb-4830-42c2-942f-517aed6b57ab	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 فرداني عادي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:34:22.867705+00	2026-01-29 12:34:22.867705+00	0.000	0.000	untracked
+c3238e7f-7d91-40b4-8df2-6cd9161fc09a	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة محمل 20 * 20 المنبع	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000	untracked
+ca20b458-786d-4bed-b94a-a91b10a6c621	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة بلاستيك 20 * 20 ساليمكو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000	untracked
+988e63a2-5543-487a-9f20-e8caf9133c05	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة بلاستيك 20 * 20 كيلوباترا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000	untracked
+3614e70f-96f3-4b69-9104-188a0574085d	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 15 * 15 فولكانو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000	untracked
+c952ae33-8b9e-4eb8-b67f-56fb587e7314	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة 20 * 20 عادي PFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:07.052653+00	2026-01-29 12:35:07.052653+00	0.000	0.000	untracked
+01060665-4be6-4d76-b3cc-374e0d2e1d4a	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة نيو سيجما تاتش 15 * 15	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000	untracked
+9cba759f-0edf-4d87-aa6b-d7fb7c7ced9e	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة تاتش سوبر ستار 15 * 15	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000	untracked
+c14b87a0-3545-4545-8c7f-f00de35c208f	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة ماتدور 15 * 15	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000	untracked
+39f5ed3b-7c34-4b75-9331-32a95c7d8b81	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة تاتتش 15 * 15 النورس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000	untracked
+adc37b18-86dc-4fbb-bea1-856a682a5095	939f4e0e-dd51-54d3-9737-dfa50e8363e7	غطا بلاعة تاتش 20 * 20  pvs	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:35:44.97126+00	2026-01-29 12:35:44.97126+00	0.000	0.000	untracked
+f0c427f2-000f-4197-b044-9cb16ef86801	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1/2 محمل (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:37:22.332383+00	2026-01-22 18:37:22.332383+00	0.000	0.000	untracked
+35ad6cc3-4464-483f-9c63-7426eeee828a	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز نص خفيف 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:38:06.827415+00	2026-01-22 18:38:06.827415+00	0.000	0.000	untracked
+0bc85e43-0849-4d93-a656-73ffe8cb39eb	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:38:34.843504+00	2026-01-22 18:38:34.843504+00	0.000	0.000	untracked
+3afc718e-22cb-40f5-85b6-f36a9aefa8b5	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 2" خفيف (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:42:24.569801+00	2026-01-25 10:42:24.569801+00	0.000	0.000	untracked
+e2a0d6b0-083c-4d18-a788-795dbc4bf1df	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 2" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:42:58.654475+00	2026-01-25 10:42:58.654475+00	0.000	0.000	untracked
+ec85f3a5-9492-404a-bb1e-ad401f624d53	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 3" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:43:40.257346+00	2026-01-25 10:43:40.257346+00	0.000	0.000	untracked
+80f8c742-7ee3-47cb-96cf-7fd5819cc7c1	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 3" خفيف (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:44:16.853683+00	2026-01-25 10:44:16.853683+00	0.000	0.000	untracked
+760b0215-4244-4bdb-8309-21894890e616	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 4" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:45:46.415871+00	2026-01-25 10:45:46.415871+00	0.000	0.000	untracked
+4dd2c933-9bb8-4496-8f14-e5cf55e14a62	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 4" خفيف (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:46:17.954431+00	2026-01-25 10:46:17.954431+00	0.000	0.000	untracked
+df95ab62-3460-4fd8-97b3-d041e121aa96	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 6" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:47:31.376609+00	2026-01-25 10:47:31.376609+00	0.000	0.000	untracked
+7b92bee1-e9df-4679-8856-f13f1491aa2d	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1 و1/2" شعبي (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:48:35.136908+00	2026-01-25 10:48:35.136908+00	0.000	0.000	untracked
+ebb8fe3a-e453-4bf8-b931-c01008a6a192	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1 و1/2" محمل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:49:04.319186+00	2026-01-25 10:49:04.319186+00	0.000	0.000	untracked
+c7c52aa2-562e-477a-a972-d04f35efcb87	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز بجوان 3/4" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:49:35.689487+00	2026-01-25 10:49:35.689487+00	0.000	0.000	untracked
+4defd0e4-66bd-483d-95d2-805d2132cacf	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 1" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 13:07:27.808173+00	2026-01-25 13:07:27.808173+00	0.000	0.000	untracked
+0f4beb3a-88e1-4869-9add-eca39c3a738a	b12ed220-d73c-519f-9a7d-ecb58dd62515	افيز 2 و1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 10:12:35.204666+00	2026-01-27 10:12:35.204666+00	0.000	0.000	untracked
+49f4d737-1d66-4bbf-8011-44949b013133	df634c7a-d345-505a-82a4-2bdc2e899a7b	مانيجه سوسته ايطالى (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:33:58.596563+00	2026-02-01 16:33:58.596563+00	0.000	0.000	untracked
+43262301-8bc0-4e5e-98f8-df79b0032751	df634c7a-d345-505a-82a4-2bdc2e899a7b	منيجا عدله (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 18:28:53.021728+00	2026-02-02 18:28:53.021728+00	0.000	0.000	untracked
+9c6b491e-0f64-46ba-983d-e9512587b4c1	df634c7a-d345-505a-82a4-2bdc2e899a7b	منيجا موجه (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 18:29:54.169036+00	2026-02-02 18:29:54.169036+00	0.000	0.000	untracked
+e3ef3606-53ce-4847-a9ae-7357efdea79a	df634c7a-d345-505a-82a4-2bdc2e899a7b	مانيجه سوسته تركى	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-25 23:14:04.662874+00	2026-02-25 23:14:04.662874+00	0.000	0.000	untracked
+27e4b81d-9590-4576-b818-2a69da7afafd	df634c7a-d345-505a-82a4-2bdc2e899a7b	مانيحه استالس	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-25 23:16:10.366716+00	2026-02-25 23:16:10.366716+00	0.000	0.000	untracked
+cb153139-9139-4c4b-b341-9cabab43c132	69f9914c-e165-5167-a85b-6ba46173bba3	حنفيه أسانسير كعب بلاستيك تربو طاتش(يوسف)	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 15:49:11.82749+00	2026-02-21 21:50:20.058226+00	0.000	0.000	untracked
+d5442bca-dd7e-4793-aded-ef8d13f3d2b9	69f9914c-e165-5167-a85b-6ba46173bba3	حنفيه أسانسير كعب نحاس نيوجولد(عمار)	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:01:15.78419+00	2026-02-21 21:50:13.256771+00	0.000	0.000	untracked
+329b40d0-86df-4887-b985-ea2bc7990b83	69f9914c-e165-5167-a85b-6ba46173bba3	حنفيه أسانسير كعب بلاستيك نيوجولد (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:04:07.2767+00	2026-02-01 16:04:07.2767+00	0.000	0.000	untracked
+5bb79780-a8aa-4007-b778-5ad0dbb78e6e	69f9914c-e165-5167-a85b-6ba46173bba3	عوامه جمب السكرى(يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:18:09.42226+00	2026-02-01 16:18:09.42226+00	0.000	0.000	untracked
+21587981-5f52-41a0-8aad-f7a573837b0a	69f9914c-e165-5167-a85b-6ba46173bba3	شداد طويل (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 18:22:52.679189+00	2026-02-02 18:22:52.679189+00	0.000	0.000	untracked
+1220b394-a688-46f9-a9c5-6c815cef43d0	69f9914c-e165-5167-a85b-6ba46173bba3	زرار ضغط	\N	قطعة	20.00	13.00	9.00	\N	\N	\N	\N	\N	t	2026-03-15 16:58:42.15504+00	2026-03-15 16:58:42.15504+00	0.000	0.000	untracked
+93f907c6-3b84-4d95-b1a5-b57483e81451	0fe9fe9a-ca99-5bac-85da-bf506d92be69	ماكينه ضغط كيس(يوسف)	\N	عدد	95.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:09:18.786823+00	2026-02-21 21:49:48.922933+00	0.000	0.000	untracked
+11ebff6a-eec6-4331-92fe-aac2c3373c9c	0fe9fe9a-ca99-5bac-85da-bf506d92be69	ماكينه تركي	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:58:49.261182+00	2026-03-04 13:58:49.261182+00	0.000	0.000	untracked
+38e871be-2c5b-4e85-b0a6-f5c1eceb0b50	0fe9fe9a-ca99-5bac-85da-bf506d92be69	ماكينة ايديال	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:59:01.060385+00	2026-03-04 13:59:01.060385+00	0.000	0.000	untracked
+33f55188-0fe1-4788-9809-3591288e60f3	0fe9fe9a-ca99-5bac-85da-bf506d92be69	مكنة تربو	\N	قطعة	120.00	85.00	58.00	\N	\N	\N	\N	\N	t	2026-03-15 16:55:34.652521+00	2026-03-15 16:55:34.652521+00	0.000	0.000	untracked
+6638cc77-52db-4850-8515-7336252846cf	0fe9fe9a-ca99-5bac-85da-bf506d92be69	مكنة ضغط نوفا	\N	قطعة	120.00	85.00	60.00	\N	\N	\N	\N	\N	t	2026-03-15 16:56:59.683521+00	2026-03-15 16:56:59.683521+00	0.000	0.000	untracked
+4ebdc6b6-72e6-43cd-83eb-389d25b5c5ec	daf8935a-6a30-5667-ac81-f4a398cbc305	ماسورة وراق بلاستيك (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 12:02:39.378525+00	2026-01-25 12:02:39.378525+00	0.000	0.000	untracked
+67f5d187-e095-4c7d-b864-5789fc3290ec	daf8935a-6a30-5667-ac81-f4a398cbc305	ماسورة وراق استانلس (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 12:03:00.927509+00	2026-01-25 12:03:00.927509+00	0.000	0.000	untracked
+de12a113-2bee-459d-a18b-971c54badbeb	daf8935a-6a30-5667-ac81-f4a398cbc305	وراقة مناديل ايفون	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:55:07.811048+00	2026-01-29 12:55:07.811048+00	0.000	0.000	untracked
+883f0d1e-6801-402e-9168-1e7f3435d336	daf8935a-6a30-5667-ac81-f4a398cbc305	اوكرة جنب استانلس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:56:03.427526+00	2026-01-29 12:56:03.427526+00	0.000	0.000	untracked
+5d2c6496-0b93-4d27-8f33-ab6c72e3ab08	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار صبانات (عمر واللو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:58:59.760059+00	2026-01-30 14:58:59.760059+00	0.000	0.000	untracked
+728d6023-951b-4a19-8cfb-d62631ab5736	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار قعدة (عمر واللو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:59:24.143925+00	2026-01-30 14:59:24.143925+00	0.000	0.000	untracked
+23856709-a9eb-49e8-a93d-8d659ff16a26	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار سخان (عمر واللو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 14:59:38.943772+00	2026-01-30 14:59:38.943772+00	0.000	0.000	untracked
+71cc6095-c87f-4909-b84c-f89eb5660fa7	daf8935a-6a30-5667-ac81-f4a398cbc305	مسمار حوض (عمر وميدو)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-30 15:00:01.823495+00	2026-01-30 15:00:01.823495+00	0.000	0.000	untracked
+c44ffb44-d7cc-4ab0-b7c7-6b0c073b059e	daf8935a-6a30-5667-ac81-f4a398cbc305	نوزل شطاف بالخرطوم كامل (أنس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:30:58.500228+00	2026-02-01 16:30:58.500228+00	0.000	0.000	untracked
+94c0f2c9-04d7-467c-ae8a-eb553591eac7	daf8935a-6a30-5667-ac81-f4a398cbc305	طبة حوض ستار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 12:52:11.951551+00	2026-02-10 12:52:11.951551+00	0.000	0.000	untracked
+013dc815-ab1d-46f5-b3ce-3c09ec80c29b	a77bbc03-437a-5071-b287-7a1cb6a9ac77	مسمار سديلي  L معدن (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000	untracked
+2de745f3-490c-458f-8d80-f8ef4fe03cb9	a77bbc03-437a-5071-b287-7a1cb6a9ac77	مسمار سديلي جرار (أنس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:03:17.755964+00	2026-01-18 19:03:17.755964+00	0.000	0.000	untracked
+2e415055-50d3-403c-b6b6-132cc06cac09	a77bbc03-437a-5071-b287-7a1cb6a9ac77	مسمار سديلي L بلاستيك (أنس)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 17:14:10.101598+00	2026-01-22 17:14:10.101598+00	0.000	0.000	untracked
+bffd258f-b84e-4beb-8d18-ae23f611015d	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 2 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 12:09:17.936616+00	2026-01-22 12:09:17.936616+00	0.000	0.000	untracked
+d2879635-0b3c-4c36-8199-9f2b94a535ab	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 1 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:31:36.798765+00	2026-01-22 14:31:36.798765+00	0.000	0.000	untracked
+fb3622ca-2180-4ed7-811e-479b4d54f849	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 4 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:32:55.085674+00	2026-01-22 14:32:55.085674+00	0.000	0.000	untracked
+9c1e6d13-9d15-46d1-9779-623dbc89684f	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	شمعة مرحلة 3 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:33:45.821867+00	2026-01-22 14:33:45.821867+00	0.000	0.000	untracked
+4afdd266-b0cd-49ab-aa95-b46ea2fdc5a5	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حنفية فلتر اوكر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:13.899449+00	2026-01-29 12:50:13.899449+00	0.000	0.000	untracked
+a4bc8fa2-5b9b-4d21-8b22-788662938fcd	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حنفية فلتر محمل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:13.899449+00	2026-01-29 12:50:13.899449+00	0.000	0.000	untracked
+59b1408c-5d92-4b6b-b109-28c7a39f41fd	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	قنطرة فيلتر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:54:27.585787+00	2026-01-29 12:54:27.585787+00	0.000	0.000	untracked
+0ba7d154-06d4-4148-bf47-71dbe931348a	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	وصله سريعه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 16:59:52.874967+00	2026-02-01 16:59:52.874967+00	0.000	0.000	untracked
+53baae4e-9523-419b-b62f-ef1b43737105	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	نطرة فلتر 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:01:37.122142+00	2026-02-01 17:01:37.122142+00	0.000	0.000	untracked
+ed6fb4fe-6aa7-4a8f-8856-bbdd3b7b7625	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	محول فلتر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:02:20.851609+00	2026-02-01 17:02:20.851609+00	0.000	0.000	untracked
+5167fb35-085a-42cc-82ea-73e3684bea9a	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حنفية كولمان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:05:12.898574+00	2026-02-01 17:05:12.898574+00	0.000	0.000	untracked
+e5e9bcf1-22ad-40e2-a443-9b4acdbbe426	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	حامل حنفية فلتر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:13:30.784739+00	2026-02-01 17:13:30.784739+00	0.000	0.000	untracked
+577cd1d9-5876-4b11-be1c-cd338c878aa2	f4d19c5a-646c-5976-b7b8-0d06ce75be1c	محبس فلتر استالس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:36:27.970155+00	2026-02-01 17:36:27.970155+00	0.000	0.000	untracked
+39e8ca5e-8abc-4918-8e32-052d5862db47	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف شيلد نحاس 3/4 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 13:47:42.676159+00	2026-01-20 13:47:42.676159+00	0.000	0.000	untracked
+b5459d2a-95fc-418b-99f9-f21a8406b6f1	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 1/2 بوصة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:12:16.803625+00	2026-01-20 14:12:16.803625+00	0.000	0.000	untracked
+79880071-7ae2-49d2-bda2-46c567d90c8e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 3/4 (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:12:47.458892+00	2026-01-20 14:12:47.458892+00	0.000	0.000	untracked
+ae608ba9-9030-4a2d-89d6-fa70769c09a7	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 1 بوصة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:13:36.339435+00	2026-01-20 14:13:36.339435+00	0.000	0.000	untracked
+c2b0f8d3-5a8b-4744-8cb6-c51fc74a019f	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 2 بوصة (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:13:44.386965+00	2026-01-20 14:13:44.386965+00	0.000	0.000	untracked
+f3f5bc34-6e8a-4fce-aaff-440ca5fd8a9a	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف سخان (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:16:14.851146+00	2026-01-20 14:16:14.851146+00	0.000	0.000	untracked
+8860ce8d-06ec-41f7-9fa2-87e2979c660c	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف لاكور 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 14:17:17.027115+00	2026-01-20 14:17:17.027115+00	0.000	0.000	untracked
+d1cc6cac-ad63-4fda-93d9-913571e3fe9e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف بولي 1 و 1/2 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:33:10.336915+00	2026-01-20 15:33:10.336915+00	0.000	0.000	untracked
+7f5190eb-4444-470d-87ec-f037f1b4d36a	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بوابة 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:55:29.280372+00	2026-01-20 15:55:29.280372+00	0.000	0.000	untracked
+3a1f1896-d864-4700-a1df-a92942f60e58	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 1 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:56:10.576738+00	2026-01-20 15:56:10.576738+00	0.000	0.000	untracked
+5a69e732-8a23-459e-8321-aaabf2d24e8e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 3/4 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:56:57.601327+00	2026-01-20 15:56:57.601327+00	0.000	0.000	untracked
+d2fd8ca2-1dba-4cf1-81fb-82dc5a323a7f	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 1/2 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 15:57:58.480216+00	2026-01-20 15:57:58.480216+00	0.000	0.000	untracked
+5dc65401-81f9-49c1-8995-94b48888200f	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-20 17:52:25.757162+00	2026-01-20 17:52:25.757162+00	0.000	0.000	untracked
+966eee6d-776d-4e2c-a7a1-2e93df03e90d	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف لاكور 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:34:25.206656+00	2026-01-21 09:34:25.206656+00	0.000	0.000	untracked
+95e488af-8082-4dac-903d-ae4ea9039e8e	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس محمل بسوستة 1/2 بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:15:53.456983+00	2026-01-22 11:15:53.456983+00	0.000	0.000	untracked
+77d16d51-67f9-479c-aa04-d7e44d41976d	ac497863-17f1-5a7a-8ac1-274f86b4001b	شيك بلف نحاس بسوستة محمل نص بوصة (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 11:56:44.752842+00	2026-01-25 11:56:44.752842+00	0.000	0.000	untracked
+523adcc8-e4e9-4766-981b-e5165d723e43	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+0a5287eb-3d47-4451-ac01-b6d97287ada1	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 1" و1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+21720bca-49df-4dd9-84aa-4858271209cd	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن خارجي 2" و1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+177bed74-3f94-4fed-93a0-e23cb13847f4	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن خارجي 1" * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+44357f2a-f7f8-441c-bdd8-f9f1af4487a8	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن خارجي محمل 1 و1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+8a00f949-0c0c-4c21-8d44-c6ffaae33aa9	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+fe3b4b4b-f997-4e20-8a71-11df8a4c2e63	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور 3/4  سن خارجي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+b1bd2473-dbe5-409d-999a-342ece893357	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور 3/4 سن داخلي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+0f4ae4a8-89db-4d5d-85d5-704f681f9764	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور 1/2 بسن خارجي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+c1895f9b-5d9b-4507-9ac8-be10dd5c08d0	ac497863-17f1-5a7a-8ac1-274f86b4001b	لاكور بسن داخلي 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:14:24.637282+00	2026-01-31 14:14:24.637282+00	0.000	0.000	untracked
+4ee4ef31-bccf-4cf0-b768-53db7d80ea36	ac497863-17f1-5a7a-8ac1-274f86b4001b	فلوماك صيني	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:55:21.374679+00	2026-03-04 13:55:21.374679+00	0.000	0.000	untracked
+65d744cb-8b17-49e8-b485-e114e01b9987	ac497863-17f1-5a7a-8ac1-274f86b4001b	فلوماك ايطالي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:58:06.724196+00	2026-03-04 13:58:06.724196+00	0.000	0.000	untracked
+db501a5e-8889-470a-abac-1aae9f62414b	ac497863-17f1-5a7a-8ac1-274f86b4001b	فلوماك كوباية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:58:19.357574+00	2026-03-04 13:58:19.357574+00	0.000	0.000	untracked
+dd7fe2ec-0f4e-4de5-8f45-a7891f0bce59	5b970d56-5ee8-594e-bcde-6ce50c1d47c3	ماتور ايطالي 1 حصان	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:45:50.975615+00	2026-03-04 13:45:50.975615+00	0.000	0.000	untracked
+f8dd4fea-855d-402a-8de3-c62d5dc51df0	5b970d56-5ee8-594e-bcde-6ce50c1d47c3	ماتور ايطالي 1/2 حصان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:46:14.534908+00	2026-03-04 13:46:14.534908+00	0.000	0.000	untracked
+45f0395c-d566-4c2b-b586-3cd2d1d99f7b	5b970d56-5ee8-594e-bcde-6ce50c1d47c3	ماتور صيني 1/2 حصان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:48:13.142898+00	2026-03-04 13:48:13.142898+00	0.000	0.000	untracked
+7c033855-5e8a-44e7-a03a-c91729b55080	753bd696-70ef-5e78-bd15-456428b31687	كوع عاده 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:06:54.889056+00	2026-02-08 14:06:54.889056+00	0.000	0.000	untracked
+fb232540-a7f2-4037-b600-1ee220be7b4d	753bd696-70ef-5e78-bd15-456428b31687	جلبة 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:11:35.389255+00	2026-02-08 14:11:35.389255+00	0.000	0.000	untracked
+1dc0dbc5-8c7d-45d7-b240-e343b6bc50fa	753bd696-70ef-5e78-bd15-456428b31687	تي 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:11:59.999094+00	2026-02-08 14:11:59.999094+00	0.000	0.000	untracked
+b277559f-9416-4077-b01d-108ca5d2ad84	753bd696-70ef-5e78-bd15-456428b31687	واي 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:24:30.685307+00	2026-02-08 14:24:30.685307+00	0.000	0.000	untracked
+7c32ca44-d362-41fb-94c8-843a6c2b6eb1	753bd696-70ef-5e78-bd15-456428b31687	طبة كاب 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:34:10.669716+00	2026-02-08 14:34:10.669716+00	0.000	0.000	untracked
+c45f5e63-c8f4-46b5-bd72-ba04bfad276e	6e48e18f-bfe0-59e7-81ac-090ada6061b2	طبة تسليك 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:45:56.317097+00	2026-02-08 12:45:56.317097+00	0.000	0.000	untracked
+bb158824-4c3b-4a7e-b7ab-3f7478148361	6e48e18f-bfe0-59e7-81ac-090ada6061b2	طبة كاب 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:59:57.327557+00	2026-02-08 12:59:57.327557+00	0.000	0.000	untracked
+60f411d9-101b-4fac-9476-9c3156ca32e5	6e48e18f-bfe0-59e7-81ac-090ada6061b2	تي 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:02:31.006671+00	2026-02-08 13:02:31.006671+00	0.000	0.000	untracked
+8e2b3882-c6fc-42c0-85b9-1ce43ec06076	6e48e18f-bfe0-59e7-81ac-090ada6061b2	تي 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:31:49.745179+00	2026-02-08 14:31:49.745179+00	0.000	0.000	untracked
+892d2704-38a2-4e62-a752-066a045fe36e	6e48e18f-bfe0-59e7-81ac-090ada6061b2	كوع سن داخلي 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:35:15.357294+00	2026-02-08 14:35:15.357294+00	0.000	0.000	untracked
+b667424e-e746-44bc-9c47-839e858bc00a	69c8851c-0e49-50f6-aa84-346755ef3132	مشترك باب 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:09.557466+00	2026-02-08 12:46:09.557466+00	0.000	0.000	untracked
+baeea72c-a311-41bf-9680-40ae18dca71c	69c8851c-0e49-50f6-aa84-346755ef3132	جلبة 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:17.630758+00	2026-02-08 12:46:17.630758+00	0.000	0.000	untracked
+39742801-02c4-47fe-bdf9-55c330e781ca	69c8851c-0e49-50f6-aa84-346755ef3132	واي 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:26.81403+00	2026-02-08 12:46:26.81403+00	0.000	0.000	untracked
+e6fd727d-e3c4-4364-a327-d6718553c39b	69c8851c-0e49-50f6-aa84-346755ef3132	طبة كاب 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:46:39.949684+00	2026-02-08 12:46:39.949684+00	0.000	0.000	untracked
+0b66cdef-de0b-4e0d-a091-0c6478c6edd0	69c8851c-0e49-50f6-aa84-346755ef3132	كوع باب 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:23:02.439219+00	2026-02-08 13:23:02.439219+00	0.000	0.000	untracked
+4856275a-91cb-4889-bc57-4e10e1b703c9	69c8851c-0e49-50f6-aa84-346755ef3132	هواية 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:23:50.82904+00	2026-02-08 14:23:50.82904+00	0.000	0.000	untracked
+888d9a19-395c-4cbe-b334-346cb8006b9a	69c8851c-0e49-50f6-aa84-346755ef3132	جلبة سن داخلي 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:36:26.909287+00	2026-02-08 14:36:26.909287+00	0.000	0.000	untracked
+e7eb5039-f585-4133-8a5c-30d2c64211d1	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	طبة تسليك 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:55:40.174127+00	2026-02-08 12:55:40.174127+00	0.000	0.000	untracked
+e660c870-680d-4c0d-ac35-ad6c4e0740a6	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	طبة كاب 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:59:14.46174+00	2026-02-08 12:59:14.46174+00	0.000	0.000	untracked
+23644c4a-953b-46df-8f24-f28a6f04466e	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	هواية 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:23:13.549607+00	2026-02-08 14:23:13.549607+00	0.000	0.000	untracked
+8f92156d-4980-4897-a21d-6bb7a3001734	0ff37f54-86c4-5e7b-a45b-7b0f059fe533	جرجوري 3"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:43:11.372835+00	2026-02-08 14:43:11.372835+00	0.000	0.000	untracked
+8671c2bd-ccab-45f7-8ef1-6c75e1c56809	33f73ec5-118e-5a83-bf95-62e0ba535dff	طبة كاب 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 12:58:43.480198+00	2026-02-08 12:58:43.480198+00	0.000	0.000	untracked
+9a23640f-c9b3-4037-866f-df3e018fe0b6	33f73ec5-118e-5a83-bf95-62e0ba535dff	طبة تسليك 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:04:25.583595+00	2026-02-08 13:04:25.583595+00	0.000	0.000	untracked
+182d1f97-9302-4f7b-9482-dbbd0206af9d	33f73ec5-118e-5a83-bf95-62e0ba535dff	هواية 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:14:20.365837+00	2026-02-08 14:14:20.365837+00	0.000	0.000	untracked
+8733206d-6230-4c5d-8b7d-eb3f9fd26123	33f73ec5-118e-5a83-bf95-62e0ba535dff	جرجوري 4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:41:12.668569+00	2026-02-08 14:41:12.668569+00	0.000	0.000	untracked
+ab4ea6d5-f256-48e0-ac8b-cfa800182482	fab03014-2cfb-57bf-aa2f-7998e3b33df2	نقاص 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:13:45.774354+00	2026-02-08 13:13:45.774354+00	0.000	0.000	untracked
+53746d4e-4530-4d61-9b35-294b61f4618c	e51e11b8-471d-57ed-96e7-1fbe83eb4965	نقاص 1.5 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:21:56.575712+00	2026-02-08 13:21:56.575712+00	0.000	0.000	untracked
+57925e1a-2021-417f-8be6-34d1bdef1dfb	692519e0-6295-5892-9d1d-91cad5f3dd85	نقاص 2 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:24:04.046593+00	2026-02-08 13:24:04.046593+00	0.000	0.000	untracked
+2f0bead1-730a-45f1-9ce9-71f11246b94f	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2/3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:31:44.286884+00	2026-02-08 13:31:44.286884+00	0.000	0.000	untracked
+bb5f4a08-269d-41b4-993b-2ea33302507a	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:53:05.869834+00	2026-02-08 13:53:05.869834+00	0.000	0.000	untracked
+2de17cf9-3fe3-4533-a032-818ffdb0eea5	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2/2 عالية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 13:55:32.159269+00	2026-02-08 13:55:32.159269+00	0.000	0.000	untracked
+9df6119f-d341-4c6d-a93e-674107276697	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2 * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:01:15.933689+00	2026-02-08 14:01:15.933689+00	0.000	0.000	untracked
+e3a7418f-9d48-48df-b265-6e20a4c0667a	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة 2 * 1.5 عالية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:01:55.965237+00	2026-02-08 14:01:55.965237+00	0.000	0.000	untracked
+40faef4c-37c9-4ecb-a603-b377687bed9c	141f9c5b-6d31-55ee-86f6-ad02f51926e7	بلاعة شاور 2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-08 14:02:36.061897+00	2026-02-08 14:02:36.061897+00	0.000	0.000	untracked
+46653e57-d6d2-4fa1-9ea9-c4095da20503	dd2b913d-417a-55cf-8fa4-c539aa173fc3	جلبة 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:22:34.239712+00	2026-01-22 11:22:34.239712+00	0.000	0.000	untracked
+2efc200a-fa8f-4bc8-8b04-ddc3491110df	dd2b913d-417a-55cf-8fa4-c539aa173fc3	تي 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:23:13.728784+00	2026-01-22 11:23:13.728784+00	0.000	0.000	untracked
+ea231ea8-7b79-4616-b5ff-7133ce3b9355	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كوع بسن 1/2 (بلال)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:24:56.592898+00	2026-01-22 11:24:56.592898+00	0.000	0.000	untracked
+f9ab2612-e5b6-448b-b85b-a41883850361	dd2b913d-417a-55cf-8fa4-c539aa173fc3	تي بسن 1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:32:33.403478+00	2026-01-22 18:32:33.403478+00	0.000	0.000	untracked
+fbe38b09-fe9a-4053-9587-bbf370223390	dd2b913d-417a-55cf-8fa4-c539aa173fc3	جلبة سن داخلي نص بوصة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:33:04.378991+00	2026-01-22 18:33:04.378991+00	0.000	0.000	untracked
+d144b604-d157-4c59-8006-25da0df08daf	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كوع لحام نص بوصة (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:33:28.412125+00	2026-01-22 18:33:28.412125+00	0.000	0.000	untracked
+5261d27a-2f3f-43db-97de-7d90d039facf	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كرنك 1/2" طويل (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:37:33.986183+00	2026-01-25 10:37:33.986183+00	0.000	0.000	untracked
+f1ff0933-c92e-41d2-a794-809088048e47	dd2b913d-417a-55cf-8fa4-c539aa173fc3	كوع بسن داخلي 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 13:43:08.04037+00	2026-01-27 13:43:08.04037+00	0.000	0.000	untracked
+3fa1f00e-e4e3-4884-81b3-404b8de81e1b	605f3728-7c52-5f81-a820-2f56527a37b2	كوع 3/4 (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:21:32.032575+00	2026-01-22 11:21:32.032575+00	0.000	0.000	untracked
+320e8a3d-d0df-4ac8-ba39-cc0fcd9e9b99	605f3728-7c52-5f81-a820-2f56527a37b2	جلبة 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:21:54.654868+00	2026-01-22 11:21:54.654868+00	0.000	0.000	untracked
+e74dc2f7-3677-4e8c-912e-9ef271bbba67	605f3728-7c52-5f81-a820-2f56527a37b2	تي 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:26:47.72345+00	2026-01-22 18:26:47.72345+00	0.000	0.000	untracked
+1a2576db-4e4b-4e7f-8c93-d601687d5cd3	605f3728-7c52-5f81-a820-2f56527a37b2	كرنك 3/4" صغير (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:38:47.313577+00	2026-01-25 10:38:47.313577+00	0.000	0.000	untracked
+422b5b97-7734-4947-afd8-cd7171cdc1b3	605f3728-7c52-5f81-a820-2f56527a37b2	كرنك 3/4" كبير (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 10:39:07.953462+00	2026-01-25 10:39:07.953462+00	0.000	0.000	untracked
+a2afe05f-3beb-49bd-a5ba-36565fdd14cb	605f3728-7c52-5f81-a820-2f56527a37b2	جلبة لحام 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 14:37:19.811175+00	2026-01-27 14:37:19.811175+00	0.000	0.000	untracked
+88fdb5d9-d19d-4087-aba0-19adfca71918	605f3728-7c52-5f81-a820-2f56527a37b2	تي لحام 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 14:37:45.667488+00	2026-01-27 14:37:45.667488+00	0.000	0.000	untracked
+f1e6d3ae-1a60-4187-af58-d0309ad4de89	412d5f95-e302-5cfc-aa6b-12cb95411b3f	جلبة سن خارجي 1/2*1/2 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 11:23:52.353189+00	2026-01-22 11:23:52.353189+00	0.000	0.000	untracked
+d05db9fb-adba-4899-8736-7c7d1c8172e1	412d5f95-e302-5cfc-aa6b-12cb95411b3f	تي سن داخلي 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 16:35:13.25749+00	2026-01-27 16:35:13.25749+00	0.000	0.000	untracked
+e124b922-be63-4889-9c39-d2c339ac546e	c6db36fa-a81c-58bc-b7d6-608f8d3ae1d1	كوع لحام 1/2 * 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-27 15:14:06.928674+00	2026-01-27 15:14:06.928674+00	0.000	0.000	untracked
+914922e9-da51-442c-9e3f-8839b9fa251f	5e9fdd71-7989-5122-b2d6-49bc9ba8851c	كوع بسن داخلي 3/4 * 3/4 (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:28:15.515477+00	2026-01-22 18:28:15.515477+00	0.000	0.000	untracked
+f6de776c-d026-48e0-a682-85eebc4b4cbd	ab9446cf-95d8-5574-b37a-e54d68e708fe	كوع بسن داخلي 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 18:27:26.332496+00	2026-03-24 12:33:07.688217+00	0.000	0.000	untracked
+01466b3d-dd2f-47f7-991f-988d273d3a3b	978af021-a666-5101-af9e-ed05c156645b	ماسورة 75 (3")	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:35:03.878094+00	2026-02-10 13:35:03.878094+00	0.000	0.000	untracked
+b18c3367-ee65-4e16-8e4f-a1148284aaae	978af021-a666-5101-af9e-ed05c156645b	ماسورة 4"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:36:40.870273+00	2026-02-10 13:36:40.870273+00	0.000	0.000	untracked
+e3171dc4-a972-40ef-8452-ade0250302fa	978af021-a666-5101-af9e-ed05c156645b	ماسورة 2	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:37:28.557743+00	2026-02-10 13:37:28.557743+00	0.000	0.000	untracked
+4a86af6d-e32f-4b72-a561-f98020e19e26	978af021-a666-5101-af9e-ed05c156645b	ماسورة 1.5"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:38:55.086831+00	2026-02-10 13:38:55.086831+00	0.000	0.000	untracked
+006eaf5f-789b-47a7-9106-944764fdc08b	978af021-a666-5101-af9e-ed05c156645b	ماسورة 1"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:39:16.678477+00	2026-02-10 13:39:16.678477+00	0.000	0.000	untracked
+74460fc9-5b94-427c-b129-876231ab5674	978af021-a666-5101-af9e-ed05c156645b	قواطع ماسورة 75	\N	متر	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:40:19.983297+00	2026-02-10 13:40:19.983297+00	0.000	0.000	untracked
+ff0e6f72-8440-4a9c-9a71-470453065413	978af021-a666-5101-af9e-ed05c156645b	قواطع ماسورة 2"	\N	متر	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:40:58.11851+00	2026-02-10 13:40:58.11851+00	0.000	0.000	untracked
+54b51aca-a22a-4638-a14d-f4052eddb90a	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	كوع لحام 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:30:04.076514+00	2026-01-26 20:30:04.076514+00	0.000	0.000	untracked
+d90ce028-6aeb-4cbe-916b-d5941eb564d3	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	جلبة لحام 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:31:02.904767+00	2026-01-26 20:31:02.904767+00	0.000	0.000	untracked
+1d039edf-9ba6-45b7-ac98-cbf42cf7ef49	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	تي لحام 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:32:42.822347+00	2026-01-26 20:32:42.822347+00	0.000	0.000	untracked
+efa431de-b26f-4add-b34c-b4bb0c6a1f3d	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	طبة كاب 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:34:09.788818+00	2026-01-26 20:34:09.788818+00	0.000	0.000	untracked
+ac0cbfea-84d2-4e19-9d5c-130b926174e9	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	محبس لاكور 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:36:07.194753+00	2026-01-26 20:36:07.194753+00	0.000	0.000	untracked
+3b4c474b-bcca-4785-8c8e-29b2b42e5a79	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	كرنك 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:36:42.246455+00	2026-01-26 20:36:42.246455+00	0.000	0.000	untracked
+c43bc70d-9e2d-49b9-89df-7e8396361190	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	كرنك طويل 1/2" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:40:30.035555+00	2026-01-26 20:40:30.035555+00	0.000	0.000	untracked
+a7c6cd69-4a08-4d2a-9ebf-817df83510f6	cc46a1fa-5849-5695-b684-3c5ec13bb0a6	طبه اختبار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:22:29.439955+00	2026-01-26 21:22:29.439955+00	0.000	0.000	untracked
+f9f94c31-4ab6-4b16-860c-42b07f2fe7ac	63e2904c-e0db-55e5-9f40-d5f84a85a501	كوع لحام 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:15:16.749339+00	2026-01-26 21:15:16.749339+00	0.000	0.000	untracked
+bb6e8e5f-10ce-4074-a838-5afc4bfd8c9b	63e2904c-e0db-55e5-9f40-d5f84a85a501	محبس دفن 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:15:45.928637+00	2026-01-26 21:15:45.928637+00	0.000	0.000	untracked
+dc4dcdc4-6c4c-422a-b43a-64a95dd46387	63e2904c-e0db-55e5-9f40-d5f84a85a501	محبس لاكور 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:16:04.063738+00	2026-01-26 21:16:04.063738+00	0.000	0.000	untracked
+43e5a9ca-78c2-4f05-affc-4c6e2491605a	63e2904c-e0db-55e5-9f40-d5f84a85a501	جلبة لحام 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:16:35.061885+00	2026-01-26 21:16:35.061885+00	0.000	0.000	untracked
+7568b958-f282-4aa1-85b5-24349625f9db	63e2904c-e0db-55e5-9f40-d5f84a85a501	تي لحام 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:17:08.717317+00	2026-01-26 21:17:08.717317+00	0.000	0.000	untracked
+9cffbe6c-1071-48ce-8973-fcd035c61762	63e2904c-e0db-55e5-9f40-d5f84a85a501	طبه كاب 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:19:54.664464+00	2026-01-26 21:19:54.664464+00	0.000	0.000	untracked
+9cce9245-5bbe-42c5-b6b2-f4fc4e5ec8e3	63e2904c-e0db-55e5-9f40-d5f84a85a501	كرنك 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:20:25.437116+00	2026-01-26 21:20:25.437116+00	0.000	0.000	untracked
+85a51c91-a72c-4762-91ee-38a342e74c48	63e2904c-e0db-55e5-9f40-d5f84a85a501	كوع لحام 3/4 مفتوح	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:28:28.462952+00	2026-01-31 14:28:28.462952+00	0.000	0.000	untracked
+3a4c0ba0-e011-4496-b6b8-2cdc7dc89c88	63e2904c-e0db-55e5-9f40-d5f84a85a501	طبة كاب 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:33:59.537256+00	2026-01-31 14:33:59.537256+00	0.000	0.000	untracked
+19ad03e8-e71e-4be7-90ef-08bd6572f06f	9a3e6604-1d9e-59a2-9306-b96751e63a08	طبه  1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:46:51.352013+00	2026-01-26 21:46:51.352013+00	0.000	0.000	untracked
+d2ffb803-9a86-4990-b834-9a3d7413444d	9a3e6604-1d9e-59a2-9306-b96751e63a08	كوع لحام 1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:50:05.188327+00	2026-01-26 21:50:05.188327+00	0.000	0.000	untracked
+12d44342-c0ea-4093-8344-8a3fe616b946	9a3e6604-1d9e-59a2-9306-b96751e63a08	جلبة لحام 1 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:50:32.28219+00	2026-01-26 21:50:32.28219+00	0.000	0.000	untracked
+3b1471c3-f7f4-4a7d-a28d-06206542e170	9a3e6604-1d9e-59a2-9306-b96751e63a08	تي لحام 1 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:50:57.378248+00	2026-01-26 21:50:57.378248+00	0.000	0.000	untracked
+4fc7f1f8-8b6a-42fa-b439-eb37e404f119	9a3e6604-1d9e-59a2-9306-b96751e63a08	محبس لاكور 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-28 10:10:59.544879+00	2026-01-28 10:10:59.544879+00	0.000	0.000	untracked
+6a6a73a1-51e7-48ae-8455-0e176997bed6	7cb8a098-41ca-53d9-b4e0-cdb8907a18d9	شيك بلف لاكور 1.5 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:00:34.456897+00	2026-01-26 22:00:34.456897+00	0.000	0.000	untracked
+4d5e6616-df0c-41a0-a88c-bad074a514af	7cb8a098-41ca-53d9-b4e0-cdb8907a18d9	جلبة بسن خارجي 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:01:09.086358+00	2026-01-26 22:01:09.086358+00	0.000	0.000	untracked
+868ab4a9-b2ef-435e-a292-fdbc7e3752d6	a8e4d683-3422-50bf-bd7c-91584afca4c4	جلبة لحام 3" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:41:47.014108+00	2026-01-26 20:41:47.014108+00	0.000	0.000	untracked
+56ae25fe-9036-4f6d-a788-b665157a3301	a8e4d683-3422-50bf-bd7c-91584afca4c4	جلبة سن داخلي 3" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:43:20.189943+00	2026-01-26 20:43:20.189943+00	0.000	0.000	untracked
+5c2aab48-9df3-4dce-b31f-0ec0746050c0	3bdaca2a-6e9c-5e2b-b964-711663449202	جلبة لحام 4" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:28:37.455045+00	2026-01-26 20:28:37.455045+00	0.000	0.000	untracked
+b3c35aa0-469b-4e4e-8560-1dec134adfbf	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	كوع بسن 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:03:06.498596+00	2026-01-26 21:03:06.498596+00	0.000	0.000	untracked
+338cbd11-8f82-4e1f-851b-c36446f165a0	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	جلبة بسن داخلي 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:04:39.88191+00	2026-01-26 21:04:39.88191+00	0.000	0.000	untracked
+45d11bd8-b3a6-42f3-8c0e-6db0e73093f0	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	جلبة بسن خارجي 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:05:07.12304+00	2026-01-26 21:05:07.12304+00	0.000	0.000	untracked
+720df594-4b7f-46b4-b602-884e803ed8f9	d5901618-eafd-5ad1-b0e6-f0f56f1cda35	تي بسن 1/2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:05:39.788358+00	2026-01-26 21:05:39.788358+00	0.000	0.000	untracked
+e6f44831-450b-4431-8b3b-898c83545db9	1da2db1b-955b-5530-885e-33ed2ab7e7d3	تي محبس 1/2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:23:09.209938+00	2026-01-26 21:23:09.209938+00	0.000	0.000	untracked
+d14d6889-b9b2-454e-a5eb-ac5744e8939b	1da2db1b-955b-5530-885e-33ed2ab7e7d3	جلبة بسن خارجي 1/2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 22:08:59.903959+00	2026-01-26 22:08:59.903959+00	0.000	0.000	untracked
+6ae3a388-329b-4811-a338-c61a5d690642	c286bcb5-a984-59c2-b633-ef3ebf4da01f	تي محبس دفن 3/4 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:38:31.164992+00	2026-01-26 21:38:31.164992+00	0.000	0.000	untracked
+760b529d-dbde-4e70-919c-610ce46ee71a	c286bcb5-a984-59c2-b633-ef3ebf4da01f	جلبة بسن خارجي 3/4 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:39:18.575886+00	2026-01-26 21:39:18.575886+00	0.000	0.000	untracked
+48662f9e-7606-4818-b2a8-375230a4923a	c286bcb5-a984-59c2-b633-ef3ebf4da01f	جلبة بسن داخلي 3/4 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:39:48.229897+00	2026-01-26 21:39:48.229897+00	0.000	0.000	untracked
+49e6c837-6ec8-4ff1-9b10-214b6df66b33	765f5e85-edfb-58dc-bf2b-4790017fb2f8	تي لحام 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:44:55.657012+00	2026-01-26 20:44:55.657012+00	0.000	0.000	untracked
+26a4f674-5c48-4ff6-8634-143def01cd85	765f5e85-edfb-58dc-bf2b-4790017fb2f8	كوع بسن 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:46:07.696375+00	2026-01-26 20:46:07.696375+00	0.000	0.000	untracked
+c9835638-133e-40e3-86d5-76725f3b9751	765f5e85-edfb-58dc-bf2b-4790017fb2f8	تي بسن 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:46:48.177685+00	2026-01-26 20:46:48.177685+00	0.000	0.000	untracked
+b771a653-3406-4c85-8d38-55002fcfc673	765f5e85-edfb-58dc-bf2b-4790017fb2f8	جلبة سن داخلي 3/4 * 1/2 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:47:42.874794+00	2026-01-26 20:47:42.874794+00	0.000	0.000	untracked
+541617c9-27f4-4738-9d7f-dffd1fb8975e	765f5e85-edfb-58dc-bf2b-4790017fb2f8	جلبة لحام 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-31 14:29:52.672492+00	2026-01-31 14:29:52.672492+00	0.000	0.000	untracked
+202995e6-bfba-49cd-9985-735486af9c35	9dc6edb6-19f2-5c9d-8c52-5a335ced3880	تي لحام 1" * 3/4" (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 20:56:16.056423+00	2026-01-26 20:56:16.056423+00	0.000	0.000	untracked
+3a563ab6-c4d5-4458-bfca-5ac51e029c72	9dc6edb6-19f2-5c9d-8c52-5a335ced3880	جلبة لحام 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:08:49.904267+00	2026-01-26 21:08:49.904267+00	0.000	0.000	untracked
+59c5ef97-35e2-45d5-bcbc-94c0a854195e	aeffa6be-df79-58c1-93ba-30d4f612d48e	تي لحام  1* 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:07:34.70497+00	2026-01-26 21:07:34.70497+00	0.000	0.000	untracked
+2a583630-04db-4a74-927a-0f8ef4d83d03	20ecf9c0-8655-5221-a299-7a517bc5c6ec	جلبة 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:13:21.310816+00	2026-01-26 21:13:21.310816+00	0.000	0.000	untracked
+7bbeec16-c5dd-434c-9415-643d647ed54c	59148d2a-fc7e-58d6-adf7-e6e87869724c	جلبة لحام 1.5 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:14:47.991815+00	2026-01-26 21:14:47.991815+00	0.000	0.000	untracked
+afa1092c-9aba-4b1a-ac8e-8b91bb308469	46f96c6a-23fd-5740-849e-61de853f07aa	جلبة بسن داخلي 1 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:58:53.401604+00	2026-01-26 21:58:53.401604+00	0.000	0.000	untracked
+198fe32c-37df-43bf-9d75-db5bf327abfb	46f96c6a-23fd-5740-849e-61de853f07aa	جلبة بسن خارجي 1 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-26 21:59:34.73245+00	2026-01-26 21:59:34.73245+00	0.000	0.000	untracked
+4b615637-457b-4c61-b4c8-e69607aff352	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 1.5"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:42:32.606727+00	2026-02-10 13:42:32.606727+00	0.000	0.000	untracked
+4a9db8a4-6cdf-4666-ae94-28002243bce6	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 1"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:43:36.471241+00	2026-02-10 13:43:36.471241+00	0.000	0.000	untracked
+d119f961-855e-4209-ae8f-00e30ed71e3c	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 3/4"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:44:16.949695+00	2026-02-10 13:44:16.949695+00	0.000	0.000	untracked
+3ba8e991-c7c9-4ee0-b3e8-265a9b8e13c4	d6654c3e-1821-5363-80b2-79297fffcc14	ماسورة 1/2"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-10 13:45:01.933868+00	2026-02-10 13:45:01.933868+00	0.000	0.000	untracked
+fc34d4b3-7215-42ae-9c64-eb7d8b003cda	32aad4e8-9baf-5f6b-b52f-e17675e4bcd9	عوامة خزان استانلس بوصة (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000	untracked
+857d4856-aca0-4f69-89d8-59ed2d1b86d0	32aad4e8-9baf-5f6b-b52f-e17675e4bcd9	عوامة خزان نحاس بالونة بلاستيك بوصة (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000	untracked
+da12de49-d1d6-4554-b5ae-43e76227ca90	32aad4e8-9baf-5f6b-b52f-e17675e4bcd9	عوامة نحاس بالونة بلاستيك 3/4 (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000	untracked
+ad598ec1-2ff3-43fd-97b7-c957aa24375f	24dcb16c-9713-518d-8af0-a48722e900dc	بشبوري (الكوك و ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-20 16:41:50.944655+00	0.000	0.000	untracked
+155fa0fb-6b2b-44db-8541-db6e2250448b	24dcb16c-9713-518d-8af0-a48722e900dc	سيخ شطاف الومونيوم (الكوك)	\N	عدد	35.00	13.50	9.50	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-23 16:31:15.151033+00	0.000	0.000	untracked
+7e302e33-3bb9-436d-b2a6-f64f71fa113e	24dcb16c-9713-518d-8af0-a48722e900dc	سيخ شطاف نحاس (الكوك)	\N	عدد	45.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 16:41:50.944655+00	2026-02-21 15:02:47.061757+00	0.000	0.000	untracked
+15902323-3734-41df-bb0e-732074b9a1aa	24dcb16c-9713-518d-8af0-a48722e900dc	خرطوم شطاف الوان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:03:44.986461+00	2026-01-18 19:03:44.986461+00	0.000	0.000	untracked
+e5bc8d66-e55d-4fe6-a17a-cf8f6ff8cd1b	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي جروهي (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:19:45.630201+00	2026-01-22 14:19:45.630201+00	0.000	0.000	untracked
+55e08b76-5995-4930-91ae-2c3ab291202e	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي نيكل سالمكو (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.080983+00	2026-01-29 12:49:38.080983+00	0.000	0.000	untracked
+a98b567b-37a4-4c42-9801-a5902cb3ef95	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي اسود ساليمكو (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000	untracked
+9228f6d9-1d01-45dc-a79f-9b80a68c3c55	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي روما (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000	untracked
+9ad31176-b502-43b7-b47a-57cdaa1e623f	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي كيس ستار (ادهم)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-02-21 15:05:00.917042+00	0.000	0.000	untracked
+c3887692-7b86-4407-a0ce-78ecc804fadc	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي سولو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000	untracked
+6244a9bf-08bb-41a8-9bec-b8cc3df96f19	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي سوبر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000	untracked
+48fba67d-dbc6-424b-b2eb-497fdc9b7bd1	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي إينوفا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000	untracked
+d285b94f-1298-4c3a-b7ac-0042de1e97ea	24dcb16c-9713-518d-8af0-a48722e900dc	شطاف خارجي ماست	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-01-29 12:49:38.082003+00	0.000	0.000	untracked
+65bfbf00-27bf-4323-ab25-1ccd994cddc4	24dcb16c-9713-518d-8af0-a48722e900dc	يد شطاف خارجي	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:49:38.082003+00	2026-02-21 15:03:39.300701+00	0.000	0.000	untracked
+6b464626-fbe4-4656-bd1a-d571d6836693	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2" صيني رمادي	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:24:10.827742+00	2026-02-21 21:38:10.234836+00	0.000	0.000	untracked
+fb762949-d7b9-450d-982b-102fb9ceed95	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	حنفية جنب اسانسير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:25:43.003892+00	2026-02-02 15:25:43.003892+00	0.000	0.000	untracked
+3ef92e16-40ee-44f0-98ca-671ee3a5805b	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	كاوتشة سيفون 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:28:10.806647+00	2026-02-02 15:28:10.806647+00	0.000	0.000	untracked
+d50650fc-9afe-4e35-b5d9-eb8dd047b187	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	كاوتشة سيفون 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:28:23.912166+00	2026-02-02 15:28:23.912166+00	0.000	0.000	untracked
+32f48e5f-5ab9-419b-8916-585ded0e8320	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مكنة سيفون كاملة فيرست	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:28:48.340611+00	2026-02-02 15:28:48.340611+00	0.000	0.000	untracked
+bf9ce757-b348-4b75-bbb4-0c6bf8efc605	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه كوع	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:08.6693+00	2026-02-02 15:29:08.6693+00	0.000	0.000	untracked
+fd1d4d05-a75f-4b1e-bab1-26b542487294	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه استانلس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:25.074519+00	2026-02-02 15:29:25.074519+00	0.000	0.000	untracked
+c3c27efc-96b1-4a23-bdab-93e04c7e9940	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه فار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:39.724353+00	2026-02-02 15:29:39.724353+00	0.000	0.000	untracked
+1db05d34-4a6f-4897-9a7c-619aa7351406	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه عادية	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:29:48.842245+00	2026-02-02 15:29:48.842245+00	0.000	0.000	untracked
+c7423fe8-0195-4f61-894f-5692b13601c9	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	حامل سماعة متحرك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:30:06.112259+00	2026-02-02 15:30:06.112259+00	0.000	0.000	untracked
+29837797-dac6-4388-b18f-4513160e8d31	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	حامل شطاف عادي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:30:30.859666+00	2026-02-02 15:30:30.859666+00	0.000	0.000	untracked
+538af4af-6d6c-4210-be3c-0ffaecc7a7ed	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه قصيره	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:35:09.987893+00	2026-02-02 15:35:09.987893+00	0.000	0.000	untracked
+cb81213b-7bb7-4274-abb4-2d974f8a60cb	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	شداد طويل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:35:28.975017+00	2026-02-02 15:35:28.975017+00	0.000	0.000	untracked
+58991d0b-13f2-4dff-80e7-41c64abe1120	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه عدلة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:35:46.899174+00	2026-02-02 15:35:46.899174+00	0.000	0.000	untracked
+6d01a666-06e8-4462-9315-00ba9f599a34	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مانيجه موجة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:02.450285+00	2026-02-02 15:36:02.450285+00	0.000	0.000	untracked
+fa3c71db-d1ce-4a46-9ee5-9b8b4c2158e1	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مسمار قعدة كيلوباترا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:21.69907+00	2026-02-02 15:36:21.69907+00	0.000	0.000	untracked
+30150049-3f07-44c8-a64d-f23fd7141fdc	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مسمار قعدة الما	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:35.687663+00	2026-02-02 15:36:35.687663+00	0.000	0.000	untracked
+f0a893bd-5ba6-4416-9f76-2f89c54a7767	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	مسمار قعدة ايطالي	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:36:54.790817+00	2026-02-02 15:36:54.790817+00	0.000	0.000	untracked
+111240d0-c336-4cf3-9cd2-6779a85cb709	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي مجوز 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:37:24.090484+00	2026-02-02 15:37:24.090484+00	0.000	0.000	untracked
+6ec910b4-8783-403d-a1b3-3010fa7db258	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي لاتش 3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:38:08.931853+00	2026-02-02 15:38:08.931853+00	0.000	0.000	untracked
+1743d3fb-848e-476a-8cab-5e48149abdc3	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي لاتش 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:39:26.862435+00	2026-02-02 15:39:26.862435+00	0.000	0.000	untracked
+41c01f1c-ff76-4391-85d4-f5079c3787ce	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي فردي 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 15:39:54.460178+00	2026-02-02 15:39:54.460178+00	0.000	0.000	untracked
+32cac645-8208-4dac-9da8-01986e061b8c	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 1.5 ماليزى	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:06:44.180499+00	2026-02-21 21:40:25.304995+00	0.000	0.000	untracked
+3475e3b2-b002-47e6-88ee-85a33cd7f837	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2 بوصه ماليزى	\N	عدد	35.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:07:21.784587+00	2026-02-21 21:40:36.875084+00	0.000	0.000	untracked
+625c7018-17e7-4090-9e8a-fbbedab8d3e2	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 1.5 رمادى	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:09:46.434495+00	2026-02-21 21:40:48.138474+00	0.000	0.000	untracked
+e0066fb9-2326-421b-a886-489c8b5863ab	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2 بوصه رمادى	\N	عدد	50.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:10:08.971445+00	2026-02-21 21:41:04.522003+00	0.000	0.000	untracked
+45b07094-6fd8-4438-aa7b-4ba17e5ed897	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه أبيض	\N	عدد	65.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:10:48.025512+00	2026-02-21 21:41:22.426883+00	0.000	0.000	untracked
+3f69fa98-e1f0-4102-a092-d17b3924abf9	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون3 بوصه بفايظ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:13:58.857832+00	2026-02-02 19:13:58.857832+00	0.000	0.000	untracked
+f7f12634-4eb0-4c26-8f20-691639ed46fa	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه بروحين	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:14:35.730526+00	2026-02-02 19:14:35.730526+00	0.000	0.000	untracked
+a6701d83-54db-4c36-968d-2354d17328ec	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 2 بوصه بروحين	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:15:22.467925+00	2026-02-02 19:15:22.467925+00	0.000	0.000	untracked
+89153ada-a2e6-45ff-965d-a610fca6a73f	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه بزباله بلاستيك	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:16:05.314159+00	2026-02-21 21:42:02.445075+00	0.000	0.000	untracked
+b81afeec-6c16-455a-8aed-b6a43abd3b9b	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 1.5 كبايه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:16:38.530868+00	2026-02-02 19:16:38.530868+00	0.000	0.000	untracked
+cf75658d-4804-42d6-bd8f-edf3a77549be	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه رمادى	\N	عدد	75.00	38.00	30.00	\N	\N	\N	\N	\N	t	2026-02-02 19:16:58.666155+00	2026-03-15 17:10:44.53093+00	0.000	0.000	untracked
+d78e3631-becb-459d-bcb7-f626d9bdae58	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون بانيو	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:17:15.44432+00	2026-02-02 19:17:15.44432+00	0.000	0.000	untracked
+2e9f519a-ab35-4cc7-a168-bd51332e9700	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3 بوصه بزباله استالس	\N	عدد	180.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:17:51.624571+00	2026-02-21 21:43:30.922208+00	0.000	0.000	untracked
+605b00e5-e53a-42e8-b98d-53030c4f7284	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون صينى 1.5	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:19:01.181735+00	2026-02-21 21:43:47.495468+00	0.000	0.000	untracked
+48745b7a-4ef7-4583-a151-234efc18dbe7	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون صينى 2 بوصه	\N	عدد	25.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 19:19:28.108334+00	2026-02-21 21:44:00.953521+00	0.000	0.000	untracked
+db4063c5-f89d-40d9-abd9-968984ad74f8	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي فردي 3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 21:26:32.249983+00	2026-02-02 21:26:32.249983+00	0.000	0.000	untracked
+66e9c7ca-229c-4dbb-9f3a-345225214c9f	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	قفيز بولي مجوز 3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-02 21:30:11.403724+00	2026-02-02 21:30:11.403724+00	0.000	0.000	untracked
+0c3f197e-b856-4f1f-b96f-fdb8e806da50	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون 3" ماليزي	\N	قطعة	70.00	35.00	30.00	\N	\N	\N	\N	\N	t	2026-03-15 17:09:04.979474+00	2026-03-15 17:09:04.979474+00	0.000	0.000	untracked
+ec82ff6e-c170-46cd-8bf4-56341eb31632	d7bf6066-2de4-51b2-b5dd-ea05d25bc1a2	سيفون رمادي 2"	\N	قطعة	50.00	27.00	21.00	\N	\N	\N	\N	\N	t	2026-03-15 17:36:40.441539+00	2026-03-15 17:36:40.441539+00	0.000	0.000	untracked
+9ac24b13-ee09-4646-9bb8-249a9b471037	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه 3 متر جولدن فلو (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:30.120497+00	2026-02-21 14:39:51.846576+00	0.000	0.000	untracked
+19d71c4a-8090-4996-a85c-2df2eb0ee554	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه متر ونص جولدن فلو (الكوك)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:34.503756+00	2026-02-21 14:39:45.801646+00	0.000	0.000	untracked
+a392d3d8-9dc7-4509-92c6-96e52892dc45	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه متر ونص جولدن تركي (الكوك)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:45.952747+00	2026-02-21 14:39:25.335134+00	0.000	0.000	untracked
+543dae04-a219-44b2-a24c-8e663ec4c865	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة مياه 3 متر جولدن تركي (الكوك)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:12:52.496582+00	2026-02-21 14:39:18.134764+00	0.000	0.000	untracked
+c9d9c6cf-9b3c-464e-acb8-89e7b9e60117	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة صرف 3 متر (ادهم)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:14:53.843401+00	2026-02-21 14:38:55.431289+00	0.000	0.000	untracked
+a677536b-b254-402f-861c-caa5d4baf82f	682ba68b-ea1b-565a-972d-e92063da3cbb	خرطوم غسالة صرف متر ونص (ادهم)	\N	عدد	80.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-18 19:15:24.714112+00	2026-02-21 14:38:48.103872+00	0.000	0.000	untracked
+189b8e6e-6161-40ba-ab29-98d73b32232e	682ba68b-ea1b-565a-972d-e92063da3cbb	حنفية غسالة (عمار)	\N	عدد	85.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 09:35:22.486394+00	2026-02-21 14:38:21.602117+00	0.000	0.000	untracked
+8fae6b9b-5008-41b4-a965-9a6c1ded4518	682ba68b-ea1b-565a-972d-e92063da3cbb	حنفية غسالة روفا (بلال)	\N	عدد	120.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-21 19:38:43.959582+00	2026-02-21 14:38:28.854569+00	0.000	0.000	untracked
+aaa9b0ea-6fca-4ea2-9b68-59b22b719e6c	2732421b-5c80-556c-9323-4c8f800ad58e	مشترك 1 بوصة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:05:44.248619+00	2026-01-19 19:05:44.248619+00	0.000	0.000	untracked
+aebc30af-cb2d-40a1-a4aa-7a7f438a864a	6e264538-d570-56e8-ab82-3a3db2f04764	مشترك سن داخلي - سن 1/2 * 3/4 (عمر)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:03:41.558684+00	2026-01-19 19:03:41.558684+00	0.000	0.000	untracked
+bfde9b7d-4434-46e2-9972-bc39262ad6ac	6e264538-d570-56e8-ab82-3a3db2f04764	كوع سن داخلي - سن 1/2 * 3/4  (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:03:52.399587+00	2026-01-19 19:03:52.399587+00	0.000	0.000	untracked
+04584170-0c95-4aec-9669-fc9bc5778b8e	6e264538-d570-56e8-ab82-3a3db2f04764	جلبة سن داخلي - سن 1/2 * 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:04:00.511238+00	2026-01-19 19:04:00.511238+00	0.000	0.000	untracked
+855d8d44-57d9-4704-9908-8fdefbf12615	6e264538-d570-56e8-ab82-3a3db2f04764	جلبة سن خارجي - سن 1/2 * 3/4 (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:04:07.237227+00	2026-01-19 19:04:07.237227+00	0.000	0.000	untracked
+62f17a04-2661-4859-8678-a0d17bbc0a0d	24af384e-9a22-58fd-bd52-970a3c97cad0	مشترك 3/4 * 3/4 سن داخلي (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-19 19:04:13.150707+00	2026-01-19 19:04:13.150707+00	0.000	0.000	untracked
+3ccc958f-8b6a-4bd8-a9d0-47bba9de7485	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دش روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 12:10:41.758539+00	2026-01-22 12:10:41.758539+00	0.000	0.000	untracked
+751a8dd7-078f-4709-9144-9c29d8b89762	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط موكا دش (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:00:28.285706+00	2026-01-22 14:00:28.285706+00	0.000	0.000	untracked
+cbb6ab60-767c-4ddb-be13-89063020cabc	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:02:07.150454+00	2026-01-22 14:02:07.150454+00	0.000	0.000	untracked
+06095b8b-ee17-4436-9942-c9976657fd63	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ لومي (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:02:47.405899+00	2026-01-22 14:02:47.405899+00	0.000	0.000	untracked
+1b0a5385-3616-4c3a-b745-a85f92393217	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ موكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:04:02.189476+00	2026-01-22 14:04:02.189476+00	0.000	0.000	untracked
+1cda0ceb-91d1-46c2-966c-39fb3afa37af	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ سالمكو ابيض (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:07:27.101698+00	2026-01-22 14:07:27.101698+00	0.000	0.000	untracked
+313c6041-991c-4284-86ba-400fc94cb85f	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش اليريا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:08:34.638235+00	2026-03-24 11:28:04.936399+00	0.000	0.000	untracked
+0f6dcd53-d686-43ae-8d75-54b1a8d2fcfe	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ جولد روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:09:49.421859+00	2026-01-22 14:09:49.421859+00	0.000	0.000	untracked
+ca3d769f-2e88-4ab4-a664-10168fd3f444	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش جولد روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:10:24.3023+00	2026-01-22 14:10:24.3023+00	0.000	0.000	untracked
+42080636-8663-44f5-b4c1-9b39aaac1507	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش اوكر لومي (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:13:25.965227+00	2026-01-22 14:13:25.965227+00	0.000	0.000	untracked
+6fbb04b8-4330-4c11-bfa4-8b1109d55f89	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط اوكر سالمكو ابيض (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:16:39.260973+00	2026-01-22 14:16:39.260973+00	0.000	0.000	untracked
+21f29f18-4d31-44eb-8cbe-787b049dfa55	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش كوكو موكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:40:53.885962+00	2026-01-22 14:40:53.885962+00	0.000	0.000	untracked
+6c320719-401e-47ac-bee3-21e7b61769b5	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش ساليمكو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:43:18.814499+00	2026-01-22 14:43:18.814499+00	0.000	0.000	untracked
+10fad07e-e235-4c23-8975-fbf164f85ea0	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش روكا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:46:39.725569+00	2026-01-22 14:46:39.725569+00	0.000	0.000	untracked
+e4a2fec7-1530-4b1c-b279-8ea6e7fb894e	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ فيتو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:53:15.741383+00	2026-01-22 14:53:15.741383+00	0.000	0.000	untracked
+9b47cbd8-d805-47d6-bd39-8452ad291acc	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ سينزو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:53:53.533228+00	2026-01-22 14:53:53.533228+00	0.000	0.000	untracked
+0053a86b-d8a7-4da3-92dd-fd92a4e9bcc8	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط مطبخ موكا احمر  (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:54:17.309819+00	2026-01-22 14:54:17.309819+00	0.000	0.000	untracked
+dad20297-7d49-4231-bfd1-812ecb3ded63	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف ليمار (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:55:06.989326+00	2026-01-22 14:55:06.989326+00	0.000	0.000	untracked
+a4e213ae-e816-4c03-a379-402ec0d79454	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف سينزو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:55:27.229806+00	2026-01-22 14:55:27.229806+00	0.000	0.000	untracked
+95070eb6-92ac-49bb-9242-b9d24fcfd7bb	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف روك MG (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:56:20.109743+00	2026-01-22 14:56:20.109743+00	0.000	0.000	untracked
+5cd2a754-00cb-4a1c-a7bd-3ea5e0147927	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف سينيور (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:56:58.253773+00	2026-01-22 14:56:58.253773+00	0.000	0.000	untracked
+f1f57c68-4a58-447a-85ac-8147d2acd1d9	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شطاف النيل (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 14:57:26.765701+00	2026-01-22 14:57:26.765701+00	0.000	0.000	untracked
+c412d1be-d6c6-417b-9f67-48f9129e145d	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط 1/2 بارد جنا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:01:58.830456+00	2026-01-22 15:01:58.830456+00	0.000	0.000	untracked
+d3fec787-b312-4d8d-83f4-918c4b1add15	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة دش ديتوريا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:03:06.732934+00	2026-01-22 15:03:06.732934+00	0.000	0.000	untracked
+24fb14a1-81cd-4bff-934c-979871903865	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة وش 1/2 محمل ديتوريا (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:06:35.725891+00	2026-01-22 15:06:35.725891+00	0.000	0.000	untracked
+97565e26-97a2-4284-ba09-ae9b8f8b6be2	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة دش اوكر (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:08:25.838261+00	2026-01-22 15:08:25.838261+00	0.000	0.000	untracked
+58a4a59e-3495-4e62-b2d0-472aaebd65d6	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دش سينزو (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:08:55.197365+00	2026-01-22 15:08:55.197365+00	0.000	0.000	untracked
+06ddd19d-3ce2-4821-af81-09a1691dbd66	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط وش جولدن ايجل (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-22 15:13:20.237613+00	2026-01-22 15:13:20.237613+00	0.000	0.000	untracked
+112dcd47-c1b5-48e5-8c35-a607803fbab9	50aac995-d284-5518-bbb9-019cfdeb1378	طبة حوض ستار (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:00:28.989011+00	2026-01-25 17:00:28.989011+00	0.000	0.000	untracked
+f03dd423-06f8-47ff-9f3f-38aeac20a897	50aac995-d284-5518-bbb9-019cfdeb1378	محبس مجوز محمل (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:03:16.445111+00	2026-01-25 17:03:16.445111+00	0.000	0.000	untracked
+9f43f345-bb0d-4097-9ce2-8fc11499c952	50aac995-d284-5518-bbb9-019cfdeb1378	محبس مجوز خفيف (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:03:29.659999+00	2026-01-25 17:03:29.659999+00	0.000	0.000	untracked
+0022d9ed-8597-4847-aa41-496c0f5f6fdc	50aac995-d284-5518-bbb9-019cfdeb1378	خزان شاور (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:04:10.236359+00	2026-01-25 17:04:10.236359+00	0.000	0.000	untracked
+acd67601-084b-4d50-9c35-121344944338	50aac995-d284-5518-bbb9-019cfdeb1378	محبس جولد (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:04:35.499663+00	2026-01-25 17:04:35.499663+00	0.000	0.000	untracked
+11cbf451-8e09-4ceb-b1d6-1093e8704a2f	50aac995-d284-5518-bbb9-019cfdeb1378	حنفية غسالة هواي (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:04:54.796142+00	2026-01-25 17:04:54.796142+00	0.000	0.000	untracked
+364cf46d-c57a-4d8e-bb4d-76c81c41110b	50aac995-d284-5518-bbb9-019cfdeb1378	محبس هاينز (ادهم)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 17:05:12.299668+00	2026-01-25 17:05:12.299668+00	0.000	0.000	untracked
+d7ce890d-87cd-46af-8486-d92bce906566	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط موكا مطبخ (عمار)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 21:03:25.955866+00	2026-01-25 21:03:25.955866+00	0.000	0.000	untracked
+8ee97fac-d9e7-46f2-87d2-6f252272cc43	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط موكا وش (الكوك)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-25 21:03:46.179096+00	2026-01-25 21:03:46.179096+00	0.000	0.000	untracked
+1bdf30f3-f488-4e03-a464-31e600a3c012	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دش جولدن ايجل	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-04 13:59:26.741401+00	2026-03-04 13:59:26.741401+00	0.000	0.000	untracked
+ecdbb38a-6d75-4400-85a5-3aab9d88372b	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط دوش اوكر	\N	قطعة	650.00	580.00	520.00	\N	\N	\N	\N	\N	t	2026-03-15 16:51:10.228907+00	2026-03-15 16:51:10.228907+00	0.000	0.000	untracked
+9270a294-f2ee-4bf5-8871-ba778fc8e784	50aac995-d284-5518-bbb9-019cfdeb1378	طقم خلاط اوكر	\N	طقم	1550.00	1450.00	1200.00	\N	\N	\N	\N	\N	t	2026-03-15 16:53:55.748347+00	2026-03-15 16:53:55.748347+00	0.000	0.000	untracked
+f12652f3-f3c6-43ae-8afa-04fafd701c2f	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط شجرة استالس	\N	قطعة	600.00	420.00	300.00	\N	\N	\N	\N	\N	t	2026-03-15 17:06:36.203073+00	2026-03-15 17:06:36.203073+00	0.000	0.000	untracked
+a0bb2d53-4a9c-4d5f-bce9-69f0f7092fa4	50aac995-d284-5518-bbb9-019cfdeb1378	خلاط 1/2 استالس مط	\N	قطعة	250.00	190.00	100.00	\N	\N	\N	\N	\N	t	2026-03-15 17:20:14.050966+00	2026-03-15 17:20:14.050966+00	0.000	0.000	untracked
+f9e48d97-167b-443e-bb9f-0dcc047bad58	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة حمام هاند ميكسر وش (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+39a64571-ec16-476d-be59-88ceef71426a	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة مطبخ هاند ميكسر وش (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+de2a4366-eab4-4c04-9bd0-362a29eab7e8	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة عكاز هاند ميكسر (يوسف)	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+5d31eb67-6989-4113-8936-43dc6ae1a959	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 5 لينيا وش	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+66dfac46-fd00-4ebf-93de-f48f6110b778	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 5 لينيا مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+85d12824-8b4e-4805-a439-94123944367c	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 6 لينيا مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+2a0cb6d2-3bf2-48b5-9454-37cd53b23c9e	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة 6 لينيا وش	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+0a184115-b9d7-4ab5-9d82-c864eb702b45	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة وش هاند ميكسر قصيرة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+b656dab6-3e5f-43f4-9405-9c2dd680411f	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة مطبخ هاند ميكسر مقلوبة صغيرة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+9d992477-0510-4e5d-82c2-89b66cc8658c	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة وش هاند ميكسر طويلة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+8bfd6725-3128-4c54-b869-fc2a959df714	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة هاند ميكسر مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+37ee2418-56bb-4d8e-b0ec-fe9ffb1fc333	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة عكاز وش صغير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+d6a1126f-180e-480d-9924-1fb69414f686	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة عكاز وش كبير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+729d42f1-7d09-46f9-a4bf-58d11104de7b	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة مطبخ هاند ميكسر مقلوبة كبيرة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:36:28.051655+00	2026-01-29 12:36:28.051655+00	0.000	0.000	untracked
+f28d6018-f8ef-4e25-b404-1830ea0d3708	201504f6-3716-569b-9502-2a404a8cbb03	قنطرة هاند ميكسر غكاز مطبخ	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 12:50:51.761397+00	2026-01-29 12:50:51.761397+00	0.000	0.000	untracked
+3facfe2f-f0db-410c-b679-7e7082704488	201504f6-3716-569b-9502-2a404a8cbb03	هلاله مسمار 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:06:07.674285+00	2026-02-01 17:06:07.674285+00	0.000	0.000	untracked
+bf8c300e-e7d6-4072-9c5f-c1745542bf46	201504f6-3716-569b-9502-2a404a8cbb03	هلاله 2 مسمار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:06:27.799151+00	2026-02-01 17:06:27.799151+00	0.000	0.000	untracked
+7dbbf287-1956-44eb-8f05-20c48068fa87	201504f6-3716-569b-9502-2a404a8cbb03	طقم كرنك خلاط استالس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:07:27.044835+00	2026-02-01 17:07:27.044835+00	0.000	0.000	untracked
+1d30a4fe-fbfe-4d3e-886d-d7c5ec544240	201504f6-3716-569b-9502-2a404a8cbb03	صامولة قنطرة 6 لنيا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:09:23.581078+00	2026-02-01 17:09:23.581078+00	0.000	0.000	untracked
+6c53ac78-8c67-4b7d-9417-fe21bb9cad2c	201504f6-3716-569b-9502-2a404a8cbb03	صامولة زنق هاند ميكسر نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:10:35.219759+00	2026-02-01 17:10:35.219759+00	0.000	0.000	untracked
+e196b412-5f2c-4a18-81ee-3c50385a03fc	201504f6-3716-569b-9502-2a404a8cbb03	وصلت خلاط 5 لنيا	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-01 17:11:27.335241+00	2026-02-01 17:11:27.335241+00	0.000	0.000	untracked
+87d4538d-0e02-44ee-976a-53651c8e11ab	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبلة خزان 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:04:56.586921+00	2026-01-29 13:04:56.586921+00	0.000	0.000	untracked
+015510b5-5c17-40eb-8099-378255764017	86600a27-d5d3-56ab-a8ed-e3ea152ea390	مشترك نحاس 1/2 محمل	\N	عدد	60.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:05:20.202709+00	2026-02-21 21:52:50.698951+00	0.000	0.000	untracked
+eabea370-6202-46ed-836d-89822831f083	86600a27-d5d3-56ab-a8ed-e3ea152ea390	كوع عادة محمل 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:06:01.8035+00	2026-01-29 13:06:01.8035+00	0.000	0.000	untracked
+fbc41295-0338-4e49-b61e-79e99e9f5667	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل نحاس 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:09:04.443198+00	2026-01-29 13:09:04.443198+00	0.000	0.000	untracked
+a2cdd98c-fbff-4718-bb70-ebb3eb940b55	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل نحاس 3/5 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:11:59.962066+00	2026-01-29 13:11:59.962066+00	0.000	0.000	untracked
+6652a94b-e908-4557-a060-95e8a2d1c9c3	86600a27-d5d3-56ab-a8ed-e3ea152ea390	كوع صنارة محمل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:26:04.321138+00	2026-01-29 13:26:04.321138+00	0.000	0.000	untracked
+2bd5ddec-5128-4551-a96d-f826eaaec686	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل 3/4 نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:31:32.249287+00	2026-01-29 13:31:32.249287+00	0.000	0.000	untracked
+129089d7-95d4-42cc-94ef-2e54da0be9f1	86600a27-d5d3-56ab-a8ed-e3ea152ea390	طبة 1/2 نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:33:31.976981+00	2026-01-29 13:33:31.976981+00	0.000	0.000	untracked
+b4d85961-96ba-4080-aa56-285b5489712c	86600a27-d5d3-56ab-a8ed-e3ea152ea390	جلبة سماعة نيكل 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:39:26.104821+00	2026-01-29 13:39:26.104821+00	0.000	0.000	untracked
+e0e6359a-6bf8-43ed-bb47-0b0e63e10d65	86600a27-d5d3-56ab-a8ed-e3ea152ea390	جلبة سماعة نيكل 3/4 * 1/2 نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:02.808686+00	2026-01-29 13:40:02.808686+00	0.000	0.000	untracked
+fc080463-994d-4137-87fb-c0544751b8ac	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل خلاط صغير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:16.840735+00	2026-01-29 13:40:16.840735+00	0.000	0.000	untracked
+4c4aa1f7-2214-4e18-86fc-792298942132	86600a27-d5d3-56ab-a8ed-e3ea152ea390	نبل خلاط كبير	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:35.207902+00	2026-01-29 13:40:35.207902+00	0.000	0.000	untracked
+731e6d42-8a1f-466f-b80e-97784861e90c	86600a27-d5d3-56ab-a8ed-e3ea152ea390	كعب خلاط نحاس	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-01-29 13:40:51.095914+00	2026-01-29 13:40:51.095914+00	0.000	0.000	untracked
+242e2fb5-5a2d-4d00-ba37-e9f08f40c31f	f0906684-99d3-55aa-9994-9427e941823e	كوع 1" عادة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:10:14.72849+00	2026-02-04 14:10:14.72849+00	0.000	0.000	untracked
+2a10fa6f-8cec-43fc-868a-d9c6b614e101	f0906684-99d3-55aa-9994-9427e941823e	كوع 1" مفتوح سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:12:26.727776+00	2026-02-04 14:12:26.727776+00	0.000	0.000	untracked
+3896b31c-7763-425a-8bc2-d52a6b6ed94f	f0906684-99d3-55aa-9994-9427e941823e	جلبة 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:12:55.784626+00	2026-02-04 14:12:55.784626+00	0.000	0.000	untracked
+48ff7790-a0dc-4c11-b27f-e1c8c92ca52f	f0906684-99d3-55aa-9994-9427e941823e	مشترك تي 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:13:35.832428+00	2026-02-04 14:13:35.832428+00	0.000	0.000	untracked
+2d83aef3-45b0-41bb-9475-b1b64ab3bded	f0906684-99d3-55aa-9994-9427e941823e	مشترك واي 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:14:42.896833+00	2026-02-04 14:14:42.896833+00	0.000	0.000	untracked
+58972db3-c507-4f0a-a8aa-77ba90cd06fd	f0906684-99d3-55aa-9994-9427e941823e	كوع عادة 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:16:09.84822+00	2026-02-04 14:16:09.84822+00	0.000	0.000	untracked
+8e2e8783-9d76-478b-b10f-e9342e98e16f	f0906684-99d3-55aa-9994-9427e941823e	مشترك واي 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 14:16:44.775591+00	2026-02-04 14:16:44.775591+00	0.000	0.000	untracked
+5a69faeb-91af-4ec9-85f2-6939c22df3d1	f0906684-99d3-55aa-9994-9427e941823e	كوع مفتوح 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 15:09:53.89195+00	2026-02-04 15:09:53.89195+00	0.000	0.000	untracked
+8f7aafa6-b4da-421c-a7bd-f27fa96b1974	f0906684-99d3-55aa-9994-9427e941823e	جلبة عادة 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 15:22:56.563347+00	2026-02-04 15:22:56.563347+00	0.000	0.000	untracked
+16215c47-6d07-4eab-a055-de8f98d0b6d8	f0906684-99d3-55aa-9994-9427e941823e	كوع 2" عادة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:02:16.529075+00	2026-02-04 16:02:16.529075+00	0.000	0.000	untracked
+75f27b8f-be6b-4bb7-90cd-6604cf2a14c1	f0906684-99d3-55aa-9994-9427e941823e	تي 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:05:12.25651+00	2026-02-04 16:05:12.25651+00	0.000	0.000	untracked
+9bdfe990-a632-4e4a-a461-c97627f66aa2	f0906684-99d3-55aa-9994-9427e941823e	كوع مفتوح 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:05:35.775817+00	2026-02-04 16:05:35.775817+00	0.000	0.000	untracked
+6bce2691-dbf2-484b-bd68-b1ca3e7404ed	f0906684-99d3-55aa-9994-9427e941823e	كوع عادة بباب 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:17:36.974994+00	2026-02-04 16:17:36.974994+00	0.000	0.000	untracked
+8c61aff3-78b7-499c-a20c-f2e2d06f31c2	f0906684-99d3-55aa-9994-9427e941823e	تي 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:19:43.150728+00	2026-02-04 16:19:43.150728+00	0.000	0.000	untracked
+04955fdd-d0f5-4355-a51b-4c78e6fa51b5	f0906684-99d3-55aa-9994-9427e941823e	واي 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:20:17.1682+00	2026-02-04 16:20:17.1682+00	0.000	0.000	untracked
+74f991b9-037e-480f-b6d4-e47da50d2e4a	f0906684-99d3-55aa-9994-9427e941823e	تي بباب 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:24:20.57455+00	2026-02-04 16:24:20.57455+00	0.000	0.000	untracked
+c9d4bbe8-5763-41f3-8fca-6328191b54c6	f0906684-99d3-55aa-9994-9427e941823e	كوع بباب 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:26:10.590267+00	2026-02-04 16:26:10.590267+00	0.000	0.000	untracked
+01345ffe-fb1e-4b0b-9ccc-b52ce0716020	f0906684-99d3-55aa-9994-9427e941823e	تي 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:33:49.525696+00	2026-02-04 16:33:49.525696+00	0.000	0.000	untracked
+ef927bc2-dd52-4c27-af97-abef6001cb3d	f0906684-99d3-55aa-9994-9427e941823e	جلبة 2" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:38:33.48579+00	2026-02-04 16:38:33.48579+00	0.000	0.000	untracked
+7da00ad0-bb2c-4d44-b9d0-52caf278cd55	f0906684-99d3-55aa-9994-9427e941823e	طبة تسليك سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 16:40:02.365338+00	2026-02-04 16:40:02.365338+00	0.000	0.000	untracked
+95397be8-d564-4c4d-a4d4-52bc321fb9e5	f0906684-99d3-55aa-9994-9427e941823e	تي بباب 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:15:36.281301+00	2026-02-04 19:15:36.281301+00	0.000	0.000	untracked
+7516d39d-1ba9-4514-8694-b156c4b3f404	f0906684-99d3-55aa-9994-9427e941823e	جلبة لحام 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:16:50.471338+00	2026-02-04 19:16:50.471338+00	0.000	0.000	untracked
+446eca70-ca36-48ac-86a0-10f6e18c01a9	f0906684-99d3-55aa-9994-9427e941823e	تي 4" عادة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:18:56.727941+00	2026-02-04 19:18:56.727941+00	0.000	0.000	untracked
+8d300a64-8928-47af-9d61-e8cda073dcc3	f0906684-99d3-55aa-9994-9427e941823e	كوع مفتوح 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:20:28.168356+00	2026-02-04 19:20:28.168356+00	0.000	0.000	untracked
+4d4366c5-3ee6-44bf-ac5a-a341aaf15057	f0906684-99d3-55aa-9994-9427e941823e	برقع بلاعة سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:22:12.903896+00	2026-02-04 19:22:12.903896+00	0.000	0.000	untracked
+1cd6083f-f377-478d-b54e-a3a0b8a66595	f0906684-99d3-55aa-9994-9427e941823e	نقاص 2 * 1.5 سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:23:01.208091+00	2026-02-04 19:23:01.208091+00	0.000	0.000	untracked
+2653d564-e6ce-4bd7-86f0-f84f09d3c529	f0906684-99d3-55aa-9994-9427e941823e	نقاص 1.5 * 1 سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:23:32.151448+00	2026-02-04 19:23:32.151448+00	0.000	0.000	untracked
+0df5e9da-aa4e-44b8-aa5b-bf926888b7c6	f0906684-99d3-55aa-9994-9427e941823e	هواية 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:24:15.993677+00	2026-02-04 19:24:15.993677+00	0.000	0.000	untracked
+b2695def-80ca-4556-85df-e9cf5440d08d	f0906684-99d3-55aa-9994-9427e941823e	هواية 1" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:25:31.479382+00	2026-02-04 19:25:31.479382+00	0.000	0.000	untracked
+a092d113-7153-47dd-8589-2a48f7807e6d	f0906684-99d3-55aa-9994-9427e941823e	واي 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:27:36.55209+00	2026-02-04 19:27:36.55209+00	0.000	0.000	untracked
+ea08286a-83e1-4151-8221-3ad4cbf6fd9d	f0906684-99d3-55aa-9994-9427e941823e	وصلة تمدد 4" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:32:54.583146+00	2026-02-04 19:32:54.583146+00	0.000	0.000	untracked
+a01fae38-7472-40c8-a340-7915a7359b6b	f0906684-99d3-55aa-9994-9427e941823e	كوع بسن داخلي 1.5" سمارت	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-04 19:34:37.70368+00	2026-02-04 19:34:37.70368+00	0.000	0.000	untracked
+1697cc2b-8aa6-40c8-8d42-412bcb10dca9	f0906684-99d3-55aa-9994-9427e941823e	اختبار	\N	عدد	111.00	0.00	0.00	\N	small	standard	plastic	\N	t	2026-02-06 22:00:13.12123+00	2026-02-06 22:00:13.12123+00	0.000	0.000	untracked
+cca800ba-631f-49da-94c9-8ea5b8e8ea6b	92d22b39-ff32-572a-a53e-3e3942306976	طبة 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 16:25:42.309536+00	2026-02-05 16:25:42.309536+00	0.000	0.000	untracked
+ffd44b52-646c-48dd-ad49-7a955a9dcb21	92d22b39-ff32-572a-a53e-3e3942306976	طبة كاب 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 16:30:06.145087+00	2026-02-05 16:30:06.145087+00	0.000	0.000	untracked
+d468aa72-a661-4d6a-bac0-431892931b0b	92d22b39-ff32-572a-a53e-3e3942306976	طبة كاب 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:06:40.193488+00	2026-02-05 17:06:40.193488+00	0.000	0.000	untracked
+fdbf99f3-062b-4011-814f-e8e50634b02d	92d22b39-ff32-572a-a53e-3e3942306976	تي 1.5 * 0.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:08:11.609015+00	2026-02-05 17:08:11.609015+00	0.000	0.000	untracked
+74d2c47d-ad15-41de-98b4-b4d6d98c659c	92d22b39-ff32-572a-a53e-3e3942306976	تي 2" * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:55:14.189288+00	2026-02-05 17:55:14.189288+00	0.000	0.000	untracked
+f305a965-af31-433c-9514-e050f4508875	92d22b39-ff32-572a-a53e-3e3942306976	تي 2" * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:55:44.690649+00	2026-02-05 17:55:44.690649+00	0.000	0.000	untracked
+df868d6f-bda5-4441-893a-9fe733f91e32	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1.5 * 1	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 17:59:49.503819+00	2026-02-05 17:59:49.503819+00	0.000	0.000	untracked
+1f687959-dffd-407a-83d6-63980b3fb35e	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:07:35.726949+00	2026-02-05 18:07:35.726949+00	0.000	0.000	untracked
+7e96927a-e82c-40dd-b730-40452540550b	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:09:45.183057+00	2026-02-05 18:09:45.183057+00	0.000	0.000	untracked
+b93d809f-b9c2-462f-b50f-584a05e408f7	92d22b39-ff32-572a-a53e-3e3942306976	تي 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:10:11.359066+00	2026-02-05 18:10:11.359066+00	0.000	0.000	untracked
+7e82c0ee-eb1a-48c8-8c31-d57c4ee62112	92d22b39-ff32-572a-a53e-3e3942306976	طبة اختبار الوان	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:12:26.36636+00	2026-02-05 18:12:26.36636+00	0.000	0.000	untracked
+5582619d-2012-4f07-83c0-c904f6e57bc3	92d22b39-ff32-572a-a53e-3e3942306976	طبة 2 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:13:57.381539+00	2026-02-05 18:13:57.381539+00	0.000	0.000	untracked
+ffa0d3cc-9d21-44ee-8ac7-5e3b17ddee92	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 1.5 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:15:28.382625+00	2026-02-05 18:15:28.382625+00	0.000	0.000	untracked
+3da95089-bfa4-407c-ba9d-8b096302c4ef	92d22b39-ff32-572a-a53e-3e3942306976	تي 2 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:16:10.846336+00	2026-02-05 18:16:10.846336+00	0.000	0.000	untracked
+46401744-e12c-435b-baa4-5fd53469118e	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 2 * 1.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:18:47.855139+00	2026-02-05 18:18:47.855139+00	0.000	0.000	untracked
+658992d5-1f93-4309-afb5-22dd41777f6c	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:19:46.542462+00	2026-02-05 18:19:46.542462+00	0.000	0.000	untracked
+9dcdf30e-a5b5-4636-af3b-a8491cb82704	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 1" * 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:21:11.054137+00	2026-02-05 18:21:11.054137+00	0.000	0.000	untracked
+429fcc2b-56f4-4e32-a3bf-3437b64a3201	92d22b39-ff32-572a-a53e-3e3942306976	تي لحام 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:21:36.974283+00	2026-02-05 18:21:36.974283+00	0.000	0.000	untracked
+99bec8cc-8f51-4bff-b8c4-6c79bef4892e	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1.5 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:25:47.389968+00	2026-02-05 18:25:47.389968+00	0.000	0.000	untracked
+9fa7f793-227b-44d7-a95c-c88c5705e89c	92d22b39-ff32-572a-a53e-3e3942306976	كوع لحام 1 * 0.5	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:26:25.710839+00	2026-02-05 18:26:25.710839+00	0.000	0.000	untracked
+b0010911-a553-4480-9d0d-d51e432e61b6	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:27:11.517947+00	2026-02-05 18:27:11.517947+00	0.000	0.000	untracked
+4ff0fa6b-1b53-4064-98b5-30bba06b1dfa	92d22b39-ff32-572a-a53e-3e3942306976	كوع 1 * 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:27:37.822443+00	2026-02-05 18:27:37.822443+00	0.000	0.000	untracked
+92565437-4f18-408f-ac3d-ffc4624663ed	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1.5 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:28:53.022014+00	2026-02-05 18:28:53.022014+00	0.000	0.000	untracked
+55612a96-6a02-474c-ac65-009a45ab9d9f	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 1 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:30:26.142125+00	2026-02-05 18:30:26.142125+00	0.000	0.000	untracked
+55747c66-cd99-453d-be45-ecd7ce155ec3	92d22b39-ff32-572a-a53e-3e3942306976	نقاص 3/4 * 1/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-05 18:33:01.949471+00	2026-02-05 18:33:01.949471+00	0.000	0.000	untracked
+64c281e1-8184-463e-bee6-0e83f1b9b7aa	8f28d905-151c-55b6-8379-1d5332eced40	كوع عادة 4" BFS	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:27:12.223007+00	2026-02-17 17:27:12.223007+00	0.000	0.000	untracked
+48d5fc8b-2739-48e2-9ee4-3c0fab0d6bf7	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:27:41.838572+00	2026-02-17 17:27:41.838572+00	0.000	0.000	untracked
+dfa66d4f-7243-48a9-a33c-5e072222cac4	8f28d905-151c-55b6-8379-1d5332eced40	كوع بباب 4" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:28:08.527426+00	2026-02-17 17:28:08.527426+00	0.000	0.000	untracked
+6567f7cf-c146-4df8-a3be-8650e082cad7	8f28d905-151c-55b6-8379-1d5332eced40	كوع باب 4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:28:35.854887+00	2026-02-17 17:28:35.854887+00	0.000	0.000	untracked
+dcaf8c13-ddc1-4fb6-849b-694a0c59edc2	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام 4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:29:00.27245+00	2026-02-17 17:29:00.27245+00	0.000	0.000	untracked
+fc3a49eb-0812-42b7-9f84-08333b2559d8	8f28d905-151c-55b6-8379-1d5332eced40	جلبة اصلاح 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:30:02.215396+00	2026-02-17 17:30:02.215396+00	0.000	0.000	untracked
+ca29c5d5-7258-4543-9775-474b7a2e2256	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:30:43.439673+00	2026-02-17 17:30:43.439673+00	0.000	0.000	untracked
+597008d4-6870-4765-96e9-29436230b29e	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 3 على 2 روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:34:22.734638+00	2026-02-17 17:34:22.734638+00	0.000	0.000	untracked
+9f1b35b7-6bd2-40cd-8453-c6288391b2a8	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 3 على 2 باب روك	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:37:19.487416+00	2026-02-17 17:37:19.487416+00	0.000	0.000	untracked
+63f63c8e-27f5-479a-a4ed-48d8ef15c1e0	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 6 على 4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:37:36.206737+00	2026-02-17 17:37:36.206737+00	0.000	0.000	untracked
+9230b14e-5c16-482b-998a-c3cc6242c67a	8f28d905-151c-55b6-8379-1d5332eced40	صليبة 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:39:44.590162+00	2026-02-17 17:39:44.590162+00	0.000	0.000	untracked
+9838af29-0eeb-401b-b8b9-e7272e248cc2	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 4 على 3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:40:22.670993+00	2026-02-17 17:40:22.670993+00	0.000	0.000	untracked
+89c711d3-026a-4080-90e5-5854aadbfad2	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 3 على 2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:40:54.669555+00	2026-02-17 17:40:54.669555+00	0.000	0.000	untracked
+80955f9e-f1a7-4dd6-b254-d0aae0786059	8f28d905-151c-55b6-8379-1d5332eced40	نقاص 4 على 2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:41:33.598368+00	2026-02-17 17:41:33.598368+00	0.000	0.000	untracked
+5d19848f-34eb-48f2-8d0e-bff2658bb264	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 3" بباب روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:41:50.718026+00	2026-02-17 17:41:50.718026+00	0.000	0.000	untracked
+71e6c269-0b0a-4ff3-95bd-a105988cdda0	8f28d905-151c-55b6-8379-1d5332eced40	واي 3" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:42:12.735868+00	2026-02-17 17:42:12.735868+00	0.000	0.000	untracked
+ea4801eb-2031-4f2d-a875-16e122174ba1	8f28d905-151c-55b6-8379-1d5332eced40	مشترك واي 4"	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:00:06.469912+00	2026-02-20 19:00:06.469912+00	0.000	0.000	untracked
+27ae4b21-56ff-449e-bdc0-e3412e63d57c	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4 على 2 بباب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:00:37.78151+00	2026-02-20 19:00:37.78151+00	0.000	0.000	untracked
+5a9a1c42-136b-45d4-93f1-0ca22ca48e21	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4 على 2 عادة	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:01:26.605874+00	2026-02-20 19:01:26.605874+00	0.000	0.000	untracked
+53a965c4-ec9f-4331-8c09-7ae3eb11c2bc	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4 على 3 بباب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:03:19.581906+00	2026-02-20 19:03:19.581906+00	0.000	0.000	untracked
+0b532dc7-1461-473d-a967-fca1cef3817c	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام 6" 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:09:15.685113+00	2026-02-20 19:09:45.006064+00	0.000	0.000	untracked
+d886bc4f-a8d0-425d-8919-b03e171ca969	8f28d905-151c-55b6-8379-1d5332eced40	جلبة لحام  6" 160	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:10:13.045315+00	2026-02-20 19:10:13.045315+00	0.000	0.000	untracked
+f3d9f278-2361-45dc-b5c3-9b12be2f20e8	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6" 160 بباب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:10:38.32447+00	2026-02-20 19:10:38.32447+00	0.000	0.000	untracked
+18ef625c-0276-44dd-890c-8917d875580e	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6" 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:15.28564+00	2026-02-20 19:11:15.28564+00	0.000	0.000	untracked
+19df2fa4-493a-4977-9f28-df694c4fa19e	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6" عادة 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:29.877766+00	2026-02-20 19:11:29.877766+00	0.000	0.000	untracked
+c48b78b3-b5bf-41f2-8a1e-dd3cb2497de6	8f28d905-151c-55b6-8379-1d5332eced40	كوع 6" بباب 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:42.548745+00	2026-02-20 19:11:42.548745+00	0.000	0.000	untracked
+9d9a0a7f-d9f6-4032-89ba-e04abc66217f	8f28d905-151c-55b6-8379-1d5332eced40	كوع 6" بوصة بباب 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:11:53.589739+00	2026-02-20 19:11:53.589739+00	0.000	0.000	untracked
+274c2b30-5c67-452d-8668-d0e04a0f3752	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 6"بباب 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-20 19:12:24.357203+00	2026-02-20 19:12:24.357203+00	0.000	0.000	untracked
+d936244e-daa6-4f8e-a484-e8976bd04eb7	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/2 عاده	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:11:53.080656+00	2026-02-21 21:11:53.080656+00	0.000	0.000	untracked
+f2dee181-2ff3-4ca5-a5eb-610dc49f5969	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3 باب	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:12:37.221354+00	2026-02-21 21:12:37.221354+00	0.000	0.000	untracked
+c3e347d9-49ce-471d-95b9-e53b8aef5a65	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3 عاده	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:13:39.109783+00	2026-02-21 21:13:39.109783+00	0.000	0.000	untracked
+87d7c4ab-4a5e-4140-9b56-693d38a64a63	8f28d905-151c-55b6-8379-1d5332eced40	جلبه لحام 6 بوصه168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:17:12.917242+00	2026-02-21 21:17:12.917242+00	0.000	0.000	untracked
+a44e2af6-528b-4e34-9e0e-a8b4a4ab7198	8f28d905-151c-55b6-8379-1d5332eced40	جلبه لحام 6 بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:17:53.237769+00	2026-02-21 21:17:53.237769+00	0.000	0.000	untracked
+c8ed0258-b82f-46df-b1d5-a9cca14ff8fa	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6 بوصه 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:18:37.299647+00	2026-02-21 21:18:37.299647+00	0.000	0.000	untracked
+6deedd3b-0c5a-4535-b6e9-df2e2ae52399	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 6 بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:19:32.292231+00	2026-02-21 21:19:32.292231+00	0.000	0.000	untracked
+b6cc78ec-f150-4350-90b6-f3ae1f4068d3	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:20:26.886073+00	2026-02-21 21:20:26.886073+00	0.000	0.000	untracked
+1ce1c5c8-03bb-4f93-8e4c-84a6b69f386c	8f28d905-151c-55b6-8379-1d5332eced40	كوع باب 6 بوصه 168 روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:21:26.531987+00	2026-02-21 21:21:26.531987+00	0.000	0.000	untracked
+1587c12f-d8dc-40f5-8d22-d051af0287fd	8f28d905-151c-55b6-8379-1d5332eced40	كوع باب 6 بوصه 160 روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:22:21.540549+00	2026-02-21 21:22:21.540549+00	0.000	0.000	untracked
+433f723b-d4d3-4dbe-9866-49c9fcd6c040	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 6 بوصه 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:23:01.828092+00	2026-02-21 21:23:01.828092+00	0.000	0.000	untracked
+c973aa90-e274-4a13-bd63-fb0141d26fb5	8f28d905-151c-55b6-8379-1d5332eced40	كوع عاده 6 بوصه 168	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:23:38.899672+00	2026-02-21 21:23:38.899672+00	0.000	0.000	untracked
+429a54f9-6312-4e78-a0f0-3621129feb75	8f28d905-151c-55b6-8379-1d5332eced40	كوع مفتوح 6 بوصه 160	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:24:14.886048+00	2026-02-21 21:24:14.886048+00	0.000	0.000	untracked
+48272cca-653d-4506-b8fd-d5e3a4f1835f	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6/4 160*110	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:25:05.66843+00	2026-02-21 21:25:05.66843+00	0.000	0.000	untracked
+4e81ce7f-47a6-4813-ae27-30d0d1753051	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 6/4 168*114	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:25:54.564452+00	2026-02-21 21:25:54.564452+00	0.000	0.000	untracked
+125dffb9-8af1-4a61-b5b6-89d48a631935	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:26:58.852132+00	2026-02-21 21:26:58.852132+00	0.000	0.000	untracked
+c987d093-12be-452d-b2b7-bc0eebcf8389	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 4/3 البحر الأحمر	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:28:06.131785+00	2026-02-21 21:28:06.131785+00	0.000	0.000	untracked
+c7f3e93a-438f-480a-977a-4b1c03769984	8f28d905-151c-55b6-8379-1d5332eced40	صليبه 4/2 الأهرام	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:28:45.65167+00	2026-02-21 21:28:45.65167+00	0.000	0.000	untracked
+c1a296c0-6471-45fd-bb5e-5f91f68e77fd	8f28d905-151c-55b6-8379-1d5332eced40	جلبه لحام 4 بوصه روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:29:27.395828+00	2026-02-21 21:29:27.395828+00	0.000	0.000	untracked
+e8064580-f5a5-42d8-a083-bd3e3d3f4481	8f28d905-151c-55b6-8379-1d5332eced40	جلبه اصلاح 4 بوصه روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:30:08.77231+00	2026-02-21 21:30:08.77231+00	0.000	0.000	untracked
+7bd70918-ce49-4b75-b72c-18154bd2f79a	8f28d905-151c-55b6-8379-1d5332eced40	واى 4 بوصه	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:32:32.709138+00	2026-02-21 21:32:32.709138+00	0.000	0.000	untracked
+0fe7c2a0-f60e-4f15-b284-2c8b1b12d7dc	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 4/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:33:11.363362+00	2026-02-21 21:33:11.363362+00	0.000	0.000	untracked
+ec568ee9-0b5f-4dc4-a628-fd3f5fe9db4d	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/2	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:33:51.187818+00	2026-02-21 21:33:51.187818+00	0.000	0.000	untracked
+de486650-4431-4dde-aa4d-4ce6be1554d8	8f28d905-151c-55b6-8379-1d5332eced40	مشترك باب 4/3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:34:49.379716+00	2026-02-21 21:34:49.379716+00	0.000	0.000	untracked
+6aa50703-922e-4b64-a284-90ed8be49d64	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 2" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:26:08.143744+00	2026-02-17 17:26:08.143744+00	0.000	0.000	untracked
+c3fa9713-cfff-4df1-a1be-e67923363d0a	ae20d096-97b0-524d-bf38-e8865a491102	خرطوم سوستة	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 00:59:41.182496+00	2026-03-10 00:59:41.182496+00	0.000	0.000	untracked
+69c84270-5d73-406f-a0f6-4509aa6ffd14	ae20d096-97b0-524d-bf38-e8865a491102	مشتمل دفن	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 00:59:53.495774+00	2026-03-10 00:59:53.495774+00	0.000	0.000	untracked
+5b317e75-8dcd-4ae8-8a1e-ee0de4afc793	ae20d096-97b0-524d-bf38-e8865a491102	شيك بلف 1.5"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:03.95927+00	2026-03-10 01:01:03.95927+00	0.000	0.000	untracked
+a2f62574-cda1-4f08-b38e-4cb5d32188b6	ae20d096-97b0-524d-bf38-e8865a491102	مجرى خرج مجوز	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:18.567212+00	2026-03-10 01:01:18.567212+00	0.000	0.000	untracked
+c5f83958-3304-4314-a56f-7fe15431bc7b	ae20d096-97b0-524d-bf38-e8865a491102	كوع نزل	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:28.455547+00	2026-03-10 01:01:28.455547+00	0.000	0.000	untracked
+81f74c2a-1ec7-4771-9329-92b0d0eb7ddd	ae20d096-97b0-524d-bf38-e8865a491102	شيك بلف لاكور 3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:01:52.695222+00	2026-03-10 01:01:52.695222+00	0.000	0.000	untracked
+561a1696-03a7-4801-8efd-a117a2121f3b	ae20d096-97b0-524d-bf38-e8865a491102	شيك بلف لاكور 1"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-03-10 01:02:12.903167+00	2026-03-10 01:02:12.903167+00	0.000	0.000	untracked
+8bf8a752-b3fe-4e2c-9f0f-6396f484f085	d17128f8-94aa-54ce-87d8-4dc515f98bf8	منتج تجريبي	\N	عدد	0.00	0.00	10.00		\N	\N	\N	\N	t	2026-03-30 01:42:54.200292+00	2026-03-30 01:42:54.200292+00	0.000	0.000	untracked
+c8b78e53-a457-4b32-8897-c449f3fe1e4f	7f15ec9b-720f-580d-ad54-61fcb04a20d9	محبس بالأكور سالمكو محمل بوصة (ادهم)	\N	عدد	320.00	220.00	10.00	\N	\N	\N	\N	\N	t	2026-01-18 19:53:20.393421+00	2026-03-28 15:00:49.234672+00	0.000	0.000	untracked
+e7cb2e9b-10a3-42a5-9c43-04f5fc233e88	8f28d905-151c-55b6-8379-1d5332eced40	مشترك 4/3	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-21 21:35:23.395697+00	2026-02-21 21:35:23.395697+00	0.000	0.000	untracked
+150417bc-5700-4216-b3b2-8025ab306799	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1" BFS	\N	قطعة	0.00	0.00	0.00	BFS	1 بوصة	\N	بولي	\N	t	2026-02-17 16:17:16.570873+00	2026-02-17 16:17:16.570873+00	0.000	0.000	untracked
+8f408e6d-5856-4378-a341-ef62648949ea	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 2" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:35:32.866681+00	2026-02-17 16:35:32.866681+00	0.000	0.000	untracked
+6bacb56d-ae76-419f-93ce-564835dd276f	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:36:26.161745+00	2026-02-17 16:36:26.161745+00	0.000	0.000	untracked
+50092680-cdcf-4383-8803-ec896ba51cb9	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:37:15.041683+00	2026-02-17 16:37:15.041683+00	0.000	0.000	untracked
+d60038ee-8ce8-44e1-8e87-3e0e75660752	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1*3/4" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:39:37.13686+00	2026-02-17 16:39:37.13686+00	0.000	0.000	untracked
+44a29ecc-7b57-44f8-9298-01d1a42f76d4	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1" روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:40:24.241494+00	2026-02-17 16:40:24.241494+00	0.000	0.000	untracked
+9f22d4f4-5c38-4ca7-9078-a9d451317a5f	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1*3/4 كايرو ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:42:32.658476+00	2026-02-17 16:42:32.658476+00	0.000	0.000	untracked
+92a0b6e4-83c5-4abe-8dad-32bdf4c0df62	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1" كايرو ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:43:09.825812+00	2026-02-17 16:43:09.825812+00	0.000	0.000	untracked
+6416cbb3-ef5c-4b48-910c-e1f891054f13	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1.5 بوصة BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:43:37.217406+00	2026-02-17 16:43:37.217406+00	0.000	0.000	untracked
+9430efeb-9681-4466-b405-c11f7fd0411e	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1.5" معزول اكوا جرين	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:44:19.088721+00	2026-02-17 16:44:19.088721+00	0.000	0.000	untracked
+3041ec21-6f51-4485-8515-b10a24942254	36041da5-c9a4-574f-9538-790b9601a464	تي سن داخلي عادي 1" اكوا ستار	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:44:59.408798+00	2026-02-17 16:44:59.408798+00	0.000	0.000	untracked
+753605cc-8cdb-4fa2-a0c3-174686ddedf4	36041da5-c9a4-574f-9538-790b9601a464	تي سن داخلي عالي 1" اكوا ستار	\N	عدد	0.00	0.00	0.00	\N	\N	ض	\N	\N	t	2026-02-17 16:45:23.904255+00	2026-02-17 16:45:23.904255+00	0.000	0.000	untracked
+a4924db4-ea93-4351-9379-4280a11f5b6f	36041da5-c9a4-574f-9538-790b9601a464	كوع بسن داخلي 1*3/4" لافيستا	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:07:52.017481+00	2026-02-17 17:07:52.017481+00	0.000	0.000	untracked
+51d95493-39bf-475c-9813-c22378608033	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 2" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:08:23.232776+00	2026-02-17 17:08:23.232776+00	0.000	0.000	untracked
+a42630ba-4abb-49ad-b469-7860b870c6bd	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 2" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:17:27.78349+00	2026-02-17 17:17:27.78349+00	0.000	0.000	untracked
+81b8e587-43f6-4aa7-89f4-2a959a309ccd	36041da5-c9a4-574f-9538-790b9601a464	تي محبس دفن 1*3/4	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:20:28.3524+00	2026-02-17 17:20:28.3524+00	0.000	0.000	untracked
+bba112a6-5123-4eec-8359-ab2005280f18	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 3/4 ستار ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:22:52.6234+00	2026-02-17 17:22:52.6234+00	0.000	0.000	untracked
+dc7a612e-4896-4e1b-992c-445b206f40f7	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 3/4 ستار ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:23:34.527814+00	2026-02-17 17:23:34.527814+00	0.000	0.000	untracked
+3c49a84e-2451-459c-81a9-50577aa031ff	36041da5-c9a4-574f-9538-790b9601a464	جلبة لحام 1" معزول BFS	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:24:27.167207+00	2026-02-17 17:24:27.167207+00	0.000	0.000	untracked
+5a108d5a-5cd0-4061-a61a-8487514cd407	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1" معزول BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 17:25:02.719521+00	2026-02-17 17:25:02.719521+00	0.000	0.000	untracked
+7637f2f6-5553-4362-9abe-b79b9b211e66	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 2" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:17:58.17133+00	2026-02-17 16:17:58.17133+00	0.000	0.000	untracked
+612e2397-4ece-4c57-a7f9-842843bed5be	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:19:05.506041+00	2026-02-17 16:19:05.506041+00	0.000	0.000	untracked
+955997b7-2036-4f64-adf6-26ee55975902	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 1.5 اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:21:11.874888+00	2026-02-17 16:21:11.874888+00	0.000	0.000	untracked
+25786994-56ff-4a82-9b45-c8d30fc092c8	36041da5-c9a4-574f-9538-790b9601a464	كوع بسن داخلي 1*3/4"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:22:12.169365+00	2026-02-17 16:22:12.169365+00	0.000	0.000	untracked
+8f6beea1-072b-4f7d-9bc6-8591373b292e	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 2" اكوا روك	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:24:05.394756+00	2026-02-17 16:24:05.394756+00	0.000	0.000	untracked
+3d6cff07-15a4-4c75-992d-ce195ec48a0c	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:25:41.826927+00	2026-02-17 16:25:41.826927+00	0.000	0.000	untracked
+d2a03983-48c8-42f0-8675-2b0aeec3e469	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 1" كايرو ثيرم	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:26:24.833411+00	2026-02-17 16:26:24.833411+00	0.000	0.000	untracked
+356ad760-f17e-4108-aa87-3f44b452fbd0	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن خارجي 1" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:27:24.738933+00	2026-02-17 16:27:24.738933+00	0.000	0.000	untracked
+511fc549-b298-481f-ae1a-d0cc9b4dfe9d	36041da5-c9a4-574f-9538-790b9601a464	جلبة سن داخلي 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:28:24.929834+00	2026-02-17 16:28:24.929834+00	0.000	0.000	untracked
+3fc85ed1-884e-4034-9ac6-2dd78c114a4b	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1.5" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:29:08.465047+00	2026-02-17 16:29:08.465047+00	0.000	0.000	untracked
+4c046095-bd35-4fe7-ba57-b3fe61d3b3b9	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 1.5" معزول BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:30:14.513404+00	2026-02-17 16:30:14.513404+00	0.000	0.000	untracked
+fb5099b2-64e9-452e-b4d6-2c3591a1b042	36041da5-c9a4-574f-9538-790b9601a464	تي سن 1 * 1/2"	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:31:07.986514+00	2026-02-17 16:31:07.986514+00	0.000	0.000	untracked
+556f835a-5c2b-44a5-a3a2-086a96b984d3	36041da5-c9a4-574f-9538-790b9601a464	كوع بسن 1" اكوا روك	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:31:57.905305+00	2026-02-17 16:31:57.905305+00	0.000	0.000	untracked
+2cc00c44-0fde-4eaf-9a50-927b79ab7097	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 1" اكوا روك	\N	قطعة	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:33:34.561086+00	2026-02-17 16:33:34.561086+00	0.000	0.000	untracked
+46051af4-1f3c-4cb8-8018-08c7158d73c4	36041da5-c9a4-574f-9538-790b9601a464	كوع لحام 2" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:34:17.409953+00	2026-02-17 16:34:17.409953+00	0.000	0.000	untracked
+762e3eca-4c16-438c-bde5-49aebf6d8be9	36041da5-c9a4-574f-9538-790b9601a464	تي لحام 1" BFS	\N	عدد	0.00	0.00	0.00	\N	\N	\N	\N	\N	t	2026-02-17 16:35:01.264861+00	2026-02-17 16:35:01.264861+00	0.000	0.000	untracked
 \.
 
 
@@ -2675,6 +2752,26 @@ COPY public.purchase_orders (id, po_number, supplier_id, warehouse_id, created_b
 
 COPY public.purchase_price_history (id, product_id, po_id, supplier_id, old_cost, new_cost, created_at) FROM stdin;
 8cc754cb-b7d8-4294-b054-bbe98a5dae81	c8b78e53-a457-4b32-8897-c449f3fe1e4f	362b6e0d-4f17-4662-875b-1e63005a2d44	\N	15.50	10.00	2026-03-30 04:16:18.96905+00
+\.
+
+
+--
+-- Data for Name: safe_deposits; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.safe_deposits (id, safe_id, shift_id, warehouse_id, amount, received_by, received_by_name, deposited_by, deposited_by_name, notes, doc_number, created_at) FROM stdin;
+eed54ceb-7f07-4eef-b38d-e9f597669599	5a157f4c-4d31-4e3c-93f2-a66e81b44f45	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	1500.00	f00d039c-caa7-5b00-adba-365ed90c5f10	عمار محمد السيد	f00d039c-caa7-5b00-adba-365ed90c5f10	عمار محمد السيد	توريد يومي	DEP-001031	2026-03-31 16:50:27.998146+00
+\.
+
+
+--
+-- Data for Name: safes; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.safes (id, name, location, balance, is_active, created_at) FROM stdin;
+b4d0abe6-580f-4725-9a44-01bf7f86062e	خزنة معرض المؤمن	معرض المؤمن	0.00	t	2026-03-31 16:12:22.734709+00
+c49a5a41-1db4-4541-a899-a99b2e40da56	خزنة العبور	معرض العبور	0.00	t	2026-03-31 16:12:22.734709+00
+5a157f4c-4d31-4e3c-93f2-a66e81b44f45	الخزنة الرئيسية	المكتب الرئيسي	1500.00	t	2026-03-31 16:12:22.734709+00
 \.
 
 
@@ -2719,6 +2816,7 @@ ba19364c-3b6f-4309-af75-45f59a11fdd2	f0caea27-2456-4ac1-9e91-535c9488f8d1	c8b78e
 737f448b-21ff-4cbd-be7b-3a2c907e3aa2	75e919da-7d78-4dbe-ac0b-3ca8abb7407f	b9b32325-fda4-46a7-b4f4-6da187863e4a	5.000	50.00	40.00	0.00
 0c4cec9b-61cb-48aa-8b54-ca9f5bdd435a	678a4d14-d028-4c24-a72f-0dbaa1bbb258	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	1.000	90.00	70.00	0.00
 8b621055-9092-4082-861d-e77f2013a86d	deec8934-2282-4a63-bff3-44e6123420fb	b9b32325-fda4-46a7-b4f4-6da187863e4a	1.000	50.00	40.00	0.00
+a7b50dec-cb53-4412-9880-03124de8505e	199a9759-0bc7-467e-9689-5b55ed482852	b9b32325-fda4-46a7-b4f4-6da187863e4a	5.000	50.00	40.00	0.00
 \.
 
 
@@ -2726,37 +2824,38 @@ ba19364c-3b6f-4309-af75-45f59a11fdd2	f0caea27-2456-4ac1-9e91-535c9488f8d1	c8b78e
 -- Data for Name: sales; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.sales (id, invoice_number, customer_id, warehouse_id, cashier_id, shift_id, sale_mode, status, discount_amount, notes, created_at, is_credit, created_by) FROM stdin;
-c226fe67-ae31-4d7e-babe-becb70294339	INV-0325182125	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:21:25.445077+00	f	\N
-f0caea27-2456-4ac1-9e91-535c9488f8d1	INV-0325182137	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:21:37.532105+00	f	\N
-4cf0467b-29c4-448a-8edf-11efa6c23756	INV-0325182313	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:23:13.379562+00	f	\N
-33f210e9-d206-48b3-b8e3-5f8ca0fcc44f	INV-0325182324	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:23:24.821394+00	f	\N
-da2ba20c-9068-4e49-840b-1053dccae1cf	INV-0325182702	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	returned	0.00	\N	2026-03-25 18:27:02.803282+00	f	\N
-fa635f6f-c835-40ac-a8e0-d17436acc603	INV-0325191812	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	8fb616cd-cbf6-4587-9eed-36cba02101b4	wholesale	confirmed	0.00	\N	2026-03-25 19:18:12.618104+00	f	\N
-b2ae013b-d8ce-4948-a025-9a7880ff02c6	INV-0325195831	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	confirmed	0.00	\N	2026-03-25 19:58:30.752572+00	f	\N
-057b59b5-9e08-4411-bf43-6b75dd16f914	QUO-0325205705	\N	cc063dcf-cef9-4763-a1dc-5a918dbeda93	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	quotation	0.00	\N	2026-03-25 20:57:05.408294+00	f	\N
-beea6ccd-679c-413a-8a04-5b820ff8df8f	INV-0325220206	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	55cbdec7-b42c-4183-b251-53aaa8f07c1b	retail	confirmed	0.00	\N	2026-03-25 22:02:06.343297+00	f	\N
-7378debc-2ab8-4eda-93cf-baf46683b08d	INV-0325220542	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:05:42.362436+00	f	\N
-d1a97146-348e-4668-a5df-4ae243bb6b99	INV-0325220628	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:06:28.651864+00	f	\N
-1d866b7d-b966-4a0e-a83a-2a8438b15f13	INV-0325220649	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:06:49.350579+00	f	\N
-59b9226f-dfaa-462f-ba0c-f821151888d9	INV-0325220821	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:08:21.301213+00	f	\N
-a51ab5f1-a2ff-4913-8630-f872e1a6ca79	INV-0325220854	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	55cbdec7-b42c-4183-b251-53aaa8f07c1b	retail	returned	0.00	\N	2026-03-25 22:08:53.994403+00	f	\N
-8ffd2445-36b9-4860-b005-711c418cc856	INV-0325221111	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	55cbdec7-b42c-4183-b251-53aaa8f07c1b	retail	returned	0.00	\N	2026-03-25 22:11:11.184759+00	f	\N
-de55ead7-27bd-4e29-ad9a-e7aef4b74978	INV-0326053034	ea70b37f-e40d-4d13-a014-52ed6cc34d9e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	1dc0d5f0-327a-4708-aff9-26c483ab313b	retail	confirmed	0.00	\N	2026-03-26 05:30:34.229674+00	f	\N
-15bf83d7-f130-4bce-a71b-e4587d7d9b62	INV-0326095143	9338ff3f-c554-4648-9965-0b49d68aa7db	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	confirmed	0.00	\N	2026-03-26 09:51:42.80797+00	t	\N
-8292cd3e-da80-4675-b002-c4e398917432	INV-0326095144	9338ff3f-c554-4648-9965-0b49d68aa7db	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-26 09:51:44.029524+00	f	\N
-6dda74b4-cb34-4648-8f6e-44fb7a3672b5	INV-0326104103	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	1dc0d5f0-327a-4708-aff9-26c483ab313b	wholesale	confirmed	0.00	\N	2026-03-26 10:41:03.717603+00	t	\N
-6348d7f3-012a-4b73-bfec-2fdf78efdc93	INV-0326104521	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-26 10:45:20.99253+00	f	\N
-48c0fe08-ef76-49d1-bb60-040e3cf6199d	RET-0326104521	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	returned	0.00	مرتجع جزئي من INV-0326104521	2026-03-26 10:45:21.226507+00	f	\N
-884ae1ed-8143-4046-8fa4-0d857306db9a	RET-0326125337	9338ff3f-c554-4648-9965-0b49d68aa7db	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	returned	0.00	مرتجع جزئي من INV-0326095143	2026-03-26 12:53:37.629082+00	f	\N
-0dce5e50-b8c5-4941-a0f6-cf5a48fd046a	INV-0327151000	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3dcf287f-653a-4299-b80d-c840e1503e2b	retail	confirmed	0.00	\N	2026-03-27 15:10:00.472241+00	f	\N
-60741e19-f2c2-4e79-abc7-8f6c53055111	QUO-0327151000	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	quotation	0.00	\N	2026-03-27 15:10:00.739301+00	f	\N
-569525ba-651e-4f5c-897d-aa471449308b	INV-0327151032	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	confirmed	0.00	\N	2026-03-27 15:10:32.646508+00	f	\N
-7189b418-dcf5-4925-ae01-eee514901aa4	INV-0328120249	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3dcf287f-653a-4299-b80d-c840e1503e2b	retail	confirmed	75.00	\N	2026-03-28 12:02:49.494187+00	f	\N
-24d4ae60-0bf1-4056-a83c-a5faa958d10b	INV-0329165628	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 16:56:28.947849+00	t	f00d039c-caa7-5b00-adba-365ed90c5f10
-75e919da-7d78-4dbe-ac0b-3ca8abb7407f	INV-001025	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 17:18:47.390297+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10
-678a4d14-d028-4c24-a72f-0dbaa1bbb258	INV-001026	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 17:18:55.672741+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10
-deec8934-2282-4a63-bff3-44e6123420fb	INV-001027	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	a4a070b3-e6f5-499f-9940-dcd41fcc2188	retail	confirmed	0.00	\N	2026-03-30 13:33:52.40389+00	f	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd
+COPY public.sales (id, invoice_number, customer_id, warehouse_id, cashier_id, shift_id, sale_mode, status, discount_amount, notes, created_at, is_credit, created_by, payment_method, wallet_id) FROM stdin;
+c226fe67-ae31-4d7e-babe-becb70294339	INV-0325182125	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:21:25.445077+00	f	\N	cash	\N
+f0caea27-2456-4ac1-9e91-535c9488f8d1	INV-0325182137	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:21:37.532105+00	f	\N	cash	\N
+4cf0467b-29c4-448a-8edf-11efa6c23756	INV-0325182313	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:23:13.379562+00	f	\N	cash	\N
+33f210e9-d206-48b3-b8e3-5f8ca0fcc44f	INV-0325182324	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 18:23:24.821394+00	f	\N	cash	\N
+da2ba20c-9068-4e49-840b-1053dccae1cf	INV-0325182702	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	returned	0.00	\N	2026-03-25 18:27:02.803282+00	f	\N	cash	\N
+fa635f6f-c835-40ac-a8e0-d17436acc603	INV-0325191812	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	8fb616cd-cbf6-4587-9eed-36cba02101b4	wholesale	confirmed	0.00	\N	2026-03-25 19:18:12.618104+00	f	\N	cash	\N
+b2ae013b-d8ce-4948-a025-9a7880ff02c6	INV-0325195831	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	confirmed	0.00	\N	2026-03-25 19:58:30.752572+00	f	\N	cash	\N
+057b59b5-9e08-4411-bf43-6b75dd16f914	QUO-0325205705	\N	cc063dcf-cef9-4763-a1dc-5a918dbeda93	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	quotation	0.00	\N	2026-03-25 20:57:05.408294+00	f	\N	cash	\N
+beea6ccd-679c-413a-8a04-5b820ff8df8f	INV-0325220206	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	55cbdec7-b42c-4183-b251-53aaa8f07c1b	retail	confirmed	0.00	\N	2026-03-25 22:02:06.343297+00	f	\N	cash	\N
+7378debc-2ab8-4eda-93cf-baf46683b08d	INV-0325220542	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:05:42.362436+00	f	\N	cash	\N
+d1a97146-348e-4668-a5df-4ae243bb6b99	INV-0325220628	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:06:28.651864+00	f	\N	cash	\N
+1d866b7d-b966-4a0e-a83a-2a8438b15f13	INV-0325220649	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:06:49.350579+00	f	\N	cash	\N
+59b9226f-dfaa-462f-ba0c-f821151888d9	INV-0325220821	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-25 22:08:21.301213+00	f	\N	cash	\N
+a51ab5f1-a2ff-4913-8630-f872e1a6ca79	INV-0325220854	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	55cbdec7-b42c-4183-b251-53aaa8f07c1b	retail	returned	0.00	\N	2026-03-25 22:08:53.994403+00	f	\N	cash	\N
+8ffd2445-36b9-4860-b005-711c418cc856	INV-0325221111	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	55cbdec7-b42c-4183-b251-53aaa8f07c1b	retail	returned	0.00	\N	2026-03-25 22:11:11.184759+00	f	\N	cash	\N
+de55ead7-27bd-4e29-ad9a-e7aef4b74978	INV-0326053034	ea70b37f-e40d-4d13-a014-52ed6cc34d9e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	1dc0d5f0-327a-4708-aff9-26c483ab313b	retail	confirmed	0.00	\N	2026-03-26 05:30:34.229674+00	f	\N	cash	\N
+15bf83d7-f130-4bce-a71b-e4587d7d9b62	INV-0326095143	9338ff3f-c554-4648-9965-0b49d68aa7db	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	confirmed	0.00	\N	2026-03-26 09:51:42.80797+00	t	\N	cash	\N
+8292cd3e-da80-4675-b002-c4e398917432	INV-0326095144	9338ff3f-c554-4648-9965-0b49d68aa7db	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-26 09:51:44.029524+00	f	\N	cash	\N
+6dda74b4-cb34-4648-8f6e-44fb7a3672b5	INV-0326104103	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	1dc0d5f0-327a-4708-aff9-26c483ab313b	wholesale	confirmed	0.00	\N	2026-03-26 10:41:03.717603+00	t	\N	cash	\N
+6348d7f3-012a-4b73-bfec-2fdf78efdc93	INV-0326104521	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	confirmed	0.00	\N	2026-03-26 10:45:20.99253+00	f	\N	cash	\N
+48c0fe08-ef76-49d1-bb60-040e3cf6199d	RET-0326104521	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	retail	returned	0.00	مرتجع جزئي من INV-0326104521	2026-03-26 10:45:21.226507+00	f	\N	cash	\N
+884ae1ed-8143-4046-8fa4-0d857306db9a	RET-0326125337	9338ff3f-c554-4648-9965-0b49d68aa7db	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	returned	0.00	مرتجع جزئي من INV-0326095143	2026-03-26 12:53:37.629082+00	f	\N	cash	\N
+0dce5e50-b8c5-4941-a0f6-cf5a48fd046a	INV-0327151000	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3dcf287f-653a-4299-b80d-c840e1503e2b	retail	confirmed	0.00	\N	2026-03-27 15:10:00.472241+00	f	\N	cash	\N
+60741e19-f2c2-4e79-abc7-8f6c53055111	QUO-0327151000	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	quotation	0.00	\N	2026-03-27 15:10:00.739301+00	f	\N	cash	\N
+569525ba-651e-4f5c-897d-aa471449308b	INV-0327151032	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	wholesale	confirmed	0.00	\N	2026-03-27 15:10:32.646508+00	f	\N	cash	\N
+7189b418-dcf5-4925-ae01-eee514901aa4	INV-0328120249	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3dcf287f-653a-4299-b80d-c840e1503e2b	retail	confirmed	75.00	\N	2026-03-28 12:02:49.494187+00	f	\N	cash	\N
+24d4ae60-0bf1-4056-a83c-a5faa958d10b	INV-0329165628	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 16:56:28.947849+00	t	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+75e919da-7d78-4dbe-ac0b-3ca8abb7407f	INV-001025	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 17:18:47.390297+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+678a4d14-d028-4c24-a72f-0dbaa1bbb258	INV-001026	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 17:18:55.672741+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+deec8934-2282-4a63-bff3-44e6123420fb	INV-001027	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	a4a070b3-e6f5-499f-9940-dcd41fcc2188	retail	confirmed	0.00	\N	2026-03-30 13:33:52.40389+00	f	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	cash	\N
+199a9759-0bc7-467e-9689-5b55ed482852	INV-001028	973fbcf1-c2b3-450e-8584-a63cf0885350	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	a4a070b3-e6f5-499f-9940-dcd41fcc2188	retail	confirmed	0.00	\N	2026-03-31 11:42:55.471697+00	t	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	cash	\N
 \.
 
 
@@ -2783,6 +2882,7 @@ f96f6bdf-ca98-4a84-acf4-47ab176cb366	f00d039c-caa7-5b00-adba-365ed90c5f10	closed
 3dcf287f-653a-4299-b80d-c840e1503e2b	f00d039c-caa7-5b00-adba-365ed90c5f10	closed	50.00	330.00	0.00	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	2026-03-27 12:03:57.997932+00	2026-03-29 14:04:54.248611+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	\N
 4a7dd547-9642-4562-a0a8-1fa55de24162	f00d039c-caa7-5b00-adba-365ed90c5f10	closed	0.00	190.00	190.00	f00d039c-caa7-5b00-adba-365ed90c5f10	تسليم عهدة إلى 7ef659d3-53f7-48b1-aca3-538ef5a1b3cd. 	2026-03-29 16:53:09.769922+00	2026-03-29 17:20:24.165954+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	6a11d77b-24cc-577e-9ec3-4b0088eb7585	\N	\N
 a4a070b3-e6f5-499f-9940-dcd41fcc2188	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	open	190.00	\N	\N	\N	استلام عهدة من f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:20:24.162693+00	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	6a11d77b-24cc-577e-9ec3-4b0088eb7585	\N	\N
+900146ce-a935-43ea-a6d4-647276e80612	f00d039c-caa7-5b00-adba-365ed90c5f10	open	0.00	\N	\N	\N	\N	2026-03-31 11:50:34.888454+00	\N	536e6eba-c111-4d60-b812-ead42ab23883	658196d5-857d-493c-94e4-e604b01764ab	\N	\N
 \.
 
 
@@ -3560,6 +3660,7 @@ b887ecc5-01b9-4f4a-9b88-7a02724d2e15	313c6041-991c-4284-86ba-400fc94cb85f	122f5b
 15cc041d-2c43-4603-8db0-9360ff6ced19	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	70.00	90.00	678a4d14-d028-4c24-a72f-0dbaa1bbb258	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:18:55.672741+00
 f46e0dac-45f8-4a34-8609-518cb5d1a58b	c8b78e53-a457-4b32-8897-c449f3fe1e4f	59a2b8d7-e26b-4979-ae0e-3984f1b711b2	purchase	5.000	10.00	0.00	362b6e0d-4f17-4662-875b-1e63005a2d44	purchase	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-30 04:16:18.96905+00
 3403c02b-9561-49d6-a361-f4f4cf14ab05	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	40.00	50.00	deec8934-2282-4a63-bff3-44e6123420fb	sale	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.40389+00
+bb69c1c4-ec6b-45d0-95e5-d09012b31e20	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	5.000	40.00	50.00	199a9759-0bc7-467e-9689-5b55ed482852	sale	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-31 11:42:55.471697+00
 \.
 
 
@@ -3879,7 +3980,7 @@ SELECT pg_catalog.setval('public.dispatch_seq', 1001, true);
 -- Name: invoice_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.invoice_seq', 1027, true);
+SELECT pg_catalog.setval('public.invoice_seq', 1031, true);
 
 
 --
@@ -4049,6 +4150,14 @@ ALTER TABLE ONLY public.hr_shifts
 
 
 --
+-- Name: payment_wallets payment_wallets_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_wallets
+    ADD CONSTRAINT payment_wallets_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: payroll_entries payroll_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4102,6 +4211,30 @@ ALTER TABLE ONLY public.purchase_orders
 
 ALTER TABLE ONLY public.purchase_price_history
     ADD CONSTRAINT purchase_price_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safe_deposits safe_deposits_doc_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_doc_number_key UNIQUE (doc_number);
+
+
+--
+-- Name: safe_deposits safe_deposits_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safes safes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safes
+    ADD CONSTRAINT safes_pkey PRIMARY KEY (id);
 
 
 --
@@ -4412,6 +4545,14 @@ ALTER TABLE ONLY public.drawer_transactions
 
 
 --
+-- Name: drawer_transactions drawer_transactions_wallet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.drawer_transactions
+    ADD CONSTRAINT drawer_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.payment_wallets(id) ON DELETE SET NULL;
+
+
+--
 -- Name: employees employees_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4572,6 +4713,46 @@ ALTER TABLE ONLY public.purchase_price_history
 
 
 --
+-- Name: safe_deposits safe_deposits_deposited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_deposited_by_fkey FOREIGN KEY (deposited_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: safe_deposits safe_deposits_received_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_received_by_fkey FOREIGN KEY (received_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: safe_deposits safe_deposits_safe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_safe_id_fkey FOREIGN KEY (safe_id) REFERENCES public.safes(id);
+
+
+--
+-- Name: safe_deposits safe_deposits_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_shift_id_fkey FOREIGN KEY (shift_id) REFERENCES public.shifts(id) ON DELETE SET NULL;
+
+
+--
+-- Name: safe_deposits safe_deposits_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.safe_deposits
+    ADD CONSTRAINT safe_deposits_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(id) ON DELETE SET NULL;
+
+
+--
 -- Name: sale_items sale_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4617,6 +4798,14 @@ ALTER TABLE ONLY public.sales
 
 ALTER TABLE ONLY public.sales
     ADD CONSTRAINT sales_shift_id_fkey FOREIGN KEY (shift_id) REFERENCES public.shifts(id);
+
+
+--
+-- Name: sales sales_wallet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sales
+    ADD CONSTRAINT sales_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.payment_wallets(id) ON DELETE SET NULL;
 
 
 --
@@ -4719,5 +4908,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 81eVqdV4iSXUzMBJq2tQQpepS9oXZtzcIlfRa8rOz4jE31qjouOdte7uH2Ttgnp
+\unrestrict SbLRruSp8YuqiBBhsDAzC0gmXHShJfg3x5cuA31HzBGeDIlSoa98iQqE82CA212
 
