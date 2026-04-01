@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { productsApi, stockApi } from '../../api/endpoints'
 import { useAppStore } from '../../store/app'
@@ -23,6 +23,11 @@ export default function StocktakingPage() {
   const [saving, setSaving] = useState(false)
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
+
+  // Reset entries when warehouse changes
+  useEffect(() => {
+    setEntries({})
+  }, [activeWarehouseId])
   const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
 
   const { data: products, isLoading } = useQuery({
