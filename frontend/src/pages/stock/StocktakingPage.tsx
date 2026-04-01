@@ -30,6 +30,15 @@ export default function StocktakingPage() {
     queryFn: () => productsApi.list({}),
   })
 
+  const productIds = (products || []).map((p: any) => p.id)
+  const { data: balances } = useQuery({
+    queryKey: ['balances-stocktaking', activeWarehouseId, productIds.length],
+    queryFn: () => activeWarehouseId
+      ? api.post(`/stock/balance/bulk?warehouse_id=${activeWarehouseId}`, productIds).then(r => r.data)
+      : api.post('/stock/balance/total', productIds).then(r => r.data),
+    enabled: productIds.length > 0,
+  })
+
   const filtered = useMemo(() => {
     if (!products) return []
     return products.filter((p: any) => {
@@ -125,6 +134,7 @@ export default function StocktakingPage() {
             <thead>
               <tr>
                 <th style={{ minWidth: '200px' }}>المنتج</th>
+                <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية الحالية</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</th>
                 <th style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
@@ -147,6 +157,11 @@ export default function StocktakingPage() {
                     <td>
                       <p className="font-semibold text-slate-800 text-sm" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "280px" }}>{p.name}</p>
                       <p className="text-xs text-slate-400">{p.unit}{p.company ? ` · ${p.company}` : ''}</p>
+                    </td>
+                    <td className="text-center">
+                      {p.stock_status === 'untracked'
+                        ? <span className="text-xs text-slate-400">—</span>
+                        : <span className="font-bold text-sm" style={{ color: '#1e3a5f' }}>{balances?.[p.id] ?? '...'} {p.unit}</span>}
                     </td>
                     <td className="text-center">
                       {p.stock_status === 'untracked'
