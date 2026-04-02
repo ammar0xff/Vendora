@@ -451,18 +451,18 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
 
-  <div style="margin-top:auto;padding-top:40px">
+  <div style="margin-top:12px">
     <div style="display:flex;justify-content:space-between;align-items:flex-end">
-      {f'<div style="font-size:12px;font-weight:700;color:#374151;padding-bottom:6px">أصدرها: {sale["created_by_name"]}</div>' if sale.get("created_by_name") else '<div></div>'}
-      <div style="min-width:280px;background:#f8fafc;border:2px solid #94a3b8;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <div style="padding:10px 16px;display:flex;justify-content:space-between;font-size:12.5px;border-bottom:1.5px solid #94a3b8">
-          <span style="color:#6b7280">المجموع الفرعي</span>
-          <span style="font-weight:700;color:#111827">{ar_egp(subtotal)}</span>
+      {f'<div style="font-size:9px;font-weight:700;color:#555">أصدرها: {sale["created_by_name"]}</div>' if sale.get("created_by_name") else '<div></div>'}
+      <div style="min-width:180px;border:1px solid #ccc">
+        <div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8">
+          <span style="color:#555">المجموع الفرعي</span>
+          <span style="font-weight:700">{ar_egp(subtotal)}</span>
         </div>
-    {f'<div class="t-line"><span class="t-lbl">الخصم</span><span class="t-val neg">({ar_egp(disc)})</span></div>' if disc else ''}
-        <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:#1e3a5f">
-          <span style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600">الإجمالي</span>
-          <span style="color:#fff;font-size:20px;font-weight:900">{ar_egp(total)}</span>
+    {f'<div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8"><span style="color:#555">الخصم</span><span style="font-weight:700;color:#991b1b">({ar_egp(disc)})</span></div>' if disc else ''}
+        <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;background:#111">
+          <span style="color:rgba(255,255,255,.7);font-size:10px;font-weight:600">الإجمالي</span>
+          <span style="color:#fff;font-size:14px;font-weight:900">{ar_egp(total)}</span>
         </div>
       </div>
     </div>
@@ -470,10 +470,10 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<div style="border-top:2px solid #94a3b8;padding:10px 36px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center">
-  <div style="font-size:10px;color:#6b7280">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
-  <div style="display:flex;gap:20px">
-    {'  '.join(f'<span style="font-size:11px;color:#374151"><span style="color:#94a3b8;font-size:9px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
+<div style="border-top:2px solid #111;padding:8px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center">
+  <div style="font-size:8px;color:#666">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
+  <div style="display:flex;gap:16px">
+    {'  '.join(f'<span style="font-size:9px;color:#333"><span style="color:#999;font-size:8px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
   </div>
 </div>"""
 
