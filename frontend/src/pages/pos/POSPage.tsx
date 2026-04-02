@@ -84,6 +84,7 @@ export default function POSPage() {
   const [supervisorId, setSupervisorId] = useState('')
   const [managerIdForClose, setManagerIdForClose] = useState('')
   const [managerPasswordForClose, setManagerPasswordForClose] = useState('')
+  const [closeSafeId, setCloseSafeId] = useState('')
   const [isCredit, setIsCredit] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [paymentWalletId, setPaymentWalletId] = useState('')
@@ -136,6 +137,7 @@ export default function POSPage() {
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
   const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data) })
+  const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data), enabled: showClose })
   const { data: finCategories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/financial-categories').then(r => r.data) })
 
   const { data: customerResults } = useQuery({
@@ -307,19 +309,35 @@ export default function POSPage() {
   })
 
   const closeMut = useMutation({
-    mutationFn: () => api.post(`/shifts/${shift!.id}/close-with-manager`, {
-      closing_balance: Number(closingBalance),
-      next_day_drawer: Number(nextDayDrawer),
-      manager_id: managerIdForClose,
-      manager_password: managerPasswordForClose,
-    }).then(r => r.data),
+    mutationFn: async () => {
+      const res = await api.post(`/shifts/${shift!.id}/close-with-manager`, {
+        closing_balance: Number(closingBalance),
+        next_day_drawer: Number(nextDayDrawer),
+        manager_id: managerIdForClose,
+        manager_password: managerPasswordForClose,
+      })
+      if (closeSafeId) {
+        const cashAmt = Number(closingBalance) - Number(nextDayDrawer || 0)
+        if (cashAmt > 0) {
+          await api.post(`/safes/${closeSafeId}/deposit`, {
+            amount: cashAmt,
+            shift_id: shift!.id,
+            warehouse_id: mainWh?.id,
+            received_by_id: managerIdForClose,
+            notes: 'تسليم الدرج عند إغلاق الوردية',
+          })
+        }
+      }
+      return res.data
+    },
     onSuccess: () => {
-      toast.success('تم إغلاق الوردية')
+      toast.success('✅ تم إغلاق الوردية وتسليم الدرج')
       setShowClose(false)
       setClosingBalance('')
       setNextDayDrawer('')
       setManagerIdForClose('')
       setManagerPasswordForClose('')
+      setCloseSafeId('')
       qc.setQueryData(['current-shift', mainWh?.id], null)
       qc.setQueryData(['shift-summary', shift?.id], null)
       qc.invalidateQueries({ queryKey: ['shifts'] })
@@ -1132,6 +1150,15 @@ export default function POSPage() {
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
             <p className="text-sm font-bold text-amber-800 flex items-center gap-2">🔐 يجب على المدير تأكيد استلام التوريد</p>
             <div>
+              <label className="block text-xs font-medium text-amber-700 mb-1">توريد الدرج إلى خزنة *</label>
+              <select className="input text-sm" value={closeSafeId} onChange={e => setCloseSafeId(e.target.value)}>
+                <option value="">اختر الخزنة...</option>
+                {(safes as any[])?.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs font-medium text-amber-700 mb-1">المدير المستلم</label>
               <select className="input text-sm" value={managerIdForClose} onChange={e => setManagerIdForClose(e.target.value)}>
                 <option value="">اختر المدير...</option>
@@ -1148,7 +1175,7 @@ export default function POSPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowClose(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => closeMut.mutate()} disabled={!closingBalance || !managerIdForClose || !managerPasswordForClose || closeMut.isPending}
+            <button onClick={() => closeMut.mutate()} disabled={!closingBalance || !managerIdForClose || !managerPasswordForClose || !closeSafeId || closeMut.isPending}
               className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 flex items-center gap-2">
               <Lock size={15} /> إغلاق الوردية
             </button>
