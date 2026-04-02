@@ -393,13 +393,13 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
     for idx, it in enumerate(items, 1):
         line = float(it['qty']) * float(it['unit_price']) - float(it.get('discount',0))
         rows_html += f"""<tr>
-          <td style="color:#9ca3af;font-size:11px;width:36px;text-align:center">{idx}</td>
+          <td style="color:#9ca3af;font-size:9px;text-align:center;white-space:nowrap">{idx}</td>
           <td><div class="td-name">{it['product_name']}</div></td>
-          <td style="text-align:center;width:110px;color:#374151">{ar_egp(float(it['unit_price']))}</td>
-          <td style="text-align:center;width:80px;color:#374151">{ar_num(float(it['qty']), 0)}</td>
-          <td style="text-align:center;width:70px;color:#6b7280">{it.get('unit','')}</td>
-          {f'<td style="text-align:center;width:90px;color:#dc2626">({ar_egp(float(it["discount"]))})</td>' if disc else ''}
-          <td style="width:120px">{ar_egp(line)}</td>
+          <td style="text-align:center;white-space:nowrap;color:#374151">{ar_egp(float(it['unit_price']))}</td>
+          <td style="text-align:center;white-space:nowrap;color:#374151">{ar_num(float(it['qty']), 0)}</td>
+          <td style="text-align:center;white-space:nowrap;color:#6b7280">{it.get('unit','')}</td>
+          {f'<td style="text-align:center;white-space:nowrap;color:#dc2626">({ar_egp(float(it["discount"]))})</td>' if disc else ''}
+          <td style="text-align:left;white-space:nowrap">{ar_egp(line)}</td>
         </tr>"""
 
     totals_html = f"""
@@ -435,13 +435,13 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
   <div class="tbl-label">بيان الأصناف</div>
   <table>
     <thead><tr>
-      <th style="width:28px;text-align:center">#</th>
-      <th>اسم الصنف</th>
-      <th style="text-align:center;width:90px">سعر الوحدة</th>
-      <th style="text-align:center;width:60px">الكمية</th>
-      <th style="text-align:center;width:50px">الوحدة</th>
-      {f'<th style="text-align:center;width:80px">الخصم</th>' if disc else ''}
-      <th style="text-align:left;width:100px">الإجمالي</th>
+      <th style="text-align:center;white-space:nowrap">#</th>
+      <th style="width:100%">اسم الصنف</th>
+      <th style="text-align:center;white-space:nowrap">سعر الوحدة</th>
+      <th style="text-align:center;white-space:nowrap">الكمية</th>
+      <th style="text-align:center;white-space:nowrap">الوحدة</th>
+      {f'<th style="text-align:center;white-space:nowrap">الخصم</th>' if disc else ''}
+      <th style="text-align:left;white-space:nowrap">الإجمالي</th>
     </tr></thead>
     <tbody>{rows_html}</tbody>
   </table>
@@ -499,7 +499,7 @@ async def print_dispatch(doc_number: str, token: str = Query(None),
     rows_html = ""
     for idx, it in enumerate(items, 1):
         rows_html += f"""<tr>
-          <td style="color:#9ca3af;font-size:11px;width:36px;text-align:center">{idx}</td>
+          <td style="color:#9ca3af;font-size:9px;text-align:center;white-space:nowrap">{idx}</td>
           <td><div class="td-name">{it.get('product_name', it.get('product_id',''))}</div></td>
           <td style="text-align:center;width:100px;color:#374151">{float(it.get('qty',0)):g} {it.get('unit','')}</td>
           <td style="color:#6b7280;font-size:11px">{it.get('note','')}</td>
@@ -755,11 +755,11 @@ async def print_purchase(po_id: uuid.UUID, token: str = Query(None),
     for idx, it in enumerate(items, 1):
         line = float(it['qty_ordered']) * float(it['unit_cost'])
         rows_html += f"""<tr>
-          <td style="color:#9ca3af;font-size:11px;width:36px;text-align:center">{idx}</td>
+          <td style="color:#9ca3af;font-size:9px;text-align:center;white-space:nowrap">{idx}</td>
           <td><div class="td-name">{it['product_name']}</div></td>
           <td style="text-align:center;width:90px;color:#374151">{ar_num(float(it['qty_ordered']), 0)} {it.get('unit','')}</td>
           <td style="text-align:center;width:110px;color:#374151">{ar_egp(float(it['unit_cost']))}</td>
-          <td style="width:120px">{ar_egp(line)}</td>
+          <td style="text-align:left;white-space:nowrap">{ar_egp(line)}</td>
         </tr>"""
 
     body = f"""
