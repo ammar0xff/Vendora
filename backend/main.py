@@ -13,6 +13,7 @@ import app.models.product    # noqa
 import app.models.warehouse  # noqa
 import app.models.stock      # noqa
 import app.models.party      # noqa
+import app.models.payment_wallet  # noqa  ← must be before sale
 import app.models.sale       # noqa
 import app.models.shift      # noqa
 import app.models.purchase   # noqa

@@ -627,25 +627,42 @@ export default function POSPage() {
 
             {/* Payment method — shown when not credit */}
             {!isCredit && (
-              <div className="flex gap-2 mb-2 flex-wrap">
-                {[
-                  { value: 'cash', label: '💵 نقدي', sub: 'الدرج' },
-                  ...((wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => ({
-                    value: w.id,
-                    label: w.type === 'vodafone_cash' ? `📱 ${w.name}` : `💳 ${w.name}`,
-                    sub: w.phone || '',
-                  })))
-                ].map(opt => (
-                  <button key={opt.value} type="button"
-                    onClick={() => { setPaymentMethod(opt.value === 'cash' ? 'cash' : 'wallet'); setPaymentWalletId(opt.value === 'cash' ? '' : opt.value) }}
-                    className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex-shrink-0 flex flex-col items-center leading-tight',
-                      (opt.value === 'cash' ? paymentMethod === 'cash' : paymentWalletId === opt.value)
-                        ? 'bg-blue-500 text-white border-blue-400'
-                        : 'border-white/20 text-white/60 hover:text-white')}>
-                    <span>{opt.label}</span>
-                    {opt.sub && <span className="opacity-70 text-[10px]">{opt.sub}</span>}
-                  </button>
-                ))}
+              <div className="flex gap-2 mb-2 items-center">
+                {/* Cash button */}
+                <button type="button"
+                  onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
+                  className={clsx('px-3 py-2 rounded-lg text-xs font-bold border transition-all flex-shrink-0',
+                    paymentMethod === 'cash'
+                      ? 'bg-blue-500 text-white border-blue-400'
+                      : 'border-white/20 text-white/60 hover:text-white')}>
+                  💵 نقدي
+                </button>
+
+                {/* Wallets dropdown */}
+                {(wallets || []).filter((w: any) => w.type !== 'cash').length > 0 && (
+                  <div className="relative flex-1">
+                    <select
+                      value={paymentMethod === 'wallet' ? paymentWalletId : ''}
+                      onChange={e => {
+                        if (e.target.value) { setPaymentMethod('wallet'); setPaymentWalletId(e.target.value) }
+                        else { setPaymentMethod('cash'); setPaymentWalletId('') }
+                      }}
+                      className={clsx(
+                        'w-full rounded-lg text-xs font-bold border px-3 py-2 appearance-none cursor-pointer transition-all outline-none',
+                        paymentMethod === 'wallet'
+                          ? 'bg-blue-500 text-white border-blue-400'
+                          : 'bg-white/10 border-white/20 text-white/60 hover:text-white'
+                      )}
+                      style={{ background: paymentMethod === 'wallet' ? '#3b82f6' : 'rgba(255,255,255,0.1)' }}>
+                      <option value="" style={{ background: '#1e3a5f', color: '#fff' }}>💳 تحويل إلكتروني...</option>
+                      {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                        <option key={w.id} value={w.id} style={{ background: '#1e3a5f', color: '#fff' }}>
+                          {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}{w.phone ? ` — ${w.phone}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
             {/* Customer smart search */}
