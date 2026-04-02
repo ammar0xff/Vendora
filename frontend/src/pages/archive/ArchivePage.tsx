@@ -3,20 +3,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { archiveApi } from '../../api/endpoints'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ClipboardList, ShoppingBag, Info, Wallet } from 'lucide-react'
+import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ClipboardList, ShoppingBag, Info, Wallet, FileDown } from 'lucide-react'
 
 const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
 const printUrl = (path: string) => `/api${path}?token=${getToken()}`
+const pdfUrl = (path: string) => `/api${path}?token=${getToken()}`
 
-const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; printPath?: (d: any) => string }> = {
-  sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,       color: '#16a34a', printPath: d => printUrl(`/print/sale/${d.ref_id}`) },
-  quotation:       { label: 'عرض سعر',          icon: FileText,      color: '#c8a84b', printPath: d => printUrl(`/print/sale/${d.ref_id}`) },
-  purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,   color: '#7c3aed', printPath: d => printUrl(`/print/purchase/${d.ref_id}`) },
-  dispatch_order:  { label: 'إذن صرف',          icon: Truck,         color: '#1e3a5f', printPath: d => printUrl(`/print/dispatch/${d.doc_number}`) },
-  goods_receipt:   { label: 'استلام بضاعة',     icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`) },
-  stock_request:   { label: 'طلب نواقص',        icon: ClipboardList, color: '#d97706', printPath: d => printUrl(`/print/archive/${d.id}`) },
-  shift_report:    { label: 'تقرير وردية',      icon: BarChart2,     color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`) },
-  shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,     color: '#dc2626', printPath: d => printUrl(`/print/handover/${d.doc_number}`) },
+const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; printPath?: (d: any) => string; pdfPath?: (d: any) => string }> = {
+  sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,       color: '#16a34a', printPath: d => printUrl(`/print/sale/${d.ref_id}`),             pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
+  quotation:       { label: 'عرض سعر',          icon: FileText,      color: '#c8a84b', printPath: d => printUrl(`/print/sale/${d.ref_id}`),             pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
+  purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,   color: '#7c3aed', printPath: d => printUrl(`/print/purchase/${d.ref_id}`),         pdfPath: d => pdfUrl(`/print/pdf/purchase/${d.ref_id}`) },
+  dispatch_order:  { label: 'إذن صرف',          icon: Truck,         color: '#1e3a5f', printPath: d => printUrl(`/print/dispatch/${d.doc_number}`),     pdfPath: d => pdfUrl(`/print/pdf/dispatch/${d.doc_number}`) },
+  goods_receipt:   { label: 'استلام بضاعة',     icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  stock_request:   { label: 'طلب نواقص',        icon: ClipboardList, color: '#d97706', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  shift_report:    { label: 'تقرير وردية',      icon: BarChart2,     color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,     color: '#dc2626', printPath: d => printUrl(`/print/handover/${d.doc_number}`),     pdfPath: d => pdfUrl(`/print/pdf/handover/${d.doc_number}`) },
   inventory_report:{ label: 'تقرير مخزون',      icon: BarChart2,     color: '#059669', printPath: d => printUrl(`/print/archive/${d.id}`) },
 }
 
@@ -156,6 +157,13 @@ export default function ArchivePage() {
                 className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="طباعة">
                 <Printer size={14} />
               </button>
+            )}
+            {cfg?.pdfPath && (
+              <a href={cfg.pdfPath!(d)} target="_blank" rel="noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center" title="تحميل PDF">
+                <FileDown size={14} />
+              </a>
             )}
             <button onClick={e => { e.stopPropagation(); if (confirm('حذف المستند؟')) deleteMut.mutate(d.id) }}
               className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">

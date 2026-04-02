@@ -296,6 +296,20 @@ async def html_to_pdf(html: str) -> bytes:
     return WP(string=html, base_url=None).write_pdf()
 
 
+async def get_paper_size(db, override: str = None) -> str:
+    if override:
+        return override
+    row = await db.execute(text("SELECT value FROM store_settings WHERE key='paper_size'"))
+    val = row.scalar()
+    if val:
+        import json as _j
+        try:
+            return _j.loads(val)
+        except Exception:
+            return val
+    return "A4"
+
+
 def top_band(store, doc_type_label, doc_number, date_str):
     logo = store.get('logo_url','')
     logo_html = (f'<img src="{logo}" class="brand-logo"/>'
@@ -927,27 +941,48 @@ async def print_inventory(warehouse_id: uuid.UUID, token: str = Query(None),
 
 
 
+import re as _re
+
+def _extract_body(html_response) -> str:
+    """Extract inner body from wrap() HTMLResponse."""
+    raw = html_response.body.decode('utf-8') if isinstance(html_response.body, bytes) else str(html_response.body)
+    m = _re.search(r'<div class="sheet">(.*?)</div>\s*<button', raw, _re.DOTALL)
+    return m.group(1) if m else raw
+
+async def _make_pdf(html_response, title: str, filename: str, db, paper_size_override: str = None) -> Response:
+    size = await get_paper_size(db, paper_size_override)
+    body = _extract_body(html_response)
+    pdf = await html_to_pdf(wrap_pdf(body, title, size))
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename={filename}"})
+
+
 @router.get("/pdf/sale/{sale_id}")
-async def pdf_sale(sale_id: uuid.UUID, paper_size: str = "A4", token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
-    html = await print_sale(sale_id, token, db, user)
-    # Extract body from HTMLResponse
-    body_html = html.body.decode('utf-8') if isinstance(html.body, bytes) else str(html.body)
-    # Strip the wrap() and re-wrap for PDF
-    import re
-    match = re.search(r'<div class="sheet">(.*?)</div>\s*<button', body_html, re.DOTALL)
-    if match:
-        body_html = match.group(1)
-    pdf_bytes = await html_to_pdf(wrap_pdf(body_html, "فاتورة", paper_size))
-    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename=sale_{sale_id}.pdf"})
+async def pdf_sale(sale_id: uuid.UUID, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_sale(sale_id, token, db, user), "فاتورة", f"sale_{sale_id}.pdf", db, paper_size)
+
+
+@router.get("/pdf/purchase/{po_id}")
+async def pdf_purchase(po_id: uuid.UUID, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_purchase(po_id, token, db, user), "أمر شراء", f"purchase_{po_id}.pdf", db, paper_size)
+
+
+@router.get("/pdf/dispatch/{doc_number}")
+async def pdf_dispatch(doc_number: str, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_dispatch(doc_number, token, db, user), "إذن صرف", f"dispatch_{doc_number}.pdf", db, paper_size)
+
+
+@router.get("/pdf/handover/{doc_number}")
+async def pdf_handover(doc_number: str, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_handover(doc_number, token, db, user), "تسليم عهدة", f"handover_{doc_number}.pdf", db, paper_size)
+
+
+@router.get("/pdf/archive/{doc_id}")
+async def pdf_archive(doc_id: uuid.UUID, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_archive_doc(doc_id, token, db, user), "مستند أرشيف", f"archive_{doc_id}.pdf", db, paper_size)
 
 
 @router.get("/pdf/inventory/{warehouse_id}")
-async def pdf_inventory(warehouse_id: uuid.UUID, paper_size: str = "A4", token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
-    html = await print_inventory(warehouse_id, token, db, user)
-    body_html = html.body.decode('utf-8') if isinstance(html.body, bytes) else str(html.body)
-    import re
-    match = re.search(r'<div class="sheet">(.*?)</div>\s*<button', body_html, re.DOTALL)
-    if match:
-        body_html = match.group(1)
-    pdf_bytes = await html_to_pdf(wrap_pdf(body_html, "تقرير المخزون", paper_size))
-    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename=inventory_{warehouse_id}.pdf"})
+async def pdf_inventory(warehouse_id: uuid.UUID, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_inventory(warehouse_id, token, db, user), "تقرير المخزون", f"inventory_{warehouse_id}.pdf", db, paper_size)
+

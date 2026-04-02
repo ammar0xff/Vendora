@@ -218,6 +218,16 @@ export default function SettingsPage() {
               </div>
             ))}
 
+            {/* Paper size */}
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">حجم ورق الطباعة والـ PDF</label>
+              <select className="input" value={sf.paper_size || 'A4'} onChange={e => setStoreForm({ ...sf, paper_size: e.target.value })}>
+                <option value="A4">A4 (210 × 297 mm) — الأكثر شيوعاً</option>
+                <option value="A5">A5 (148 × 210 mm) — فواتير صغيرة</option>
+                <option value="Letter">Letter (216 × 279 mm) — أمريكي</option>
+              </select>
+            </div>
+
             {/* Contact phones */}
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">أرقام التواصل (تظهر في الفواتير)</label>
