@@ -200,10 +200,10 @@ def pdf_css(paper_size="A4"):
     width: 100%;
   }}
   @bottom-center {{
-    content: "";
+    content: none;
   }}
   @bottom-right {{
-    content: "";
+    content: none;
   }}
 }}
 
