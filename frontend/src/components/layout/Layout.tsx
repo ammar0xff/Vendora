@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, BarChart3,
   Archive, Settings, Users, LogOut, Wallet, FileText,
   Building2, Receipt, Truck, UserCheck, ShieldCheck,
-  DollarSign, Scale, ShoppingBag, ChevronLeft, ChevronRight, ClipboardList
+  DollarSign, Scale, ShoppingBag, ChevronLeft, ChevronRight, ClipboardList, Vault
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
@@ -48,6 +48,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/reports',  icon: BarChart3, label: 'التقارير',       perm: 'reports',  warehouseTypes: ['all'] },
       { to: '/finance',  icon: Scale,     label: 'الميزان المالي', perm: 'finance',  warehouseTypes: ['all'] },
+      { to: '/safes',    icon: Vault,     label: 'الخزن المالية',  perm: 'finance',  warehouseTypes: ['all'] },
       { to: '/archive',  icon: Archive,   label: 'الأرشيف',        perm: 'archive',  warehouseTypes: ['all'] },
     ]
   },

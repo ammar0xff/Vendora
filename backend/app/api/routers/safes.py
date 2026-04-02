@@ -1,5 +1,5 @@
 """Safes (خزنات) — treasury management."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
@@ -72,6 +72,13 @@ async def deposit_to_safe(
         "UPDATE safes SET balance = balance + :amt WHERE id = :id"
     ), {"amt": data["amount"], "id": safe_id})
 
+    # Log transaction
+    new_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
+    await db.execute(text("""
+        INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
+        VALUES (:sid, 'deposit', :amt, :bal, :note, :uid)
+    """), {"sid": safe_id, "amt": data["amount"], "bal": new_balance, "note": data.get("notes") or data.get("note", ""), "uid": current_user.id})
+
     # Archive the deposit document
     safe_name = (await db.execute(text("SELECT name FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
     wh_name = ""
@@ -103,13 +110,33 @@ async def deposit_to_safe(
     }
 
 
+@router.post("/{safe_id}/withdraw")
+async def withdraw_from_safe(
+    safe_id: uuid.UUID,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    safe = (await db.execute(text("SELECT * FROM safes WHERE id=:id"), {"id": safe_id})).mappings().fetchone()
+    if not safe:
+        raise HTTPException(404, "Safe not found")
+    if float(safe["balance"]) < float(data["amount"]):
+        raise HTTPException(400, f"رصيد الخزنة غير كافٍ ({safe['balance']} ج.م)")
+
+    await db.execute(text("UPDATE safes SET balance = balance - :amt WHERE id = :id"),
+                     {"amt": data["amount"], "id": safe_id})
+    new_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
+    await db.execute(text("""
+        INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
+        VALUES (:sid, 'withdraw', :amt, :bal, :note, :uid)
+    """), {"sid": safe_id, "amt": data["amount"], "bal": new_balance, "note": data.get("note", ""), "uid": current_user.id})
+    await db.commit()
+    return {"balance": new_balance}
+
+
 @router.get("/{safe_id}/history")
 async def safe_history(safe_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     rows = await db.execute(text("""
-        SELECT sd.*, w.name as warehouse_name
-        FROM safe_deposits sd
-        LEFT JOIN warehouses w ON w.id = sd.warehouse_id
-        WHERE sd.safe_id = :id
-        ORDER BY sd.created_at DESC LIMIT 100
+        SELECT * FROM safe_transactions WHERE safe_id = :id ORDER BY created_at DESC LIMIT 100
     """), {"id": safe_id})
     return [dict(r._mapping) for r in rows.fetchall()]
