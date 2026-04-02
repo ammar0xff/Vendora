@@ -219,41 +219,112 @@ tbody td:last-child{text-align:left;font-weight:700;color:#1e3a5f}
 
 
 def pdf_css(paper_size="A4"):
+    # Font sizes scale down for A5
+    is_a5 = paper_size.upper() == "A5"
+    base = "9pt" if is_a5 else "11pt"
+    small = "7pt" if is_a5 else "9pt"
+    margin_tb = "12mm" if is_a5 else "15mm"
+    margin_lr = "8mm" if is_a5 else "10mm"
+    header_h = "14mm" if is_a5 else "18mm"
+    footer_h = "10mm" if is_a5 else "12mm"
+
     return f"""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+
 @page {{
   size: {paper_size};
-  margin: 15mm 10mm 20mm 10mm;
-  @top-left {{ content: element(doc-header); }}
+  margin: {margin_tb} {margin_lr} {footer_h} {margin_lr};
+  margin-top: calc({margin_tb} + {header_h});
+
+  @top-left {{
+    content: element(pdf-running-header);
+    width: 100%;
+  }}
+  @bottom-left {{
+    content: "";
+    border-top: 1px solid #e2e8f0;
+    width: 100%;
+  }}
   @bottom-center {{
-    content: "صفحة " counter(page) " من " counter(pages);
+    content: string(doc-title-str) " — صفحة " counter(page) " من " counter(pages);
     font-family: 'Cairo', sans-serif;
-    font-size: 9pt;
+    font-size: {small};
     color: #9ca3af;
   }}
   @bottom-right {{
-    content: string(doc-number);
+    content: string(doc-number-str);
     font-family: 'Cairo', sans-serif;
-    font-size: 9pt;
-    color: #9ca3af;
+    font-size: {small};
+    color: #6b7280;
+    font-weight: 700;
   }}
 }}
-.pdf-header-runner {{
-  position: running(doc-header);
+
+/* Running header — repeats on every page */
+.pdf-running-header {{
+  position: running(pdf-running-header);
+  width: 100%;
+  background: #1e3a5f;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #1e3a5f;
-  padding-bottom: 6pt;
-  margin-bottom: 0;
+  padding: 6pt 10pt;
+  font-family: 'Cairo', sans-serif;
 }}
-.pdf-doc-number {{ string-set: doc-number content(); }}
-table {{ page-break-inside: auto; }}
-tr {{ page-break-inside: avoid; break-inside: avoid; }}
+.pdf-running-header .rh-brand {{
+  color: #fff;
+  font-size: {base};
+  font-weight: 800;
+}}
+.pdf-running-header .rh-doc {{
+  color: #c8a84b;
+  font-size: {base};
+  font-weight: 700;
+  text-align: left;
+}}
+
+/* String setters — invisible elements that set page margin strings */
+.pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
+.pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
+
+/* Override screen styles for PDF */
+html, body {{
+  font-size: {base};
+  background: white !important;
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+}}
+.sheet {{
+  box-shadow: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  width: 100% !important;
+  min-height: unset !important;
+}}
+.top-band {{ display: none !important; }}  /* replaced by running header */
+.ribbon  {{ display: none !important; }}
+.no-print, .fab {{ display: none !important; }}
+
+/* Table pagination */
+table {{ page-break-inside: auto; width: 100%; }}
+tr    {{ page-break-inside: avoid; break-inside: avoid; }}
 thead {{ display: table-header-group; }}
 tfoot {{ display: table-footer-group; }}
-.sheet {{ box-shadow: none; margin: 0; border-radius: 0; width: 100%; }}
-.no-print {{ display: none !important; }}
+.parties, .meta-row, .doc-footer, .totals-section {{
+  page-break-inside: avoid;
+  break-inside: avoid;
+}}
+.doc-footer {{ margin-top: 16pt; }}
+
+/* Scale down some sizes for A5 */
+{"" if not is_a5 else """
+.party-name { font-size: 11pt !important; }
+.t-grand .t-val { font-size: 14pt !important; }
+tbody td { padding: 7px 10px !important; font-size: 10pt !important; }
+thead th { padding: 7px 10px !important; font-size: 9pt !important; }
+.totals-box { min-width: 180px !important; }
+"""}
 </style>"""
 
 
@@ -275,8 +346,8 @@ def wrap(body, title="مستند"):
 </html>"""
 
 
-def wrap_pdf(body, title="مستند", paper_size="A4"):
-    """HTML wrapper optimised for WeasyPrint — no screen chrome, paged CSS."""
+def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", doc_number=""):
+    """HTML wrapper optimised for WeasyPrint — running header/footer on every page."""
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -286,6 +357,14 @@ def wrap_pdf(body, title="مستند", paper_size="A4"):
 {pdf_css(paper_size)}
 </head>
 <body>
+<!-- Running header — WeasyPrint repeats this on every page via position:running() -->
+<div class="pdf-running-header">
+  <span class="rh-brand">{company_name}</span>
+  <span class="rh-doc">{title}</span>
+</div>
+<!-- String setters for footer -->
+<span class="pdf-doc-number">{doc_number}</span>
+<span class="pdf-doc-title">{title}</span>
 {body}
 </body>
 </html>"""
@@ -949,10 +1028,18 @@ def _extract_body(html_response) -> str:
     m = _re.search(r'<div class="sheet">(.*?)</div>\s*<button', raw, _re.DOTALL)
     return m.group(1) if m else raw
 
+def _extract_meta(html_response) -> tuple[str, str]:
+    """Extract (company_name, doc_number) from rendered HTML."""
+    raw = html_response.body.decode('utf-8') if isinstance(html_response.body, bytes) else str(html_response.body)
+    co = _re.search(r'class="co-name"[^>]*>([^<]+)<', raw)
+    dn = _re.search(r'class="doc-num"[^>]*>([^<]+)<', raw)
+    return (co.group(1).strip() if co else "EG-CO"), (dn.group(1).strip() if dn else "")
+
 async def _make_pdf(html_response, title: str, filename: str, db, paper_size_override: str = None) -> Response:
     size = await get_paper_size(db, paper_size_override)
     body = _extract_body(html_response)
-    pdf = await html_to_pdf(wrap_pdf(body, title, size))
+    company, doc_num = _extract_meta(html_response)
+    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num))
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"inline; filename={filename}"})
 
