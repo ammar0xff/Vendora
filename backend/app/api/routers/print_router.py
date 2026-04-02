@@ -416,19 +416,19 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 <div class="body">
 
-  <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
+  <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
     <tr>
-      <td style="width:40%;padding:6px 10px;border:1px solid #ccc;border-right:2px solid #111;vertical-align:top">
+      <td style="width:42%;padding:6px 10px;border:1px solid #ccc;border-right:2px solid #111;vertical-align:top">
         <div class="party-label">فاتورة إلى</div>
         <div class="party-name">{customer_name}</div>
         {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
       </td>
-      <td style="width:40%;padding:6px 10px;border:1px solid #ccc;vertical-align:top">
+      <td style="width:42%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:top">
         <div class="party-label">صادرة من</div>
         <div class="party-name">{sale.get('warehouse_name','—')}</div>
         <div class="party-detail">{store['name']}</div>
       </td>
-      <td style="width:20%;padding:6px 10px;border:1px solid #ccc;vertical-align:top;text-align:center">
+      <td style="width:16%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:middle;text-align:center">
         <div class="party-label">الحالة</div>
         <div style="margin-top:3px"><span class="badge {st_cls}">{st_lbl}</span></div>
       </td>
@@ -451,17 +451,12 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
 
-  <div style="margin-top:8px;display:flex;justify-content:flex-end">
-    <div style="min-width:180px;border:1px solid #ccc">
-      <div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8">
-        <span style="color:#555">المجموع الفرعي</span><span style="font-weight:700">{ar_egp(subtotal)}</span>
-      </div>
-      {f'<div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8"><span style="color:#555">الخصم</span><span style="font-weight:700;color:#991b1b">({ar_egp(disc)})</span></div>' if disc else ''}
-      <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;background:#111">
-        <span style="color:rgba(255,255,255,.7);font-size:10px;font-weight:600">الإجمالي</span>
-        <span style="color:#fff;font-size:14px;font-weight:900">{ar_egp(total)}</span>
-      </div>
-    </div>
+  <div style="margin-top:6px;display:flex;justify-content:flex-end">
+    <table style="border-collapse:collapse;border:1px solid #ccc;min-width:220px">
+      <tr><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555">المجموع الفرعي</td><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;text-align:left;white-space:nowrap">{ar_egp(subtotal)}</td></tr>
+      {f'<tr><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555">الخصم</td><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;color:#991b1b;text-align:left;white-space:nowrap">({ar_egp(disc)})</td></tr>' if disc else ''}
+      <tr style="background:#111"><td style="padding:6px 10px;font-size:10px;font-weight:600;color:rgba(255,255,255,.7)">الإجمالي</td><td style="padding:6px 10px;font-size:14px;font-weight:900;color:#fff;text-align:left;white-space:nowrap">{ar_egp(total)}</td></tr>
+    </table>
   </div>
 
 </div>
