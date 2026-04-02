@@ -228,7 +228,8 @@ def pdf_css(paper_size="A4"):
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
-.sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: unset !important; }}
+.sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; height: auto !important; display: block !important; }}
+.body  {{ flex: none !important; }}
 .top-band {{ display: none !important; }}
 .ribbon   {{ display: none !important; }}
 .no-print, .fab {{ display: none !important; }}
