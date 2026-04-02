@@ -470,10 +470,23 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<div style="border-top:2px solid #111;padding:8px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center">
-  <div style="font-size:8px;color:#666">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
-  <div style="display:flex;gap:16px">
-    {'  '.join(f'<span style="font-size:9px;color:#333"><span style="color:#999;font-size:8px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
+<div style="border-top:2px solid #111;padding:8px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;gap:12px">
+  <div style="display:flex;align-items:center;gap:16px;flex:1">
+    <div style="text-align:center;min-width:80px">
+      <div style="font-size:8px;font-weight:700;color:#333;margin-bottom:16px">توقيع المُسلِّم</div>
+      <div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div>
+    </div>
+    <div style="text-align:center;min-width:80px">
+      <div style="font-size:8px;font-weight:700;color:#333;margin-bottom:16px">توقيع المُستلِم</div>
+      <div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div>
+    </div>
+  </div>
+  <div style="text-align:center">
+    <div style="width:44px;height:44px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;font-size:7px;color:#ccc">الختم</div>
+    <div style="font-size:7px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div>
+  </div>
+  <div style="text-align:left;flex:1;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end">
+    {''.join(f'<span style="font-size:8px;color:#333"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
   </div>
 </div>"""
 
