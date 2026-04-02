@@ -205,11 +205,10 @@ export default function POSPage() {
       setIsCredit(false)
       qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
       qc.invalidateQueries({ queryKey: ['recent-sales'] })
-      // Auto-print
+      // Auto-open PDF
       try {
-        // Open new HTML print endpoint
         const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-        window.open(`/api/print/sale/${data.id}?token=${token}`, '_blank')
+        window.open(`/api/print/pdf/sale/${data.id}?token=${token}`, '_blank')
       } catch { /* print failed silently */ }
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل في إتمام البيع'),
