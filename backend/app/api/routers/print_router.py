@@ -318,13 +318,6 @@ tfoot {{ display: table-footer-group; }}
 .doc-footer {{ margin-top: 16pt; }}
 
 /* Scale down some sizes for A5 */
-{"" if not is_a5 else """
-.party-name { font-size: 11pt !important; }
-.t-grand .t-val { font-size: 14pt !important; }
-tbody td { padding: 7px 10px !important; font-size: 10pt !important; }
-thead th { padding: 7px 10px !important; font-size: 9pt !important; }
-.totals-box { min-width: 180px !important; }
-"""}
 </style>"""
 
 
@@ -370,9 +363,9 @@ def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", do
 </html>"""
 
 
-async def html_to_pdf(html: str) -> bytes:
+async def html_to_pdf(html: str, zoom: float = 1.0) -> bytes:
     from weasyprint import HTML as WP
-    return WP(string=html, base_url=None).write_pdf()
+    return WP(string=html, base_url=None).write_pdf(zoom=zoom)
 
 
 async def get_paper_size(db, override: str = None) -> str:
@@ -1039,7 +1032,9 @@ async def _make_pdf(html_response, title: str, filename: str, db, paper_size_ove
     size = await get_paper_size(db, paper_size_override)
     body = _extract_body(html_response)
     company, doc_num = _extract_meta(html_response)
-    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num))
+    # A5 is 70.5% the width of A4 — scale content proportionally
+    zoom = 0.705 if size.upper() == "A5" else 1.0
+    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num), zoom=zoom)
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"inline; filename={filename}"})
 
