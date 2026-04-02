@@ -26,6 +26,44 @@ async def create_safe(data: dict, db: AsyncSession = Depends(get_db), _=Depends(
     return dict(r.fetchone()._mapping)
 
 
+@router.put("/{safe_id}")
+async def update_safe(safe_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    await db.execute(text(
+        "UPDATE safes SET name=:name, location=:loc WHERE id=:id"
+    ), {"name": data["name"], "loc": data.get("location", ""), "id": safe_id})
+    await db.commit()
+    r = await db.execute(text("SELECT * FROM safes WHERE id=:id"), {"id": safe_id})
+    return dict(r.fetchone()._mapping)
+
+
+@router.post("/transfer")
+async def transfer_to_safe(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Transfer balance from a payment wallet to a permanent safe."""
+    wallet_id = data["from_wallet_id"]
+    safe_id = data["to_safe_id"]
+    amt = float(data["amount"])
+
+    wallet = (await db.execute(text("SELECT * FROM payment_wallets WHERE id=:id"), {"id": wallet_id})).mappings().fetchone()
+    if not wallet:
+        raise HTTPException(404, "Wallet not found")
+    if float(wallet["balance"]) < amt:
+        raise HTTPException(400, f"رصيد المحفظة غير كافٍ ({wallet['balance']} ج.م)")
+
+    # Deduct from wallet
+    await db.execute(text("UPDATE payment_wallets SET balance = balance - :amt WHERE id=:id"), {"amt": amt, "id": wallet_id})
+    # Add to safe
+    await db.execute(text("UPDATE safes SET balance = balance + :amt WHERE id=:id"), {"amt": amt, "id": safe_id})
+    # Log transaction
+    new_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
+    await db.execute(text("""
+        INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
+        VALUES (:sid, 'deposit', :amt, :bal, :note, :uid)
+    """), {"sid": safe_id, "amt": amt, "bal": new_balance,
+           "note": data.get("note") or f"تحويل من {wallet['name']}", "uid": current_user.id})
+    await db.commit()
+    return {"ok": True}
+
+
 @router.post("/{safe_id}/deposit")
 async def deposit_to_safe(
     safe_id: uuid.UUID,
