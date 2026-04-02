@@ -416,22 +416,24 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 <div class="body">
 
-  <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start">
-    <div class="party-card buyer" style="flex:1">
-      <div class="party-label">فاتورة إلى</div>
-      <div class="party-name">{customer_name}</div>
-      {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
-    </div>
-    <div class="party-card" style="flex:1">
-      <div class="party-label">صادرة من</div>
-      <div class="party-name">{sale.get('warehouse_name','—')}</div>
-      <div class="party-detail">{store['name']}</div>
-    </div>
-    <div class="party-card" style="flex:0 0 auto;min-width:80px;text-align:center">
-      <div class="party-label">الحالة</div>
-      <div style="margin-top:4px"><span class="badge {st_cls}">{st_lbl}</span></div>
-    </div>
-  </div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
+    <tr>
+      <td style="width:40%;padding:6px 10px;border:1px solid #ccc;border-right:2px solid #111;vertical-align:top">
+        <div class="party-label">فاتورة إلى</div>
+        <div class="party-name">{customer_name}</div>
+        {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
+      </td>
+      <td style="width:40%;padding:6px 10px;border:1px solid #ccc;vertical-align:top">
+        <div class="party-label">صادرة من</div>
+        <div class="party-name">{sale.get('warehouse_name','—')}</div>
+        <div class="party-detail">{store['name']}</div>
+      </td>
+      <td style="width:20%;padding:6px 10px;border:1px solid #ccc;vertical-align:top;text-align:center">
+        <div class="party-label">الحالة</div>
+        <div style="margin-top:3px"><span class="badge {st_cls}">{st_lbl}</span></div>
+      </td>
+    </tr>
+  </table>
 
   <div class="tbl-label">بيان الأصناف</div>
   <table>
@@ -449,7 +451,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
 
-  <div style="margin-top:10px;display:flex;justify-content:flex-end">
+  <div style="margin-top:8px;display:flex;justify-content:flex-end">
     <div style="min-width:180px;border:1px solid #ccc">
       <div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8">
         <span style="color:#555">المجموع الفرعي</span><span style="font-weight:700">{ar_egp(subtotal)}</span>
@@ -464,12 +466,12 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<div style="border-top:2px solid #111;padding:7px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;gap:12px">
-  <div style="font-size:8px;color:#333">
+<div style="border-top:2px solid #111;padding:6px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+  <div style="font-size:8px;color:#333;white-space:nowrap">
     {f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}
   </div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end">
-    {''.join(f'<span style="font-size:8px;color:#333"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
+  <div style="display:flex;gap:10px;flex-wrap:nowrap">
+    {''.join(f'<span style="font-size:8px;color:#333;white-space:nowrap"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
   </div>
 </div>"""
 
