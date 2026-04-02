@@ -473,10 +473,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<div class="sale-footer-info">
-  {f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}
-  {'  '.join(f'· {c.get("name","")}: {c.get("phone","")}' for c in store.get('contacts',[]) if c.get('phone'))}
-</div>"""
+<div class="sale-footer-info"><table style="width:100%;border-collapse:collapse"><tr><td style="text-align:right;white-space:nowrap">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>"""
 
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
