@@ -627,20 +627,23 @@ export default function POSPage() {
 
             {/* Payment method — shown when not credit */}
             {!isCredit && (
-              <div className="flex gap-2 mb-2">
+              <div className="flex gap-2 mb-2 flex-wrap">
                 {[
-                  { value: 'cash', label: '💵 نقدي' },
+                  { value: 'cash', label: '💵 نقدي', sub: 'الدرج' },
                   ...((wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => ({
-                    value: w.id, label: w.type === 'vodafone_cash' ? `📱 ${w.name}` : `🏦 ${w.name}`
+                    value: w.id,
+                    label: w.type === 'vodafone_cash' ? `📱 ${w.name}` : `💳 ${w.name}`,
+                    sub: w.phone || '',
                   })))
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => { setPaymentMethod(opt.value === 'cash' ? 'cash' : 'wallet'); setPaymentWalletId(opt.value === 'cash' ? '' : opt.value) }}
-                    className={clsx('px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex-shrink-0',
+                    className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex-shrink-0 flex flex-col items-center leading-tight',
                       (opt.value === 'cash' ? paymentMethod === 'cash' : paymentWalletId === opt.value)
                         ? 'bg-blue-500 text-white border-blue-400'
                         : 'border-white/20 text-white/60 hover:text-white')}>
-                    {opt.label}
+                    <span>{opt.label}</span>
+                    {opt.sub && <span className="opacity-70 text-[10px]">{opt.sub}</span>}
                   </button>
                 ))}
               </div>

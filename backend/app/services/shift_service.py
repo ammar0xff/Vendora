@@ -85,6 +85,10 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     """), {"sid": shift_id})
     payment_breakdown = [dict(r._mapping) for r in pay_rows.fetchall()]
 
+    # Cash-only total (what's actually in the drawer — excludes wallets)
+    cash_sales = sum(float(p["total"]) for p in payment_breakdown if p["method"] == "cash")
+    wallet_sales = sum(float(p["total"]) for p in payment_breakdown if p["method"] != "cash")
+
     return {
         "shift_id": shift_id,
         "initial_amount": shift.initial_amount,
@@ -92,6 +96,8 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "returns_total": returns,
         "expenses_total": expenses,
         "expected_balance": expected,
+        "cash_in_drawer": float(shift.initial_amount) + cash_sales - float(returns) - float(expenses),
+        "wallet_total": wallet_sales,
         "closing_balance": shift.closing_balance,
         "variance": variance,
         "transaction_count": tx_count.scalar_one(),
