@@ -421,59 +421,50 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
       <div class="party-name">{customer_name}</div>
       {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
     </div>
-    <div class="party-card">
-      <div class="party-label">صادرة من</div>
-      <div class="party-name">{store['name']}</div>
-      <div class="party-detail">{'  ·  '.join(filter(None,[store.get('address',''),store.get('phone','')]))}</div>
-    </div>
   </div>
 
   <div class="meta-row">
     <div class="meta-cell"><div class="m-lbl">الحالة</div><div class="m-val"><span class="badge {st_cls}">{st_lbl}</span></div></div>
-    <div class="meta-cell"><div class="m-lbl">نوع البيع</div><div class="m-val">{mode_label}</div></div>
     <div class="meta-cell"><div class="m-lbl">الفرع</div><div class="m-val">{sale.get('warehouse_name','—')}</div></div>
-    {f'<div class="meta-cell"><div class="m-lbl">أنشأه</div><div class="m-val">{sale["created_by_name"]}</div></div>' if sale.get('created_by_name') else ''}
   </div>
 
   <div class="tbl-label">بيان الأصناف</div>
   <table>
     <thead><tr>
-      <th style="width:36px;text-align:center">#</th>
+      <th style="width:28px;text-align:center">#</th>
       <th>اسم الصنف</th>
-      <th style="text-align:center;width:110px">سعر الوحدة</th>
-      <th style="text-align:center;width:80px">الكمية</th>
-      <th style="text-align:center;width:70px">الوحدة</th>
-      {f'<th style="text-align:center;width:90px">الخصم</th>' if disc else ''}
-      <th style="text-align:left;width:120px">الإجمالي</th>
+      <th style="text-align:center;width:90px">سعر الوحدة</th>
+      <th style="text-align:center;width:60px">الكمية</th>
+      <th style="text-align:center;width:50px">الوحدة</th>
+      {f'<th style="text-align:center;width:80px">الخصم</th>' if disc else ''}
+      <th style="text-align:left;width:100px">الإجمالي</th>
     </tr></thead>
     <tbody>{rows_html}</tbody>
   </table>
 
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
 
-  <div style="margin-top:12px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end">
-      {f'<div style="font-size:9px;font-weight:700;color:#555">أصدرها: {sale["created_by_name"]}</div>' if sale.get("created_by_name") else '<div></div>'}
-      <div style="min-width:180px;border:1px solid #ccc">
-        <div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8">
-          <span style="color:#555">المجموع الفرعي</span>
-          <span style="font-weight:700">{ar_egp(subtotal)}</span>
-        </div>
-    {f'<div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8"><span style="color:#555">الخصم</span><span style="font-weight:700;color:#991b1b">({ar_egp(disc)})</span></div>' if disc else ''}
-        <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;background:#111">
-          <span style="color:rgba(255,255,255,.7);font-size:10px;font-weight:600">الإجمالي</span>
-          <span style="color:#fff;font-size:14px;font-weight:900">{ar_egp(total)}</span>
-        </div>
+  <div style="margin-top:10px;display:flex;justify-content:flex-end">
+    <div style="min-width:180px;border:1px solid #ccc">
+      <div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8">
+        <span style="color:#555">المجموع الفرعي</span><span style="font-weight:700">{ar_egp(subtotal)}</span>
+      </div>
+      {f'<div style="padding:4px 10px;display:flex;justify-content:space-between;font-size:10px;border-bottom:1px solid #e8e8e8"><span style="color:#555">الخصم</span><span style="font-weight:700;color:#991b1b">({ar_egp(disc)})</span></div>' if disc else ''}
+      <div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;background:#111">
+        <span style="color:rgba(255,255,255,.7);font-size:10px;font-weight:600">الإجمالي</span>
+        <span style="color:#fff;font-size:14px;font-weight:900">{ar_egp(total)}</span>
       </div>
     </div>
   </div>
 
 </div>
 
-<div style="border-top:2px solid #111;padding:8px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center">
-  <div style="font-size:8px;color:#666">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
-  <div style="display:flex;gap:16px">
-    {'  '.join(f'<span style="font-size:9px;color:#333"><span style="color:#999;font-size:8px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
+<div style="border-top:2px solid #111;padding:7px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;gap:12px">
+  <div style="font-size:8px;color:#333">
+    {f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end">
+    {''.join(f'<span style="font-size:8px;color:#333"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
   </div>
 </div>"""
 
