@@ -212,6 +212,13 @@ def pdf_css(paper_size="A4"):
   @bottom-right {{
     content: "";
   }}
+  @bottom-left {{
+    content: string(sale-employee-str);
+    font-family: 'Cairo', sans-serif;
+    font-size: {f("7pt","6pt")};
+    color: #444;
+    direction: rtl;
+  }}
 }}
 
 .pdf-running-header {{
@@ -229,6 +236,7 @@ def pdf_css(paper_size="A4"):
 
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
+.sale-employee  {{ string-set: sale-employee-str content(); position: absolute; visibility: hidden; }}
 .sale-footer-info {{ display: none; }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
@@ -471,10 +479,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<div style="border-top:1px solid #ccc;padding:5px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:8px;flex-wrap:nowrap">
-  <span style="color:#333;white-space:nowrap">{f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}</span>
-  <div style="display:flex;gap:10px;flex-wrap:nowrap">{''.join(f'<span style="white-space:nowrap;color:#333"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}</div>
-</div>"""
+<span class="sale-employee">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at']) + '  ' + '  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</span>"""
 
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
