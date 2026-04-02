@@ -203,16 +203,17 @@ def pdf_css(paper_size="A4"):
     content: string(doc-title-str) " · " string(doc-number-str) " · صفحة " counter(page) " من " counter(pages);
     font-family: 'Cairo', sans-serif;
     font-size: {f("7pt","6pt")};
-    color: #666;
+    color: #888;
     border-top: 1px solid #ccc;
     padding-top: 3pt;
-    width: 100%;
     text-align: center;
   }}
   @bottom-right {{
     content: element(sale-footer-info);
     font-family: 'Cairo', sans-serif;
     font-size: {f("7pt","6pt")};
+    border-top: 1px solid #ccc;
+    padding-top: 3pt;
   }}
 }}
 
