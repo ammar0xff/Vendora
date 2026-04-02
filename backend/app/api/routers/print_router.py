@@ -219,21 +219,21 @@ tbody td:last-child{text-align:left;font-weight:700;color:#1e3a5f}
 
 
 def pdf_css(paper_size="A4"):
-    # Font sizes scale down for A5
     is_a5 = paper_size.upper() == "A5"
-    base = "9pt" if is_a5 else "11pt"
-    small = "7pt" if is_a5 else "9pt"
-    margin_tb = "12mm" if is_a5 else "15mm"
-    margin_lr = "8mm" if is_a5 else "10mm"
-    header_h = "14mm" if is_a5 else "18mm"
-    footer_h = "10mm" if is_a5 else "12mm"
+    small = "8pt"
+    margin_tb = "15mm"
+    margin_lr = "10mm"
+    header_h = "18mm"
+    footer_h = "12mm"
+    # Always use A4 layout — zoom handles A5 scaling
+    page_size = "A4"
 
     return f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 
 @page {{
-  size: {paper_size};
+  size: {page_size};
   margin: {margin_tb} {margin_lr} {footer_h} {margin_lr};
   margin-top: calc({margin_tb} + {header_h});
 
@@ -261,7 +261,6 @@ def pdf_css(paper_size="A4"):
   }}
 }}
 
-/* Running header — repeats on every page */
 .pdf-running-header {{
   position: running(pdf-running-header);
   width: 100%;
@@ -272,25 +271,13 @@ def pdf_css(paper_size="A4"):
   padding: 6pt 10pt;
   font-family: 'Cairo', sans-serif;
 }}
-.pdf-running-header .rh-brand {{
-  color: #fff;
-  font-size: {base};
-  font-weight: 800;
-}}
-.pdf-running-header .rh-doc {{
-  color: #c8a84b;
-  font-size: {base};
-  font-weight: 700;
-  text-align: left;
-}}
+.pdf-running-header .rh-brand {{ color: #fff; font-size: 11pt; font-weight: 800; }}
+.pdf-running-header .rh-doc   {{ color: #c8a84b; font-size: 11pt; font-weight: 700; text-align: left; }}
 
-/* String setters — invisible elements that set page margin strings */
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
 
-/* Override screen styles for PDF */
 html, body {{
-  font-size: {base};
   background: white !important;
   font-family: 'Cairo', sans-serif;
   direction: rtl;
@@ -302,22 +289,18 @@ html, body {{
   width: 100% !important;
   min-height: unset !important;
 }}
-.top-band {{ display: none !important; }}  /* replaced by running header */
-.ribbon  {{ display: none !important; }}
+.top-band {{ display: none !important; }}
+.ribbon   {{ display: none !important; }}
 .no-print, .fab {{ display: none !important; }}
 
-/* Table pagination */
 table {{ page-break-inside: auto; width: 100%; }}
 tr    {{ page-break-inside: avoid; break-inside: avoid; }}
 thead {{ display: table-header-group; }}
 tfoot {{ display: table-footer-group; }}
 .parties, .meta-row, .doc-footer, .totals-section {{
-  page-break-inside: avoid;
-  break-inside: avoid;
+  page-break-inside: avoid; break-inside: avoid;
 }}
 .doc-footer {{ margin-top: 16pt; }}
-
-/* Scale down some sizes for A5 */
 </style>"""
 
 
@@ -341,6 +324,22 @@ def wrap(body, title="مستند"):
 
 def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", doc_number=""):
     """HTML wrapper optimised for WeasyPrint — running header/footer on every page."""
+    is_a5 = paper_size.upper() == "A5"
+    # For A5: scale the .body content down so it fits A5 page
+    # WeasyPrint supports CSS transform for scaling
+    scale_style = """
+<style>
+@page { size: A5; }
+.body { transform: scale(0.705); transform-origin: top right; width: 142%; }
+.parties { font-size: 10px !important; }
+.party-name { font-size: 12px !important; }
+tbody td { font-size: 11px !important; padding: 8px 10px !important; }
+thead th { font-size: 10px !important; padding: 8px 10px !important; }
+.t-grand .t-val { font-size: 16px !important; }
+.totals-box { min-width: 200px !important; }
+.meta-cell .m-val { font-size: 11px !important; }
+</style>""" if is_a5 else ""
+
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -348,6 +347,7 @@ def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", do
 <title>{title}</title>
 {css()}
 {pdf_css(paper_size)}
+{scale_style}
 </head>
 <body>
 <!-- Running header — WeasyPrint repeats this on every page via position:running() -->
@@ -1032,9 +1032,7 @@ async def _make_pdf(html_response, title: str, filename: str, db, paper_size_ove
     size = await get_paper_size(db, paper_size_override)
     body = _extract_body(html_response)
     company, doc_num = _extract_meta(html_response)
-    # A5 is 70.5% the width of A4 — scale content proportionally
-    zoom = 0.705 if size.upper() == "A5" else 1.0
-    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num), zoom=zoom)
+    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num))
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"inline; filename={filename}"})
 
