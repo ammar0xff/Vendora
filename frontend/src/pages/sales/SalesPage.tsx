@@ -6,7 +6,7 @@ import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Search, Printer, RotateCcw, XCircle, Minus, Plus, Filter } from 'lucide-react'
+import { Search, Printer, RotateCcw, XCircle, Minus, Plus, Filter, FileDown } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -29,6 +29,7 @@ function StatusPill({ status }: { status: string }) {
 
 const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
 const printUrl = (path: string) => `/api${path}?token=${getToken()}`
+const pdfUrl = (path: string, size = 'A4') => `/api${path}?token=${getToken()}&paper_size=${size}`
 
 export default function SalesPage() {
   const [search, setSearch] = useState('')
@@ -110,6 +111,12 @@ export default function SalesPage() {
             className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors">
             <Printer size={14} />
           </button>
+          <a href={pdfUrl(`/print/pdf/sale/${s.id}`)} target="_blank" rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            title="تحميل PDF"
+            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors flex items-center">
+            <FileDown size={14} />
+          </a>
           {s.status === 'confirmed' && (
             <>
               <button onClick={e => { e.stopPropagation(); setReturnSale(s); const init: Record<string,number> = {}; s.items?.forEach((i: any) => { init[i.product_id] = 0 }); setReturnQtys(init) }}

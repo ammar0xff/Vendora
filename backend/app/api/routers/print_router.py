@@ -1,6 +1,6 @@
 """Central print system."""
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
@@ -217,6 +217,46 @@ tbody td:last-child{text-align:left;font-weight:700;color:#1e3a5f}
 .fab:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(30,58,95,.5)}
 </style>"""
 
+
+def pdf_css(paper_size="A4"):
+    return f"""
+<style>
+@page {{
+  size: {paper_size};
+  margin: 15mm 10mm 20mm 10mm;
+  @top-left {{ content: element(doc-header); }}
+  @bottom-center {{
+    content: "صفحة " counter(page) " من " counter(pages);
+    font-family: 'Cairo', sans-serif;
+    font-size: 9pt;
+    color: #9ca3af;
+  }}
+  @bottom-right {{
+    content: string(doc-number);
+    font-family: 'Cairo', sans-serif;
+    font-size: 9pt;
+    color: #9ca3af;
+  }}
+}}
+.pdf-header-runner {{
+  position: running(doc-header);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #1e3a5f;
+  padding-bottom: 6pt;
+  margin-bottom: 0;
+}}
+.pdf-doc-number {{ string-set: doc-number content(); }}
+table {{ page-break-inside: auto; }}
+tr {{ page-break-inside: avoid; break-inside: avoid; }}
+thead {{ display: table-header-group; }}
+tfoot {{ display: table-footer-group; }}
+.sheet {{ box-shadow: none; margin: 0; border-radius: 0; width: 100%; }}
+.no-print {{ display: none !important; }}
+</style>"""
+
+
 def wrap(body, title="مستند"):
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -233,6 +273,28 @@ def wrap(body, title="مستند"):
 <button class="fab no-print" onclick="window.print()">🖨️ طباعة</button>
 </body>
 </html>"""
+
+
+def wrap_pdf(body, title="مستند", paper_size="A4"):
+    """HTML wrapper optimised for WeasyPrint — no screen chrome, paged CSS."""
+    return f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<title>{title}</title>
+{css()}
+{pdf_css(paper_size)}
+</head>
+<body>
+{body}
+</body>
+</html>"""
+
+
+async def html_to_pdf(html: str) -> bytes:
+    from weasyprint import HTML as WP
+    return WP(string=html, base_url=None).write_pdf()
+
 
 def top_band(store, doc_type_label, doc_number, date_str):
     logo = store.get('logo_url','')
@@ -862,3 +924,30 @@ async def print_inventory(warehouse_id: uuid.UUID, token: str = Query(None),
   <div style="font-size:10px;color:#6b7280">{store.get('name','')}</div>
 </div>"""
     return HTMLResponse(wrap(body, f"تقرير المخزون — {wh}"))
+
+
+
+@router.get("/pdf/sale/{sale_id}")
+async def pdf_sale(sale_id: uuid.UUID, paper_size: str = "A4", token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    html = await print_sale(sale_id, token, db, user)
+    # Extract body from HTMLResponse
+    body_html = html.body.decode('utf-8') if isinstance(html.body, bytes) else str(html.body)
+    # Strip the wrap() and re-wrap for PDF
+    import re
+    match = re.search(r'<div class="sheet">(.*?)</div>\s*<button', body_html, re.DOTALL)
+    if match:
+        body_html = match.group(1)
+    pdf_bytes = await html_to_pdf(wrap_pdf(body_html, "فاتورة", paper_size))
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename=sale_{sale_id}.pdf"})
+
+
+@router.get("/pdf/inventory/{warehouse_id}")
+async def pdf_inventory(warehouse_id: uuid.UUID, paper_size: str = "A4", token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    html = await print_inventory(warehouse_id, token, db, user)
+    body_html = html.body.decode('utf-8') if isinstance(html.body, bytes) else str(html.body)
+    import re
+    match = re.search(r'<div class="sheet">(.*?)</div>\s*<button', body_html, re.DOTALL)
+    if match:
+        body_html = match.group(1)
+    pdf_bytes = await html_to_pdf(wrap_pdf(body_html, "تقرير المخزون", paper_size))
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename=inventory_{warehouse_id}.pdf"})

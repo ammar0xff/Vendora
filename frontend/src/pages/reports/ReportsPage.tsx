@@ -7,7 +7,7 @@ import { PageLoader } from '../../components/ui/Loaders'
 import toast from 'react-hot-toast'
 import { format, subMonths } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
-import { BarChart3, TrendingUp, Package, Users, Printer } from 'lucide-react'
+import { BarChart3, TrendingUp, Package, Users, Printer, FileDown } from 'lucide-react'
 
 const COLORS = ['#1e3a5f', '#c8a84b', '#16a34a', '#7c3aed', '#dc2626', '#0891b2']
 
@@ -36,9 +36,9 @@ export default function ReportsPage() {
     queryKey: ['valuation', mainWh], queryFn: () => stockApi.valuation(mainWh!), enabled: !!mainWh
   })
 
+  const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
   const handleInventoryPrint = () => {
     if (!mainWh) return toast.error('اختر فرعاً أولاً')
-    const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
     window.open(`/api/print/inventory/${mainWh}?token=${token}`, '_blank')
   }
 
@@ -63,6 +63,10 @@ export default function ReportsPage() {
           <button onClick={handleInventoryPrint} className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200">
             <Printer size={16} /> طباعة تقرير المخزون
           </button>
+          <a href={`/api/print/pdf/inventory/${mainWh}?token=${token}&paper_size=A4`} target="_blank" rel="noreferrer"
+            className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200 text-red-600 hover:bg-red-50">
+            <FileDown size={16} /> تحميل PDF
+          </a>
           <label className="text-sm text-slate-500">من</label>
           <input type="date" className="input w-40" value={from} onChange={e => setFrom(e.target.value)} />
           <label className="text-sm text-slate-500">إلى</label>
