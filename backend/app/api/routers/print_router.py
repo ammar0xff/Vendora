@@ -421,11 +421,15 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
       <div class="party-name">{customer_name}</div>
       {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
     </div>
+    <div class="party-card">
+      <div class="party-label">صادرة من</div>
+      <div class="party-name">{sale.get('warehouse_name','—')}</div>
+      <div class="party-detail">{store['name']}</div>
+    </div>
   </div>
 
   <div class="meta-row">
     <div class="meta-cell"><div class="m-lbl">الحالة</div><div class="m-val"><span class="badge {st_cls}">{st_lbl}</span></div></div>
-    <div class="meta-cell"><div class="m-lbl">الفرع</div><div class="m-val">{sale.get('warehouse_name','—')}</div></div>
   </div>
 
   <div class="tbl-label">بيان الأصناف</div>
