@@ -325,11 +325,9 @@ def wrap(body, title="مستند"):
 def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", doc_number=""):
     """HTML wrapper optimised for WeasyPrint — running header/footer on every page."""
     is_a5 = paper_size.upper() == "A5"
-    # For A5: scale the .body content down so it fits A5 page
-    # WeasyPrint supports CSS transform for scaling
     scale_style = """
 <style>
-@page { size: A5; }
+@page { size: A5; margin: 10mm 8mm 12mm 8mm; margin-top: calc(10mm + 16mm); }
 .body { transform: scale(0.705); transform-origin: top right; width: 142%; }
 .parties { font-size: 10px !important; }
 .party-name { font-size: 12px !important; }
