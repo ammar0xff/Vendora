@@ -192,7 +192,7 @@ def pdf_css(paper_size="A4"):
 <style>
 @page {{
   size: {paper_size};
-  margin: {f("12mm","8mm")} {f("10mm","7mm")} {f("14mm","10mm")} {f("10mm","7mm")};
+  margin: {f("12mm","8mm")} {f("10mm","7mm")} {f("8mm","6mm")} {f("10mm","7mm")};
   margin-top: calc({f("12mm","8mm")} + {f("16mm","12mm")});
 
   @top-left {{
@@ -462,9 +462,9 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
     </table>
   </div>
 
-</div>
+  <div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit;margin-top:8pt;border-top:1px solid #ccc"><tr><td style="text-align:right;white-space:nowrap;padding:4pt 0 2pt">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding:4pt 0 2pt">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr><tr><td colspan="2" style="text-align:center;color:#888;font-size:90%;padding-bottom:2pt">{doc_label} · {sale['invoice_number']} · صفحة 1 من 1</td></tr></table></div>
 
-<div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit;border-top:1px solid #ccc;padding-top:4pt"><tr><td style="text-align:right;white-space:nowrap;padding:4pt 0 2pt">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding:4pt 0 2pt">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr><tr><td colspan="2" style="text-align:center;color:#888;font-size:90%;padding-bottom:2pt">{doc_label} · {sale['invoice_number']} · صفحة 1 من 1</td></tr></table></div>"""
+</div>"""
 
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
