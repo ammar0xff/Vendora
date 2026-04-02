@@ -452,21 +452,25 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
 
   <div style="margin-top:6px;display:flex;justify-content:flex-end">
-    <table style="border-collapse:collapse;border:1px solid #ccc;min-width:220px">
-      <tr><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555">المجموع الفرعي</td><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;text-align:left;white-space:nowrap">{ar_egp(subtotal)}</td></tr>
-      {f'<tr><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555">الخصم</td><td style="padding:4px 10px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;color:#991b1b;text-align:left;white-space:nowrap">({ar_egp(disc)})</td></tr>' if disc else ''}
-      <tr style="background:#111"><td style="padding:6px 10px;font-size:10px;font-weight:600;color:rgba(255,255,255,.7)">الإجمالي</td><td style="padding:6px 10px;font-size:14px;font-weight:900;color:#fff;text-align:left;white-space:nowrap">{ar_egp(total)}</td></tr>
+    <table style="border-collapse:collapse;border:1px solid #ccc;width:auto">
+      <tr>
+        <td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555;white-space:nowrap">المجموع الفرعي</td>
+        <td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;white-space:nowrap;min-width:90px;text-align:left">{ar_egp(subtotal)}</td>
+      </tr>
+      {f'<tr><td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555;white-space:nowrap">الخصم</td><td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;white-space:nowrap;text-align:left">({ar_egp(disc)})</td></tr>' if disc else ''}
+      <tr style="background:#111">
+        <td style="padding:6px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap">الإجمالي</td>
+        <td style="padding:6px 12px;font-size:13px;font-weight:900;color:#fff;white-space:nowrap;text-align:left">{ar_egp(total)}</td>
+      </tr>
     </table>
   </div>
 
 </div>
 
-<div style="border-top:2px solid #111;padding:6px 16px;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-  <div style="font-size:8px;color:#333;white-space:nowrap">
-    {f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}
-  </div>
-  <div style="display:flex;gap:10px;flex-wrap:nowrap">
-    {''.join(f'<span style="font-size:8px;color:#333;white-space:nowrap"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
+<div style="border-top:1px solid #ccc;padding:6px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:8px;position:fixed;bottom:0;left:0;right:0;background:#fff">
+  <span style="color:#333;white-space:nowrap">{f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}</span>
+  <div style="display:flex;gap:10px;flex-wrap:nowrap;align-items:center">
+    {''.join(f'<span style="white-space:nowrap;color:#333"><span style="color:#999;font-size:7px">{c.get("name","")}: </span><b>{c.get("phone","")}</b></span>' for c in store.get('contacts',[]) if c.get('phone'))}
   </div>
 </div>"""
 
