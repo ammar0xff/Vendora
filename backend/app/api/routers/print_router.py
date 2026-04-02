@@ -200,10 +200,10 @@ def pdf_css(paper_size="A4"):
     width: 100%;
   }}
   @bottom-center {{
-    content: string(doc-title-str) " · " string(doc-number-str) " · صفحة " counter(page) " من " counter(pages);
+    content: string(sale-employee-str) " · " string(doc-title-str) " · " string(doc-number-str) " · صفحة " counter(page) " من " counter(pages);
     font-family: 'Cairo', sans-serif;
     font-size: {f("7pt","6pt")};
-    color: #666;
+    color: #555;
     border-top: 1px solid #ccc;
     padding-top: 3pt;
     width: 100%;
@@ -213,11 +213,7 @@ def pdf_css(paper_size="A4"):
     content: "";
   }}
   @bottom-left {{
-    content: string(sale-employee-str);
-    font-family: 'Cairo', sans-serif;
-    font-size: {f("7pt","6pt")};
-    color: #444;
-    direction: rtl;
+    content: "";
   }}
 }}
 
