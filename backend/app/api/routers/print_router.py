@@ -416,21 +416,21 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 <div class="body">
 
-  <div class="parties">
-    <div class="party-card buyer">
+  <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start">
+    <div class="party-card buyer" style="flex:1">
       <div class="party-label">فاتورة إلى</div>
       <div class="party-name">{customer_name}</div>
       {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
     </div>
-    <div class="party-card">
+    <div class="party-card" style="flex:1">
       <div class="party-label">صادرة من</div>
       <div class="party-name">{sale.get('warehouse_name','—')}</div>
       <div class="party-detail">{store['name']}</div>
     </div>
-  </div>
-
-  <div class="meta-row">
-    <div class="meta-cell"><div class="m-lbl">الحالة</div><div class="m-val"><span class="badge {st_cls}">{st_lbl}</span></div></div>
+    <div class="party-card" style="flex:0 0 auto;min-width:80px;text-align:center">
+      <div class="party-label">الحالة</div>
+      <div style="margin-top:4px"><span class="badge {st_cls}">{st_lbl}</span></div>
+    </div>
   </div>
 
   <div class="tbl-label">بيان الأصناف</div>
