@@ -223,7 +223,7 @@ def pdf_css(paper_size="A4"):
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
 .sale-footer-info {{ font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; position: fixed; bottom: 0; left: 0; right: 0; background: white; }}
-.body {{ padding-bottom: 30pt !important; }}
+.body {{ padding-bottom: 50pt !important; }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
 .sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; height: auto !important; display: block !important; }}
