@@ -14,6 +14,7 @@ export default function ShiftsPage() {
   const [showDeposit, setShowDeposit] = useState(false)
   const [showExpense, setShowExpense] = useState(false)
   const [depositSafeId, setDepositSafeId] = useState('')
+  const [closeSafeId, setCloseSafeId] = useState('')
   const [depositReceiverId, setDepositReceiverId] = useState('')
   const [depositNotes, setDepositNotes] = useState('')
   const [initialAmount, setInitialAmount] = useState('')
@@ -55,18 +56,31 @@ export default function ShiftsPage() {
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل'),
   })
   const closeMut = useMutation({
-    mutationFn: () => api.post(`/shifts/${shift!.id}/close-with-manager`, {
-      closing_balance: Number(closingBalance),
-      next_day_drawer: Number(nextDayDrawer || closingBalance),
-      manager_id: managerId,
-      manager_password: managerPassword,
-    }).then(r => r.data),
+    mutationFn: async () => {
+      const res = await api.post(`/shifts/${shift!.id}/close-with-manager`, {
+        closing_balance: Number(closingBalance),
+        next_day_drawer: Number(nextDayDrawer || closingBalance),
+        manager_id: managerId,
+        manager_password: managerPassword,
+      })
+      // Auto-deposit cash to selected safe
+      if (closeSafeId) {
+        await api.post(`/safes/${closeSafeId}/deposit`, {
+          amount: cashInDrawer,
+          shift_id: shift!.id,
+          warehouse_id: activeWarehouseId,
+          received_by_id: managerId,
+          notes: 'تسليم الدرج عند إغلاق الوردية',
+        })
+      }
+      return res.data
+    },
     onSuccess: (d) => {
       const variance = Number(d.variance || 0)
       if (variance !== 0) toast.success(`تم الإغلاق — فرق الدرج: ${variance > 0 ? '+' : ''}${variance.toLocaleString('ar-EG')} ج.م`, { duration: 5000 })
-      else toast.success('تم إغلاق الوردية بنجاح')
-      setShowClose(false); setManagerPassword(''); setManagerId('')
-      qc.invalidateQueries({ queryKey: ['current-shift'] }); qc.invalidateQueries({ queryKey: ['shifts'] })
+      else toast.success('✅ تم إغلاق الوردية وتسليم الدرج')
+      setShowClose(false); setManagerPassword(''); setManagerId(''); setCloseSafeId('')
+      qc.invalidateQueries({ queryKey: ['current-shift'] }); qc.invalidateQueries({ queryKey: ['shifts'] }); qc.invalidateQueries({ queryKey: ['safes'] })
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل إغلاق الوردية'),
   })
@@ -264,6 +278,13 @@ export default function ShiftsPage() {
               <input type="number" className="input" value={nextDayDrawer} onChange={e => setNextDayDrawer(e.target.value)} placeholder={closingBalance || '0.00'} />
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">توريد الدرج إلى خزنة *</label>
+            <select className="input" value={closeSafeId} onChange={e => setCloseSafeId(e.target.value)}>
+              <option value="">اختر الخزنة...</option>
+              {safes?.map((s: any) => <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>)}
+            </select>
+          </div>
           <div className="border-t border-slate-200 pt-4">
             <p className="text-xs font-bold text-slate-500 mb-3">توقيع المدير</p>
             <div className="grid grid-cols-2 gap-4">
@@ -282,7 +303,7 @@ export default function ShiftsPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowClose(false)} className="btn-ghost">إلغاء</button>
-            <button onClick={() => closeMut.mutate()} disabled={closeMut.isPending || !managerId || !managerPassword || !closingBalance}
+            <button onClick={() => closeMut.mutate()} disabled={closeMut.isPending || !managerId || !managerPassword || !closingBalance || !closeSafeId}
               className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#dc2626' }}>
               {closeMut.isPending ? 'جاري الإغلاق...' : 'إغلاق الوردية'}
             </button>
