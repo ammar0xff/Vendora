@@ -220,20 +220,19 @@ tbody td:last-child{text-align:left;font-weight:700;color:#1e3a5f}
 
 def pdf_css(paper_size="A4"):
     is_a5 = paper_size.upper() == "A5"
-    small = "8pt"
-    margin_tb = "15mm"
-    margin_lr = "10mm"
-    header_h = "18mm"
-    footer_h = "12mm"
-    # Always use A4 layout — zoom handles A5 scaling
-    page_size = "A4"
+    # A5 is ~70% of A4 — scale fonts proportionally
+    f = lambda a4, a5: a5 if is_a5 else a4
+    header_h = f("18mm", "13mm")
+    footer_h = f("12mm", "9mm")
+    margin_tb = f("15mm", "10mm")
+    margin_lr = f("10mm", "7mm")
 
     return f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 
 @page {{
-  size: {page_size};
+  size: {paper_size};
   margin: {margin_tb} {margin_lr} {footer_h} {margin_lr};
   margin-top: calc({margin_tb} + {header_h});
 
@@ -241,21 +240,16 @@ def pdf_css(paper_size="A4"):
     content: element(pdf-running-header);
     width: 100%;
   }}
-  @bottom-left {{
-    content: "";
-    border-top: 1px solid #e2e8f0;
-    width: 100%;
-  }}
   @bottom-center {{
     content: string(doc-title-str) " — صفحة " counter(page) " من " counter(pages);
     font-family: 'Cairo', sans-serif;
-    font-size: {small};
+    font-size: {f("8pt","6pt")};
     color: #9ca3af;
   }}
   @bottom-right {{
     content: string(doc-number-str);
     font-family: 'Cairo', sans-serif;
-    font-size: {small};
+    font-size: {f("8pt","6pt")};
     color: #6b7280;
     font-weight: 700;
   }}
@@ -268,39 +262,51 @@ def pdf_css(paper_size="A4"):
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6pt 10pt;
+  padding: {f("6pt","4pt")} {f("10pt","7pt")};
   font-family: 'Cairo', sans-serif;
 }}
-.pdf-running-header .rh-brand {{ color: #fff; font-size: 11pt; font-weight: 800; }}
-.pdf-running-header .rh-doc   {{ color: #c8a84b; font-size: 11pt; font-weight: 700; text-align: left; }}
+.pdf-running-header .rh-brand {{ color: #fff; font-size: {f("11pt","8pt")}; font-weight: 800; }}
+.pdf-running-header .rh-doc   {{ color: #c8a84b; font-size: {f("11pt","8pt")}; font-weight: 700; text-align: left; }}
 
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
 
-html, body {{
-  background: white !important;
-  font-family: 'Cairo', sans-serif;
-  direction: rtl;
-}}
-.sheet {{
-  box-shadow: none !important;
-  margin: 0 !important;
-  border-radius: 0 !important;
-  width: 100% !important;
-  min-height: unset !important;
-}}
+html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
+.sheet {{ box-shadow: none !important; margin: 0 !important; border-radius: 0 !important; width: 100% !important; min-height: unset !important; }}
 .top-band {{ display: none !important; }}
 .ribbon   {{ display: none !important; }}
 .no-print, .fab {{ display: none !important; }}
+
+/* A5 font scaling */
+{"" if not is_a5 else f"""
+body {{ font-size: 8pt; }}
+.party-name {{ font-size: 10pt !important; }}
+.party-detail {{ font-size: 8pt !important; }}
+.party-label {{ font-size: 7pt !important; }}
+.meta-cell .m-lbl {{ font-size: 7pt !important; }}
+.meta-cell .m-val {{ font-size: 9pt !important; }}
+.tbl-label {{ font-size: 7pt !important; }}
+thead th {{ font-size: 8pt !important; padding: 6px 8px !important; }}
+tbody td {{ font-size: 8pt !important; padding: 6px 8px !important; }}
+.td-sub {{ font-size: 7pt !important; }}
+.t-line {{ font-size: 9pt !important; }}
+.t-grand .t-lbl {{ font-size: 9pt !important; }}
+.t-grand .t-val {{ font-size: 14pt !important; }}
+.totals-box {{ min-width: 160px !important; }}
+.sig .sig-name {{ font-size: 8pt !important; }}
+.footer-meta {{ font-size: 7pt !important; }}
+.stamp-circle {{ width: 50px !important; height: 50px !important; }}
+.doc-id .doc-num {{ font-size: 14pt !important; }}
+.doc-id .doc-type {{ font-size: 9pt !important; }}
+.brand-text .co-name {{ font-size: 11pt !important; }}
+"""}
 
 table {{ page-break-inside: auto; width: 100%; }}
 tr    {{ page-break-inside: avoid; break-inside: avoid; }}
 thead {{ display: table-header-group; }}
 tfoot {{ display: table-footer-group; }}
-.parties, .meta-row, .doc-footer, .totals-section {{
-  page-break-inside: avoid; break-inside: avoid;
-}}
-.doc-footer {{ margin-top: 16pt; }}
+.parties, .meta-row, .doc-footer, .totals-section {{ page-break-inside: avoid; break-inside: avoid; }}
+.doc-footer {{ margin-top: 12pt; }}
 </style>"""
 
 
@@ -324,20 +330,6 @@ def wrap(body, title="مستند"):
 
 def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", doc_number=""):
     """HTML wrapper optimised for WeasyPrint — running header/footer on every page."""
-    is_a5 = paper_size.upper() == "A5"
-    scale_style = """
-<style>
-@page { size: A5; margin: 10mm 8mm 12mm 8mm; margin-top: calc(10mm + 16mm); }
-.body { transform: scale(0.705); transform-origin: top right; width: 142%; }
-.parties { font-size: 10px !important; }
-.party-name { font-size: 12px !important; }
-tbody td { font-size: 11px !important; padding: 8px 10px !important; }
-thead th { font-size: 10px !important; padding: 8px 10px !important; }
-.t-grand .t-val { font-size: 16px !important; }
-.totals-box { min-width: 200px !important; }
-.meta-cell .m-val { font-size: 11px !important; }
-</style>""" if is_a5 else ""
-
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -345,15 +337,12 @@ thead th { font-size: 10px !important; padding: 8px 10px !important; }
 <title>{title}</title>
 {css()}
 {pdf_css(paper_size)}
-{scale_style}
 </head>
 <body>
-<!-- Running header — WeasyPrint repeats this on every page via position:running() -->
 <div class="pdf-running-header">
   <span class="rh-brand">{company_name}</span>
   <span class="rh-doc">{title}</span>
 </div>
-<!-- String setters for footer -->
 <span class="pdf-doc-number">{doc_number}</span>
 <span class="pdf-doc-title">{title}</span>
 {body}
