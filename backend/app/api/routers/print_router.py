@@ -200,20 +200,15 @@ def pdf_css(paper_size="A4"):
     width: 100%;
   }}
   @bottom-center {{
-    content: string(doc-title-str) " · " string(doc-number-str) " · صفحة " counter(page) " من " counter(pages);
-    font-family: 'Cairo', sans-serif;
-    font-size: {f("7pt","6pt")};
-    color: #888;
-    border-top: 1px solid #ccc;
-    padding-top: 3pt;
-    text-align: center;
-  }}
-  @bottom-right {{
     content: element(sale-footer-info);
     font-family: 'Cairo', sans-serif;
     font-size: {f("7pt","6pt")};
     border-top: 1px solid #ccc;
     padding-top: 3pt;
+    width: 100%;
+  }}
+  @bottom-right {{
+    content: "";
   }}
 }}
 
@@ -474,7 +469,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<div class="sale-footer-info"><table style="width:100%;border-collapse:collapse"><tr><td style="text-align:right;white-space:nowrap">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>"""
+<div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding-bottom:2pt">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding-bottom:2pt">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr><tr><td colspan="2" style="text-align:center;color:#888;font-size:90%">{doc_label} · {sale['invoice_number']} · صفحة 1 من 1</td></tr></table></div>"""
 
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
