@@ -203,24 +203,16 @@ def pdf_css(paper_size="A4"):
     content: string(doc-title-str) " · " string(doc-number-str) " · صفحة " counter(page) " من " counter(pages);
     font-family: 'Cairo', sans-serif;
     font-size: {f("7pt","6pt")};
-    color: #888;
+    color: #666;
     border-top: 1px solid #ccc;
     padding-top: 3pt;
+    width: 100%;
     text-align: center;
-    white-space: nowrap;
   }}
   @bottom-right {{
-    content: string(sale-employee-str);
+    content: element(sale-footer-info);
     font-family: 'Cairo', sans-serif;
     font-size: {f("7pt","6pt")};
-    color: #444;
-    border-top: 1px solid #ccc;
-    padding-top: 3pt;
-    white-space: nowrap;
-    direction: rtl;
-  }}
-  @bottom-left {{
-    content: "";
   }}
 }}
 
@@ -239,8 +231,7 @@ def pdf_css(paper_size="A4"):
 
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
-.sale-employee  {{ string-set: sale-employee-str content(); position: absolute; visibility: hidden; }}
-.sale-footer-info {{ display: none; }}
+.sale-footer-info {{ position: running(sale-footer-info); font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
 .sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; height: auto !important; display: block !important; }}
@@ -482,7 +473,10 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>
 
-<span class="sale-employee">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at']) + '  ' + '  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</span>"""
+<div class="sale-footer-info">
+  {f'<b>{sale["created_by_name"]}</b> · ' if sale.get('created_by_name') else ''}{fmt_dt(sale['created_at'])}
+  {'  '.join(f'· {c.get("name","")}: {c.get("phone","")}' for c in store.get('contacts',[]) if c.get('phone'))}
+</div>"""
 
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
@@ -513,38 +507,36 @@ async def print_dispatch(doc_number: str, token: str = Query(None),
         rows_html += f"""<tr>
           <td style="color:#9ca3af;font-size:9px;text-align:center;white-space:nowrap">{idx}</td>
           <td><div class="td-name">{it.get('product_name', it.get('product_id',''))}</div></td>
-          <td style="text-align:center;white-space:nowrap;color:#374151">{float(it.get('qty',0)):g} {it.get('unit','')}</td>
+          <td style="text-align:center;width:100px;color:#374151">{float(it.get('qty',0)):g} {it.get('unit','')}</td>
           <td style="color:#6b7280;font-size:11px">{it.get('note','')}</td>
         </tr>"""
 
     body = f"""
 {top_band(store, "إذن صرف بضاعة", doc_number, fmt_date(doc['created_at']))}
 <div class="body">
-  <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
-    <tr>
-      <td style="width:50%;padding:6px 10px;border:1px solid #ccc;border-right:2px solid #111;vertical-align:top">
-        <div class="party-label">من مخزن</div>
-        <div class="party-name">{meta.get('from_warehouse','—')}</div>
-      </td>
-      <td style="width:50%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:top">
-        <div class="party-label">إلى مخزن</div>
-        <div class="party-name">{meta.get('to_warehouse','—')}</div>
-      </td>
-    </tr>
-  </table>
+  <div class="parties">
+    <div class="party-card buyer">
+      <div class="party-label">من مخزن</div>
+      <div class="party-name">{meta.get('from_warehouse','—')}</div>
+    </div>
+    <div class="party-card">
+      <div class="party-label">إلى مخزن</div>
+      <div class="party-name">{meta.get('to_warehouse','—')}</div>
+    </div>
+  </div>
   <div class="tbl-label">الأصناف المُصرَفة</div>
   <table>
     <thead><tr>
-      <th style="text-align:center;white-space:nowrap">#</th><th style="width:100%">الصنف</th>
-      <th style="text-align:center;white-space:nowrap">الكمية</th><th>ملاحظة</th>
+      <th style="width:36px;text-align:center">#</th><th>الصنف</th>
+      <th style="text-align:center;width:100px">الكمية</th><th>ملاحظة</th>
     </tr></thead>
     <tbody>{rows_html}</tbody>
   </table>
 </div>
-<div style="border-top:1px solid #ccc;padding:6px 16px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;font-size:8px">
-  <div style="text-align:center;flex:1"><div style="font-size:8px;font-weight:700;color:#333;margin-bottom:20px">توقيع المُسلِّم</div><div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div></div>
-  <div style="text-align:center;flex:0 0 auto"><div style="width:44px;height:44px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;font-size:7px;color:#ccc">الختم</div><div style="font-size:7px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div></div>
-  <div style="text-align:center;flex:1"><div style="font-size:8px;font-weight:700;color:#333;margin-bottom:20px">توقيع المُستلِم</div><div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div></div>
+<div class="doc-footer">
+  <div class="sig"><div class="sig-name">توقيع المُسلِّم</div><div class="sig-line">الاسم والتوقيع</div></div>
+  <div class="footer-mid"><div class="stamp-circle">الختم</div><div class="footer-meta">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div></div>
+  <div class="sig"><div class="sig-name">توقيع المُستلِم</div><div class="sig-line">الاسم والتوقيع</div></div>
 </div>"""
     return HTMLResponse(wrap(body, f"إذن صرف — {doc_number}"))
 
@@ -698,19 +690,19 @@ async def print_handover(doc_number: str, token: str = Query(None),
 
   <div style="margin-top:32px;page-break-before:auto;break-before:auto">
     <div style="page-break-inside:avoid;break-inside:avoid"><div class="summary-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:20px">
-      <div style="background:#f0fdf4;border:1px solid #ccc;;padding:12px;text-align:center">
+      <div style="background:#f0fdf4;border:1.5px solid #94a3b8;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:10px;color:#6b7280;margin-bottom:4px">إجمالي المبيعات</div>
         <div style="font-size:16px;font-weight:900;color:#16a34a">{ar_egp(total_sales)}</div>
       </div>
-      <div style="background:#fef2f2;border:1px solid #ccc;;padding:12px;text-align:center">
+      <div style="background:#fef2f2;border:1.5px solid #94a3b8;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:10px;color:#6b7280;margin-bottom:4px">المصروفات</div>
         <div style="font-size:16px;font-weight:900;color:#dc2626">{ar_egp(total_expenses)}</div>
       </div>
-      <div style="background:#f0f9ff;border:1px solid #ccc;;padding:12px;text-align:center">
+      <div style="background:#f0f9ff;border:1.5px solid #94a3b8;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:10px;color:#6b7280;margin-bottom:4px">الرصيد المتوقع</div>
         <div style="font-size:16px;font-weight:900;color:#1e3a5f">{ar_egp(expected)}</div>
       </div>
-      <div style="background:#{'fef2f2' if variance < 0 else 'f0fdf4' if variance > 0 else 'f8fafc'};border:1px solid #ccc;;padding:12px;text-align:center">
+      <div style="background:#{'fef2f2' if variance < 0 else 'f0fdf4' if variance > 0 else 'f8fafc'};border:1.5px solid #94a3b8;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:10px;color:#6b7280;margin-bottom:4px">الفرق</div>
         <div style="font-size:16px;font-weight:900;color:{variance_color}">{ar_egp(abs(variance))} {'عجز' if variance < 0 else 'زيادة' if variance > 0 else 'متوازن'}</div>
       </div>
@@ -727,10 +719,10 @@ async def print_handover(doc_number: str, token: str = Query(None),
   {f'<div class="notes-box" style="margin-top:16px"><div class="n-lbl">ملاحظات</div><div class="n-txt">{meta.get("notes","")}</div></div>' if meta.get('notes') else ''}
 
 </div>
-<div style="border-top:1px solid #ccc;padding:6px 16px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;font-size:8px">
-  <div style="text-align:center;flex:1"><div style="font-size:8px;font-weight:700;color:#333;margin-bottom:20px">توقيع المُسلِّم</div><div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div></div>
-  <div style="text-align:center;flex:0 0 auto"><div style="width:44px;height:44px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;font-size:7px;color:#ccc">الختم</div><div style="font-size:7px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div></div>
-  <div style="text-align:center;flex:1"><div style="font-size:8px;font-weight:700;color:#333;margin-bottom:20px">توقيع المُستلِم</div><div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div></div>
+<div class="doc-footer">
+  <div class="sig"><div class="sig-name">توقيع المُسلِّم</div><div class="sig-line">الاسم والتوقيع</div></div>
+  <div class="footer-mid"><div class="stamp-circle">الختم</div><div class="footer-meta">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div></div>
+  <div class="sig"><div class="sig-name">توقيع المُستلِم</div><div class="sig-line">الاسم والتوقيع</div></div>
 </div>"""
     return HTMLResponse(wrap(body, f"تسليم عهدة — {doc_number}"))
 
@@ -812,12 +804,12 @@ async def print_purchase(po_id: uuid.UUID, token: str = Query(None),
   </div></div>
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{po["notes"]}</div></div>' if po.get('notes') else ''}
 </div>
-<div style="border-top:1px solid #ccc;padding:6px 16px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
-  <div style="text-align:center;flex:1"><div style="font-size:8px;font-weight:700;color:#333;margin-bottom:20px">توقيع المورد</div><div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div></div>
-  <div style="text-align:center;flex:0 0 auto"><div style="width:44px;height:44px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;font-size:7px;color:#ccc">الختم</div><div style="font-size:7px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div></div>
-  <div style="text-align:center;flex:1"><div style="font-size:8px;font-weight:700;color:#333;margin-bottom:20px">{po.get("received_by_name") or "المستلم"}</div><div style="border-top:1px solid #999;padding-top:4px;font-size:7px;color:#999">الاسم والتوقيع</div></div>
+<div class="doc-footer">
+  <div class="sig"><div class="sig-name">توقيع المورد</div><div class="sig-line">الاسم والتوقيع</div></div>
+  <div class="footer-mid"><div class="stamp-circle">الختم</div><div class="footer-meta">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div></div>
+  <div class="sig"><div class="sig-name">{po.get("received_by_name") or "المستلم"}</div><div class="sig-line">الاسم والتوقيع</div></div>
 </div>
-{f'<div style="margin:0 36px 16px;padding:12px 16px;background:#f0fdf4;border:1px solid #ccc;;display:flex;justify-content:space-between"><span style="font-size:11px;color:#6b7280">المبلغ المدفوع</span><span style="font-size:15px;font-weight:900;color:#16a34a">{ar_egp(float(po["amount_paid"] or 0))}</span></div>' if po.get("amount_paid") else ''}
+{f'<div style="margin:0 36px 16px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #94a3b8;border-radius:10px;display:flex;justify-content:space-between"><span style="font-size:11px;color:#6b7280">المبلغ المدفوع</span><span style="font-size:15px;font-weight:900;color:#16a34a">{ar_egp(float(po["amount_paid"] or 0))}</span></div>' if po.get("amount_paid") else ''}
 {f'<div style="margin:0 36px 16px"><img src="{po["invoice_image_url"]}" style="max-width:100%;border-radius:8px;border:1px solid #e2e8f0" /><p style="font-size:10px;color:#9ca3af;margin-top:4px">صورة الفاتورة المستلمة</p></div>' if po.get("invoice_image_url") else ''}
 """
     return HTMLResponse(wrap(body, f"فاتورة مشتريات — {po['po_number']}"))
@@ -873,8 +865,8 @@ async def print_archive_doc(doc_id: uuid.UUID, token: str = Query(None),
   </div>
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{meta.get("notes","")}</div></div>' if meta.get('notes') else ''}
 </div>
-<div style="border-top:2px solid #94a3b8;padding:12px 36px;display:flex;justify-content:space-between">
-  <div style="font-size:8px;color:#666">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div>
+<div style="border-top:2px solid #94a3b8;padding:12px 36px;background:#f8fafc;display:flex;justify-content:space-between">
+  <div style="font-size:10px;color:#6b7280">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
   <div style="font-size:10px;color:#6b7280">{store.get('name','')}</div>
 </div>"""
     return HTMLResponse(wrap(body, f"{doc_label} — {doc['doc_number']}"))
@@ -955,8 +947,8 @@ async def print_inventory(warehouse_id: uuid.UUID, token: str = Query(None),
     </tr></tfoot>
   </table>
 </div>
-<div style="border-top:1px solid #ccc;padding:6px 16px;display:flex;justify-content:space-between;font-size:8px">
-  <div style="font-size:8px;color:#666">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div>
+<div style="border-top:2px solid #94a3b8;padding:10px 36px;background:#f8fafc;display:flex;justify-content:space-between">
+  <div style="font-size:10px;color:#6b7280">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
   <div style="font-size:10px;color:#6b7280">{store.get('name','')}</div>
 </div>"""
     return HTMLResponse(wrap(body, f"تقرير المخزون — {wh}"))
