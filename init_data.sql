@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict SbLRruSp8YuqiBBhsDAzC0gmXHShJfg3x5cuA31HzBGeDIlSoa98iQqE82CA212
+\restrict Q6mePTbVNt013cyf7dCr9tWdBRBdPFh5VM2D8l2ixaWqE5xI1ouPOJqEaaRY9aY
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -19,7 +19,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: doc_type_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: doc_type_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.doc_type_enum AS ENUM (
@@ -38,10 +38,8 @@ CREATE TYPE public.doc_type_enum AS ENUM (
 );
 
 
-ALTER TYPE public.doc_type_enum OWNER TO postgres;
-
 --
--- Name: drawer_tx_type_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: drawer_tx_type_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.drawer_tx_type_enum AS ENUM (
@@ -53,10 +51,8 @@ CREATE TYPE public.drawer_tx_type_enum AS ENUM (
 );
 
 
-ALTER TYPE public.drawer_tx_type_enum OWNER TO postgres;
-
 --
--- Name: movement_type_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: movement_type_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.movement_type_enum AS ENUM (
@@ -72,10 +68,8 @@ CREATE TYPE public.movement_type_enum AS ENUM (
 );
 
 
-ALTER TYPE public.movement_type_enum OWNER TO postgres;
-
 --
--- Name: po_status_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: po_status_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.po_status_enum AS ENUM (
@@ -86,10 +80,8 @@ CREATE TYPE public.po_status_enum AS ENUM (
 );
 
 
-ALTER TYPE public.po_status_enum OWNER TO postgres;
-
 --
--- Name: sale_mode_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: sale_mode_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.sale_mode_enum AS ENUM (
@@ -98,10 +90,8 @@ CREATE TYPE public.sale_mode_enum AS ENUM (
 );
 
 
-ALTER TYPE public.sale_mode_enum OWNER TO postgres;
-
 --
--- Name: sale_status_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: sale_status_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.sale_status_enum AS ENUM (
@@ -113,10 +103,8 @@ CREATE TYPE public.sale_status_enum AS ENUM (
 );
 
 
-ALTER TYPE public.sale_status_enum OWNER TO postgres;
-
 --
--- Name: shift_status_enum; Type: TYPE; Schema: public; Owner: postgres
+-- Name: shift_status_enum; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.shift_status_enum AS ENUM (
@@ -125,14 +113,12 @@ CREATE TYPE public.shift_status_enum AS ENUM (
 );
 
 
-ALTER TYPE public.shift_status_enum OWNER TO postgres;
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: archived_documents; Type: TABLE; Schema: public; Owner: postgres
+-- Name: archived_documents; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.archived_documents (
@@ -150,10 +136,8 @@ CREATE TABLE public.archived_documents (
 );
 
 
-ALTER TABLE public.archived_documents OWNER TO postgres;
-
 --
--- Name: audit_log; Type: TABLE; Schema: public; Owner: postgres
+-- Name: audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.audit_log (
@@ -169,10 +153,8 @@ CREATE TABLE public.audit_log (
 );
 
 
-ALTER TABLE public.audit_log OWNER TO postgres;
-
 --
--- Name: categories; Type: TABLE; Schema: public; Owner: postgres
+-- Name: categories; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.categories (
@@ -182,10 +164,8 @@ CREATE TABLE public.categories (
 );
 
 
-ALTER TABLE public.categories OWNER TO postgres;
-
 --
--- Name: customer_payments; Type: TABLE; Schema: public; Owner: postgres
+-- Name: customer_payments; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.customer_payments (
@@ -198,10 +178,8 @@ CREATE TABLE public.customer_payments (
 );
 
 
-ALTER TABLE public.customer_payments OWNER TO postgres;
-
 --
--- Name: customers; Type: TABLE; Schema: public; Owner: postgres
+-- Name: customers; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.customers (
@@ -215,10 +193,8 @@ CREATE TABLE public.customers (
 );
 
 
-ALTER TABLE public.customers OWNER TO postgres;
-
 --
--- Name: dispatch_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: dispatch_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.dispatch_seq
@@ -229,10 +205,8 @@ CREATE SEQUENCE public.dispatch_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.dispatch_seq OWNER TO postgres;
-
 --
--- Name: drawer_transactions; Type: TABLE; Schema: public; Owner: postgres
+-- Name: drawer_transactions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.drawer_transactions (
@@ -250,10 +224,8 @@ CREATE TABLE public.drawer_transactions (
 );
 
 
-ALTER TABLE public.drawer_transactions OWNER TO postgres;
-
 --
--- Name: employees; Type: TABLE; Schema: public; Owner: postgres
+-- Name: employees; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.employees (
@@ -269,10 +241,8 @@ CREATE TABLE public.employees (
 );
 
 
-ALTER TABLE public.employees OWNER TO postgres;
-
 --
--- Name: financial_categories; Type: TABLE; Schema: public; Owner: postgres
+-- Name: financial_categories; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.financial_categories (
@@ -284,10 +254,8 @@ CREATE TABLE public.financial_categories (
 );
 
 
-ALTER TABLE public.financial_categories OWNER TO postgres;
-
 --
--- Name: hr_advances; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_advances; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_advances (
@@ -302,10 +270,8 @@ CREATE TABLE public.hr_advances (
 );
 
 
-ALTER TABLE public.hr_advances OWNER TO postgres;
-
 --
--- Name: hr_attendance; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_attendance; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_attendance (
@@ -327,10 +293,8 @@ CREATE TABLE public.hr_attendance (
 );
 
 
-ALTER TABLE public.hr_attendance OWNER TO postgres;
-
 --
--- Name: hr_audit_log; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_audit_log (
@@ -345,10 +309,8 @@ CREATE TABLE public.hr_audit_log (
 );
 
 
-ALTER TABLE public.hr_audit_log OWNER TO postgres;
-
 --
--- Name: hr_employees; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_employees; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_employees (
@@ -368,10 +330,8 @@ CREATE TABLE public.hr_employees (
 );
 
 
-ALTER TABLE public.hr_employees OWNER TO postgres;
-
 --
--- Name: hr_payroll; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_payroll; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_payroll (
@@ -406,10 +366,8 @@ CREATE TABLE public.hr_payroll (
 );
 
 
-ALTER TABLE public.hr_payroll OWNER TO postgres;
-
 --
--- Name: hr_settings; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_settings; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_settings (
@@ -418,10 +376,8 @@ CREATE TABLE public.hr_settings (
 );
 
 
-ALTER TABLE public.hr_settings OWNER TO postgres;
-
 --
--- Name: hr_shifts; Type: TABLE; Schema: public; Owner: postgres
+-- Name: hr_shifts; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hr_shifts (
@@ -433,10 +389,8 @@ CREATE TABLE public.hr_shifts (
 );
 
 
-ALTER TABLE public.hr_shifts OWNER TO postgres;
-
 --
--- Name: invoice_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: invoice_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.invoice_seq
@@ -447,10 +401,8 @@ CREATE SEQUENCE public.invoice_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.invoice_seq OWNER TO postgres;
-
 --
--- Name: payment_wallets; Type: TABLE; Schema: public; Owner: postgres
+-- Name: payment_wallets; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.payment_wallets (
@@ -465,10 +417,8 @@ CREATE TABLE public.payment_wallets (
 );
 
 
-ALTER TABLE public.payment_wallets OWNER TO postgres;
-
 --
--- Name: payroll_entries; Type: TABLE; Schema: public; Owner: postgres
+-- Name: payroll_entries; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.payroll_entries (
@@ -482,10 +432,8 @@ CREATE TABLE public.payroll_entries (
 );
 
 
-ALTER TABLE public.payroll_entries OWNER TO postgres;
-
 --
--- Name: payroll_periods; Type: TABLE; Schema: public; Owner: postgres
+-- Name: payroll_periods; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.payroll_periods (
@@ -498,10 +446,8 @@ CREATE TABLE public.payroll_periods (
 );
 
 
-ALTER TABLE public.payroll_periods OWNER TO postgres;
-
 --
--- Name: products; Type: TABLE; Schema: public; Owner: postgres
+-- Name: products; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.products (
@@ -528,10 +474,8 @@ CREATE TABLE public.products (
 );
 
 
-ALTER TABLE public.products OWNER TO postgres;
-
 --
--- Name: purchase_order_items; Type: TABLE; Schema: public; Owner: postgres
+-- Name: purchase_order_items; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.purchase_order_items (
@@ -545,10 +489,8 @@ CREATE TABLE public.purchase_order_items (
 );
 
 
-ALTER TABLE public.purchase_order_items OWNER TO postgres;
-
 --
--- Name: purchase_orders; Type: TABLE; Schema: public; Owner: postgres
+-- Name: purchase_orders; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.purchase_orders (
@@ -567,10 +509,8 @@ CREATE TABLE public.purchase_orders (
 );
 
 
-ALTER TABLE public.purchase_orders OWNER TO postgres;
-
 --
--- Name: purchase_price_history; Type: TABLE; Schema: public; Owner: postgres
+-- Name: purchase_price_history; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.purchase_price_history (
@@ -584,10 +524,8 @@ CREATE TABLE public.purchase_price_history (
 );
 
 
-ALTER TABLE public.purchase_price_history OWNER TO postgres;
-
 --
--- Name: purchase_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: purchase_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.purchase_seq
@@ -598,10 +536,8 @@ CREATE SEQUENCE public.purchase_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.purchase_seq OWNER TO postgres;
-
 --
--- Name: quotation_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: quotation_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.quotation_seq
@@ -612,10 +548,8 @@ CREATE SEQUENCE public.quotation_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.quotation_seq OWNER TO postgres;
-
 --
--- Name: safe_deposits; Type: TABLE; Schema: public; Owner: postgres
+-- Name: safe_deposits; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.safe_deposits (
@@ -634,10 +568,25 @@ CREATE TABLE public.safe_deposits (
 );
 
 
-ALTER TABLE public.safe_deposits OWNER TO postgres;
+--
+-- Name: safe_transactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.safe_transactions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    safe_id uuid NOT NULL,
+    tx_type text NOT NULL,
+    amount numeric(14,2) NOT NULL,
+    balance_after numeric(14,2) NOT NULL,
+    note text,
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT safe_transactions_tx_type_check CHECK ((tx_type = ANY (ARRAY['deposit'::text, 'withdraw'::text])))
+);
+
 
 --
--- Name: safes; Type: TABLE; Schema: public; Owner: postgres
+-- Name: safes; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.safes (
@@ -646,14 +595,14 @@ CREATE TABLE public.safes (
     location text,
     balance numeric(14,2) DEFAULT 0 NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    safe_type text DEFAULT 'permanent'::text NOT NULL,
+    CONSTRAINT safes_safe_type_check CHECK ((safe_type = ANY (ARRAY['permanent'::text, 'temporary'::text])))
 );
 
 
-ALTER TABLE public.safes OWNER TO postgres;
-
 --
--- Name: sale_items; Type: TABLE; Schema: public; Owner: postgres
+-- Name: sale_items; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.sale_items (
@@ -667,10 +616,8 @@ CREATE TABLE public.sale_items (
 );
 
 
-ALTER TABLE public.sale_items OWNER TO postgres;
-
 --
--- Name: sales; Type: TABLE; Schema: public; Owner: postgres
+-- Name: sales; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.sales (
@@ -692,10 +639,8 @@ CREATE TABLE public.sales (
 );
 
 
-ALTER TABLE public.sales OWNER TO postgres;
-
 --
--- Name: shifts; Type: TABLE; Schema: public; Owner: postgres
+-- Name: shifts; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.shifts (
@@ -716,10 +661,8 @@ CREATE TABLE public.shifts (
 );
 
 
-ALTER TABLE public.shifts OWNER TO postgres;
-
 --
--- Name: stock_movements; Type: TABLE; Schema: public; Owner: postgres
+-- Name: stock_movements; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.stock_movements (
@@ -738,10 +681,8 @@ CREATE TABLE public.stock_movements (
 );
 
 
-ALTER TABLE public.stock_movements OWNER TO postgres;
-
 --
--- Name: store_settings; Type: TABLE; Schema: public; Owner: postgres
+-- Name: store_settings; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.store_settings (
@@ -751,10 +692,8 @@ CREATE TABLE public.store_settings (
 );
 
 
-ALTER TABLE public.store_settings OWNER TO postgres;
-
 --
--- Name: subcategories; Type: TABLE; Schema: public; Owner: postgres
+-- Name: subcategories; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.subcategories (
@@ -765,10 +704,8 @@ CREATE TABLE public.subcategories (
 );
 
 
-ALTER TABLE public.subcategories OWNER TO postgres;
-
 --
--- Name: supplier_transactions; Type: TABLE; Schema: public; Owner: postgres
+-- Name: supplier_transactions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.supplier_transactions (
@@ -783,10 +720,8 @@ CREATE TABLE public.supplier_transactions (
 );
 
 
-ALTER TABLE public.supplier_transactions OWNER TO postgres;
-
 --
--- Name: suppliers; Type: TABLE; Schema: public; Owner: postgres
+-- Name: suppliers; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.suppliers (
@@ -801,10 +736,8 @@ CREATE TABLE public.suppliers (
 );
 
 
-ALTER TABLE public.suppliers OWNER TO postgres;
-
 --
--- Name: users; Type: TABLE; Schema: public; Owner: postgres
+-- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.users (
@@ -822,10 +755,8 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO postgres;
-
 --
--- Name: warehouses; Type: TABLE; Schema: public; Owner: postgres
+-- Name: warehouses; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.warehouses (
@@ -838,10 +769,8 @@ CREATE TABLE public.warehouses (
 );
 
 
-ALTER TABLE public.warehouses OWNER TO postgres;
-
 --
--- Data for Name: archived_documents; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: archived_documents; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.archived_documents (id, doc_number, doc_type, customer_name, amount, file_path, storage_key, metadata, ref_id, created_by, created_at) FROM stdin;
@@ -879,11 +808,18 @@ ac9f4171-bbea-4cfe-ac1a-5897725fac78	PO-001004	purchase_invoice	\N	50.00	\N	\N	{
 1ea1f8db-992a-4710-8b6f-c4cda1450292	INV-001027	sale_invoice	\N	50.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 1}	deec8934-2282-4a63-bff3-44e6123420fb	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.647447+00
 25795185-18e2-4d2c-ab96-c2d59220a765	INV-001028	sale_invoice	\N	250.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 1}	199a9759-0bc7-467e-9689-5b55ed482852	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-31 11:42:55.888868+00
 14b03de8-b455-4842-a14b-0574314c6655	DEP-001031	safe_deposit	\N	1500.00	\N	\N	{"notes": "توريد يومي", "safe_name": "الخزنة الرئيسية", "warehouse": "معرض المؤمن", "received_by": "عمار محمد السيد", "deposited_by": "عمار محمد السيد"}	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-31 16:50:27.998146+00
+51fff318-2e41-4603-9d7a-4bd614a4dca6	HND-0402025923	shift_handover	\N	490.00	\N	\N	{"notes": "", "amount": 490.0, "to_user": "f00d039c-caa7-5b00-adba-365ed90c5f10", "from_user": "7ef659d3-53f7-48b1-aca3-538ef5a1b3cd", "to_user_name": "عمار محمد السيد", "from_user_name": "احمد الكوك"}	a4a070b3-e6f5-499f-9940-dcd41fcc2188	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-04-02 02:59:23.864557+00
+758c8c02-4737-4340-9275-d1b84f860bf6	INV-001034	sale_invoice	\N	244.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 5}	93e21d4f-cbe6-4afa-b10f-227e5f880205	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.587804+00
+3134c318-50ba-44d8-8215-ddf106378e15	INV-001035	sale_invoice	\N	1530.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 16}	fe121e94-46b6-4648-93ff-bf01bbca993c	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.975491+00
+b8ca54ed-7e37-444b-8d9f-b1c67bd01dbd	INV-001036	sale_invoice	\N	2175.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 34}	3c7477d7-356c-446f-a586-7df3b6dc8ab8	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:57.315182+00
+730a3915-9b88-4f1a-ae14-f54fbcadc5a4	INV-001037	sale_invoice	\N	280.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 1}	a0ac245b-ad7d-4c35-b396-e2b50fabc3d2	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 14:06:25.943539+00
+3170ff57-fa1a-49c9-a492-62b763da84b8	INV-001038	sale_invoice	\N	0.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 1}	959f3731-be54-4d1c-88ce-382fa7d99ade	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 14:08:17.683137+00
+a3ee5645-59d8-48e4-badb-b34520d50b0b	INV-001039	sale_invoice	\N	165.00	\N	\N	{"mode": "SaleMode.retail", "items_count": 2}	43be1524-bee7-4d70-b1c1-abad3c568a29	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 15:50:18.928562+00
 \.
 
 
 --
--- Data for Name: audit_log; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: audit_log; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.audit_log (id, entity_type, entity_id, action, user_id, user_name, changes, note, created_at) FROM stdin;
@@ -891,7 +827,7 @@ COPY public.audit_log (id, entity_type, entity_id, action, user_id, user_name, c
 
 
 --
--- Data for Name: categories; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: categories; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.categories (id, name, created_at) FROM stdin;
@@ -922,7 +858,7 @@ e2cee846-5949-507b-8625-012eec13a6e6	مؤقت	2026-03-25 18:13:41.323568+00
 
 
 --
--- Data for Name: customer_payments; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: customer_payments; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.customer_payments (id, customer_id, amount, note, created_by, created_at) FROM stdin;
@@ -935,7 +871,7 @@ a9bfa8a8-b7f9-4d14-9da8-9cbc37756650	ea70b37f-e40d-4d13-a014-52ed6cc34d9e	100.00
 
 
 --
--- Data for Name: customers; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: customers; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.customers (id, name, phone, address, is_cash, created_at, balance) FROM stdin;
@@ -946,7 +882,7 @@ ea70b37f-e40d-4d13-a014-52ed6cc34d9e	شركة النيل للتجارة	01012345
 
 
 --
--- Data for Name: drawer_transactions; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: drawer_transactions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.drawer_transactions (id, shift_id, type, amount, ref_id, note, created_by, created_at, category_id, payment_method, wallet_id) FROM stdin;
@@ -1004,11 +940,17 @@ fc5e3d3f-011d-462a-8c40-fee6af6920f1	4a7dd547-9642-4562-a0a8-1fa55de24162	deposi
 34c2659b-d774-495e-8e92-bfdfffc8c693	4a7dd547-9642-4562-a0a8-1fa55de24162	expense	200.00	\N	تفويل فطوطة	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:20:02.008717+00	\N	cash	\N
 e5696e65-bac1-4f81-a379-7b7c67f1392a	a4a070b3-e6f5-499f-9940-dcd41fcc2188	sale	50.00	deec8934-2282-4a63-bff3-44e6123420fb	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.40389+00	\N	cash	\N
 14f68ae2-6c12-4767-97af-9e46cf762bb1	a4a070b3-e6f5-499f-9940-dcd41fcc2188	sale	250.00	199a9759-0bc7-467e-9689-5b55ed482852	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-31 11:42:55.471697+00	\N	cash	\N
+e505bf89-04ca-463a-a791-20bd98d5292e	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	sale	244.00	93e21d4f-cbe6-4afa-b10f-227e5f880205	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.192762+00	\N	cash	\N
+d5f676ad-399b-4e8f-a910-c0e7a2b5cc58	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	sale	1530.00	fe121e94-46b6-4648-93ff-bf01bbca993c	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00	\N	cash	\N
+9bdb3a81-0ce9-4713-bf79-3d34294f39f6	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	sale	2175.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00	\N	cash	\N
+bb5fe3ec-ace8-4c42-b963-6539bbaffe7c	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	sale	280.00	a0ac245b-ad7d-4c35-b396-e2b50fabc3d2	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 14:06:25.843159+00	\N	cash	\N
+ad00e1d9-5569-4ee9-ba0f-fa9790d8988a	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	sale	0.00	959f3731-be54-4d1c-88ce-382fa7d99ade	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 14:08:17.538367+00	\N	cash	\N
+4aee29b0-bb96-41d7-b39c-3746a6ecf62e	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	sale	165.00	43be1524-bee7-4d70-b1c1-abad3c568a29	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 15:50:18.727687+00	\N	cash	\N
 \.
 
 
 --
--- Data for Name: employees; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: employees; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.employees (id, user_id, full_name, national_id, phone, base_salary, hire_date, is_active, created_at) FROM stdin;
@@ -1016,7 +958,7 @@ COPY public.employees (id, user_id, full_name, national_id, phone, base_salary, 
 
 
 --
--- Data for Name: financial_categories; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: financial_categories; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.financial_categories (id, name, type, color, created_at) FROM stdin;
@@ -1024,7 +966,7 @@ COPY public.financial_categories (id, name, type, color, created_at) FROM stdin;
 
 
 --
--- Data for Name: hr_advances; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_advances; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_advances (id, employee_id, amount, date, note, created_by, created_at, record_type) FROM stdin;
@@ -1046,7 +988,7 @@ c68786a1-5341-4e41-993e-1dfa956a204c	6fcefb3d-7918-4118-9633-b74c21c0dd0f	1000.0
 
 
 --
--- Data for Name: hr_attendance; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_attendance; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_attendance (id, employee_id, work_date, check_in, check_out, status, notes, created_at, edited, edited_by, edit_reason, excuse_no_late, excuse_no_early, excuse_allow_overtime, shift_override) FROM stdin;
@@ -1894,7 +1836,7 @@ e5098029-59af-45d5-981b-530c581daaf2	dedc4608-da7e-4935-99c0-669c48d2a895	2026-0
 
 
 --
--- Data for Name: hr_audit_log; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_audit_log; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_audit_log (id, action_type, entity_type, entity_id, performed_by, reason, details, created_at) FROM stdin;
@@ -1902,7 +1844,7 @@ COPY public.hr_audit_log (id, action_type, entity_type, entity_id, performed_by,
 
 
 --
--- Data for Name: hr_employees; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_employees; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_employees (id, user_id, emp_code, name, "position", monthly_salary, shift_schedule, hire_date, is_active, created_at, shift_id, max_lateness_before_overtime_cancellation, ignore_lateness) FROM stdin;
@@ -1920,7 +1862,7 @@ ddc6b689-f7f8-476a-a6fa-a7cfc05fc045	\N	6	Habiba	مندوبة مبيعات	3000.
 
 
 --
--- Data for Name: hr_payroll; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_payroll; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_payroll (id, employee_id, month, base_salary, working_days, absent_days, overtime_hours, overtime_pay, bonus, deductions, advances, drawer_variance, net_salary, status, notes, created_by, created_at, actual_working_days, vacation_days, total_hours, lateness_minutes, early_leave_minutes, missing_scan_minutes, lateness_deduction, bonus_days, bonus_payment, hourly_rate, daily_breakdown) FROM stdin;
@@ -1948,7 +1890,7 @@ a788e9af-b60b-4b19-8688-05db2b0b74ba	925f7ec5-0f83-4508-8cda-d7c8174f2990	2026-0
 
 
 --
--- Data for Name: hr_settings; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_settings; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_settings (key, value) FROM stdin;
@@ -1957,7 +1899,7 @@ apply_missing_checkout_penalty	False
 
 
 --
--- Data for Name: hr_shifts; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: hr_shifts; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hr_shifts (id, name, start_time, end_time, description) FROM stdin;
@@ -1972,7 +1914,7 @@ COPY public.hr_shifts (id, name, start_time, end_time, description) FROM stdin;
 
 
 --
--- Data for Name: payment_wallets; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: payment_wallets; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.payment_wallets (id, name, type, phone, balance, is_active, created_at) FROM stdin;
@@ -1983,7 +1925,7 @@ COPY public.payment_wallets (id, name, type, phone, balance, is_active, created_
 
 
 --
--- Data for Name: payroll_entries; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: payroll_entries; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.payroll_entries (id, period_id, employee_id, base_salary, bonuses, deductions, notes) FROM stdin;
@@ -1991,7 +1933,7 @@ COPY public.payroll_entries (id, period_id, employee_id, base_salary, bonuses, d
 
 
 --
--- Data for Name: payroll_periods; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: payroll_periods; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.payroll_periods (id, month, year, status, created_by, created_at) FROM stdin;
@@ -1999,7 +1941,7 @@ COPY public.payroll_periods (id, month, year, status, created_by, created_at) FR
 
 
 --
--- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.products (id, subcategory_id, name, barcode, unit, retail_price, wholesale_price, cost_price, company, size, type, material, image_url, is_active, created_at, updated_at, reorder_point, reorder_qty, stock_status) FROM stdin;
@@ -2729,7 +2671,7 @@ fb5099b2-64e9-452e-b4d6-2c3591a1b042	36041da5-c9a4-574f-9538-790b9601a464	تي �
 
 
 --
--- Data for Name: purchase_order_items; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: purchase_order_items; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.purchase_order_items (id, po_id, product_id, qty_ordered, qty_received, unit_cost, notes) FROM stdin;
@@ -2738,7 +2680,7 @@ COPY public.purchase_order_items (id, po_id, product_id, qty_ordered, qty_receiv
 
 
 --
--- Data for Name: purchase_orders; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: purchase_orders; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.purchase_orders (id, po_number, supplier_id, warehouse_id, created_by, status, notes, created_at, received_at, amount_paid, received_by_name, invoice_image_url) FROM stdin;
@@ -2747,7 +2689,7 @@ COPY public.purchase_orders (id, po_number, supplier_id, warehouse_id, created_b
 
 
 --
--- Data for Name: purchase_price_history; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: purchase_price_history; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.purchase_price_history (id, product_id, po_id, supplier_id, old_cost, new_cost, created_at) FROM stdin;
@@ -2756,7 +2698,7 @@ COPY public.purchase_price_history (id, product_id, po_id, supplier_id, old_cost
 
 
 --
--- Data for Name: safe_deposits; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: safe_deposits; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.safe_deposits (id, safe_id, shift_id, warehouse_id, amount, received_by, received_by_name, deposited_by, deposited_by_name, notes, doc_number, created_at) FROM stdin;
@@ -2765,18 +2707,26 @@ eed54ceb-7f07-4eef-b38d-e9f597669599	5a157f4c-4d31-4e3c-93f2-a66e81b44f45	\N	122
 
 
 --
--- Data for Name: safes; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: safe_transactions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.safes (id, name, location, balance, is_active, created_at) FROM stdin;
-b4d0abe6-580f-4725-9a44-01bf7f86062e	خزنة معرض المؤمن	معرض المؤمن	0.00	t	2026-03-31 16:12:22.734709+00
-c49a5a41-1db4-4541-a899-a99b2e40da56	خزنة العبور	معرض العبور	0.00	t	2026-03-31 16:12:22.734709+00
-5a157f4c-4d31-4e3c-93f2-a66e81b44f45	الخزنة الرئيسية	المكتب الرئيسي	1500.00	t	2026-03-31 16:12:22.734709+00
+COPY public.safe_transactions (id, safe_id, tx_type, amount, balance_after, note, created_by, created_at) FROM stdin;
 \.
 
 
 --
--- Data for Name: sale_items; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: safes; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.safes (id, name, location, balance, is_active, created_at, safe_type) FROM stdin;
+b4d0abe6-580f-4725-9a44-01bf7f86062e	خزنة معرض المؤمن	معرض المؤمن	0.00	t	2026-03-31 16:12:22.734709+00	permanent
+c49a5a41-1db4-4541-a899-a99b2e40da56	خزنة العبور	معرض العبور	0.00	t	2026-03-31 16:12:22.734709+00	permanent
+5a157f4c-4d31-4e3c-93f2-a66e81b44f45	الخزنة الرئيسية	المكتب الرئيسي	1500.00	t	2026-03-31 16:12:22.734709+00	permanent
+\.
+
+
+--
+-- Data for Name: sale_items; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.sale_items (id, sale_id, product_id, qty, unit_price, unit_cost, discount) FROM stdin;
@@ -2817,11 +2767,70 @@ ba19364c-3b6f-4309-af75-45f59a11fdd2	f0caea27-2456-4ac1-9e91-535c9488f8d1	c8b78e
 0c4cec9b-61cb-48aa-8b54-ca9f5bdd435a	678a4d14-d028-4c24-a72f-0dbaa1bbb258	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	1.000	90.00	70.00	0.00
 8b621055-9092-4082-861d-e77f2013a86d	deec8934-2282-4a63-bff3-44e6123420fb	b9b32325-fda4-46a7-b4f4-6da187863e4a	1.000	50.00	40.00	0.00
 a7b50dec-cb53-4412-9880-03124de8505e	199a9759-0bc7-467e-9689-5b55ed482852	b9b32325-fda4-46a7-b4f4-6da187863e4a	5.000	50.00	40.00	0.00
+88267d53-b7b7-430b-945c-003149026794	93e21d4f-cbe6-4afa-b10f-227e5f880205	b9b32325-fda4-46a7-b4f4-6da187863e4a	1.000	50.00	40.00	0.00
+707d9ac4-1171-40e4-9a91-1e25bbdfe43e	93e21d4f-cbe6-4afa-b10f-227e5f880205	f0cd51f3-5b93-45a9-bad8-c7f76cc2c726	1.000	75.00	60.00	0.00
+4dfd3c42-8ac1-456e-a3d0-ae931070648d	93e21d4f-cbe6-4afa-b10f-227e5f880205	ca985298-d266-4483-8a13-ff73c90536dc	1.000	90.00	72.00	0.00
+75403461-f5c6-431f-ac19-36067fe0133b	93e21d4f-cbe6-4afa-b10f-227e5f880205	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	1.000	90.00	70.00	0.00
+0963a072-b3fa-4de7-a981-c911271dcd59	93e21d4f-cbe6-4afa-b10f-227e5f880205	c19f42ec-ad6d-4161-9f38-a9c4cecb643b	1.000	0.00	0.00	0.00
+1ae8bd80-95d0-4fb8-a1c6-ce8be4c436ca	fe121e94-46b6-4648-93ff-bf01bbca993c	b9b32325-fda4-46a7-b4f4-6da187863e4a	1.000	50.00	40.00	5.00
+7f466abf-60c7-4d83-9778-93a4a4dbaa80	fe121e94-46b6-4648-93ff-bf01bbca993c	ffa8d86a-6352-4d4c-a6f1-76622d09b032	1.000	0.00	0.00	0.00
+9566148b-3ffa-4270-bd1d-3e088da3fb2a	fe121e94-46b6-4648-93ff-bf01bbca993c	ca985298-d266-4483-8a13-ff73c90536dc	1.000	90.00	72.00	0.00
+57264a55-fa59-431b-857b-fbb69a2ae06c	fe121e94-46b6-4648-93ff-bf01bbca993c	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	3.000	90.00	70.00	0.00
+813f47b9-daec-4977-8ebf-79f00a213279	fe121e94-46b6-4648-93ff-bf01bbca993c	811c48aa-84b6-4bed-9771-3e6dd162e9a6	1.000	75.00	0.00	0.00
+e17f19ad-e465-4045-92ac-23c6746a12ee	fe121e94-46b6-4648-93ff-bf01bbca993c	4b596a39-71ad-4be0-adcb-82637141438e	1.000	75.00	0.00	0.00
+590a6b2f-9f40-4bd0-86cf-e8380fcd5893	fe121e94-46b6-4648-93ff-bf01bbca993c	4c7f2b6e-8a67-489f-ad91-257ba78a7f51	1.000	65.00	0.00	0.00
+fe9f76db-d4e4-4f93-831f-7b7928a36cb3	fe121e94-46b6-4648-93ff-bf01bbca993c	fd927c9a-2843-4740-b97e-c92f51424765	1.000	120.00	0.00	0.00
+9efdf03a-2881-4d17-a046-322f26a4fb0e	fe121e94-46b6-4648-93ff-bf01bbca993c	ec991740-f53e-42ea-9e48-6af7a7696248	1.000	0.00	0.00	0.00
+f1e6d2c0-9073-4e85-87c3-ce2d3c716f4c	fe121e94-46b6-4648-93ff-bf01bbca993c	b09598b6-4537-4e39-b28b-d50cb6d8d19a	1.000	0.00	0.00	0.00
+b2b7358e-4e5a-4920-b159-26c88ea0441a	fe121e94-46b6-4648-93ff-bf01bbca993c	92d27d2a-5f22-47c2-a167-4b6fc0908e3e	1.000	150.00	125.00	0.00
+da8d9ea1-20cf-4bc9-a724-acad800a4431	fe121e94-46b6-4648-93ff-bf01bbca993c	06030f57-05d3-4624-ab21-4f2dbd36628c	1.000	0.00	0.00	0.00
+b06bd3cb-a70b-45b9-ad78-5adff98605bc	fe121e94-46b6-4648-93ff-bf01bbca993c	ed7dc576-4868-491e-847f-08379201a129	2.000	0.00	0.00	0.00
+a7b380bd-2de1-4354-a18d-5106707f38d9	fe121e94-46b6-4648-93ff-bf01bbca993c	244e72f6-2f15-49f4-8526-3b485ebb345b	1.000	280.00	0.00	0.00
+f05190f0-685b-4429-8df2-2cc1e4ef8a82	fe121e94-46b6-4648-93ff-bf01bbca993c	7652a593-90d8-4ba8-9bf0-d1f452915da4	2.000	120.00	0.00	0.00
+a5dea2f2-732d-45ad-a3d1-14f5dcc6abf0	fe121e94-46b6-4648-93ff-bf01bbca993c	13ab7f8d-4d5c-495d-9665-b12b51ba8097	1.000	120.00	0.00	0.00
+1c3b88ba-467b-46e5-acb6-e5c19dd34d77	3c7477d7-356c-446f-a586-7df3b6dc8ab8	ca985298-d266-4483-8a13-ff73c90536dc	1.000	90.00	72.00	0.00
+b03812c5-0060-4df9-9ddf-2809f84ad8f5	3c7477d7-356c-446f-a586-7df3b6dc8ab8	2ac3dc85-e7cf-4ff1-8aff-01e6d8fd54a1	1.000	0.00	0.00	0.00
+3eb3338a-3797-4bd0-9bc6-a0cc1e20b219	3c7477d7-356c-446f-a586-7df3b6dc8ab8	ffa8d86a-6352-4d4c-a6f1-76622d09b032	1.000	0.00	0.00	0.00
+2ad32797-a451-4ac9-8fac-cf9abb91d549	3c7477d7-356c-446f-a586-7df3b6dc8ab8	b9b32325-fda4-46a7-b4f4-6da187863e4a	2.000	50.00	40.00	0.00
+afe55c07-fa1b-454e-91d1-cd0ff4956aca	3c7477d7-356c-446f-a586-7df3b6dc8ab8	af31725d-fa0f-42df-88d4-9041e36ad994	2.000	0.00	0.00	0.00
+dfac2aa3-a253-4f2c-8528-27c6d49f8b5e	3c7477d7-356c-446f-a586-7df3b6dc8ab8	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	1.000	90.00	70.00	0.00
+3e67fc75-afdb-424e-b504-d8b1f75de5f0	3c7477d7-356c-446f-a586-7df3b6dc8ab8	ab4ba887-5c44-4a22-b567-670c0001b603	1.000	0.00	0.00	0.00
+f2a36c6b-cbf0-4701-81be-4a30a5350e18	3c7477d7-356c-446f-a586-7df3b6dc8ab8	c19f42ec-ad6d-4161-9f38-a9c4cecb643b	1.000	0.00	0.00	0.00
+9cd35135-3881-4e23-bc7b-bb97ea0306a4	3c7477d7-356c-446f-a586-7df3b6dc8ab8	d14ac884-8431-46ba-adcb-5190dbaf9da0	1.000	35.00	0.00	0.00
+41525de3-08dd-4ee0-97f9-908a4746b1b9	3c7477d7-356c-446f-a586-7df3b6dc8ab8	695705d9-9757-4f2a-be89-fe096ffd87c2	1.000	0.00	0.00	0.00
+008ec30f-a21c-4e6c-8651-78c04c37f4c0	3c7477d7-356c-446f-a586-7df3b6dc8ab8	9f86c75d-e220-45e8-95a2-405be7b53488	1.000	0.00	0.00	0.00
+e8b42f99-e978-4c32-bf53-f89208a63812	3c7477d7-356c-446f-a586-7df3b6dc8ab8	b7d3a006-f7a1-40d6-b3d8-20192e7f93bf	1.000	0.00	0.00	0.00
+8da349f5-87a8-46f5-b385-66f4432df6e3	3c7477d7-356c-446f-a586-7df3b6dc8ab8	b09598b6-4537-4e39-b28b-d50cb6d8d19a	1.000	0.00	0.00	0.00
+86c00c6a-2f9c-48bf-9c7f-63c3b885a5c7	3c7477d7-356c-446f-a586-7df3b6dc8ab8	ec991740-f53e-42ea-9e48-6af7a7696248	1.000	0.00	0.00	0.00
+ad36feef-7ef5-42d3-bf7d-4f28ba5626c7	3c7477d7-356c-446f-a586-7df3b6dc8ab8	fd927c9a-2843-4740-b97e-c92f51424765	1.000	120.00	0.00	0.00
+286560a0-90d3-4cb2-9d51-590131179fe2	3c7477d7-356c-446f-a586-7df3b6dc8ab8	4b596a39-71ad-4be0-adcb-82637141438e	1.000	75.00	0.00	0.00
+d317cc2e-4a10-4687-9cea-e5c6d59483b5	3c7477d7-356c-446f-a586-7df3b6dc8ab8	4c7f2b6e-8a67-489f-ad91-257ba78a7f51	1.000	65.00	0.00	0.00
+2752648f-56a6-4ebd-81bb-2f30bf593353	3c7477d7-356c-446f-a586-7df3b6dc8ab8	bf75d681-d9d1-4af8-871f-2ed687b63fd1	1.000	85.00	0.00	0.00
+3a17de4a-6983-480f-8f87-c68cd938f3b4	3c7477d7-356c-446f-a586-7df3b6dc8ab8	811c48aa-84b6-4bed-9771-3e6dd162e9a6	1.000	75.00	0.00	0.00
+d5a1b529-ce68-46c9-9c62-db8cc4c3f1fc	3c7477d7-356c-446f-a586-7df3b6dc8ab8	06030f57-05d3-4624-ab21-4f2dbd36628c	1.000	0.00	0.00	0.00
+8c0208c7-6757-45f8-b772-e66334041073	3c7477d7-356c-446f-a586-7df3b6dc8ab8	92d27d2a-5f22-47c2-a167-4b6fc0908e3e	1.000	150.00	125.00	0.00
+3c19a223-1b3d-4a79-89f0-c69aa939e7a4	3c7477d7-356c-446f-a586-7df3b6dc8ab8	6c1a7601-4298-4f3f-be83-c3e4abdedaf4	1.000	60.00	31.00	0.00
+b5ed9656-cffd-4fc2-8aab-26198f0d7eb5	3c7477d7-356c-446f-a586-7df3b6dc8ab8	a4d3df08-ac1d-4f42-82f3-da2fdbeb1958	1.000	100.00	0.00	0.00
+bb7932b6-f7a4-4b5d-8df5-5aa19bcd4b95	3c7477d7-356c-446f-a586-7df3b6dc8ab8	ff053f4f-7e5e-44a6-a452-893663ae65be	1.000	280.00	0.00	0.00
+2ba92ae8-8bf4-47ed-bd13-6f481c946fac	3c7477d7-356c-446f-a586-7df3b6dc8ab8	3a6f01a4-e9a4-4032-8b64-35410b5a8d5e	1.000	120.00	0.00	0.00
+88cf4a4a-63f0-44cd-acab-ebed3322a199	3c7477d7-356c-446f-a586-7df3b6dc8ab8	871b0c43-957e-4eb5-b5f0-4609014c1885	1.000	150.00	0.00	0.00
+754a5e91-3f2b-40c4-80be-7f6d79843245	3c7477d7-356c-446f-a586-7df3b6dc8ab8	d268cf2c-4306-4069-92de-d1879e230952	1.000	150.00	0.00	0.00
+8d0d4335-72bf-44b1-8c46-6b750b5146ac	3c7477d7-356c-446f-a586-7df3b6dc8ab8	17ef1e9c-6898-494a-8e97-ecf2af3f72fb	1.000	0.00	0.00	0.00
+11d90d65-88df-4651-8e47-867ea55327eb	3c7477d7-356c-446f-a586-7df3b6dc8ab8	d75fcff2-ef64-48b3-9cd8-e06d40e3a399	1.000	250.00	0.00	0.00
+f289fb7e-8b74-4321-b73e-8198792af169	3c7477d7-356c-446f-a586-7df3b6dc8ab8	c06966da-9cdb-4ed6-9296-177f3a63b307	1.000	0.00	0.00	0.00
+913a0406-7a7d-4b8e-ab2b-b98afad061d1	3c7477d7-356c-446f-a586-7df3b6dc8ab8	7838761b-9eb9-46bb-a99e-c09e677377a9	1.000	90.00	0.00	0.00
+8f9ac344-95b6-4aa8-884e-47dd7c239007	3c7477d7-356c-446f-a586-7df3b6dc8ab8	7e625f21-6107-40ed-a03a-280e64655065	1.000	0.00	0.00	0.00
+6cea9207-fbec-4af3-8d33-a493eb39043b	3c7477d7-356c-446f-a586-7df3b6dc8ab8	432e6e7e-c5ea-4639-a2ca-b3cac3b07617	1.000	90.00	0.00	0.00
+f418ad8e-f09c-4553-a805-54a7a8cbabc1	3c7477d7-356c-446f-a586-7df3b6dc8ab8	77badf35-82f3-4f15-9645-864081747352	2.000	0.00	0.00	0.00
+721e25a7-eb12-4fe3-8f16-2ac939f27fa0	a0ac245b-ad7d-4c35-b396-e2b50fabc3d2	244e72f6-2f15-49f4-8526-3b485ebb345b	1.000	280.00	0.00	0.00
+fa790469-8c69-4483-a7ec-b3d5a20ee5c7	959f3731-be54-4d1c-88ce-382fa7d99ade	6d2e9857-cc51-4c79-aa4d-d7b9e4208678	1.000	0.00	0.00	0.00
+f4c2dffe-f5af-4d02-a78e-39419fcc4f56	43be1524-bee7-4d70-b1c1-abad3c568a29	ca985298-d266-4483-8a13-ff73c90536dc	1.000	90.00	72.00	0.00
+80d3114a-9db5-4703-848a-91ddf989fac9	43be1524-bee7-4d70-b1c1-abad3c568a29	f0cd51f3-5b93-45a9-bad8-c7f76cc2c726	1.000	75.00	60.00	0.00
 \.
 
 
 --
--- Data for Name: sales; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: sales; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.sales (id, invoice_number, customer_id, warehouse_id, cashier_id, shift_id, sale_mode, status, discount_amount, notes, created_at, is_credit, created_by, payment_method, wallet_id) FROM stdin;
@@ -2856,11 +2865,17 @@ de55ead7-27bd-4e29-ad9a-e7aef4b74978	INV-0326053034	ea70b37f-e40d-4d13-a014-52ed
 678a4d14-d028-4c24-a72f-0dbaa1bbb258	INV-001026	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	4a7dd547-9642-4562-a0a8-1fa55de24162	retail	confirmed	0.00	\N	2026-03-29 17:18:55.672741+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
 deec8934-2282-4a63-bff3-44e6123420fb	INV-001027	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	a4a070b3-e6f5-499f-9940-dcd41fcc2188	retail	confirmed	0.00	\N	2026-03-30 13:33:52.40389+00	f	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	cash	\N
 199a9759-0bc7-467e-9689-5b55ed482852	INV-001028	973fbcf1-c2b3-450e-8584-a63cf0885350	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	a4a070b3-e6f5-499f-9940-dcd41fcc2188	retail	confirmed	0.00	\N	2026-03-31 11:42:55.471697+00	t	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	cash	\N
+93e21d4f-cbe6-4afa-b10f-227e5f880205	INV-001034	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	retail	confirmed	61.00	\N	2026-04-02 13:07:53.192762+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+fe121e94-46b6-4648-93ff-bf01bbca993c	INV-001035	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	retail	confirmed	0.00	\N	2026-04-02 13:13:03.781623+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+3c7477d7-356c-446f-a586-7df3b6dc8ab8	INV-001036	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	retail	confirmed	0.00	\N	2026-04-02 13:29:56.998774+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+a0ac245b-ad7d-4c35-b396-e2b50fabc3d2	INV-001037	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	retail	confirmed	0.00	\N	2026-04-02 14:06:25.843159+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+959f3731-be54-4d1c-88ce-382fa7d99ade	INV-001038	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	retail	confirmed	0.00	\N	2026-04-02 14:08:17.538367+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
+43be1524-bee7-4d70-b1c1-abad3c568a29	INV-001039	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	retail	confirmed	0.00	\N	2026-04-02 15:50:18.727687+00	f	f00d039c-caa7-5b00-adba-365ed90c5f10	cash	\N
 \.
 
 
 --
--- Data for Name: shifts; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: shifts; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.shifts (id, cashier_id, status, initial_amount, closing_balance, next_day_drawer, closed_by, notes, started_at, closed_at, warehouse_id, supervisor_id, deposit_received_by, deposit_amount) FROM stdin;
@@ -2881,13 +2896,15 @@ f96f6bdf-ca98-4a84-acf4-47ab176cb366	f00d039c-caa7-5b00-adba-365ed90c5f10	closed
 15399445-14ab-4dea-aadc-0c0c1befe128	f00d039c-caa7-5b00-adba-365ed90c5f10	closed	300.00	300.00	50.00	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	2026-03-27 05:19:29.270053+00	2026-03-27 03:19:29.459574+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	\N	\N	\N
 3dcf287f-653a-4299-b80d-c840e1503e2b	f00d039c-caa7-5b00-adba-365ed90c5f10	closed	50.00	330.00	0.00	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	2026-03-27 12:03:57.997932+00	2026-03-29 14:04:54.248611+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	\N
 4a7dd547-9642-4562-a0a8-1fa55de24162	f00d039c-caa7-5b00-adba-365ed90c5f10	closed	0.00	190.00	190.00	f00d039c-caa7-5b00-adba-365ed90c5f10	تسليم عهدة إلى 7ef659d3-53f7-48b1-aca3-538ef5a1b3cd. 	2026-03-29 16:53:09.769922+00	2026-03-29 17:20:24.165954+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	6a11d77b-24cc-577e-9ec3-4b0088eb7585	\N	\N
-a4a070b3-e6f5-499f-9940-dcd41fcc2188	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	open	190.00	\N	\N	\N	استلام عهدة من f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-29 17:20:24.162693+00	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	6a11d77b-24cc-577e-9ec3-4b0088eb7585	\N	\N
 900146ce-a935-43ea-a6d4-647276e80612	f00d039c-caa7-5b00-adba-365ed90c5f10	open	0.00	\N	\N	\N	\N	2026-03-31 11:50:34.888454+00	\N	536e6eba-c111-4d60-b812-ead42ab23883	658196d5-857d-493c-94e4-e604b01764ab	\N	\N
+a4a070b3-e6f5-499f-9940-dcd41fcc2188	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	closed	190.00	490.00	490.00	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	تسليم عهدة إلى f00d039c-caa7-5b00-adba-365ed90c5f10. 	2026-03-29 17:20:24.162693+00	2026-04-02 02:59:23.868536+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	6a11d77b-24cc-577e-9ec3-4b0088eb7585	\N	\N
+80c4d1a6-992c-4e0f-9a41-236ec66dd063	f00d039c-caa7-5b00-adba-365ed90c5f10	closed	490.00	490.00	50.00	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	2026-04-02 02:59:23.864557+00	2026-04-02 06:33:26.718204+00	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	f00d039c-caa7-5b00-adba-365ed90c5f10	\N	\N
+3b2a46fb-bcfb-4bc1-a660-ea8e75d58a0c	f00d039c-caa7-5b00-adba-365ed90c5f10	open	490.00	\N	\N	\N	\N	2026-04-02 06:34:42.023865+00	\N	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	\N	\N	\N
 \.
 
 
 --
--- Data for Name: stock_movements; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: stock_movements; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.stock_movements (id, product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, note, created_by, created_at) FROM stdin;
@@ -3661,11 +3678,70 @@ b887ecc5-01b9-4f4a-9b88-7a02724d2e15	313c6041-991c-4284-86ba-400fc94cb85f	122f5b
 f46e0dac-45f8-4a34-8609-518cb5d1a58b	c8b78e53-a457-4b32-8897-c449f3fe1e4f	59a2b8d7-e26b-4979-ae0e-3984f1b711b2	purchase	5.000	10.00	0.00	362b6e0d-4f17-4662-875b-1e63005a2d44	purchase	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-03-30 04:16:18.96905+00
 3403c02b-9561-49d6-a361-f4f4cf14ab05	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	40.00	50.00	deec8934-2282-4a63-bff3-44e6123420fb	sale	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-30 13:33:52.40389+00
 bb69c1c4-ec6b-45d0-95e5-d09012b31e20	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	5.000	40.00	50.00	199a9759-0bc7-467e-9689-5b55ed482852	sale	\N	7ef659d3-53f7-48b1-aca3-538ef5a1b3cd	2026-03-31 11:42:55.471697+00
+acb57b84-7fbc-4ea3-b8ac-c6688f1dc644	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	40.00	50.00	93e21d4f-cbe6-4afa-b10f-227e5f880205	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.192762+00
+c6fc53c2-69b4-4898-a510-fc8c2c6bf544	f0cd51f3-5b93-45a9-bad8-c7f76cc2c726	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	60.00	75.00	93e21d4f-cbe6-4afa-b10f-227e5f880205	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.192762+00
+ecd00f84-42d3-49c3-8dd4-7ad4f4fc6152	ca985298-d266-4483-8a13-ff73c90536dc	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	72.00	90.00	93e21d4f-cbe6-4afa-b10f-227e5f880205	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.192762+00
+62ebbf79-8988-405d-840f-ae335479c16a	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	70.00	90.00	93e21d4f-cbe6-4afa-b10f-227e5f880205	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.192762+00
+70d7e967-3587-4657-bd26-cd3656699d76	c19f42ec-ad6d-4161-9f38-a9c4cecb643b	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	93e21d4f-cbe6-4afa-b10f-227e5f880205	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:07:53.192762+00
+a05d10fe-a2a6-43cd-9631-082c73fb5e31	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	40.00	50.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+043fbebb-8956-444b-b7cf-417c820d8bb6	ffa8d86a-6352-4d4c-a6f1-76622d09b032	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+20832eb3-3ce5-4c3e-b38f-2e51166051f7	ca985298-d266-4483-8a13-ff73c90536dc	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	72.00	90.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+f6573f21-09b3-455a-8109-152131cebc75	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	3.000	70.00	90.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+247df227-776f-4aee-a528-70605a87a7ab	811c48aa-84b6-4bed-9771-3e6dd162e9a6	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	75.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+5957a159-1e04-4272-97cf-e6ae97694b88	4b596a39-71ad-4be0-adcb-82637141438e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	75.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+a2841220-8b90-40e5-8f72-13e25e1ebafb	4c7f2b6e-8a67-489f-ad91-257ba78a7f51	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	65.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+8f9a3ec7-6370-48d6-8f33-2b85d3a73022	fd927c9a-2843-4740-b97e-c92f51424765	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	120.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+477ad857-39f7-4c4a-9ca2-ac7d46133b7b	ec991740-f53e-42ea-9e48-6af7a7696248	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+97cd4ec9-f9b9-448f-852e-c5bf5c953fa7	b09598b6-4537-4e39-b28b-d50cb6d8d19a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+bfb8f8f2-d884-4973-a7ed-10e1fe9692e2	92d27d2a-5f22-47c2-a167-4b6fc0908e3e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	125.00	150.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+4d099d8d-3fd8-417b-96be-7ba6a5b2e2ff	06030f57-05d3-4624-ab21-4f2dbd36628c	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+01a6b89f-aebd-4d62-b217-6df396720577	ed7dc576-4868-491e-847f-08379201a129	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	2.000	0.00	0.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+96e0e08a-c23f-4ae7-a6c6-224e14825a8d	244e72f6-2f15-49f4-8526-3b485ebb345b	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	280.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+72da8a58-9d01-4a5d-a97b-32b54be9697c	7652a593-90d8-4ba8-9bf0-d1f452915da4	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	2.000	0.00	120.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+b167d23a-bf06-4f35-be59-e0a01a4debaa	13ab7f8d-4d5c-495d-9665-b12b51ba8097	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	120.00	fe121e94-46b6-4648-93ff-bf01bbca993c	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:13:03.781623+00
+2fe0c521-8e1e-4dc4-807e-f2a08939e3ee	ca985298-d266-4483-8a13-ff73c90536dc	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	72.00	90.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+ab6b5120-ecf9-4143-9325-cce3eee620f3	2ac3dc85-e7cf-4ff1-8aff-01e6d8fd54a1	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+818ca342-4304-47c4-971b-f6f30176ec5b	ffa8d86a-6352-4d4c-a6f1-76622d09b032	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+830db24a-a05f-41ce-863e-1a3271f3c574	b9b32325-fda4-46a7-b4f4-6da187863e4a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	2.000	40.00	50.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+5c31653a-dc37-4bd7-b2f3-6fb69df67ce9	af31725d-fa0f-42df-88d4-9041e36ad994	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	2.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+fbbff82a-0344-4b94-bf5b-b2992343e57e	d8fa1a59-0a7c-4137-a9fb-d33d5b88dbf6	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	70.00	90.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+88f2ad56-838a-4d04-bc5b-991d43d76c79	ab4ba887-5c44-4a22-b567-670c0001b603	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+6a7241b5-e16a-4620-ace7-136a692fcad0	c19f42ec-ad6d-4161-9f38-a9c4cecb643b	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+222987a0-987e-4a03-b893-7cc95561c0ce	d14ac884-8431-46ba-adcb-5190dbaf9da0	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	35.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+9c1f43ee-337d-40d6-af2d-37fbc16dc144	695705d9-9757-4f2a-be89-fe096ffd87c2	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+e691e0b0-ba64-4ba2-949a-8e951dafb023	9f86c75d-e220-45e8-95a2-405be7b53488	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+1be24a50-62b6-4c27-903d-755491c7f119	b7d3a006-f7a1-40d6-b3d8-20192e7f93bf	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+705828f3-b357-4528-b4a4-572e65712916	b09598b6-4537-4e39-b28b-d50cb6d8d19a	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+78ff2212-32d8-47c4-b413-10d6aeed1b30	ec991740-f53e-42ea-9e48-6af7a7696248	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+ec3b593b-7d74-4072-9c7a-5cbc9d73f104	fd927c9a-2843-4740-b97e-c92f51424765	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	120.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+f30a29c8-51fa-48c9-a104-a2801554fa72	4b596a39-71ad-4be0-adcb-82637141438e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	75.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+7ffb9fc6-f2c6-418e-b3ff-61442539cfeb	4c7f2b6e-8a67-489f-ad91-257ba78a7f51	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	65.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+a0b2eaca-8906-4fc7-87ea-1e1837f604b2	bf75d681-d9d1-4af8-871f-2ed687b63fd1	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	85.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+c0119a80-1e29-43fc-8932-49af7df7f0b2	811c48aa-84b6-4bed-9771-3e6dd162e9a6	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	75.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+7afdd5a6-7ae4-4691-91f8-94163f8245b2	06030f57-05d3-4624-ab21-4f2dbd36628c	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+ea9fada9-d517-4b7b-9712-2ffe6d64e880	92d27d2a-5f22-47c2-a167-4b6fc0908e3e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	125.00	150.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+4b333470-5a5c-4dc2-8df9-cb94139e510d	6c1a7601-4298-4f3f-be83-c3e4abdedaf4	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	31.00	60.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+751bcf85-27c1-472f-abf4-92796c42f172	a4d3df08-ac1d-4f42-82f3-da2fdbeb1958	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	100.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+4fb33542-5fca-43c7-9b94-0baec971188a	ff053f4f-7e5e-44a6-a452-893663ae65be	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	280.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+b54b2e67-9fe7-435e-9a1c-aab5daa2d546	3a6f01a4-e9a4-4032-8b64-35410b5a8d5e	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	120.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+cd5663e2-c868-4e42-8534-4acef30de273	871b0c43-957e-4eb5-b5f0-4609014c1885	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	150.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+f00823de-1269-4dcf-bf0e-fe161b468b4f	d268cf2c-4306-4069-92de-d1879e230952	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	150.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+39998fd3-724d-409d-991b-0baa3b515d64	17ef1e9c-6898-494a-8e97-ecf2af3f72fb	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+a2eba865-858e-41d3-9add-ed102a6e261e	d75fcff2-ef64-48b3-9cd8-e06d40e3a399	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	250.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+dd337af1-0db6-46c5-addf-b2cbecbe814c	c06966da-9cdb-4ed6-9296-177f3a63b307	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+5069545c-5505-4d90-83cb-5a5f299fd606	7838761b-9eb9-46bb-a99e-c09e677377a9	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	90.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+811a7825-1a11-4c4c-a00c-ce6836bb4db6	7e625f21-6107-40ed-a03a-280e64655065	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+2b48c0c6-addc-4b65-b039-71c2e797182c	432e6e7e-c5ea-4639-a2ca-b3cac3b07617	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	90.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+3b9ad16a-9e6b-44b0-918d-883f0bb1ffe4	77badf35-82f3-4f15-9645-864081747352	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	2.000	0.00	0.00	3c7477d7-356c-446f-a586-7df3b6dc8ab8	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 13:29:56.998774+00
+68f4a468-08e1-4f36-b522-619a71d9e3d3	244e72f6-2f15-49f4-8526-3b485ebb345b	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	280.00	a0ac245b-ad7d-4c35-b396-e2b50fabc3d2	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 14:06:25.843159+00
+4891c0c4-ea06-45d9-b7db-9b0ec78cbd2a	6d2e9857-cc51-4c79-aa4d-d7b9e4208678	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	0.00	0.00	959f3731-be54-4d1c-88ce-382fa7d99ade	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 14:08:17.538367+00
+23cac706-a47e-4308-b9ac-6bb5161345c2	ca985298-d266-4483-8a13-ff73c90536dc	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	72.00	90.00	43be1524-bee7-4d70-b1c1-abad3c568a29	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 15:50:18.727687+00
+40ced3d0-2d50-4d7e-9a1e-4c5d5b6fd636	f0cd51f3-5b93-45a9-bad8-c7f76cc2c726	122f5b3b-9519-5b1e-a3fd-0ddacba7e157	sale	1.000	60.00	75.00	43be1524-bee7-4d70-b1c1-abad3c568a29	sale	\N	f00d039c-caa7-5b00-adba-365ed90c5f10	2026-04-02 15:50:18.727687+00
 \.
 
 
 --
--- Data for Name: store_settings; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: store_settings; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.store_settings (key, value, updated_at) FROM stdin;
@@ -3681,11 +3757,12 @@ currency	جنيه مصري	2026-03-26 04:33:22.147637+00
 logo_url	https://i.ibb.co/Dgv4QwTZ/image.png	2026-03-29 12:09:20.072901+00
 contact_phones	[{"name": "مؤمن", "phone": "01065324979"}, {"name": "محمد", "phone": "01202456394"}, {"name": "مصطفى", "phone": "01145838183"}]	2026-03-30 13:19:59.968018+00
 store_phone	01114439625	2026-03-30 13:20:25.505404+00
+paper_size	A5	2026-04-02 07:42:34.90085+00
 \.
 
 
 --
--- Data for Name: subcategories; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: subcategories; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.subcategories (id, category_id, name, created_at) FROM stdin;
@@ -3914,7 +3991,7 @@ ae20d096-97b0-524d-bf38-e8865a491102	e2cee846-5949-507b-8625-012eec13a6e6	طلب
 
 
 --
--- Data for Name: supplier_transactions; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: supplier_transactions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.supplier_transactions (id, supplier_id, amount, type, reference_doc, notes, created_at) FROM stdin;
@@ -3922,7 +3999,7 @@ COPY public.supplier_transactions (id, supplier_id, amount, type, reference_doc,
 
 
 --
--- Data for Name: suppliers; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: suppliers; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.suppliers (id, name, phone, address, created_at, type, balance, notes) FROM stdin;
@@ -3931,7 +4008,7 @@ COPY public.suppliers (id, name, phone, address, created_at, type, balance, note
 
 
 --
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.users (id, username, full_name, role, password_hash, is_active, created_at, updated_at, permissions, is_manager, default_warehouse_id) FROM stdin;
@@ -3947,7 +4024,7 @@ d17b4b23-b266-4f91-9091-fdbb6506a628	ibrahim	الشيخ ابراهيم	manager	$
 
 
 --
--- Data for Name: warehouses; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: warehouses; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.warehouses (id, code, name, is_active, created_at, warehouse_type) FROM stdin;
@@ -3970,35 +4047,35 @@ cb6d74a5-2aab-473e-8acb-3b559fa4fea4	R03	معرض شارع ناصر	t	2026-03-26
 
 
 --
--- Name: dispatch_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+-- Name: dispatch_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.dispatch_seq', 1001, true);
 
 
 --
--- Name: invoice_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+-- Name: invoice_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.invoice_seq', 1031, true);
+SELECT pg_catalog.setval('public.invoice_seq', 1039, true);
 
 
 --
--- Name: purchase_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+-- Name: purchase_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.purchase_seq', 1004, true);
 
 
 --
--- Name: quotation_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+-- Name: quotation_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.quotation_seq', 1001, true);
 
 
 --
--- Name: archived_documents archived_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: archived_documents archived_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.archived_documents
@@ -4006,7 +4083,7 @@ ALTER TABLE ONLY public.archived_documents
 
 
 --
--- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.audit_log
@@ -4014,7 +4091,7 @@ ALTER TABLE ONLY public.audit_log
 
 
 --
--- Name: categories categories_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: categories categories_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.categories
@@ -4022,7 +4099,7 @@ ALTER TABLE ONLY public.categories
 
 
 --
--- Name: categories categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: categories categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.categories
@@ -4030,7 +4107,7 @@ ALTER TABLE ONLY public.categories
 
 
 --
--- Name: customer_payments customer_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: customer_payments customer_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.customer_payments
@@ -4038,7 +4115,7 @@ ALTER TABLE ONLY public.customer_payments
 
 
 --
--- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.customers
@@ -4046,7 +4123,7 @@ ALTER TABLE ONLY public.customers
 
 
 --
--- Name: drawer_transactions drawer_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: drawer_transactions drawer_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.drawer_transactions
@@ -4054,7 +4131,7 @@ ALTER TABLE ONLY public.drawer_transactions
 
 
 --
--- Name: employees employees_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: employees employees_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.employees
@@ -4062,7 +4139,7 @@ ALTER TABLE ONLY public.employees
 
 
 --
--- Name: financial_categories financial_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: financial_categories financial_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.financial_categories
@@ -4070,7 +4147,7 @@ ALTER TABLE ONLY public.financial_categories
 
 
 --
--- Name: hr_advances hr_advances_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_advances hr_advances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_advances
@@ -4078,7 +4155,7 @@ ALTER TABLE ONLY public.hr_advances
 
 
 --
--- Name: hr_attendance hr_attendance_employee_id_work_date_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_attendance hr_attendance_employee_id_work_date_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_attendance
@@ -4086,7 +4163,7 @@ ALTER TABLE ONLY public.hr_attendance
 
 
 --
--- Name: hr_attendance hr_attendance_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_attendance hr_attendance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_attendance
@@ -4094,7 +4171,7 @@ ALTER TABLE ONLY public.hr_attendance
 
 
 --
--- Name: hr_audit_log hr_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_audit_log hr_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_audit_log
@@ -4102,7 +4179,7 @@ ALTER TABLE ONLY public.hr_audit_log
 
 
 --
--- Name: hr_employees hr_employees_emp_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_employees hr_employees_emp_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_employees
@@ -4110,7 +4187,7 @@ ALTER TABLE ONLY public.hr_employees
 
 
 --
--- Name: hr_employees hr_employees_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_employees hr_employees_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_employees
@@ -4118,7 +4195,7 @@ ALTER TABLE ONLY public.hr_employees
 
 
 --
--- Name: hr_payroll hr_payroll_employee_id_month_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_payroll hr_payroll_employee_id_month_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_payroll
@@ -4126,7 +4203,7 @@ ALTER TABLE ONLY public.hr_payroll
 
 
 --
--- Name: hr_payroll hr_payroll_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_payroll hr_payroll_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_payroll
@@ -4134,7 +4211,7 @@ ALTER TABLE ONLY public.hr_payroll
 
 
 --
--- Name: hr_settings hr_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_settings hr_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_settings
@@ -4142,7 +4219,7 @@ ALTER TABLE ONLY public.hr_settings
 
 
 --
--- Name: hr_shifts hr_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_shifts hr_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_shifts
@@ -4150,7 +4227,7 @@ ALTER TABLE ONLY public.hr_shifts
 
 
 --
--- Name: payment_wallets payment_wallets_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: payment_wallets payment_wallets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.payment_wallets
@@ -4158,7 +4235,7 @@ ALTER TABLE ONLY public.payment_wallets
 
 
 --
--- Name: payroll_entries payroll_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: payroll_entries payroll_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.payroll_entries
@@ -4166,7 +4243,7 @@ ALTER TABLE ONLY public.payroll_entries
 
 
 --
--- Name: payroll_periods payroll_periods_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: payroll_periods payroll_periods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.payroll_periods
@@ -4174,7 +4251,7 @@ ALTER TABLE ONLY public.payroll_periods
 
 
 --
--- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.products
@@ -4182,7 +4259,7 @@ ALTER TABLE ONLY public.products
 
 
 --
--- Name: purchase_order_items purchase_order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_order_items purchase_order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_order_items
@@ -4190,7 +4267,7 @@ ALTER TABLE ONLY public.purchase_order_items
 
 
 --
--- Name: purchase_orders purchase_orders_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_orders purchase_orders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_orders
@@ -4198,7 +4275,7 @@ ALTER TABLE ONLY public.purchase_orders
 
 
 --
--- Name: purchase_orders purchase_orders_po_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_orders purchase_orders_po_number_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_orders
@@ -4206,7 +4283,7 @@ ALTER TABLE ONLY public.purchase_orders
 
 
 --
--- Name: purchase_price_history purchase_price_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_price_history purchase_price_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_price_history
@@ -4214,7 +4291,7 @@ ALTER TABLE ONLY public.purchase_price_history
 
 
 --
--- Name: safe_deposits safe_deposits_doc_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_doc_number_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4222,7 +4299,7 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: safe_deposits safe_deposits_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4230,7 +4307,15 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: safes safes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_transactions safe_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.safe_transactions
+    ADD CONSTRAINT safe_transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safes safes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safes
@@ -4238,7 +4323,7 @@ ALTER TABLE ONLY public.safes
 
 
 --
--- Name: sale_items sale_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sale_items sale_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sale_items
@@ -4246,7 +4331,7 @@ ALTER TABLE ONLY public.sale_items
 
 
 --
--- Name: sales sales_invoice_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_invoice_number_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4254,7 +4339,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: sales sales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4262,7 +4347,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: shifts shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shifts shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.shifts
@@ -4270,7 +4355,7 @@ ALTER TABLE ONLY public.shifts
 
 
 --
--- Name: stock_movements stock_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: stock_movements stock_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.stock_movements
@@ -4278,7 +4363,7 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: store_settings store_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: store_settings store_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.store_settings
@@ -4286,7 +4371,7 @@ ALTER TABLE ONLY public.store_settings
 
 
 --
--- Name: subcategories subcategories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: subcategories subcategories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.subcategories
@@ -4294,7 +4379,7 @@ ALTER TABLE ONLY public.subcategories
 
 
 --
--- Name: supplier_transactions supplier_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: supplier_transactions supplier_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_transactions
@@ -4302,7 +4387,7 @@ ALTER TABLE ONLY public.supplier_transactions
 
 
 --
--- Name: suppliers suppliers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: suppliers suppliers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.suppliers
@@ -4310,7 +4395,7 @@ ALTER TABLE ONLY public.suppliers
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -4318,7 +4403,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -4326,7 +4411,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: warehouses warehouses_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: warehouses warehouses_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.warehouses
@@ -4334,7 +4419,7 @@ ALTER TABLE ONLY public.warehouses
 
 
 --
--- Name: warehouses warehouses_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: warehouses warehouses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.warehouses
@@ -4342,154 +4427,154 @@ ALTER TABLE ONLY public.warehouses
 
 
 --
--- Name: idx_audit_created; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_audit_created; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_audit_created ON public.audit_log USING btree (created_at DESC);
 
 
 --
--- Name: idx_audit_entity; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_audit_entity; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_audit_entity ON public.audit_log USING btree (entity_type, entity_id);
 
 
 --
--- Name: idx_audit_user; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_audit_user; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_audit_user ON public.audit_log USING btree (user_id);
 
 
 --
--- Name: idx_pph_product; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_pph_product; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_pph_product ON public.purchase_price_history USING btree (product_id);
 
 
 --
--- Name: idx_sup_tx_supplier; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_sup_tx_supplier; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_sup_tx_supplier ON public.supplier_transactions USING btree (supplier_id);
 
 
 --
--- Name: ix_archived_documents_created_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_archived_documents_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_archived_documents_created_at ON public.archived_documents USING btree (created_at);
 
 
 --
--- Name: ix_archived_documents_doc_type; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_archived_documents_doc_type; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_archived_documents_doc_type ON public.archived_documents USING btree (doc_type);
 
 
 --
--- Name: ix_archived_documents_ref_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_archived_documents_ref_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_archived_documents_ref_id ON public.archived_documents USING btree (ref_id);
 
 
 --
--- Name: ix_customer_payments_customer_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_customer_payments_customer_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_customer_payments_customer_id ON public.customer_payments USING btree (customer_id);
 
 
 --
--- Name: ix_drawer_transactions_shift_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_drawer_transactions_shift_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_drawer_transactions_shift_id ON public.drawer_transactions USING btree (shift_id);
 
 
 --
--- Name: ix_products_barcode; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_products_barcode; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_products_barcode ON public.products USING btree (barcode);
 
 
 --
--- Name: ix_sale_items_product_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_sale_items_product_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_sale_items_product_id ON public.sale_items USING btree (product_id);
 
 
 --
--- Name: ix_sale_items_sale_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_sale_items_sale_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_sale_items_sale_id ON public.sale_items USING btree (sale_id);
 
 
 --
--- Name: ix_sales_cashier_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_sales_cashier_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_sales_cashier_id ON public.sales USING btree (cashier_id);
 
 
 --
--- Name: ix_sales_created_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_sales_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_sales_created_at ON public.sales USING btree (created_at);
 
 
 --
--- Name: ix_sales_customer_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_sales_customer_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_sales_customer_id ON public.sales USING btree (customer_id);
 
 
 --
--- Name: ix_sales_shift_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_sales_shift_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_sales_shift_id ON public.sales USING btree (shift_id);
 
 
 --
--- Name: ix_stock_movements_created_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_stock_movements_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_stock_movements_created_at ON public.stock_movements USING btree (created_at);
 
 
 --
--- Name: ix_stock_movements_product_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_stock_movements_product_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_stock_movements_product_id ON public.stock_movements USING btree (product_id);
 
 
 --
--- Name: ix_stock_movements_ref_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_stock_movements_ref_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_stock_movements_ref_id ON public.stock_movements USING btree (ref_id);
 
 
 --
--- Name: ix_stock_movements_warehouse_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_stock_movements_warehouse_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_stock_movements_warehouse_id ON public.stock_movements USING btree (warehouse_id);
 
 
 --
--- Name: archived_documents archived_documents_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: archived_documents archived_documents_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.archived_documents
@@ -4497,7 +4582,7 @@ ALTER TABLE ONLY public.archived_documents
 
 
 --
--- Name: audit_log audit_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: audit_log audit_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.audit_log
@@ -4505,7 +4590,7 @@ ALTER TABLE ONLY public.audit_log
 
 
 --
--- Name: customer_payments customer_payments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: customer_payments customer_payments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.customer_payments
@@ -4513,7 +4598,7 @@ ALTER TABLE ONLY public.customer_payments
 
 
 --
--- Name: customer_payments customer_payments_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: customer_payments customer_payments_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.customer_payments
@@ -4521,7 +4606,7 @@ ALTER TABLE ONLY public.customer_payments
 
 
 --
--- Name: drawer_transactions drawer_transactions_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: drawer_transactions drawer_transactions_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.drawer_transactions
@@ -4529,7 +4614,7 @@ ALTER TABLE ONLY public.drawer_transactions
 
 
 --
--- Name: drawer_transactions drawer_transactions_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: drawer_transactions drawer_transactions_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.drawer_transactions
@@ -4537,7 +4622,7 @@ ALTER TABLE ONLY public.drawer_transactions
 
 
 --
--- Name: drawer_transactions drawer_transactions_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: drawer_transactions drawer_transactions_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.drawer_transactions
@@ -4545,7 +4630,7 @@ ALTER TABLE ONLY public.drawer_transactions
 
 
 --
--- Name: drawer_transactions drawer_transactions_wallet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: drawer_transactions drawer_transactions_wallet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.drawer_transactions
@@ -4553,7 +4638,7 @@ ALTER TABLE ONLY public.drawer_transactions
 
 
 --
--- Name: employees employees_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: employees employees_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.employees
@@ -4561,7 +4646,7 @@ ALTER TABLE ONLY public.employees
 
 
 --
--- Name: hr_advances hr_advances_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_advances hr_advances_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_advances
@@ -4569,7 +4654,7 @@ ALTER TABLE ONLY public.hr_advances
 
 
 --
--- Name: hr_advances hr_advances_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_advances hr_advances_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_advances
@@ -4577,7 +4662,7 @@ ALTER TABLE ONLY public.hr_advances
 
 
 --
--- Name: hr_attendance hr_attendance_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_attendance hr_attendance_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_attendance
@@ -4585,7 +4670,7 @@ ALTER TABLE ONLY public.hr_attendance
 
 
 --
--- Name: hr_audit_log hr_audit_log_performed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_audit_log hr_audit_log_performed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_audit_log
@@ -4593,7 +4678,7 @@ ALTER TABLE ONLY public.hr_audit_log
 
 
 --
--- Name: hr_employees hr_employees_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_employees hr_employees_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_employees
@@ -4601,7 +4686,7 @@ ALTER TABLE ONLY public.hr_employees
 
 
 --
--- Name: hr_payroll hr_payroll_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_payroll hr_payroll_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_payroll
@@ -4609,7 +4694,7 @@ ALTER TABLE ONLY public.hr_payroll
 
 
 --
--- Name: hr_payroll hr_payroll_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: hr_payroll hr_payroll_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hr_payroll
@@ -4617,7 +4702,7 @@ ALTER TABLE ONLY public.hr_payroll
 
 
 --
--- Name: payroll_entries payroll_entries_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: payroll_entries payroll_entries_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.payroll_entries
@@ -4625,7 +4710,7 @@ ALTER TABLE ONLY public.payroll_entries
 
 
 --
--- Name: payroll_entries payroll_entries_period_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: payroll_entries payroll_entries_period_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.payroll_entries
@@ -4633,7 +4718,7 @@ ALTER TABLE ONLY public.payroll_entries
 
 
 --
--- Name: payroll_periods payroll_periods_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: payroll_periods payroll_periods_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.payroll_periods
@@ -4641,7 +4726,7 @@ ALTER TABLE ONLY public.payroll_periods
 
 
 --
--- Name: products products_subcategory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: products products_subcategory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.products
@@ -4649,7 +4734,7 @@ ALTER TABLE ONLY public.products
 
 
 --
--- Name: purchase_order_items purchase_order_items_po_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_order_items purchase_order_items_po_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_order_items
@@ -4657,7 +4742,7 @@ ALTER TABLE ONLY public.purchase_order_items
 
 
 --
--- Name: purchase_order_items purchase_order_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_order_items purchase_order_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_order_items
@@ -4665,7 +4750,7 @@ ALTER TABLE ONLY public.purchase_order_items
 
 
 --
--- Name: purchase_orders purchase_orders_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_orders purchase_orders_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_orders
@@ -4673,7 +4758,7 @@ ALTER TABLE ONLY public.purchase_orders
 
 
 --
--- Name: purchase_orders purchase_orders_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_orders purchase_orders_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_orders
@@ -4681,7 +4766,7 @@ ALTER TABLE ONLY public.purchase_orders
 
 
 --
--- Name: purchase_orders purchase_orders_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_orders purchase_orders_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_orders
@@ -4689,7 +4774,7 @@ ALTER TABLE ONLY public.purchase_orders
 
 
 --
--- Name: purchase_price_history purchase_price_history_po_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_price_history purchase_price_history_po_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_price_history
@@ -4697,7 +4782,7 @@ ALTER TABLE ONLY public.purchase_price_history
 
 
 --
--- Name: purchase_price_history purchase_price_history_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_price_history purchase_price_history_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_price_history
@@ -4705,7 +4790,7 @@ ALTER TABLE ONLY public.purchase_price_history
 
 
 --
--- Name: purchase_price_history purchase_price_history_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: purchase_price_history purchase_price_history_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.purchase_price_history
@@ -4713,7 +4798,7 @@ ALTER TABLE ONLY public.purchase_price_history
 
 
 --
--- Name: safe_deposits safe_deposits_deposited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_deposited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4721,7 +4806,7 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: safe_deposits safe_deposits_received_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_received_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4729,7 +4814,7 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: safe_deposits safe_deposits_safe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_safe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4737,7 +4822,7 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: safe_deposits safe_deposits_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4745,7 +4830,7 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: safe_deposits safe_deposits_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_deposits safe_deposits_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.safe_deposits
@@ -4753,7 +4838,15 @@ ALTER TABLE ONLY public.safe_deposits
 
 
 --
--- Name: sale_items sale_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: safe_transactions safe_transactions_safe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.safe_transactions
+    ADD CONSTRAINT safe_transactions_safe_id_fkey FOREIGN KEY (safe_id) REFERENCES public.safes(id);
+
+
+--
+-- Name: sale_items sale_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sale_items
@@ -4761,7 +4854,7 @@ ALTER TABLE ONLY public.sale_items
 
 
 --
--- Name: sale_items sale_items_sale_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sale_items sale_items_sale_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sale_items
@@ -4769,7 +4862,7 @@ ALTER TABLE ONLY public.sale_items
 
 
 --
--- Name: sales sales_cashier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_cashier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4777,7 +4870,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: sales sales_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4785,7 +4878,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: sales sales_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4793,7 +4886,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: sales sales_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4801,7 +4894,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: sales sales_wallet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_wallet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4809,7 +4902,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: sales sales_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sales sales_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sales
@@ -4817,7 +4910,7 @@ ALTER TABLE ONLY public.sales
 
 
 --
--- Name: shifts shifts_cashier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shifts shifts_cashier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.shifts
@@ -4825,7 +4918,7 @@ ALTER TABLE ONLY public.shifts
 
 
 --
--- Name: shifts shifts_closed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shifts shifts_closed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.shifts
@@ -4833,7 +4926,7 @@ ALTER TABLE ONLY public.shifts
 
 
 --
--- Name: shifts shifts_deposit_received_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shifts shifts_deposit_received_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.shifts
@@ -4841,7 +4934,7 @@ ALTER TABLE ONLY public.shifts
 
 
 --
--- Name: shifts shifts_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shifts shifts_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.shifts
@@ -4849,7 +4942,7 @@ ALTER TABLE ONLY public.shifts
 
 
 --
--- Name: shifts shifts_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shifts shifts_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.shifts
@@ -4857,7 +4950,7 @@ ALTER TABLE ONLY public.shifts
 
 
 --
--- Name: stock_movements stock_movements_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: stock_movements stock_movements_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.stock_movements
@@ -4865,7 +4958,7 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: stock_movements stock_movements_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: stock_movements stock_movements_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.stock_movements
@@ -4873,7 +4966,7 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: stock_movements stock_movements_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: stock_movements stock_movements_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.stock_movements
@@ -4881,7 +4974,7 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: subcategories subcategories_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: subcategories subcategories_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.subcategories
@@ -4889,7 +4982,7 @@ ALTER TABLE ONLY public.subcategories
 
 
 --
--- Name: supplier_transactions supplier_transactions_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: supplier_transactions supplier_transactions_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_transactions
@@ -4897,7 +4990,7 @@ ALTER TABLE ONLY public.supplier_transactions
 
 
 --
--- Name: users users_default_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_default_warehouse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -4908,5 +5001,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict SbLRruSp8YuqiBBhsDAzC0gmXHShJfg3x5cuA31HzBGeDIlSoa98iQqE82CA212
+\unrestrict Q6mePTbVNt013cyf7dCr9tWdBRBdPFh5VM2D8l2ixaWqE5xI1ouPOJqEaaRY9aY
 
