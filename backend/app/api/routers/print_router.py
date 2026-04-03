@@ -222,7 +222,10 @@ def pdf_css(paper_size="A4"):
 
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
-.sale-footer-info {{ font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; position: fixed; bottom: 0; left: 0; right: 0; background: white; z-index: 1000; border-top: 2px solid #111; padding: 4pt {f("10mm","7mm")}; }}
+.sale-footer-info {{ font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; position: fixed; bottom: 0; left: {f("10mm","7mm")}; right: {f("10mm","7mm")}; background: white; border-top: 1px solid #ccc; padding-top: 4pt; }}
+/* Ensure body doesn't overlap footer */
+html, body, .sheet {{ height: 100%; }}
+.body {{ min-height: calc(100% - 60pt); }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
 .sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; height: auto !important; display: block !important; }}
