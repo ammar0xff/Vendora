@@ -192,7 +192,7 @@ def pdf_css(paper_size="A4"):
 <style>
 @page {{
   size: {paper_size};
-  margin: {f("12mm","8mm")} {f("10mm","7mm")} {f("12mm","8mm")} {f("10mm","7mm")};
+  margin: {f("12mm","8mm")} {f("10mm","7mm")} {f("20mm","14mm")} {f("10mm","7mm")};
   margin-top: calc({f("12mm","8mm")} + {f("16mm","12mm")});
 
   @top-left {{
