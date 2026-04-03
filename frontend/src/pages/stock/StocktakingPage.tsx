@@ -37,7 +37,7 @@ export default function StocktakingPage() {
 
   const productIds = (products || []).map((p: any) => p.id)
   const { data: balances } = useQuery({
-    queryKey: ['balances-stocktaking', activeWarehouseId, productIds.length],
+    queryKey: ['balances-stocktaking', activeWarehouseId, productIds.join(',')],
     queryFn: () => activeWarehouseId
       ? api.post(`/stock/balance/bulk?warehouse_id=${activeWarehouseId}`, productIds).then(r => r.data)
       : api.post('/stock/balance/total', productIds).then(r => r.data),
@@ -81,7 +81,7 @@ export default function StocktakingPage() {
       toast.success(`✅ تم حفظ ${toSave.length} منتج في ${activeWh?.name}`)
       setEntries({})
       qc.invalidateQueries({ queryKey: ['products-all-stocktaking'] })
-      qc.invalidateQueries({ queryKey: ['balances'] })
+      qc.invalidateQueries({ queryKey: ['balances'] }); qc.invalidateQueries({ queryKey: ['balances-stocktaking'] })
     } catch (e: any) {
       console.error('Save error:', e.response?.data || e.message)
       toast.error(e.response?.data?.detail || e.message || 'فشل الحفظ')
