@@ -123,6 +123,15 @@ export default function POSPage() {
     queryFn: () => productsApi.list({ ...(search ? { search } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
   })
 
+  // Collections — shown in search results
+  const { data: collections } = useQuery({
+    queryKey: ['collections'],
+    queryFn: () => api.get('/collections').then(r => r.data),
+  })
+  const filteredCollections = search
+    ? (collections || []).filter((c: any) => c.name.includes(search))
+    : (collections || [])
+
   // Bulk stock balances for displayed products
   const { data: stockMap } = useQuery({
     queryKey: ['stock-bulk', mainWh?.id, products?.map((p: any) => p.id).join(',')],
@@ -171,6 +180,17 @@ export default function POSPage() {
     const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
     addItem({ product_id: p.id, name: p.name, unit_price: price, unit_cost: Number(p.cost_price), unit: p.unit })
     toast.success(`تمت إضافة ${p.name}`, { duration: 800 })
+  }
+
+  const handleAddCollection = (c: any) => {
+    if (!shift) { toast.error('افتح وردية أولاً قبل البيع', { icon: '🔒' }); return }
+    if (!c.items?.length) return
+    c.items.forEach((item: any) => {
+      const price = mode === 'wholesale' ? Number(item.wholesale_price) || Number(item.retail_price) : Number(item.retail_price)
+      addItem({ product_id: item.product_id, name: item.product_name, unit_price: price, unit_cost: Number(item.cost_price || 0), unit: item.unit })
+      if (Number(item.qty) > 1) updateQty(item.product_id, Number(item.qty))
+    })
+    toast.success(`✅ تمت إضافة ${c.name} (${c.items.length} منتج)`, { duration: 1200 })
   }
 
   const handleBarcodeSearch = async () => {
@@ -561,6 +581,35 @@ export default function POSPage() {
 
           {isLoading ? <PageLoader /> : (
             <div className="flex-1 overflow-y-auto relative">
+
+              {/* Collections */}
+              {filteredCollections.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">📦 كوليكشنات</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {filteredCollections.map((c: any) => {
+                      const price = mode === 'wholesale' ? Number(c.wholesale_price) || Number(c.retail_price) : Number(c.retail_price)
+                      return (
+                        <button key={c.id} onClick={() => handleAddCollection(c)}
+                          className="bg-white rounded-xl border-2 border-amber-200 p-3 text-right hover:border-amber-400 hover:shadow-md transition-all active:scale-95">
+                          <div className="w-full h-10 rounded-lg mb-2 flex items-center justify-center text-base font-black text-white"
+                            style={{ background: 'linear-gradient(135deg, #c8a84b, #e8c96b)' }}>
+                            📦
+                          </div>
+                          <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{c.name}</p>
+                          <p className="text-xs text-slate-400">{c.items?.length || 0} منتج</p>
+                          <div className="flex items-end justify-between mt-1.5">
+                            <div>
+                              <p className="text-sm font-black leading-none" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</p>
+                              <p className="text-xs text-slate-400 leading-none">ج.م</p>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {products?.map((p: any) => {

@@ -8,6 +8,7 @@ import ProductForm from '../../components/ui/ProductForm'
 import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
 import api from '../../api/client'
+import CollectionModal from '../../components/ui/CollectionModal'
 import toast from 'react-hot-toast'
 import { Plus, Edit2, Trash2, ChevronDown, ChevronLeft, Package, TrendingUp, Search, Layers, Tag, BarChart2 } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -55,6 +56,7 @@ export default function InventoryPage() {
   const isCompanyView = !activeWarehouseId
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
+  const [showCollection, setShowCollection] = useState(false)
   const [editProduct, setEditProduct] = useState<any>(null)
   const [viewMovements, setViewMovements] = useState<any>(null)
   const qc = useQueryClient()
@@ -189,6 +191,9 @@ export default function InventoryPage() {
               </p>
             )}
           </div>
+          <button onClick={() => setShowCollection(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 flex-shrink-0 border border-slate-300 text-slate-600 hover:bg-slate-50">
+            <Package size={15} /> كوليكشن جديد
+          </button>
           <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 flex-shrink-0" style={{ background: '#1e3a5f' }}>
             <Plus size={15} /> إضافة منتج
           </button>
@@ -318,6 +323,7 @@ export default function InventoryPage() {
           {!activeWarehouseId && <p className="text-xs text-red-500 text-center">⚠️ اختر فرعاً من القائمة الجانبية أولاً</p>}
         </div>
       </Modal>
+      {showCollection && <CollectionModal open={showCollection} onClose={() => setShowCollection(false)} />}
     </div>
   )
 }
