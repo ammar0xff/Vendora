@@ -223,9 +223,6 @@ def pdf_css(paper_size="A4"):
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
 .sale-footer-info {{ font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; position: fixed; bottom: 0; left: {f("10mm","7mm")}; right: {f("10mm","7mm")}; background: white; border-top: 1px solid #ccc; padding-top: 4pt; }}
-/* Ensure body doesn't overlap footer */
-html, body, .sheet {{ height: 100%; }}
-.body {{ min-height: calc(100% - 60pt); }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
 .sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; height: auto !important; display: block !important; }}
@@ -951,7 +948,8 @@ import re as _re
 def _extract_body(html_response) -> str:
     """Extract inner body from wrap() HTMLResponse."""
     raw = html_response.body.decode('utf-8') if isinstance(html_response.body, bytes) else str(html_response.body)
-    m = _re.search(r'<div class="sheet">(.*?)</div>\s*<button', raw, _re.DOTALL)
+    # Use greedy match to get ALL content inside .sheet (not just up to first </div>)
+    m = _re.search(r'<div class="sheet">(.*)</div>\s*<button', raw, _re.DOTALL)
     return m.group(1) if m else raw
 
 def _extract_meta(html_response) -> tuple[str, str]:
