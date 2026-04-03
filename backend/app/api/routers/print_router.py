@@ -452,7 +452,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
   {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
 
-  <div style="margin-top:6px;display:flex;justify-content:flex-end">
+  <div class="totals-section" style="margin-top:6px">
     <table style="border-collapse:collapse;border:1px solid #ccc;width:auto">
       <tr>
         <td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555;white-space:nowrap">المجموع الفرعي</td>
