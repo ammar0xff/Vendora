@@ -60,7 +60,7 @@ export default function SalesPage() {
   })
 
   const handlePrint = (id: string) => {
-    window.open(printUrl(`/print/sale/${id}`), '_blank')
+    window.open(pdfUrl(`/print/pdf/sale/${id}`), '_blank')
   }
 
   const filtered = sales?.filter((s: any) =>
