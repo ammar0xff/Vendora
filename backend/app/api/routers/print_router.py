@@ -200,7 +200,10 @@ def pdf_css(paper_size="A4"):
     width: 100%;
   }}
   @bottom-center {{
-    content: none;
+    content: element(sale-footer-info);
+    width: 100%;
+    font-family: 'Cairo', sans-serif;
+    font-size: {f("7pt","6pt")};
   }}
   @bottom-right {{
     content: none;
@@ -222,8 +225,7 @@ def pdf_css(paper_size="A4"):
 
 .pdf-doc-number {{ string-set: doc-number-str content(); position: absolute; visibility: hidden; }}
 .pdf-doc-title  {{ string-set: doc-title-str  content(); position: absolute; visibility: hidden; }}
-.sale-footer-info {{ font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; border-top: 1px solid #ccc; padding-top: 3pt; margin-top: auto; }}
-.body {{ display: flex !important; flex-direction: column !important; min-height: calc(297mm - {f("12mm","8mm")} - {f("12mm","8mm")} - {f("16mm","12mm")}); }}
+.sale-footer-info {{ font-family: 'Cairo', sans-serif; font-size: {f("7pt","6pt")}; color: #333; position: running(sale-footer-info); border-top: 1px solid #ccc; padding-top: 3pt; }}
 
 html, body {{ background: white !important; font-family: 'Cairo', sans-serif; direction: rtl; }}
 .sheet {{ box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 0 !important; height: auto !important; display: block !important; }}
@@ -281,7 +283,7 @@ def wrap(body, title="مستند"):
 </html>"""
 
 
-def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", doc_number=""):
+def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", doc_number="", footer_html=""):
     """HTML wrapper optimised for WeasyPrint — running header/footer on every page."""
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -298,6 +300,7 @@ def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", do
 </div>
 <span class="pdf-doc-number">{doc_number}</span>
 <span class="pdf-doc-title">{title}</span>
+{footer_html}
 {body}
 </body>
 </html>"""
@@ -964,7 +967,13 @@ async def _make_pdf(html_response, title: str, filename: str, db, paper_size_ove
     size = await get_paper_size(db, paper_size_override)
     body = _extract_body(html_response)
     company, doc_num = _extract_meta(html_response)
-    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num))
+    # Extract sale-footer-info from body and move to body level for proper running element
+    footer_html = ""
+    footer_m = _re.search(r'(<div class="sale-footer-info">.*?</div>)', body, _re.DOTALL)
+    if footer_m:
+        footer_html = footer_m.group(1)
+        body = body[:footer_m.start()] + body[footer_m.end():]
+    pdf = await html_to_pdf(wrap_pdf(body, title, size, company, doc_num, footer_html))
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"inline; filename={filename}"})
 
