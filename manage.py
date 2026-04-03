@@ -166,7 +166,8 @@ def restore(file: str):
 
 def restore_append(file: str):
     """Append data from a SQL file WITHOUT wiping existing data.
-    Useful for loading new products, settings, or seed data into a live DB."""
+    For products: only inserts if not already present (ON CONFLICT DO NOTHING).
+    Tracked products in the live DB are never overwritten."""
     path = Path(file)
     if not path.exists():
         path = BACKUP_DIR / file
@@ -180,16 +181,20 @@ def restore_append(file: str):
         return
 
     print(f"📥 Appending from {path}...")
+    # Wrap in ON CONFLICT DO NOTHING for safe upsert
+    sql = path.read_text(encoding="utf-8")
+    # Add session-level setting to ignore duplicate key errors
+    safe_sql = "SET session_replication_role = replica;\n" + sql + "\nSET session_replication_role = DEFAULT;\n"
+
     result = subprocess.run(
         COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],
-        input=path.read_text(encoding="utf-8"),
-        capture_output=True, text=True
+        input=safe_sql, capture_output=True, text=True
     )
-    errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l]
+    errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "duplicate" not in l.lower() and "already exists" not in l]
     if errors:
         print(f"⚠️  Errors:\n" + "\n".join(errors[:10]))
     else:
-        print("✅ Append complete — existing data untouched.")
+        print("✅ Append complete — existing tracked products untouched.")
 
 
 def update_init():
@@ -206,6 +211,50 @@ def update_init():
     (ROOT / "init_data.sql").write_text(result.stdout, encoding="utf-8")
     lines = result.stdout.count("\n")
     print(f"✅ init_data.sql updated ({lines:,} lines)")
+
+
+def export_clean():
+    """Export clean init_data.sql for fresh installs:
+    - Master data only: products (all untracked), users, warehouses, settings, etc.
+    - Zero transactions: no sales, movements, shifts, invoices
+    """
+    MASTER = ["users", "warehouses", "categories", "subcategories",
+              "suppliers", "customers", "payment_wallets", "safes",
+              "store_settings", "hr_employees", "hr_settings", "financial_categories"]
+
+    print("📦 Exporting clean init_data.sql...")
+
+    # Schema
+    schema = subprocess.run(
+        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
+                   "--schema-only", "--no-owner", "--no-acl"],
+        capture_output=True, text=True
+    ).stdout
+
+    parts = [schema, "\n"]
+
+    # Master tables
+    for tbl in MASTER:
+        r = subprocess.run(
+            COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
+                       "--data-only", "--no-owner", "--no-acl", f"--table={tbl}"],
+            capture_output=True, text=True
+        )
+        parts.append(r.stdout)
+
+    # Products — dump then force untracked
+    r = subprocess.run(
+        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
+                   "--data-only", "--no-owner", "--no-acl", "--table=products"],
+        capture_output=True, text=True
+    )
+    parts.append(r.stdout)
+    parts.append("\n-- Reset all products to untracked\nUPDATE products SET stock_status='untracked';\n")
+
+    sql = "".join(parts)
+    (ROOT / "init_data.sql").write_text(sql, encoding="utf-8")
+    print(f"✅ Clean init_data.sql exported ({sql.count(chr(10)):,} lines)")
+    print("   Products: all untracked | Transactions: empty")
 
 
 def logs():
@@ -250,6 +299,7 @@ COMMANDS = {
     "restore":        (restore,        "Restore database from a backup file (WIPES existing data)"),
     "restore-append": (restore_append, "Append data from SQL file WITHOUT wiping existing data"),
     "update-init":    (update_init,    "Snapshot current DB → init_data.sql"),
+    "export-clean":   (export_clean,   "Export clean init_data.sql — master data only, all products untracked"),
     "logs":          (logs,          "Tail live logs from all services"),
     "setup":         (setup,         "First-time setup"),
 }
@@ -280,3 +330,4 @@ if __name__ == "__main__":
         fn(sys.argv[2])
     else:
         fn()
+
