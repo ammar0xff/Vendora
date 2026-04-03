@@ -134,7 +134,6 @@ def backup():
 def restore(file: str):
     path = Path(file)
     if not path.exists():
-        # Try in backups dir
         path = BACKUP_DIR / file
     if not path.exists():
         print(f"❌ File not found: {file}")
@@ -149,14 +148,9 @@ def restore(file: str):
         return
 
     print(f"📥 Restoring from {path}...")
-    # Stop backend to avoid connections
     compose("stop", "backend", "frontend")
-
-    # Drop and recreate DB
     run(COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-c", "DROP DATABASE IF EXISTS inventory_db;"])
     run(COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-c", "CREATE DATABASE inventory_db;"])
-
-    # Restore
     result = subprocess.run(
         COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],
         input=path.read_text(encoding="utf-8"),
@@ -165,10 +159,53 @@ def restore(file: str):
     errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l]
     if errors:
         print(f"⚠️  Warnings during restore:\n" + "\n".join(errors[:5]))
-
     compose("start", "backend", "frontend")
     print("✅ Restore complete.")
     status()
+
+
+def restore_append(file: str):
+    """Append data from a SQL file WITHOUT wiping existing data.
+    Useful for loading new products, settings, or seed data into a live DB."""
+    path = Path(file)
+    if not path.exists():
+        path = BACKUP_DIR / file
+    if not path.exists():
+        print(f"❌ File not found: {file}")
+        sys.exit(1)
+
+    confirm = input(f"Append data from {path.name} to existing DB? Type 'yes' to confirm: ")
+    if confirm.strip().lower() != "yes":
+        print("Cancelled.")
+        return
+
+    print(f"📥 Appending from {path}...")
+    result = subprocess.run(
+        COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],
+        input=path.read_text(encoding="utf-8"),
+        capture_output=True, text=True
+    )
+    errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l]
+    if errors:
+        print(f"⚠️  Errors:\n" + "\n".join(errors[:10]))
+    else:
+        print("✅ Append complete — existing data untouched.")
+
+
+def update_init():
+    """Snapshot current DB state into init_data.sql (used by deploy-fresh)."""
+    print("📸 Snapshotting current DB to init_data.sql...")
+    result = subprocess.run(
+        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
+                   "--no-owner", "--no-acl"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print("❌ Failed:", result.stderr[:200])
+        sys.exit(1)
+    (ROOT / "init_data.sql").write_text(result.stdout, encoding="utf-8")
+    lines = result.stdout.count("\n")
+    print(f"✅ init_data.sql updated ({lines:,} lines)")
 
 
 def logs():
@@ -210,7 +247,9 @@ COMMANDS = {
     "restart":       (restart,       "Restart all services"),
     "status":        (status,        "Show running status and health"),
     "backup":        (backup,        "Backup database to backups/"),
-    "restore":       (restore,       "Restore database from a backup file"),
+    "restore":        (restore,        "Restore database from a backup file (WIPES existing data)"),
+    "restore-append": (restore_append, "Append data from SQL file WITHOUT wiping existing data"),
+    "update-init":    (update_init,    "Snapshot current DB → init_data.sql"),
     "logs":          (logs,          "Tail live logs from all services"),
     "setup":         (setup,         "First-time setup"),
 }
@@ -231,13 +270,12 @@ if __name__ == "__main__":
     cmd = sys.argv[1]
     fn, _ = COMMANDS[cmd]
 
-    if cmd == "restore":
+    if cmd in ("restore", "restore-append"):
         if len(sys.argv) < 3:
-            # List available backups
             print("Available backups:")
             for b in sorted(BACKUP_DIR.glob("backup_*.sql")) if BACKUP_DIR.exists() else []:
                 print(f"  {b.name}")
-            print("\nUsage: python manage.py restore <filename>")
+            print(f"\nUsage: python manage.py {cmd} <filename>")
             sys.exit(0)
         fn(sys.argv[2])
     else:
