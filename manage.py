@@ -181,10 +181,21 @@ def restore_append(file: str):
         return
 
     print(f"📥 Appending from {path}...")
-    # Wrap in ON CONFLICT DO NOTHING for safe upsert
+    # Wrap in session that ignores duplicate key violations
     sql = path.read_text(encoding="utf-8")
-    # Add session-level setting to ignore duplicate key errors
-    safe_sql = "SET session_replication_role = replica;\n" + sql + "\nSET session_replication_role = DEFAULT;\n"
+    # Protect users: skip insert if user already exists
+    safe_sql = (
+        "SET session_replication_role = replica;\n"
+        + sql
+        + "\nSET session_replication_role = DEFAULT;\n"
+        # Ensure at least one default admin exists
+        + """
+INSERT INTO users (id, username, full_name, hashed_password, role, is_active)
+VALUES (gen_random_uuid(), 'admin', 'مدير النظام',
+  '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'admin', true)
+ON CONFLICT (username) DO NOTHING;
+"""
+    )
 
     result = subprocess.run(
         COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],

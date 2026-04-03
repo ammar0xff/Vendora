@@ -565,7 +565,7 @@ export default function POSPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {products?.map((p: any) => {
                   const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
-                  const qty = stockMap?.[p.id] ?? null
+                  const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                   return (
                     <button key={p.id} onClick={() => handleAddProduct(p)}
                       className="bg-white rounded-xl border border-slate-100 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 group">
