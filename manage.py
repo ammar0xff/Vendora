@@ -33,15 +33,27 @@ def status():
         print("❌ Cannot reach http://localhost")
 
 
+def migrate():
+    """Apply incremental DB migrations (safe, idempotent)."""
+    import importlib.util, sys as _sys
+    spec = importlib.util.spec_from_file_location("migrate", ROOT / "migrate.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.run()
+
+
 def deploy():
     """Update code only — keeps existing DB data. Safe for production updates."""
     print("🚀 Deploying code update (data preserved)...")
-    print("💾 Step 1/3: Backup current data...")
+    print("💾 Step 1/4: Backup current data...")
     backup()
-    print("🔨 Step 2/3: Build new images...")
+    print("🔨 Step 2/4: Build new images...")
     compose("build")
-    print("▶️  Step 3/3: Restart services (volumes untouched)...")
+    print("▶️  Step 3/4: Restart services (volumes untouched)...")
     compose("up", "-d")
+    print("🔄 Step 4/4: Apply DB migrations...")
+    import time; time.sleep(8)
+    migrate()
     print("\n✅ Deployed. Your data is safe.")
     status()
 
@@ -300,7 +312,7 @@ def setup():
 
 
 COMMANDS = {
-    "deploy":        (deploy,        "Update code + backup first (safe, keeps your data)"),
+    "deploy":        (deploy,        "Update code + backup + migrate DB (safe, keeps your data)"),
     "deploy-fast":   (deploy_fast,   "Update code WITHOUT backup (faster, no safety net)"),
     "deploy-fresh":  (deploy_fresh,  "⚠️  WIPE data + load init_data.sql from repo (new machine / reset)"),
     "stop":          (stop,          "Stop all services"),
@@ -309,6 +321,7 @@ COMMANDS = {
     "backup":        (backup,        "Backup database to backups/"),
     "restore":        (restore,        "Restore database from a backup file (WIPES existing data)"),
     "restore-append": (restore_append, "Append data from SQL file WITHOUT wiping existing data"),
+    "migrate":        (migrate,        "Apply incremental DB migrations (safe, idempotent)"),
     "update-init":    (update_init,    "Snapshot current DB → init_data.sql"),
     "export-clean":   (export_clean,   "Export clean init_data.sql — master data only, all products untracked"),
     "logs":          (logs,          "Tail live logs from all services"),
