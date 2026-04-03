@@ -153,7 +153,7 @@ export default function ArchivePage() {
               </div>
             </div>
             {cfg?.printPath && (
-              <button onClick={e => { e.stopPropagation(); window.open(cfg.printPath!(d), '_blank') }}
+              <button onClick={e => { e.stopPropagation(); window.open(cfg.pdfPath ? cfg.pdfPath!(d) : cfg.printPath!(d), '_blank') }}
                 className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="طباعة">
                 <Printer size={14} />
               </button>
