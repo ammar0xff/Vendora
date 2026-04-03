@@ -72,7 +72,7 @@ export default function InventoryPage() {
   // Fetch stock balances for visible products
   const productIds = products?.map((p: any) => p.id) || []
   const { data: balances } = useQuery({
-    queryKey: ['balances', activeWarehouseId, productIds.length, productIds[0]],
+    queryKey: ['balances', activeWarehouseId, productIds.join(',')],
     queryFn: () => isCompanyView
       ? api.post('/stock/balance/total', productIds).then(r => r.data)
       : api.post(`/stock/balance/bulk?warehouse_id=${activeWarehouseId}`, productIds).then(r => r.data),
