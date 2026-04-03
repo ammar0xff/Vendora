@@ -296,7 +296,7 @@ def wrap_pdf(body, title="مستند", paper_size="A4", company_name="EG-CO", do
 <body>
 <div class="pdf-running-header">
   <span class="rh-brand">{company_name}</span>
-  <span class="rh-doc">{title}</span>
+  <span class="rh-doc">{title}{f" · {doc_number}" if doc_number else ""}</span>
 </div>
 <span class="pdf-doc-number">{doc_number}</span>
 <span class="pdf-doc-title">{title}</span>
@@ -466,7 +466,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
     </table>
   </div>
 
-  <div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding:2pt 0">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding:2pt 0">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr><tr><td colspan="2" style="text-align:center;color:#888;font-size:90%;padding-bottom:2pt">{doc_label} · {sale['invoice_number']} · صفحة 1 من 1</td></tr></table></div>
+  <div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding:2pt 0">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding:2pt 0">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>
 
 </div>"""
 
