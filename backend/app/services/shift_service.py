@@ -94,7 +94,7 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     # Cash deposits/expenses only (wallet transactions don't affect the drawer)
     cash_tx_rows = await db.execute(sqlt("""
         SELECT type, SUM(amount) as total FROM drawer_transactions
-        WHERE shift_id = :sid AND (payment_method = 'cash' OR payment_method IS NULL OR wallet_id IS NULL)
+        WHERE shift_id = :sid AND (payment_method IS NULL OR payment_method = 'cash')
         AND type IN ('deposit','expense','withdrawal')
         GROUP BY type
     """), {"sid": shift_id})
