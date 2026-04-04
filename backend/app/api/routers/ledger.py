@@ -1,18 +1,13 @@
 """
 GET /reports/ledger
-Returns all drawer transactions + sales + customer payments for a date range.
-Used for دفتر الأستاذ.
+Returns all sale items + returns + expenses for a date range.
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from datetime import datetime, date
+from sqlalchemy import text
+from datetime import datetime
 from app.db.base import get_db
 from app.dependencies import require_role
-from app.models.shift import DrawerTransaction, Shift, DrawerTxType
-from app.models.sale import Sale, SaleItem, SaleStatus
-from app.models.party import Customer
-from app.models.warehouse import Warehouse
 import uuid
 
 router = APIRouter(prefix="/reports/ledger", tags=["ledger"])
@@ -28,81 +23,131 @@ async def ledger(
 ):
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
+    wh_filter = f"AND s.warehouse_id = '{warehouse_id}'" if warehouse_id else ""
 
-    entries = []
+    # Sale items
+    items_rows = await db.execute(text(f"""
+        SELECT
+            si.id,
+            p.name as product_name,
+            p.unit,
+            si.qty,
+            si.unit_price,
+            (si.qty * si.unit_price - si.discount) as line_total,
+            COALESCE(s.payment_method, 'cash') as payment_method,
+            pw.name as wallet_name,
+            s.invoice_number,
+            s.created_at,
+            c.name as customer_name,
+            'sale' as entry_type
+        FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        JOIN products p ON p.id = si.product_id
+        LEFT JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
+        WHERE s.status = 'confirmed'
+          AND s.created_at BETWEEN :start AND :end
+          {wh_filter}
+        ORDER BY s.created_at, si.id
+    """), {"start": start, "end": end})
 
-    # 1. Sales
-    sales_q = select(Sale, Customer.name.label("cname"), Warehouse.name.label("wh_name")).outerjoin(Customer, Sale.customer_id == Customer.id).outerjoin(Warehouse, Sale.warehouse_id == Warehouse.id)\
-        .where(Sale.created_at.between(start, end), Sale.status == SaleStatus.confirmed)
-    if warehouse_id:
-        sales_q = sales_q.where(Sale.warehouse_id == uuid.UUID(warehouse_id))
-    for sale, cname, wh_name in (await db.execute(sales_q)).all():
-        items = (await db.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))).scalars().all()
-        total = sum(float(i.qty) * float(i.unit_price) - float(i.discount) for i in items)
-        items_data = [{"name": i.product_name if hasattr(i, 'product_name') else str(i.product_id),
-                       "qty": float(i.qty), "unit_price": float(i.unit_price),
-                       "total": float(i.qty) * float(i.unit_price) - float(i.discount)} for i in items]
-        # Enrich with product names
-        from sqlalchemy import text as sqlt
-        prod_ids = [str(i.product_id) for i in items]
-        if prod_ids:
-            prows = await db.execute(sqlt(f"SELECT id, name, unit FROM products WHERE id = ANY(ARRAY[{','.join(repr(p) for p in prod_ids)}]::uuid[])"))
-            pmap = {str(r.id): f"{r.name} ({r.unit})" for r in prows.fetchall()}
-            for idx, i in enumerate(items):
-                items_data[idx]["name"] = pmap.get(str(i.product_id), str(i.product_id))
-        entries.append({"type": "مبيعات", "ref": sale.invoice_number, "party": cname or "عميل عادي",
-                        "warehouse": wh_name or "",
-                        "debit": 0, "credit": total, "date": sale.created_at.isoformat(),
-                        "note": sale.notes or "", "items": items_data})
+    sale_items = []
+    for r in items_rows.fetchall():
+        d = dict(r._mapping)
+        pm = d["wallet_name"] or ("نقدي" if d["payment_method"] == "cash" else d["payment_method"])
+        sale_items.append({
+            "product_name": d["product_name"],
+            "unit": d["unit"],
+            "qty": float(d["qty"]),
+            "unit_price": float(d["unit_price"]),
+            "total": float(d["line_total"]),
+            "payment_method": pm,
+            "invoice_number": d["invoice_number"],
+            "customer": d["customer_name"] or "عميل عادي",
+            "date": d["created_at"].isoformat(),
+            "entry_type": "sale",
+        })
 
-    # 2. Returns
-    ret_q = select(Sale, Customer.name.label("cname"), Warehouse.name.label("wh_name")).outerjoin(Customer, Sale.customer_id == Customer.id).outerjoin(Warehouse, Sale.warehouse_id == Warehouse.id)\
-        .where(Sale.created_at.between(start, end), Sale.status == SaleStatus.returned)
-    if warehouse_id:
-        ret_q = ret_q.where(Sale.warehouse_id == uuid.UUID(warehouse_id))
-    for sale, cname, wh_name in (await db.execute(ret_q)).all():
-        items = (await db.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))).scalars().all()
-        total = sum(float(i.qty) * float(i.unit_price) for i in items)
-        entries.append({"type": "مرتجع", "ref": sale.invoice_number, "party": cname or "عميل عادي",
-                        "warehouse": wh_name or "",
-                        "debit": total, "credit": 0, "date": sale.created_at.isoformat(), "note": sale.notes or ""})
+    # Returns
+    ret_rows = await db.execute(text(f"""
+        SELECT
+            si.id,
+            p.name as product_name,
+            p.unit,
+            si.qty,
+            si.unit_price,
+            (si.qty * si.unit_price) as line_total,
+            s.invoice_number,
+            s.created_at,
+            c.name as customer_name
+        FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        JOIN products p ON p.id = si.product_id
+        LEFT JOIN customers c ON c.id = s.customer_id
+        WHERE s.status = 'returned'
+          AND s.created_at BETWEEN :start AND :end
+          {wh_filter}
+        ORDER BY s.created_at
+    """), {"start": start, "end": end})
 
-    # 3. Drawer transactions (expenses, deposits, withdrawals)
-    tx_q = select(DrawerTransaction, Shift.warehouse_id, Warehouse.name.label("wh_name"))\
-        .join(Shift, DrawerTransaction.shift_id == Shift.id)\
-        .join(Warehouse, Shift.warehouse_id == Warehouse.id)\
-        .where(DrawerTransaction.created_at.between(start, end),
-               DrawerTransaction.type.in_([DrawerTxType.expense, DrawerTxType.deposit, DrawerTxType.withdrawal]))
-    if warehouse_id:
-        tx_q = tx_q.where(Shift.warehouse_id == uuid.UUID(warehouse_id))
-    TX_LABELS = {
-        DrawerTxType.expense: "خوارج",
-        DrawerTxType.deposit: "دواخل",
-        DrawerTxType.withdrawal: "سحب",
-    }
-    for tx, wh_id, wh_name in (await db.execute(tx_q)).all():
-        is_debit = tx.type in (DrawerTxType.expense, DrawerTxType.withdrawal)
-        entries.append({"type": TX_LABELS.get(tx.type, str(tx.type)),
-                        "ref": tx.note or TX_LABELS.get(tx.type, ""),
-                        "party": "",
-                        "warehouse": wh_name or "",
-                        "debit": float(tx.amount) if is_debit else 0,
-                        "credit": float(tx.amount) if not is_debit else 0,
-                        "date": tx.created_at.isoformat(), "note": tx.note or ""})
+    returns = []
+    for r in ret_rows.fetchall():
+        d = dict(r._mapping)
+        returns.append({
+            "product_name": d["product_name"],
+            "unit": d["unit"],
+            "qty": float(d["qty"]),
+            "unit_price": float(d["unit_price"]),
+            "total": float(d["line_total"]),
+            "invoice_number": d["invoice_number"],
+            "customer": d["customer_name"] or "عميل عادي",
+            "date": d["created_at"].isoformat(),
+            "entry_type": "return",
+        })
 
-    entries.sort(key=lambda x: x["date"])
+    # Expenses / deposits / withdrawals
+    tx_rows = await db.execute(text(f"""
+        SELECT dt.type, dt.amount, dt.note, dt.created_at,
+               pw.name as wallet_name, dt.payment_method
+        FROM drawer_transactions dt
+        JOIN shifts sh ON sh.id = dt.shift_id
+        LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
+        WHERE dt.type IN ('expense','deposit','withdrawal')
+          AND dt.created_at BETWEEN :start AND :end
+          {'AND sh.warehouse_id = :wid' if warehouse_id else ''}
+        ORDER BY dt.created_at
+    """), {"start": start, "end": end, **({"wid": warehouse_id} if warehouse_id else {})})
 
-    # Running balance
-    balance = 0.0
-    for e in entries:
-        balance += e["credit"] - e["debit"]
-        e["balance"] = round(balance, 2)
+    TX_AR = {"expense": "خوارج", "deposit": "دواخل", "withdrawal": "سحب"}
+    expenses = []
+    for r in tx_rows.fetchall():
+        d = dict(r._mapping)
+        pm = d["wallet_name"] or ("نقدي" if (d["payment_method"] or "cash") == "cash" else d["payment_method"])
+        expenses.append({
+            "type_ar": TX_AR.get(d["type"], d["type"]),
+            "note": d["note"] or "",
+            "amount": float(d["amount"]),
+            "payment_method": pm,
+            "date": d["created_at"].isoformat(),
+            "entry_type": d["type"],
+        })
 
-    total_credit = sum(e["credit"] for e in entries)
-    total_debit  = sum(e["debit"]  for e in entries)
+    total_sales   = sum(i["total"] for i in sale_items)
+    total_returns = sum(i["total"] for i in returns)
+    total_expenses= sum(e["amount"] for e in expenses if e["entry_type"] in ("expense","withdrawal"))
+    total_deposits= sum(e["amount"] for e in expenses if e["entry_type"] == "deposit")
 
     return {
-        "entries": entries,
-        "summary": {"total_credit": total_credit, "total_debit": total_debit, "net": total_credit - total_debit},
-        "from_date": from_date, "to_date": to_date,
+        "sale_items": sale_items,
+        "returns": returns,
+        "expenses": expenses,
+        "summary": {
+            "total_sales": total_sales,
+            "total_returns": total_returns,
+            "total_expenses": total_expenses,
+            "total_deposits": total_deposits,
+            "net": total_sales - total_returns + total_deposits - total_expenses,
+        },
+        "from_date": from_date,
+        "to_date": to_date,
     }

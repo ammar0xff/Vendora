@@ -1121,26 +1121,102 @@ export default function POSPage() {
       {/* Today's Ledger Modal */}
       <Modal open={showLedger} onClose={() => setShowLedger(false)} title="سجل اليوم" size="xl">
         {todayLedger ? (
-          <div>
-            <div className="flex gap-4 mb-4 text-sm">
-              <span className="text-green-700 font-bold">دواخل: {Number(todayLedger.summary.total_credit).toLocaleString('ar-EG')} ج.م</span>
-              <span className="text-red-600 font-bold">خوارج: {Number(todayLedger.summary.total_debit).toLocaleString('ar-EG')} ج.م</span>
-              <span className="font-black" style={{ color: '#1e3a5f' }}>صافي: {Number(todayLedger.summary.net).toLocaleString('ar-EG')} ج.م</span>
+          <div className="space-y-4">
+            {/* Summary */}
+            <div className="grid grid-cols-4 gap-3 text-center">
+              {[
+                { label: 'المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
+                { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
+                { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
+                { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-xs text-slate-500 mb-1">{label}</p>
+                  <p className="font-black text-sm" style={{ color }}>{Number(val).toLocaleString('ar-EG')} ج.م</p>
+                </div>
+              ))}
             </div>
-            <div className="table-wrap max-h-96 overflow-y-auto">
-              <table>
-                <thead><tr><th>الوقت</th><th>النوع</th><th>البيان</th><th>الطرف</th><th>دائن</th><th>مدين</th><th>الرصيد</th></tr></thead>
-                <tbody>
-                  {todayLedger.entries.map((e: any, i: number) => {
-                    const hasItems = e.items?.length > 1
-                    const singleItem = e.items?.length === 1 ? e.items[0] : null
-                    return (
-                      <LedgerRow key={i} e={e} hasItems={hasItems} singleItem={singleItem} />
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+
+            {/* Sale Items */}
+            {todayLedger.sale_items?.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-slate-500 mb-2">📦 بنود المبيعات ({todayLedger.sale_items.length})</p>
+                <div className="table-wrap max-h-64 overflow-y-auto">
+                  <table>
+                    <thead><tr>
+                      <th style={{width:'28px'}}>#</th>
+                      <th>اسم الصنف</th>
+                      <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الكمية</th>
+                      <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الوحدة</th>
+                      <th style={{textAlign:'center',whiteSpace:'nowrap'}}>السعر</th>
+                      <th style={{textAlign:'left',whiteSpace:'nowrap'}}>الإجمالي</th>
+                      <th style={{whiteSpace:'nowrap'}}>الدفع</th>
+                    </tr></thead>
+                    <tbody>
+                      {todayLedger.sale_items.map((item: any, i: number) => (
+                        <tr key={i}>
+                          <td className="text-slate-400 text-xs">{i+1}</td>
+                          <td>
+                            <p className="font-medium text-sm">{item.product_name}</p>
+                            <p className="text-xs text-slate-400">{item.invoice_number} · {item.customer}</p>
+                          </td>
+                          <td className="text-center text-sm">{item.qty}</td>
+                          <td className="text-center text-xs text-slate-400">{item.unit}</td>
+                          <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
+                          <td className="text-left font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</td>
+                          <td className="text-xs text-slate-500">{item.payment_method}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Returns */}
+            {todayLedger.returns?.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-red-500 mb-2">↩️ المرتجعات ({todayLedger.returns.length})</p>
+                <div className="table-wrap max-h-40 overflow-y-auto">
+                  <table>
+                    <thead><tr><th>#</th><th>اسم الصنف</th><th style={{textAlign:'center'}}>الكمية</th><th style={{textAlign:'center'}}>السعر</th><th style={{textAlign:'left'}}>الإجمالي</th></tr></thead>
+                    <tbody>
+                      {todayLedger.returns.map((item: any, i: number) => (
+                        <tr key={i}>
+                          <td className="text-slate-400 text-xs">{i+1}</td>
+                          <td><p className="font-medium text-sm">{item.product_name}</p><p className="text-xs text-slate-400">{item.invoice_number}</p></td>
+                          <td className="text-center text-sm">{item.qty}</td>
+                          <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
+                          <td className="text-left font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Expenses/Deposits */}
+            {todayLedger.expenses?.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-amber-600 mb-2">💸 الخوارج والدواخل ({todayLedger.expenses.length})</p>
+                <div className="table-wrap max-h-40 overflow-y-auto">
+                  <table>
+                    <thead><tr><th>النوع</th><th>البيان</th><th style={{textAlign:'left'}}>المبلغ</th><th>الدفع</th></tr></thead>
+                    <tbody>
+                      {todayLedger.expenses.map((e: any, i: number) => (
+                        <tr key={i}>
+                          <td><span className={e.entry_type === 'deposit' ? 'badge-green' : 'badge-red'}>{e.type_ar}</span></td>
+                          <td className="text-sm">{e.note || '—'}</td>
+                          <td className={`text-left font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : 'text-red-600'}`}>{Number(e.amount).toLocaleString('ar-EG')}</td>
+                          <td className="text-xs text-slate-500">{e.payment_method}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         ) : <div className="text-center py-8 text-slate-400">جاري التحميل...</div>}
       </Modal>
