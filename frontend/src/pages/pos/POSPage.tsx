@@ -1121,102 +1121,95 @@ export default function POSPage() {
       {/* Today's Ledger Modal */}
       <Modal open={showLedger} onClose={() => setShowLedger(false)} title="سجل اليوم" size="xl">
         {todayLedger ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Summary */}
-            <div className="grid grid-cols-4 gap-3 text-center">
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
               {[
                 { label: 'المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
                 { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
                 { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
                 { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
               ].map(({ label, val, color }) => (
-                <div key={label} className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-xs text-slate-500 mb-1">{label}</p>
+                <div key={label} className="bg-slate-50 rounded-lg p-2">
+                  <p className="text-slate-400 mb-0.5">{label}</p>
                   <p className="font-black text-sm" style={{ color }}>{Number(val).toLocaleString('ar-EG')} ج.م</p>
                 </div>
               ))}
             </div>
 
-            {/* Sale Items */}
-            {todayLedger.sale_items?.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-2">📦 بنود المبيعات ({todayLedger.sale_items.length})</p>
-                <div className="table-wrap max-h-64 overflow-y-auto">
-                  <table>
-                    <thead><tr>
-                      <th style={{width:'28px'}}>#</th>
-                      <th>اسم الصنف</th>
-                      <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الكمية</th>
-                      <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الوحدة</th>
-                      <th style={{textAlign:'center',whiteSpace:'nowrap'}}>السعر</th>
-                      <th style={{textAlign:'left',whiteSpace:'nowrap'}}>الإجمالي</th>
-                      <th style={{whiteSpace:'nowrap'}}>الدفع</th>
-                    </tr></thead>
-                    <tbody>
-                      {todayLedger.sale_items.map((item: any, i: number) => (
-                        <tr key={i}>
-                          <td className="text-slate-400 text-xs">{i+1}</td>
-                          <td>
-                            <p className="font-medium text-sm">{item.product_name}</p>
-                            <p className="text-xs text-slate-400">{item.invoice_number} · {item.customer}</p>
-                          </td>
-                          <td className="text-center text-sm">{item.qty}</td>
-                          <td className="text-center text-xs text-slate-400">{item.unit}</td>
-                          <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
-                          <td className="text-left font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</td>
-                          <td className="text-xs text-slate-500">{item.payment_method}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            {/* Single unified table */}
+            <div className="table-wrap max-h-[60vh] overflow-y-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{width:'28px'}}>#</th>
+                    <th>اسم الصنف</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الكمية</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap'}}>السعر</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الربط</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap',color:'#dc2626'}}>مرتجع</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap',color:'#d97706'}}>خوارج</th>
+                    <th style={{whiteSpace:'nowrap'}}>الدفع</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Sale items */}
+                  {(todayLedger.sale_items || []).map((item: any, i: number) => (
+                    <tr key={`s${i}`}>
+                      <td className="text-slate-400 text-xs">{i+1}</td>
+                      <td>
+                        <p className="font-medium text-sm leading-tight">{item.product_name}</p>
+                        <p className="text-xs text-slate-400 leading-tight">{item.invoice_number} · {item.customer}</p>
+                      </td>
+                      <td className="text-center text-sm">{item.qty}</td>
+                      <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
+                      <td className="text-center font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</td>
+                      <td></td>
+                      <td></td>
+                      <td className="text-xs text-slate-500">{item.payment_method}</td>
+                    </tr>
+                  ))}
 
-            {/* Returns */}
-            {todayLedger.returns?.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-red-500 mb-2">↩️ المرتجعات ({todayLedger.returns.length})</p>
-                <div className="table-wrap max-h-40 overflow-y-auto">
-                  <table>
-                    <thead><tr><th>#</th><th>اسم الصنف</th><th style={{textAlign:'center'}}>الكمية</th><th style={{textAlign:'center'}}>السعر</th><th style={{textAlign:'left'}}>الإجمالي</th></tr></thead>
-                    <tbody>
-                      {todayLedger.returns.map((item: any, i: number) => (
-                        <tr key={i}>
-                          <td className="text-slate-400 text-xs">{i+1}</td>
-                          <td><p className="font-medium text-sm">{item.product_name}</p><p className="text-xs text-slate-400">{item.invoice_number}</p></td>
-                          <td className="text-center text-sm">{item.qty}</td>
-                          <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
-                          <td className="text-left font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                  {/* Returns */}
+                  {(todayLedger.returns || []).map((item: any, i: number) => (
+                    <tr key={`r${i}`} className="bg-red-50">
+                      <td className="text-slate-400 text-xs">↩</td>
+                      <td>
+                        <p className="font-medium text-sm leading-tight">{item.product_name}</p>
+                        <p className="text-xs text-slate-400 leading-tight">{item.invoice_number}</p>
+                      </td>
+                      <td className="text-center text-sm">{item.qty}</td>
+                      <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
+                      <td></td>
+                      <td className="text-center font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</td>
+                      <td></td>
+                      <td></td>
+                    </tr>
+                  ))}
 
-            {/* Expenses/Deposits */}
-            {todayLedger.expenses?.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-amber-600 mb-2">💸 الخوارج والدواخل ({todayLedger.expenses.length})</p>
-                <div className="table-wrap max-h-40 overflow-y-auto">
-                  <table>
-                    <thead><tr><th>النوع</th><th>البيان</th><th style={{textAlign:'left'}}>المبلغ</th><th>الدفع</th></tr></thead>
-                    <tbody>
-                      {todayLedger.expenses.map((e: any, i: number) => (
-                        <tr key={i}>
-                          <td><span className={e.entry_type === 'deposit' ? 'badge-green' : 'badge-red'}>{e.type_ar}</span></td>
-                          <td className="text-sm">{e.note || '—'}</td>
-                          <td className={`text-left font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : 'text-red-600'}`}>{Number(e.amount).toLocaleString('ar-EG')}</td>
-                          <td className="text-xs text-slate-500">{e.payment_method}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                  {/* Expenses/Deposits */}
+                  {(todayLedger.expenses || []).map((e: any, i: number) => (
+                    <tr key={`e${i}`} className="bg-amber-50">
+                      <td className="text-slate-400 text-xs">💸</td>
+                      <td>
+                        <p className="font-medium text-sm leading-tight">{e.type_ar}</p>
+                        <p className="text-xs text-slate-400 leading-tight">{e.note || '—'}</p>
+                      </td>
+                      <td></td>
+                      <td></td>
+                      <td className={`text-center font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : ''}`}>
+                        {e.entry_type === 'deposit' ? Number(e.amount).toLocaleString('ar-EG') : ''}
+                      </td>
+                      <td></td>
+                      <td className="text-center font-bold text-sm text-amber-700">
+                        {e.entry_type !== 'deposit' ? Number(e.amount).toLocaleString('ar-EG') : ''}
+                      </td>
+                      <td className="text-xs text-slate-500">{e.payment_method}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : <div className="text-center py-8 text-slate-400">جاري التحميل...</div>}
       </Modal>
