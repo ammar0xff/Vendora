@@ -29,6 +29,7 @@ async def ledger(
     items_rows = await db.execute(text(f"""
         SELECT
             si.id,
+            si.sale_id,
             p.name as product_name,
             p.unit,
             si.qty,
@@ -56,6 +57,8 @@ async def ledger(
         d = dict(r._mapping)
         pm = d["wallet_name"] or ("نقدي" if d["payment_method"] == "cash" else d["payment_method"])
         sale_items.append({
+            "item_id": str(d["id"]),
+            "sale_id": str(d["sale_id"]) if "sale_id" in d else None,
             "product_name": d["product_name"],
             "unit": d["unit"],
             "qty": float(d["qty"]),
