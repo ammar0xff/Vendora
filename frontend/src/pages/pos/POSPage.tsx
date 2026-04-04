@@ -16,7 +16,7 @@ import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
 
 // ── Drawer Balance Badge ──────────────────────────────────────────────────
-function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseName, supervisorName }: any) {
+function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseName, supervisorName, wallets }: any) {
   if (!shift) return (
     <div className="flex items-center gap-2">
       <button onClick={onOpen} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#16a34a' }}>
@@ -46,21 +46,21 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
         </div>
         {/* Hover tooltip */}
         <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-48 p-3 hidden group-hover:block">
-          <p className="text-xs font-bold text-slate-500 mb-2">توزيع المبيعات</p>
+          <p className="text-xs font-bold text-slate-500 mb-2">رصيد وسائل الدفع</p>
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
               <span className="text-slate-600">💵 نقدي (الدرج)</span>
               <span className="font-bold text-slate-800">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
             </div>
-            {breakdown.filter((p: any) => p.method !== 'cash').map((p: any) => (
-              <div key={p.wallet_name} className="flex justify-between text-xs">
-                <span className="text-slate-600">{p.wallet_type === 'vodafone_cash' ? '📱' : '💳'} {p.wallet_name}</span>
-                <span className="font-bold text-slate-800">{Number(p.total).toLocaleString('ar-EG')} ج.م</span>
+            {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+              <div key={w.id} className="flex justify-between text-xs">
+                <span className="text-slate-600">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
+                <span className="font-bold text-slate-800">{Number(w.balance).toLocaleString('ar-EG')} ج.م</span>
               </div>
             ))}
             <div className="border-t border-slate-100 pt-1 flex justify-between text-xs">
               <span className="font-bold text-slate-700">الإجمالي</span>
-              <span className="font-black" style={{color:'#1e3a5f'}}>{balance.toLocaleString('ar-EG')} ج.م</span>
+              <span className="font-black" style={{color:'#1e3a5f'}}>{(cashInDrawer + (wallets || []).filter((w: any) => w.type !== 'cash').reduce((s: number, w: any) => s + Number(w.balance), 0)).toLocaleString('ar-EG')} ج.م</span>
             </div>
           </div>
         </div>
@@ -576,7 +576,8 @@ export default function POSPage() {
             <BookOpen size={14} /> سجل اليوم
           </button>
           <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} warehouseName={mainWh?.name}
-            supervisorName={shift?.supervisor_id ? (allUsers as any[])?.find((u: any) => u.id === shift.supervisor_id)?.full_name : null} />
+            supervisorName={shift?.supervisor_id ? (allUsers as any[])?.find((u: any) => u.id === shift.supervisor_id)?.full_name : null}
+            wallets={wallets} />
 
         </div>
       </div>
