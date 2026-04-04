@@ -6,7 +6,7 @@ import api from '../../api/client'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet } from 'lucide-react'
+import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil } from 'lucide-react'
 
 function WalletsTab() {
   const qc = useQueryClient()
@@ -83,6 +83,8 @@ export default function SettingsPage() {
   const [showAddSub, setShowAddSub] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newSubName, setNewSubName] = useState('')
+  const [editCat, setEditCat] = useState<any>(null)
+  const [editSub, setEditSub] = useState<any>(null)
   const [selectedCatForSub, setSelectedCatForSub] = useState('')
   const qc = useQueryClient()
 
@@ -143,6 +145,14 @@ export default function SettingsPage() {
   const deleteSub = useMutation({
     mutationFn: subcategoriesApi.delete,
     onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
+  })
+  const updateCatMut = useMutation({
+    mutationFn: ({ id, name }: any) => categoriesApi.update(id, name),
+    onSuccess: () => { toast.success('تم التعديل'); setEditCat(null); qc.invalidateQueries({ queryKey: ['categories'] }) },
+  })
+  const updateSubMut = useMutation({
+    mutationFn: ({ id, category_id, name }: any) => subcategoriesApi.update(id, category_id, name),
+    onSuccess: () => { toast.success('تم التعديل'); setEditSub(null); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
   })
 
   if (isLoading) return <PageLoader />
@@ -268,7 +278,7 @@ export default function SettingsPage() {
               {categories?.map((c: any) => (
                 <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
                   <span className="font-medium text-sm text-slate-700">{c.name}</span>
-                  <button onClick={() => { if (confirm('حذف الفئة؟')) deleteCat.mutate(c.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                  <div className="flex gap-1"><button onClick={() => setEditCat(c)} className="text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={14} /></button><button onClick={() => { if (confirm('حذف الفئة؟')) deleteCat.mutate(c.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button></div>
                 </div>
               ))}
             </div>
@@ -283,7 +293,7 @@ export default function SettingsPage() {
               {subcategories?.map((s: any) => (
                 <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
                   <span className="font-medium text-sm text-slate-700">{s.name}</span>
-                  <button onClick={() => { if (confirm('حذف التصنيف؟')) deleteSub.mutate(s.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                  <div className="flex gap-1"><button onClick={() => setEditSub(s)} className="text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={14} /></button><button onClick={() => { if (confirm('حذف التصنيف؟')) deleteSub.mutate(s.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button></div>
                 </div>
               ))}
             </div>
@@ -407,6 +417,28 @@ export default function SettingsPage() {
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowAddSub(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => addSub.mutate()} disabled={!selectedCatForSub} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>إضافة</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Category */}
+      <Modal open={!!editCat} onClose={() => setEditCat(null)} title="تعديل الفئة">
+        <div className="space-y-3">
+          <input className="input" value={editCat?.name || ''} onChange={e => setEditCat((c: any) => ({ ...c, name: e.target.value }))} autoFocus />
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setEditCat(null)} className="btn-ghost">إلغاء</button>
+            <button onClick={() => updateCatMut.mutate({ id: editCat.id, name: editCat.name })} disabled={updateCatMut.isPending} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Subcategory */}
+      <Modal open={!!editSub} onClose={() => setEditSub(null)} title="تعديل التصنيف الفرعي">
+        <div className="space-y-3">
+          <input className="input" value={editSub?.name || ''} onChange={e => setEditSub((s: any) => ({ ...s, name: e.target.value }))} autoFocus />
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setEditSub(null)} className="btn-ghost">إلغاء</button>
+            <button onClick={() => updateSubMut.mutate({ id: editSub.id, category_id: editSub.category_id, name: editSub.name })} disabled={updateSubMut.isPending} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
           </div>
         </div>
       </Modal>

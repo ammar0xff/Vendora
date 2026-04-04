@@ -59,6 +59,7 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
     reorder_point: Optional[Decimal] = None
     reorder_qty: Optional[Decimal] = None
+    stock_status: Optional[str] = None
 
 
 class ProductOut(BaseModel):

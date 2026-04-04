@@ -82,6 +82,18 @@ export default function ProductForm({ product, onSave, onClose }: any) {
         <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
       </div>
 
+      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <div>
+          <p className="text-sm font-medium text-slate-700">تتبع المخزون</p>
+          <p className="text-xs text-slate-400">{form.stock_status === 'untracked' ? 'غير محدد — يُباع بدون خصم من الجرد' : 'محدد — يُخصم من الجرد عند البيع'}</p>
+        </div>
+        <button type="button"
+          onClick={() => set('stock_status', form.stock_status === 'untracked' ? 'tracked' : 'untracked')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${form.stock_status === 'untracked' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+          {form.stock_status === 'untracked' ? '⚠️ غير محدد' : '✅ محدد'}
+        </button>
+      </div>
+
       <div className="flex gap-3 justify-end pt-2">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
         <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
