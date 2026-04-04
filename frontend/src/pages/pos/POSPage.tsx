@@ -45,22 +45,24 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
           <span>الدرج: {cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
         </div>
         {/* Hover tooltip */}
-        <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-48 p-3 hidden group-hover:block">
-          <p className="text-xs font-bold text-slate-500 mb-2">مبيعات الوردية الحالية</p>
-          <div className="space-y-1">
+        <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-52 p-3 hidden group-hover:block">
+          <p className="text-xs font-bold text-slate-500 mb-2">الأرصدة الحالية</p>
+          <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">💵 نقدي</span>
-              <span className="font-bold text-slate-800">{(breakdown.find((p: any) => p.method === 'cash')?.total ?? 0).toLocaleString('ar-EG')} ج.م</span>
+              <span className="text-slate-600">💵 نقدي (الدرج)</span>
+              <span className="font-bold text-slate-800">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
             </div>
-            {breakdown.filter((p: any) => p.method !== 'cash').map((p: any) => (
-              <div key={p.wallet_name} className="flex justify-between text-xs">
-                <span className="text-slate-600">{p.wallet_type === 'vodafone_cash' ? '📱' : '💳'} {p.wallet_name}</span>
-                <span className="font-bold text-slate-800">{Number(p.total).toLocaleString('ar-EG')} ج.م</span>
+            {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+              <div key={w.id} className="flex justify-between text-xs">
+                <span className="text-slate-600">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
+                <span className="font-bold text-slate-800">{Number(w.balance).toLocaleString('ar-EG')} ج.م</span>
               </div>
             ))}
-            <div className="border-t border-slate-100 pt-1 flex justify-between text-xs">
-              <span className="font-bold text-slate-700">إجمالي المبيعات</span>
-              <span className="font-black" style={{color:'#1e3a5f'}}>{Number(summary?.sales_total ?? 0).toLocaleString('ar-EG')} ج.م</span>
+            <div className="border-t border-slate-100 pt-1.5 flex justify-between text-xs">
+              <span className="font-bold text-slate-700">الإجمالي</span>
+              <span className="font-black" style={{color:'#1e3a5f'}}>
+                {(cashInDrawer + (wallets || []).filter((w: any) => w.type !== 'cash').reduce((s: number, w: any) => s + Number(w.balance), 0)).toLocaleString('ar-EG')} ج.م
+              </span>
             </div>
           </div>
         </div>
@@ -215,7 +217,7 @@ export default function POSPage() {
   const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
-  const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data) })
+  const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data), staleTime: 10_000, refetchInterval: 30_000 })
   const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data), enabled: showClose })
   const { data: finCategories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/financial-categories').then(r => r.data) })
 
@@ -295,6 +297,7 @@ export default function POSPage() {
       setIsCredit(false)
       qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
       qc.invalidateQueries({ queryKey: ['recent-sales'] })
+      qc.invalidateQueries({ queryKey: ['wallets'] })
       // Auto-open PDF
       try {
         const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
