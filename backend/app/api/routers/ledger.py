@@ -75,6 +75,7 @@ async def ledger(
     ret_rows = await db.execute(text(f"""
         SELECT
             si.id,
+            si.sale_id,
             p.name as product_name,
             p.unit,
             si.qty,
@@ -97,6 +98,8 @@ async def ledger(
     for r in ret_rows.fetchall():
         d = dict(r._mapping)
         returns.append({
+            "item_id": str(d["id"]),
+            "sale_id": str(d["sale_id"]) if "sale_id" in d else None,
             "product_name": d["product_name"],
             "unit": d["unit"],
             "qty": float(d["qty"]),
@@ -110,7 +113,7 @@ async def ledger(
 
     # Expenses / deposits / withdrawals
     tx_rows = await db.execute(text(f"""
-        SELECT dt.type, dt.amount, dt.note, dt.created_at,
+        SELECT dt.id, dt.type, dt.amount, dt.note, dt.created_at,
                pw.name as wallet_name, dt.payment_method
         FROM drawer_transactions dt
         JOIN shifts sh ON sh.id = dt.shift_id
@@ -127,6 +130,7 @@ async def ledger(
         d = dict(r._mapping)
         pm = d["wallet_name"] or ("نقدي" if (d["payment_method"] or "cash") == "cash" else d["payment_method"])
         expenses.append({
+            "tx_id": str(d["id"]),
             "type_ar": TX_AR.get(d["type"], d["type"]),
             "note": d["note"] or "",
             "amount": float(d["amount"]),
