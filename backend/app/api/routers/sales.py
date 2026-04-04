@@ -223,6 +223,11 @@ async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depe
     if ret.shift_id:
         db.add(DrawerTransaction(shift_id=ret.shift_id, type=DrawerTxType.return_,
                                   amount=total, ref_id=ret.id, created_by=current_user.id))
+    # Reverse wallet balance if original sale was paid by wallet
+    if orig.wallet_id:
+        from sqlalchemy import text as sqlt
+        await db.execute(sqlt("UPDATE payment_wallets SET balance = balance - :amt WHERE id = :wid"),
+                         {"amt": total, "wid": orig.wallet_id})
     db.add(ArchivedDocument(doc_number=ret.invoice_number, doc_type=DocType.sale_invoice,
                              amount=total, ref_id=ret.id, created_by=current_user.id,
                              metadata_={"original_invoice": orig.invoice_number, "type": "partial_return"}))

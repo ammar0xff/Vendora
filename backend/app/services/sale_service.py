@@ -213,6 +213,12 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
         )
         db.add(dt)
 
+    # Reverse wallet balance if paid by wallet
+    if sale.wallet_id:
+        from sqlalchemy import text as sqlt
+        await db.execute(sqlt("UPDATE payment_wallets SET balance = balance - :amt WHERE id = :wid"),
+                         {"amt": total, "wid": sale.wallet_id})
+
     await db.commit()
     return {"detail": "Returned", "invoice_number": sale.invoice_number, "amount": total}
 
