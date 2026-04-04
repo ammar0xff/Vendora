@@ -173,12 +173,14 @@ async def delete_drawer_transaction(
 
     # Reverse wallet balance
     if tx.get("wallet_id") and tx.get("payment_method") == "wallet":
+        from app.services.wallet_service import record_wallet_tx
+        from decimal import Decimal as D
         if tx["type"] == "deposit":
-            await db.execute(sqlt("UPDATE payment_wallets SET balance = balance - :amt WHERE id = :wid"),
-                             {"amt": tx["amount"], "wid": tx["wallet_id"]})
+            await record_wallet_tx(db, tx["wallet_id"], -D(str(tx["amount"])), "deposit_reversed",
+                                   tx_id, "حذف دواخل", current_user.id)
         elif tx["type"] in ("expense", "withdrawal"):
-            await db.execute(sqlt("UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"),
-                             {"amt": tx["amount"], "wid": tx["wallet_id"]})
+            await record_wallet_tx(db, tx["wallet_id"], D(str(tx["amount"])), "expense_reversed",
+                                   tx_id, "حذف خوارج", current_user.id)
 
     await db.execute(sqlt("DELETE FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
     await db.commit()

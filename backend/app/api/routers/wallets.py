@@ -85,3 +85,9 @@ async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db
     """Reset a wallet balance to 0."""
     await db.execute(text("UPDATE payment_wallets SET balance = 0 WHERE id = :id"), {"id": wid})
     await db.commit()
+
+
+@router.get("/{wid}/history")
+async def wallet_history(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    from app.services.wallet_service import get_wallet_history
+    return await get_wallet_history(db, wid)
