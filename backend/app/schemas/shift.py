@@ -24,6 +24,8 @@ class DrawerTxCreate(BaseModel):
     note: Optional[str] = None
     customer_id: Optional[uuid.UUID] = None
     category_id: Optional[uuid.UUID] = None
+    payment_method: Optional[str] = "cash"
+    wallet_id: Optional[uuid.UUID] = None
 
 
 class DrawerTxOut(BaseModel):

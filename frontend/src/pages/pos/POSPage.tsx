@@ -73,6 +73,8 @@ export default function POSPage() {
   const [drawerEntryAmount, setDrawerEntryAmount] = useState('')
   const [drawerEntryNote, setDrawerEntryNote] = useState('')
   const [drawerEntryCategoryId, setDrawerEntryCategoryId] = useState('')
+  const [drawerEntryPaymentMethod, setDrawerEntryPaymentMethod] = useState('cash')
+  const [drawerEntryWalletId, setDrawerEntryWalletId] = useState('')
   const [drawerEntryCustomer, setDrawerEntryCustomer] = useState<any>(null)
   const [drawerCustomerSearch, setDrawerCustomerSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
@@ -285,10 +287,12 @@ export default function POSPage() {
       note: drawerEntryNote || undefined,
       customer_id: drawerEntryCustomer?.id || undefined,
       category_id: drawerEntryCategoryId || undefined,
+      payment_method: drawerEntryPaymentMethod === 'wallet' ? 'wallet' : 'cash',
+      wallet_id: drawerEntryPaymentMethod === 'wallet' ? drawerEntryWalletId || undefined : undefined,
     }),
     onSuccess: () => {
       toast.success('تم تسجيل البند')
-      setShowDrawerEntry(false); setDrawerEntryAmount(''); setDrawerEntryNote(''); setDrawerEntryCustomer(null); setDrawerCustomerSearch(''); setDrawerEntryCategoryId('')
+      setShowDrawerEntry(false); setDrawerEntryAmount(''); setDrawerEntryNote(''); setDrawerEntryCustomer(null); setDrawerCustomerSearch(''); setDrawerEntryCategoryId(''); setDrawerEntryPaymentMethod('cash'); setDrawerEntryWalletId('')
       qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
       if (drawerEntryCustomer) qc.invalidateQueries({ queryKey: ['customer-account', drawerEntryCustomer.id] })
     },
@@ -933,6 +937,22 @@ export default function POSPage() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">وسيلة الدفع</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setDrawerEntryPaymentMethod('cash'); setDrawerEntryWalletId('') }}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${drawerEntryPaymentMethod === 'cash' ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-600'}`}>
+                💵 نقدي
+              </button>
+              {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                <button key={w.id} type="button"
+                  onClick={() => { setDrawerEntryPaymentMethod('wallet'); setDrawerEntryWalletId(w.id) }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${drawerEntryPaymentMethod === 'wallet' && drawerEntryWalletId === w.id ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-600'}`}>
+                  {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">البيان</label>
