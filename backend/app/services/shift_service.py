@@ -63,10 +63,12 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         .group_by(DrawerTransaction.type)
     )
     totals = {row.type: row.total for row in rows}
-    sales    = totals.get(DrawerTxType.sale,    Decimal("0")) or Decimal("0")
-    returns  = totals.get(DrawerTxType.return_,  Decimal("0")) or Decimal("0")
-    expenses = totals.get(DrawerTxType.expense,  Decimal("0")) or Decimal("0")
-    expected = shift.initial_amount + sales - returns - expenses
+    sales      = totals.get(DrawerTxType.sale,       Decimal("0")) or Decimal("0")
+    returns    = totals.get(DrawerTxType.return_,     Decimal("0")) or Decimal("0")
+    expenses   = totals.get(DrawerTxType.expense,     Decimal("0")) or Decimal("0")
+    deposits   = totals.get(DrawerTxType.deposit,     Decimal("0")) or Decimal("0")
+    withdrawals= totals.get(DrawerTxType.withdrawal,  Decimal("0")) or Decimal("0")
+    expected = shift.initial_amount + sales + deposits - returns - expenses - withdrawals
     variance = (shift.closing_balance - expected) if shift.closing_balance is not None else None
     tx_count = await db.execute(select(func.count()).where(DrawerTransaction.shift_id == shift_id))
 
@@ -95,8 +97,10 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "sales_total": sales,
         "returns_total": returns,
         "expenses_total": expenses,
+        "deposits_total": deposits,
+        "withdrawals_total": withdrawals,
         "expected_balance": expected,
-        "cash_in_drawer": float(shift.initial_amount) + cash_sales - float(returns) - float(expenses),
+        "cash_in_drawer": float(shift.initial_amount) + cash_sales + float(deposits) - float(returns) - float(expenses) - float(withdrawals),
         "wallet_total": wallet_sales,
         "closing_balance": shift.closing_balance,
         "variance": variance,
