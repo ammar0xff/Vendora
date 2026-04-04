@@ -1091,8 +1091,8 @@ export default function POSPage() {
                     <tr key={i}>
                       <td className="text-xs text-slate-500">{new Date(e.date).toLocaleTimeString('ar-EG')}</td>
                       <td><span className={e.credit > 0 ? 'badge-green' : 'badge-red'}>{e.type}</span></td>
-                      <td className="font-mono text-xs">{e.ref}</td>
-                      <td className="text-sm">{e.party}</td>
+                      <td className="text-sm font-medium">{e.ref || e.note || '—'}</td>
+                      <td className="text-sm text-slate-600">{e.party || '—'}</td>
                       <td className="text-green-700 font-semibold text-sm">{e.credit > 0 ? Number(e.credit).toLocaleString('ar-EG') : ''}</td>
                       <td className="text-red-600 font-semibold text-sm">{e.debit > 0 ? Number(e.debit).toLocaleString('ar-EG') : ''}</td>
                       <td className={`font-black text-sm ${e.balance >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Number(e.balance).toLocaleString('ar-EG')}</td>
