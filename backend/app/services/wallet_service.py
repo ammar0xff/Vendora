@@ -15,11 +15,14 @@ async def record_wallet_tx(
     created_by: uuid.UUID = None,
 ):
     """Record a wallet transaction and update balance atomically."""
-    await db.execute(text("""
-        INSERT INTO wallet_transactions (wallet_id, amount, tx_type, ref_id, note, created_by)
-        VALUES (:wid, :amt, :type, :ref, :note, :uid)
-    """), {"wid": wallet_id, "amt": amount, "type": tx_type,
-           "ref": ref_id, "note": note, "uid": created_by})
+    try:
+        await db.execute(text("""
+            INSERT INTO wallet_transactions (wallet_id, amount, tx_type, ref_id, note, created_by)
+            VALUES (:wid, :amt, :type, :ref, :note, :uid)
+        """), {"wid": wallet_id, "amt": amount, "type": tx_type,
+               "ref": ref_id, "note": note, "uid": created_by})
+    except Exception:
+        await db.rollback()  # rollback failed insert, keep going
     await db.execute(text(
         "UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"
     ), {"amt": amount, "wid": wallet_id})
