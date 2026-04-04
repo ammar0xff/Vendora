@@ -200,7 +200,7 @@ export default function UsersPage() {
             { key: 'actions', label: '', render: (u: any) => (
               <div className="flex gap-1 justify-end">
                 <button onClick={() => setEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
-                <button onClick={() => { const pw = prompt('كلمة المرور الجديدة:'); if (pw?.trim()) resetMut.mutate({ id: u.id, password: pw.trim() }) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600" title="إعادة تعيين كلمة المرور"><KeyRound size={14} /></button>
+                <button onClick={() => { const pw = prompt('كلمة المرور الجديدة (4 أحرف على الأقل):'); if (pw?.trim() && pw.trim().length >= 4) resetMut.mutate({ id: u.id, password: pw.trim() }); else if (pw !== null) alert('كلمة المرور قصيرة جداً — 4 أحرف على الأقل') }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600" title="إعادة تعيين كلمة المرور"><KeyRound size={14} /></button>
                 <button onClick={() => { if (confirm('تعطيل المستخدم؟')) deleteMut.mutate(u.id) }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="تعطيل"><Trash2 size={14} /></button>
               </div>
             )},
