@@ -158,6 +158,17 @@ async def add_transaction(db: AsyncSession, shift_id: uuid.UUID, data, created_b
                            wallet_id=getattr(data, 'wallet_id', None),
                            created_by=created_by)
     db.add(dt)
+
+    # Update wallet balance if payment via wallet
+    wallet_id = getattr(data, 'wallet_id', None)
+    if wallet_id and getattr(data, 'payment_method', 'cash') == 'wallet':
+        from sqlalchemy import text as sqlt
+        if data.type == DrawerTxType.deposit:
+            await db.execute(sqlt("UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"),
+                             {"amt": data.amount, "wid": wallet_id})
+        elif data.type in (DrawerTxType.expense, DrawerTxType.withdrawal):
+            await db.execute(sqlt("UPDATE payment_wallets SET balance = balance - :amt WHERE id = :wid"),
+                             {"amt": data.amount, "wid": wallet_id})
     # If this is a customer debt payment, record it and reduce customer balance
     if getattr(data, 'customer_id', None) and data.type == DrawerTxType.deposit:
         from app.models.customer_payment import CustomerPayment
