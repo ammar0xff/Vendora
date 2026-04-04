@@ -128,8 +128,14 @@ export default function SafesPage() {
               {Number(w.balance).toLocaleString('ar-EG')} ج.م
             </p>
             <button onClick={() => { setToSafeId(safes?.[0]?.id || ''); setAction({ type: 'transfer', target: w }) }}
-              className="w-full py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1"
+              className="w-full py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1 mb-1"
               style={{ background: '#1e3a5f' }}><ArrowRightLeft size={12} /> تحويل للخزنة</button>
+            <button onClick={() => { if (confirm(`تصفير رصيد ${w.name} (${Number(w.balance).toLocaleString('ar-EG')} ج.م)؟`)) {
+              api.post(`/wallets/${w.id}/reset-balance`).then(() => { toast.success('✅ تم التصفير'); qc.invalidateQueries({ queryKey: ['wallets'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
+            }}}
+              className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 flex items-center justify-center gap-1">
+              ✕ تصفير الرصيد
+            </button>
           </div>
         ))}
       </div>
