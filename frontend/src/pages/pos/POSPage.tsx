@@ -25,6 +25,8 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
     </div>
   )
   const balance = Number(summary?.expected_balance ?? shift.initial_amount)
+  const cashInDrawer = Number(summary?.cash_in_drawer ?? balance)
+  const breakdown = summary?.payment_breakdown || []
   return (
     <div className="flex items-center gap-2">
       {warehouseName && (
@@ -37,9 +39,31 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
           👤 مشرف: {supervisorName}
         </div>
       )}
-      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold" style={{ background: '#1e3a5f' }}>
-        <Wallet size={15} />
-        <span>الدرج: {balance.toLocaleString('ar-EG')} ج.م</span>
+      <div className="relative group">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold cursor-default" style={{ background: '#1e3a5f' }}>
+          <Wallet size={15} />
+          <span>الدرج: {cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
+        </div>
+        {/* Hover tooltip */}
+        <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-48 p-3 hidden group-hover:block">
+          <p className="text-xs font-bold text-slate-500 mb-2">توزيع المبيعات</p>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-600">💵 نقدي (الدرج)</span>
+              <span className="font-bold text-slate-800">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
+            </div>
+            {breakdown.filter((p: any) => p.method !== 'cash').map((p: any) => (
+              <div key={p.wallet_name} className="flex justify-between text-xs">
+                <span className="text-slate-600">{p.wallet_type === 'vodafone_cash' ? '📱' : '💳'} {p.wallet_name}</span>
+                <span className="font-bold text-slate-800">{Number(p.total).toLocaleString('ar-EG')} ج.م</span>
+              </div>
+            ))}
+            <div className="border-t border-slate-100 pt-1 flex justify-between text-xs">
+              <span className="font-bold text-slate-700">الإجمالي</span>
+              <span className="font-black" style={{color:'#1e3a5f'}}>{balance.toLocaleString('ar-EG')} ج.م</span>
+            </div>
+          </div>
+        </div>
       </div>
       <button onClick={onHandover} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
         <ArrowLeftRight size={14} /> تسليم
