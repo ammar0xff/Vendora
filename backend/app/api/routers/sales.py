@@ -295,3 +295,53 @@ async def update_sale_item_qty(
 
     await db.commit()
     return {"ok": True, "old_qty": float(old_qty), "new_qty": float(new_qty), "diff_amount": float(diff_amount)}
+
+
+@router.delete("/{sale_id}/items/{item_id}")
+async def delete_sale_item(
+    sale_id: uuid.UUID,
+    item_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager"))
+):
+    """Delete a sale item. Reverses stock movement and drawer balance."""
+    from sqlalchemy import text as sqlt
+    from app.models.shift import DrawerTransaction, DrawerTxType
+
+    item_row = await db.execute(sqlt(
+        "SELECT si.*, s.warehouse_id, s.shift_id, p.stock_status FROM sale_items si "
+        "JOIN sales s ON s.id = si.sale_id "
+        "JOIN products p ON p.id = si.product_id "
+        "WHERE si.id = :iid AND si.sale_id = :sid"
+    ), {"iid": item_id, "sid": sale_id})
+    item = item_row.fetchone()
+    if not item:
+        raise HTTPException(404, "البند غير موجود")
+
+    qty = Decimal(str(item.qty))
+    amount = qty * Decimal(str(item.unit_price))
+
+    # Delete item
+    await db.execute(sqlt("DELETE FROM sale_items WHERE id=:id"), {"id": item_id})
+
+    # Reverse stock
+    if item.stock_status == "tracked":
+        await db.execute(sqlt("""
+            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
+            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'item_deleted', :uid)
+        """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": qty,
+               "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user.id})
+
+    # Reverse drawer
+    if item.shift_id:
+        db.add(DrawerTransaction(
+            shift_id=item.shift_id,
+            type=DrawerTxType.return_,
+            amount=amount,
+            ref_id=sale_id,
+            note=f"حذف بند — {item.product_id}",
+            created_by=current_user.id
+        ))
+
+    await db.commit()
+    return {"ok": True, "reversed_amount": float(amount)}
