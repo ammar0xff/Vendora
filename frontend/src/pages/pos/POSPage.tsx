@@ -1227,7 +1227,14 @@ export default function POSPage() {
                       <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
                       <td className="text-center font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</td>
                       <td className="text-center"><span className="badge-red text-xs">مرتجع</span></td>
-                      <td className="text-xs text-slate-500">—</td>
+                      <td className="text-xs text-slate-500 flex items-center gap-1">—
+                        {item.item_id && <button className="text-red-400 hover:text-red-600"
+                          onClick={() => { if (confirm(`حذف مرتجع "${item.product_name}"؟`)) {
+                            api.delete(`/sales/${item.sale_id}/items/${item.item_id}`)
+                              .then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
+                              .catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
+                          }}}>✕</button>}
+                      </td>
                     </tr>
                   ))}
 
@@ -1245,7 +1252,14 @@ export default function POSPage() {
                         {Number(e.amount).toLocaleString('ar-EG')}
                       </td>
                       <td className="text-center"><span className={e.entry_type === 'deposit' ? 'badge-green' : 'badge-yellow'}>{e.type_ar}</span></td>
-                      <td className="text-xs text-slate-500">{e.payment_method}</td>
+                      <td className="text-xs text-slate-500 flex items-center gap-1">{e.payment_method}
+                        {e.tx_id && <button className="text-red-400 hover:text-red-600"
+                          onClick={() => { if (confirm(`حذف "${e.type_ar} — ${e.note || ''}"؟`)) {
+                            api.delete(`/shifts/transactions/${e.tx_id}`)
+                              .then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
+                              .catch((ex: any) => toast.error(ex.response?.data?.detail || 'فشل'))
+                          }}}>✕</button>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

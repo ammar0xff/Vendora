@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
@@ -6,7 +6,7 @@ from app.db.base import get_db
 from app.schemas.shift import ShiftOpen, ShiftClose, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary
 from app.models.shift import Shift, DrawerTransaction, ShiftStatus
 from app.services import shift_service
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.core.exceptions import NotFoundError
 from pydantic import BaseModel
@@ -155,3 +155,19 @@ async def list_transactions(shift_id: uuid.UUID, db: AsyncSession = Depends(get_
 async def list_shifts(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     result = await db.execute(select(Shift).order_by(Shift.started_at.desc()).limit(100))
     return result.scalars().all()
+
+
+@router.delete("/transactions/{tx_id}", status_code=204)
+async def delete_drawer_transaction(
+    tx_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager"))
+):
+    """Delete a drawer transaction (expense/deposit/withdrawal). Reverses the effect."""
+    from sqlalchemy import text as sqlt
+    row = await db.execute(sqlt("SELECT * FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
+    tx = row.fetchone()
+    if not tx:
+        raise HTTPException(404, "العملية غير موجودة")
+    await db.execute(sqlt("DELETE FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
+    await db.commit()
