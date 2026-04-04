@@ -69,6 +69,21 @@ MIGRATIONS = [
         INSERT INTO store_settings (key, value) VALUES ('paper_size', '"A4"') ON CONFLICT (key) DO NOTHING;
     """),
 
+    # v7 — wallet_transactions audit table
+    ("v7_wallet_transactions", """
+        CREATE TABLE IF NOT EXISTS wallet_transactions (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          wallet_id uuid NOT NULL REFERENCES payment_wallets(id),
+          amount numeric(14,2) NOT NULL,
+          tx_type text NOT NULL,
+          ref_id uuid,
+          note text,
+          created_by uuid,
+          created_at timestamptz DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS idx_wallet_tx_wallet ON wallet_transactions(wallet_id);
+    """),
+
     # v6 — wallet_id on sales
     ("v6_wallet_id_sales", """
         ALTER TABLE sales ADD COLUMN IF NOT EXISTS wallet_id uuid REFERENCES payment_wallets(id) ON DELETE SET NULL;
