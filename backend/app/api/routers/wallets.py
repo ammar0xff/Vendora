@@ -78,3 +78,10 @@ async def wallets_summary(
         ORDER BY total DESC
     """), params)
     return [dict(r._mapping) for r in rows.fetchall()]
+
+
+@router.post("/{wid}/reset-balance", status_code=204)
+async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    """Reset a wallet balance to 0."""
+    await db.execute(text("UPDATE payment_wallets SET balance = 0 WHERE id = :id"), {"id": wid})
+    await db.commit()
