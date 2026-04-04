@@ -362,6 +362,7 @@ export default function POSPage() {
       toast.success('تم تسجيل البند')
       setShowDrawerEntry(false); setDrawerEntryAmount(''); setDrawerEntryNote(''); setDrawerEntryCustomer(null); setDrawerCustomerSearch(''); setDrawerEntryCategoryId(''); setDrawerEntryPaymentMethod('cash'); setDrawerEntryWalletId('')
       qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
+      qc.invalidateQueries({ queryKey: ['wallets'] })
       if (drawerEntryCustomer) qc.invalidateQueries({ queryKey: ['customer-account', drawerEntryCustomer.id] })
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل'),
