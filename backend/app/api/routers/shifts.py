@@ -163,11 +163,22 @@ async def delete_drawer_transaction(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager"))
 ):
-    """Delete a drawer transaction (expense/deposit/withdrawal). Reverses the effect."""
+    """Delete a drawer transaction. Reverses wallet balance if applicable."""
     from sqlalchemy import text as sqlt
     row = await db.execute(sqlt("SELECT * FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
     tx = row.fetchone()
     if not tx:
         raise HTTPException(404, "العملية غير موجودة")
+    tx = dict(tx._mapping)
+
+    # Reverse wallet balance
+    if tx.get("wallet_id") and tx.get("payment_method") == "wallet":
+        if tx["type"] == "deposit":
+            await db.execute(sqlt("UPDATE payment_wallets SET balance = balance - :amt WHERE id = :wid"),
+                             {"amt": tx["amount"], "wid": tx["wallet_id"]})
+        elif tx["type"] in ("expense", "withdrawal"):
+            await db.execute(sqlt("UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"),
+                             {"amt": tx["amount"], "wid": tx["wallet_id"]})
+
     await db.execute(sqlt("DELETE FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
     await db.commit()
