@@ -1146,7 +1146,7 @@ export default function POSPage() {
                     <th>اسم الصنف</th>
                     <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الكمية</th>
                     <th style={{textAlign:'center',whiteSpace:'nowrap'}}>السعر</th>
-                    <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الربط</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap'}}>المجموع</th>
                     <th style={{textAlign:'center',whiteSpace:'nowrap',color:'#dc2626'}}>مرتجع</th>
                     <th style={{textAlign:'center',whiteSpace:'nowrap',color:'#d97706'}}>خوارج</th>
                     <th style={{whiteSpace:'nowrap'}}>الدفع</th>
