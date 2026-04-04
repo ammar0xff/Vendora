@@ -1201,7 +1201,17 @@ export default function POSPage() {
                       <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
                       <td className="text-center font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</td>
                       <td className="text-center"><span className="badge-green text-xs">مبيعات</span></td>
-                      <td className="text-xs text-slate-500">{item.payment_method}</td>
+                      <td className="text-xs text-slate-500 flex items-center gap-1">
+                        {item.payment_method}
+                        <button className="text-red-400 hover:text-red-600 mr-1"
+                          onClick={() => {
+                            if (confirm(`حذف "${item.product_name}" من الفاتورة؟`)) {
+                              api.delete(`/sales/${item.sale_id}/items/${item.item_id}`)
+                                .then(() => { toast.success('✅ تم حذف البند'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
+                                .catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
+                            }
+                          }}>✕</button>
+                      </td>
                     </tr>
                   ))}
 
