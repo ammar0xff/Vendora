@@ -1147,8 +1147,7 @@ export default function POSPage() {
                     <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الكمية</th>
                     <th style={{textAlign:'center',whiteSpace:'nowrap'}}>السعر</th>
                     <th style={{textAlign:'center',whiteSpace:'nowrap'}}>المجموع</th>
-                    <th style={{textAlign:'center',whiteSpace:'nowrap',color:'#dc2626'}}>مرتجع</th>
-                    <th style={{textAlign:'center',whiteSpace:'nowrap',color:'#d97706'}}>خوارج</th>
+                    <th style={{textAlign:'center',whiteSpace:'nowrap'}}>النوع</th>
                     <th style={{whiteSpace:'nowrap'}}>الدفع</th>
                   </tr>
                 </thead>
@@ -1164,8 +1163,7 @@ export default function POSPage() {
                       <td className="text-center text-sm">{item.qty}</td>
                       <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
                       <td className="text-center font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</td>
-                      <td></td>
-                      <td></td>
+                      <td className="text-center"><span className="badge-green text-xs">مبيعات</span></td>
                       <td className="text-xs text-slate-500">{item.payment_method}</td>
                     </tr>
                   ))}
@@ -1180,16 +1178,15 @@ export default function POSPage() {
                       </td>
                       <td className="text-center text-sm">{item.qty}</td>
                       <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
-                      <td></td>
                       <td className="text-center font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</td>
-                      <td></td>
-                      <td></td>
+                      <td className="text-center"><span className="badge-red text-xs">مرتجع</span></td>
+                      <td className="text-xs text-slate-500">—</td>
                     </tr>
                   ))}
 
                   {/* Expenses/Deposits */}
                   {(todayLedger.expenses || []).map((e: any, i: number) => (
-                    <tr key={`e${i}`} className="bg-amber-50">
+                    <tr key={`e${i}`} className={e.entry_type === 'deposit' ? 'bg-green-50' : 'bg-amber-50'}>
                       <td className="text-slate-400 text-xs">💸</td>
                       <td>
                         <p className="font-medium text-sm leading-tight">{e.type_ar}</p>
@@ -1197,13 +1194,10 @@ export default function POSPage() {
                       </td>
                       <td></td>
                       <td></td>
-                      <td className={`text-center font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : ''}`}>
-                        {e.entry_type === 'deposit' ? Number(e.amount).toLocaleString('ar-EG') : ''}
+                      <td className={`text-center font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : 'text-amber-700'}`}>
+                        {Number(e.amount).toLocaleString('ar-EG')}
                       </td>
-                      <td></td>
-                      <td className="text-center font-bold text-sm text-amber-700">
-                        {e.entry_type !== 'deposit' ? Number(e.amount).toLocaleString('ar-EG') : ''}
-                      </td>
+                      <td className="text-center"><span className={e.entry_type === 'deposit' ? 'badge-green' : 'badge-yellow'}>{e.type_ar}</span></td>
                       <td className="text-xs text-slate-500">{e.payment_method}</td>
                     </tr>
                   ))}
