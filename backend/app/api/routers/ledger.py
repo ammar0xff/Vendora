@@ -39,7 +39,7 @@ async def ledger(
     for sale, cname, wh_name in (await db.execute(sales_q)).all():
         items = (await db.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))).scalars().all()
         total = sum(float(i.qty) * float(i.unit_price) - float(i.discount) for i in items)
-        entries.append({"type": "sale", "ref": sale.invoice_number, "party": cname or "عميل عادي",
+        entries.append({"type": "مبيعات", "ref": sale.invoice_number, "party": cname or "عميل عادي",
                         "warehouse": wh_name or "",
                         "debit": 0, "credit": total, "date": sale.created_at.isoformat(), "note": sale.notes or ""})
 
@@ -51,7 +51,7 @@ async def ledger(
     for sale, cname, wh_name in (await db.execute(ret_q)).all():
         items = (await db.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))).scalars().all()
         total = sum(float(i.qty) * float(i.unit_price) for i in items)
-        entries.append({"type": "return", "ref": sale.invoice_number, "party": cname or "عميل عادي",
+        entries.append({"type": "مرتجع", "ref": sale.invoice_number, "party": cname or "عميل عادي",
                         "warehouse": wh_name or "",
                         "debit": total, "credit": 0, "date": sale.created_at.isoformat(), "note": sale.notes or ""})
 
@@ -63,9 +63,16 @@ async def ledger(
                DrawerTransaction.type.in_([DrawerTxType.expense, DrawerTxType.deposit, DrawerTxType.withdrawal]))
     if warehouse_id:
         tx_q = tx_q.where(Shift.warehouse_id == uuid.UUID(warehouse_id))
+    TX_LABELS = {
+        DrawerTxType.expense: "خوارج",
+        DrawerTxType.deposit: "دواخل",
+        DrawerTxType.withdrawal: "سحب",
+    }
     for tx, wh_id, wh_name in (await db.execute(tx_q)).all():
         is_debit = tx.type in (DrawerTxType.expense, DrawerTxType.withdrawal)
-        entries.append({"type": tx.type, "ref": str(tx.id)[:8], "party": "",
+        entries.append({"type": TX_LABELS.get(tx.type, str(tx.type)),
+                        "ref": tx.note or TX_LABELS.get(tx.type, ""),
+                        "party": "",
                         "warehouse": wh_name or "",
                         "debit": float(tx.amount) if is_debit else 0,
                         "credit": float(tx.amount) if not is_debit else 0,
