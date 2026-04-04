@@ -149,7 +149,10 @@ async def add_transaction(db: AsyncSession, shift_id: uuid.UUID, data, created_b
         raise BusinessError("No open shift found")
     _assert_owner(shift, created_by)
     dt = DrawerTransaction(shift_id=shift_id, type=data.type, amount=data.amount, note=data.note,
-                           category_id=getattr(data, 'category_id', None), created_by=created_by)
+                           category_id=getattr(data, 'category_id', None),
+                           payment_method=getattr(data, 'payment_method', 'cash') or 'cash',
+                           wallet_id=getattr(data, 'wallet_id', None),
+                           created_by=created_by)
     db.add(dt)
     # If this is a customer debt payment, record it and reduce customer balance
     if getattr(data, 'customer_id', None) and data.type == DrawerTxType.deposit:

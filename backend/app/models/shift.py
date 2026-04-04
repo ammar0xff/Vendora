@@ -49,7 +49,9 @@ class DrawerTransaction(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     ref_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    category_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)  # FK to financial_categories
+    category_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    payment_method: Mapped[str | None] = mapped_column(String(32), default="cash", nullable=True)
+    wallet_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
