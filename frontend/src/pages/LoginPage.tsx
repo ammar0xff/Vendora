@@ -24,7 +24,7 @@ export default function LoginPage() {
     try {
       const data = await authApi.login(username, password)
       // Store token first so subsequent requests are authenticated
-      login(data.access_token, { id: data.user_id, username: data.username, full_name: data.username, role: data.role })
+      login(data.access_token, { id: data.user_id, username: data.username, full_name: data.full_name || data.username, role: data.role })
       // Then fetch full profile
       try {
         const me = await authApi.me()
