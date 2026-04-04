@@ -39,9 +39,21 @@ async def ledger(
     for sale, cname, wh_name in (await db.execute(sales_q)).all():
         items = (await db.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))).scalars().all()
         total = sum(float(i.qty) * float(i.unit_price) - float(i.discount) for i in items)
+        items_data = [{"name": i.product_name if hasattr(i, 'product_name') else str(i.product_id),
+                       "qty": float(i.qty), "unit_price": float(i.unit_price),
+                       "total": float(i.qty) * float(i.unit_price) - float(i.discount)} for i in items]
+        # Enrich with product names
+        from sqlalchemy import text as sqlt
+        prod_ids = [str(i.product_id) for i in items]
+        if prod_ids:
+            prows = await db.execute(sqlt(f"SELECT id, name, unit FROM products WHERE id = ANY(ARRAY[{','.join(repr(p) for p in prod_ids)}]::uuid[])"))
+            pmap = {str(r.id): f"{r.name} ({r.unit})" for r in prows.fetchall()}
+            for idx, i in enumerate(items):
+                items_data[idx]["name"] = pmap.get(str(i.product_id), str(i.product_id))
         entries.append({"type": "مبيعات", "ref": sale.invoice_number, "party": cname or "عميل عادي",
                         "warehouse": wh_name or "",
-                        "debit": 0, "credit": total, "date": sale.created_at.isoformat(), "note": sale.notes or ""})
+                        "debit": 0, "credit": total, "date": sale.created_at.isoformat(),
+                        "note": sale.notes or "", "items": items_data})
 
     # 2. Returns
     ret_q = select(Sale, Customer.name.label("cname"), Warehouse.name.label("wh_name")).outerjoin(Customer, Sale.customer_id == Customer.id).outerjoin(Warehouse, Sale.warehouse_id == Warehouse.id)\
