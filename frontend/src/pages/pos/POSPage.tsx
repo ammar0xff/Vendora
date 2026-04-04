@@ -51,6 +51,50 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
   )
 }
 
+function LedgerRow({ e, hasItems, singleItem }: any) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <tr className={hasItems ? 'cursor-pointer hover:bg-slate-50' : ''} onClick={() => hasItems && setOpen(o => !o)}>
+        <td className="text-xs text-slate-500">{new Date(e.date).toLocaleTimeString('ar-EG')}</td>
+        <td><span className={e.credit > 0 ? 'badge-green' : 'badge-red'}>{e.type}</span></td>
+        <td>
+          {singleItem ? (
+            <div>
+              <p className="text-sm font-medium">{singleItem.name}</p>
+              <p className="text-xs text-slate-400">{e.ref} · {singleItem.qty} × {Number(singleItem.unit_price).toLocaleString('ar-EG')} ج.م</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium">{e.ref}</span>
+              {hasItems && <span className="text-xs text-slate-400">({e.items.length} بند) {open ? '▲' : '▼'}</span>}
+              {!hasItems && e.note && <span className="text-xs text-slate-400">{e.note}</span>}
+            </div>
+          )}
+        </td>
+        <td className="text-sm text-slate-600">{e.party || '—'}</td>
+        <td className="text-green-700 font-semibold text-sm">{e.credit > 0 ? Number(e.credit).toLocaleString('ar-EG') : ''}</td>
+        <td className="text-red-600 font-semibold text-sm">{e.debit > 0 ? Number(e.debit).toLocaleString('ar-EG') : ''}</td>
+        <td className={`font-black text-sm ${e.balance >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Number(e.balance).toLocaleString('ar-EG')}</td>
+      </tr>
+      {hasItems && open && e.items.map((item: any, idx: number) => (
+        <tr key={idx} className="bg-slate-50 border-r-2 border-blue-200">
+          <td></td>
+          <td></td>
+          <td className="text-xs text-slate-600 pr-4">
+            <span className="font-medium">{item.name}</span>
+            <span className="text-slate-400 mr-2">{item.qty} × {Number(item.unit_price).toLocaleString('ar-EG')} ج.م</span>
+          </td>
+          <td></td>
+          <td className="text-xs text-green-600">{Number(item.total).toLocaleString('ar-EG')}</td>
+          <td></td>
+          <td></td>
+        </tr>
+      ))}
+    </>
+  )
+}
+
 export default function POSPage() {
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
@@ -1085,19 +1129,15 @@ export default function POSPage() {
             </div>
             <div className="table-wrap max-h-96 overflow-y-auto">
               <table>
-                <thead><tr><th>الوقت</th><th>النوع</th><th>المرجع</th><th>الطرف</th><th>دائن</th><th>مدين</th><th>الرصيد</th></tr></thead>
+                <thead><tr><th>الوقت</th><th>النوع</th><th>البيان</th><th>الطرف</th><th>دائن</th><th>مدين</th><th>الرصيد</th></tr></thead>
                 <tbody>
-                  {todayLedger.entries.map((e: any, i: number) => (
-                    <tr key={i}>
-                      <td className="text-xs text-slate-500">{new Date(e.date).toLocaleTimeString('ar-EG')}</td>
-                      <td><span className={e.credit > 0 ? 'badge-green' : 'badge-red'}>{e.type}</span></td>
-                      <td className="text-sm font-medium">{e.ref || e.note || '—'}</td>
-                      <td className="text-sm text-slate-600">{e.party || '—'}</td>
-                      <td className="text-green-700 font-semibold text-sm">{e.credit > 0 ? Number(e.credit).toLocaleString('ar-EG') : ''}</td>
-                      <td className="text-red-600 font-semibold text-sm">{e.debit > 0 ? Number(e.debit).toLocaleString('ar-EG') : ''}</td>
-                      <td className={`font-black text-sm ${e.balance >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Number(e.balance).toLocaleString('ar-EG')}</td>
-                    </tr>
-                  ))}
+                  {todayLedger.entries.map((e: any, i: number) => {
+                    const hasItems = e.items?.length > 1
+                    const singleItem = e.items?.length === 1 ? e.items[0] : null
+                    return (
+                      <LedgerRow key={i} e={e} hasItems={hasItems} singleItem={singleItem} />
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
