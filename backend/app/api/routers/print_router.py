@@ -1030,6 +1030,21 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     """), {"id": shift_id})
     shift = dict(shift_row.fetchone()._mapping)
 
+    # Check if this shift was handed over — get receiver from archived handover doc
+    handover_row = await db.execute(text("""
+        SELECT metadata_ FROM archived_documents
+        WHERE doc_type = 'shift_handover'
+        AND (metadata_->>'from_shift')::text = :sid
+        OR metadata_->>'from_user' IS NOT NULL
+        ORDER BY created_at DESC LIMIT 1
+    """), {"sid": str(shift_id)})
+    handover = handover_row.fetchone()
+    if handover and handover[0]:
+        import json as _j
+        meta = handover[0] if isinstance(handover[0], dict) else _j.loads(handover[0])
+        if meta.get("to_user_name"):
+            shift["receiver_name"] = meta["to_user_name"]
+
     # All drawer transactions (deposits/expenses/withdrawals)
     tx_rows = await db.execute(text("""
         SELECT dt.type, dt.amount, dt.note, dt.payment_method,
