@@ -185,7 +185,7 @@ export default function POSPage() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
 
-  const { items, mode, customer, setMode, setCustomer, addItem, updateQty, updateItemDiscount, removeItem, clear, subtotal, totalDiscount, total, invoice_discount, invoice_discount_pct, setInvoiceDiscount } = usePOSStore()
+  const { items, mode, customer, setMode, setCustomer, addItem, updateQty, updateItemDiscount, updatePrice, removeItem, clear, subtotal, totalDiscount, total, invoice_discount, invoice_discount_pct, setInvoiceDiscount } = usePOSStore()
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { activeWarehouseId } = useAppStore()
@@ -891,6 +891,18 @@ export default function POSPage() {
                         onChange={e => updateQty(item.product_id, Number(e.target.value) || 1)}
                         className="w-12 text-center text-sm font-bold border border-slate-200 rounded-lg py-0.5 outline-none focus:border-blue-300" />
                       <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={11} /></button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input type="number" min={item.unit_cost} step="0.5"
+                        value={item.unit_price}
+                        onChange={e => {
+                          const newPrice = Number(e.target.value)
+                          if (newPrice >= item.unit_cost) updatePrice(item.product_id, newPrice)
+                        }}
+                        className={clsx('w-20 text-center text-sm font-bold border rounded-lg py-0.5 outline-none focus:border-blue-300',
+                          item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50' : 'border-slate-200')}
+                        title="سعر البيع" />
+                      <span className="text-xs text-slate-400">ج.م</span>
                     </div>
                     <div className="text-left">
                       {itemDiscAmt > 0 && <p className="text-xs text-slate-400 line-through leading-none">{lineTotal.toLocaleString('ar-EG')}</p>}
