@@ -1216,12 +1216,12 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     flat_rows_html = "".join(f"""
         <tr style="{row_style(r['row_type'])};border-bottom:1px solid #e8e8e8">
           <td style="padding:4px 6px;font-size:10px;word-break:break-word;{B}">{r['name']}</td>
-          <td style="padding:4px 4px;text-align:center;font-size:10px;white-space:nowrap;{B}">{r['qty']}</td>
-          <td style="padding:4px 4px;text-align:center;font-size:9px;white-space:nowrap;color:#666;{B}">{r['unit']}</td>
-          <td style="padding:4px 6px;text-align:left;font-size:10px;white-space:nowrap;{B}">{r['price']}</td>
-          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#166534;{B}">{r['total']}</td>
-          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#991b1b;{B}">{r['expense']}</td>
-          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#dc2626;{B}">{r['ret']}</td>
+          <td style="padding:4px 4px;text-align:center;font-size:10px;{B}">{r['qty']}</td>
+          <td style="padding:4px 4px;text-align:center;font-size:9px;color:#666;{B}">{r['unit']}</td>
+          <td style="padding:4px 6px;text-align:left;font-size:10px;{B}">{r['price']}</td>
+          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;color:#166534;{B}">{r['total']}</td>
+          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;color:#991b1b;{B}">{r['expense']}</td>
+          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;color:#dc2626;{B}">{r['ret']}</td>
           <td style="padding:4px 4px;font-size:8px;color:#888;text-align:center">{r['note']}</td>
         </tr>
     """ for r in flat_rows)
@@ -1237,17 +1237,7 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     <div style="flex:1;padding:4px 8px"><span style="color:#999">إغلاق: </span><strong>{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</strong></div>
   </div>
 
-  <table style="width:100%;border-collapse:collapse;border:1px solid #ccc;table-layout:fixed">
-    <colgroup>
-      <col style="width:auto">
-      <col style="width:30px">
-      <col style="width:26px">
-      <col style="width:60px">
-      <col style="width:65px">
-      <col style="width:60px">
-      <col style="width:60px">
-      <col style="width:44px">
-    </colgroup>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #ccc">
     <thead>
       <tr style="background:#111">
         <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:right;border-left:1px solid #333">اسم الصنف / البيان</th>
@@ -1278,10 +1268,10 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     <table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px">
       <thead><tr><th colspan="2" style="padding:4px 8px;text-align:right;border-bottom:1.5px solid #111;background:#f5f5f5;font-size:9px">ملخص النقدي</th></tr></thead>
       <tbody>
-        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee;font-size:10px">الرصيد الافتتاحي</td><td style="padding:3px 8px;text-align:left;font-weight:700;border-bottom:1px solid #eee;white-space:nowrap;font-size:10px">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
-        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee;font-size:10px">مبيعات نقدي</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#166534;border-bottom:1px solid #eee;white-space:nowrap;font-size:10px">{ar_egp(cash_sales_total)}</td></tr>
-        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee;font-size:10px">مرتجعات</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1px solid #eee;white-space:nowrap;font-size:10px">({ar_egp(total_returns)})</td></tr>
-        <tr><td style="padding:3px 8px;border-bottom:1.5px solid #111;font-size:10px">مصروفات</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1.5px solid #111;white-space:nowrap;font-size:10px">({ar_egp(total_expenses)})</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee;font-size:10px">الرصيد الافتتاحي</td><td style="padding:3px 8px;text-align:left;font-weight:700;border-bottom:1px solid #eee;font-size:10px">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee;font-size:10px">مبيعات نقدي</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#166534;border-bottom:1px solid #eee;font-size:10px">{ar_egp(cash_sales_total)}</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee;font-size:10px">مرتجعات</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1px solid #eee;font-size:10px">({ar_egp(total_returns)})</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1.5px solid #111;font-size:10px">مصروفات</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1.5px solid #111;font-size:10px">({ar_egp(total_expenses)})</td></tr>
         <tr><td style="padding:5px 8px;font-weight:800;font-size:11px">💵 صافي النقدي</td><td style="padding:5px 8px;text-align:left;font-weight:900;font-size:14px;white-space:nowrap">{ar_egp(cash_in)}</td></tr>
       </tbody>
     </table>
