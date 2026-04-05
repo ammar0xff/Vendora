@@ -1154,8 +1154,8 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     ops_rows_html = "".join(op_row(op) for op in all_ops)
 
     wallet_summary_html = "".join(f"""
-        <tr><td style="padding:4px 10px;font-size:11px">{wn}</td>
-        <td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px">{ar_egp(v)}</td></tr>
+        <tr><td style="padding:3px 10px;font-size:10px;border-bottom:1px solid #eee">{wn}</td>
+        <td style="padding:3px 10px;text-align:left;font-weight:700;font-size:10px;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(v)}</td></tr>
     """ for wn, v in wallet_totals.items())
 
     cash_sales_total = sum(float(p["total"]) for p in pb if p["method"] == "cash")
@@ -1163,52 +1163,81 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     body = f"""
 {top_band(store, "تسليم عهدة الوردية", "", fmt_date(shift.get('started_at')))}
 <div class="body">
-  <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
-    <tr>
-      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;vertical-align:top"><div class="party-label">الكاشير / المسلِّم</div><div class="party-name">{shift.get('cashier_name','—')}</div></td>
-      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;border-right:none;vertical-align:top"><div class="party-label">الفرع</div><div class="party-name">{shift.get('wh_name','—')}</div></td>
-      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;border-right:none;vertical-align:top"><div class="party-label">فتح الوردية</div><div style="font-size:11px;font-weight:700">{fmt_dt(shift.get('started_at'))}</div></td>
-      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;border-right:none;vertical-align:top"><div class="party-label">إغلاق الوردية</div><div style="font-size:11px;font-weight:700">{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</div></td>
-    </tr>
-  </table>
 
+  <!-- Info bar — compact single row -->
+  <div style="display:flex;gap:0;border:1px solid #ddd;margin-bottom:10px">
+    <div style="flex:1;padding:5px 10px;border-left:1px solid #ddd"><div class="party-label">الكاشير / المسلِّم</div><div style="font-size:11px;font-weight:800;color:#111">{shift.get('cashier_name','—')}</div></div>
+    <div style="flex:1;padding:5px 10px;border-left:1px solid #ddd"><div class="party-label">الفرع</div><div style="font-size:11px;font-weight:800;color:#111">{shift.get('wh_name','—')}</div></div>
+    <div style="flex:1;padding:5px 10px;border-left:1px solid #ddd"><div class="party-label">فتح الوردية</div><div style="font-size:10px;font-weight:700">{fmt_dt(shift.get('started_at'))}</div></div>
+    <div style="flex:1;padding:5px 10px"><div class="party-label">إغلاق الوردية</div><div style="font-size:10px;font-weight:700">{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</div></div>
+  </div>
+
+  <!-- Operations table — tight, aligned -->
   <div class="tbl-label">سجل العمليات</div>
-  <table>
+  <table style="table-layout:fixed">
+    <colgroup>
+      <col style="width:70px"><col style="width:52px"><col><col style="width:80px">
+      <col style="width:60px"><col style="width:75px"><col style="width:75px">
+    </colgroup>
     <thead><tr>
-      <th style="white-space:nowrap">الوقت</th><th style="white-space:nowrap">النوع</th>
-      <th style="width:100%">البيان</th><th style="white-space:nowrap">الطرف</th>
-      <th style="white-space:nowrap">وسيلة الدفع</th>
-      <th style="text-align:left;white-space:nowrap;color:#166534">دائن</th>
-      <th style="text-align:left;white-space:nowrap;color:#991b1b">مدين</th>
+      <th style="text-align:right">الوقت</th>
+      <th style="text-align:center">النوع</th>
+      <th>البيان</th>
+      <th style="text-align:right">الطرف</th>
+      <th style="text-align:center">الدفع</th>
+      <th style="text-align:left;color:#166534">دائن</th>
+      <th style="text-align:left;color:#991b1b">مدين</th>
     </tr></thead>
     <tbody>{ops_rows_html}</tbody>
   </table>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-    <table style="border-collapse:collapse;border:1px solid #ccc">
-      <thead><tr style="background:#111"><th colspan="2" style="color:#fff;padding:6px 10px;text-align:right;font-size:10px">ملخص النقدي</th></tr></thead>
+  <!-- Summary + Wallets side by side — page-break-inside:avoid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;page-break-inside:avoid;break-inside:avoid">
+
+    <!-- Cash summary — no black header, just border -->
+    <table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px">
+      <thead><tr><th colspan="2" style="padding:5px 10px;text-align:right;border-bottom:2px solid #111;font-size:10px;background:#f9f9f9">ملخص النقدي</th></tr></thead>
       <tbody>
-        <tr style="background:#f9f9f9"><td style="padding:4px 10px;font-size:11px">الرصيد الافتتاحي</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
-        <tr><td style="padding:4px 10px;font-size:11px">مبيعات نقدي</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px;color:#166534">{ar_egp(cash_sales_total)}</td></tr>
-        <tr style="background:#f9f9f9"><td style="padding:4px 10px;font-size:11px">مرتجعات</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px;color:#991b1b">({ar_egp(float(summary.get('returns_total',0)))})</td></tr>
-        <tr><td style="padding:4px 10px;font-size:11px">مصروفات</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px;color:#991b1b">({ar_egp(float(summary.get('expenses_total',0)))})</td></tr>
-        <tr style="background:#111"><td style="padding:6px 10px;color:#fff;font-weight:700;font-size:11px">💵 صافي النقدي</td><td style="padding:6px 10px;text-align:left;color:#fff;font-weight:900;font-size:14px">{ar_egp(cash_in)}</td></tr>
+        <tr><td style="padding:3px 10px;border-bottom:1px solid #eee">الرصيد الافتتاحي</td><td style="padding:3px 10px;text-align:left;font-weight:700;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
+        <tr><td style="padding:3px 10px;border-bottom:1px solid #eee">مبيعات نقدي</td><td style="padding:3px 10px;text-align:left;font-weight:700;color:#166534;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(cash_sales_total)}</td></tr>
+        <tr><td style="padding:3px 10px;border-bottom:1px solid #eee">مرتجعات</td><td style="padding:3px 10px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1px solid #eee;white-space:nowrap">({ar_egp(float(summary.get('returns_total',0)))})</td></tr>
+        <tr><td style="padding:3px 10px;border-bottom:2px solid #111">مصروفات</td><td style="padding:3px 10px;text-align:left;font-weight:700;color:#991b1b;border-bottom:2px solid #111;white-space:nowrap">({ar_egp(float(summary.get('expenses_total',0)))})</td></tr>
+        <tr><td style="padding:6px 10px;font-weight:800;font-size:11px">💵 صافي النقدي</td><td style="padding:6px 10px;text-align:left;font-weight:900;font-size:15px;white-space:nowrap">{ar_egp(cash_in)}</td></tr>
       </tbody>
     </table>
-    <div>
-      {"" if not wallet_totals else f'''<table style="border-collapse:collapse;border:1px solid #ccc;width:100%;margin-bottom:8px"><thead><tr style="background:#111"><th colspan="2" style="color:#fff;padding:6px 10px;text-align:right;font-size:10px">المحافظ الإلكترونية</th></tr></thead><tbody>''' + wallet_summary_html + '''</tbody></table>'''}
-      <div style="background:#111;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
-        <span style="color:rgba(255,255,255,.7);font-size:11px;font-weight:600">الإجمالي الكلي</span>
-        <span style="color:#fff;font-size:16px;font-weight:900">{ar_egp(total_all)}</span>
+
+    <!-- Wallets + Grand Total -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      {f'''<table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px;flex:1">
+        <thead><tr><th colspan="2" style="padding:5px 10px;text-align:right;border-bottom:2px solid #111;font-size:10px;background:#f9f9f9">المحافظ الإلكترونية</th></tr></thead>
+        <tbody>{wallet_summary_html}</tbody>
+      </table>''' if wallet_totals else ''}
+      <!-- Grand Total — Hero block -->
+      <div style="border:2px solid #111;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:auto">
+        <span style="font-size:11px;font-weight:700;color:#333">الإجمالي الكلي</span>
+        <span style="font-size:20px;font-weight:900;color:#111">{ar_egp(total_all)}</span>
       </div>
     </div>
   </div>
 
-  <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">
-    <div><p style="font-size:9px;font-weight:700;color:#333;margin-bottom:22px">توقيع المسلِّم</p><p style="font-size:10px;font-weight:700;color:#111;margin-bottom:3px">{shift.get('cashier_name','')}</p><div style="border-top:1px solid #999;padding-top:4px;font-size:8px;color:#999">الاسم والتوقيع</div></div>
-    <div><p style="font-size:9px;font-weight:700;color:#333;margin-bottom:22px">توقيع المستلِم</p><div style="border-top:1px solid #999;padding-top:4px;font-size:8px;color:#999;margin-top:22px">الاسم والتوقيع</div></div>
-    <div><div style="width:52px;height:52px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:8px;color:#ccc">الختم</div><div style="font-size:8px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div></div>
+  <!-- Signatures — generous spacing, page-break-inside:avoid -->
+  <div style="margin-top:16px;border-top:1px solid #ddd;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;text-align:center;page-break-inside:avoid;break-inside:avoid">
+    <div style="border:1px solid #ddd;padding:10px">
+      <p style="font-size:9px;font-weight:700;color:#555;margin-bottom:36px;text-transform:uppercase;letter-spacing:.5px">المسلِّم</p>
+      <p style="font-size:11px;font-weight:800;color:#111;margin-bottom:6px">{shift.get('cashier_name','')}</p>
+      <div style="border-top:1.5px solid #333;padding-top:5px;font-size:8px;color:#999">التوقيع</div>
+    </div>
+    <div style="border:1px solid #ddd;padding:10px">
+      <p style="font-size:9px;font-weight:700;color:#555;margin-bottom:36px;text-transform:uppercase;letter-spacing:.5px">المستلِم</p>
+      <div style="border-top:1.5px solid #333;padding-top:5px;font-size:8px;color:#999;margin-top:17px">الاسم والتوقيع</div>
+    </div>
+    <div style="border:1px solid #ddd;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:space-between">
+      <p style="font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">الختم الرسمي</p>
+      <div style="width:60px;height:60px;border-radius:50%;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;font-size:8px;color:#bbb;margin:8px auto">الختم</div>
+      <div style="font-size:8px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div>
+    </div>
   </div>
+
 </div>"""
     return HTMLResponse(wrap(body, "تسليم عهدة الوردية"))
 
