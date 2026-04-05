@@ -1230,12 +1230,32 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
 {top_band(store, "تسليم عهدة الوردية", "", fmt_date(shift.get('started_at')))}
 <div class="body">
 
-  <div style="display:flex;border:1px solid #ccc;margin-bottom:8px;font-size:9px">
-    <div style="flex:1;padding:4px 8px;border-left:1px solid #ccc"><span style="color:#999">الكاشير: </span><strong>{shift.get('cashier_name','—')}</strong></div>
-    <div style="flex:1;padding:4px 8px;border-left:1px solid #ccc"><span style="color:#999">الفرع: </span><strong>{shift.get('wh_name','—')}</strong></div>
-    <div style="flex:1;padding:4px 8px;border-left:1px solid #ccc"><span style="color:#999">فتح: </span><strong>{fmt_dt(shift.get('started_at'))}</strong></div>
-    <div style="flex:1;padding:4px 8px"><span style="color:#999">إغلاق: </span><strong>{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</strong></div>
-  </div>
+  <!-- 5-cell info block -->
+  <table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:8px">
+    <tr>
+      <td colspan="2" style="padding:6px 10px;text-align:center;border-bottom:1px solid #ccc;font-size:13px;font-weight:900;color:#111">{shift.get('wh_name','—')}</td>
+    </tr>
+    <tr>
+      <td style="padding:5px 10px;border-left:1px solid #ccc;border-bottom:1px solid #ccc;width:50%">
+        <div style="font-size:8px;color:#999;margin-bottom:2px">فتح الوردية</div>
+        <div style="font-size:10px;font-weight:700">{fmt_dt(shift.get('started_at'))}</div>
+      </td>
+      <td style="padding:5px 10px;border-bottom:1px solid #ccc">
+        <div style="font-size:8px;color:#999;margin-bottom:2px">إغلاق الوردية</div>
+        <div style="font-size:10px;font-weight:700">{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:5px 10px;border-left:1px solid #ccc">
+        <div style="font-size:8px;color:#999;margin-bottom:2px">من (الكاشير)</div>
+        <div style="font-size:10px;font-weight:700">{shift.get('cashier_name','—')}</div>
+      </td>
+      <td style="padding:5px 10px">
+        <div style="font-size:8px;color:#999;margin-bottom:2px">إلى (المستلم)</div>
+        <div style="font-size:10px;font-weight:700;color:#ccc">_________________</div>
+      </td>
+    </tr>
+  </table>
 
   <table style="width:100%;border-collapse:collapse;border:1px solid #ccc">
     <thead>
