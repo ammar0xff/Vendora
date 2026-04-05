@@ -132,25 +132,25 @@ export default function StocktakingPage() {
         <input className="input pr-9 text-sm" placeholder="بحث بالاسم أو الباركود..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {/* Table */}
-      <div className="card p-0 overflow-hidden">
+      {/* Table — desktop */}
+      <div className="card p-0 overflow-hidden hidden sm:block">
         <div className="table-wrap" style={{ maxHeight: "calc(100vh - 300px)", overflowX: "auto" }}>
           <table style={{ minWidth: "600px" }}>
             <thead>
               <tr>
                 <th style={{ minWidth: '200px' }}>المنتج</th>
+                <th style={{ width: '140px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
+                <th style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية الحالية</th>
                 <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</th>
-                <th style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
-                <th style={{ width: '140px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}><td colSpan={4}><div className="h-4 bg-slate-100 rounded animate-pulse my-2" /></td></tr>
+                <tr key={i}><td colSpan={5}><div className="h-4 bg-slate-100 rounded animate-pulse my-2" /></td></tr>
               ))}
               {!isLoading && !filtered.length && (
-                <tr><td colSpan={4} className="text-center py-12 text-slate-400">
+                <tr><td colSpan={5} className="text-center py-12 text-slate-400">
                   {filter === 'untracked' ? '✅ كل المنتجات مجرودة!' : 'لا توجد منتجات'}
                 </td></tr>
               )}
@@ -164,6 +164,17 @@ export default function StocktakingPage() {
                       <p className="text-xs text-slate-400">{p.unit}{p.company ? ` · ${p.company}` : ''}</p>
                     </td>
                     <td className="text-center">
+                      <input type="number" className={`input text-sm text-center py-1 ${hasEntry ? 'border-green-400 bg-green-50' : ''}`} style={{ minWidth: "120px" }}
+                        placeholder="0" min="0" step="any" value={e.qty || ''}
+                        onChange={ev => setEntry(p.id, 'qty', ev.target.value)} />
+                    </td>
+                    <td className="text-center">
+                      <select className="input text-xs py-1 w-full" style={{ minWidth: "150px" }} value={e.type || 'opening_stock'}
+                        onChange={ev => setEntry(p.id, 'type', ev.target.value)}>
+                        {Object.entries(MOVEMENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                    </td>
+                    <td className="text-center">
                       {p.stock_status === 'untracked'
                         ? <span className="text-xs text-slate-400">—</span>
                         : <span className="font-bold text-sm" style={{ color: '#1e3a5f' }}>{balances?.[p.id] ?? '...'} {p.unit}</span>}
@@ -173,24 +184,52 @@ export default function StocktakingPage() {
                         ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
                         : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold whitespace-nowrap">✅ محدد</span>}
                     </td>
-                    <td className="text-center">
-                      <select className="input text-xs py-1 w-full" style={{ minWidth: "150px" }} value={e.type || 'opening_stock'}
-                        onChange={ev => setEntry(p.id, 'type', ev.target.value)}>
-                        {Object.entries(MOVEMENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                      </select>
-                    </td>
-                    <td className="text-center">
-                      <input type="number" className={`input text-sm text-center py-1 ${hasEntry ? 'border-green-400 bg-green-50' : ''}`} style={{ minWidth: "120px" }}
-                        placeholder="0" min="0" step="any"
-                        value={e.qty || ''}
-                        onChange={ev => setEntry(p.id, 'qty', ev.target.value)} />
-                    </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="sm:hidden space-y-2">
+        {isLoading && Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="card p-3"><div className="h-4 bg-slate-100 rounded animate-pulse" /></div>
+        ))}
+        {!isLoading && !filtered.length && (
+          <div className="text-center py-12 text-slate-400">
+            {filter === 'untracked' ? '✅ كل المنتجات مجرودة!' : 'لا توجد منتجات'}
+          </div>
+        )}
+        {filtered.map((p: any) => {
+          const e = entries[p.id] || {}
+          const hasEntry = !!e.qty
+          return (
+            <div key={p.id} className={`card p-3 ${hasEntry ? 'border-green-300 bg-green-50' : ''}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-800 text-sm truncate">{p.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-slate-400">{p.unit}</span>
+                    {p.stock_status !== 'untracked' && balances?.[p.id] != null && (
+                      <span className="text-xs font-bold" style={{ color: '#1e3a5f' }}>الحالي: {balances[p.id]}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <select className="input text-xs py-1 w-28" value={e.type || 'opening_stock'}
+                    onChange={ev => setEntry(p.id, 'type', ev.target.value)}>
+                    {Object.entries(MOVEMENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <input type="number" className={`input text-sm text-center py-1 w-20 ${hasEntry ? 'border-green-400' : ''}`}
+                    placeholder="0" min="0" step="any" value={e.qty || ''}
+                    onChange={ev => setEntry(p.id, 'qty', ev.target.value)} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Floating save button */}

@@ -84,7 +84,10 @@
   .badge-blue { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700; }
   .badge-gray { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600; }
 
-  .table-wrap { @apply overflow-x-auto rounded-xl border border-slate-100; }
+  .table-wrap { 
+    @apply overflow-x-auto rounded-xl border border-slate-100; 
+    -webkit-overflow-scrolling: touch;
+  }
   table { @apply w-full text-sm border-collapse; }
   thead { @apply sticky top-0 z-10; }
   thead tr { background: var(--primary); }
@@ -132,4 +135,27 @@
   }
   .modal-body { @apply p-6; }
   .modal-footer { @apply flex gap-3 justify-end p-6 border-t border-slate-100; }
+}
+
+
+/* Outside any @layer — highest cascade priority for mobile table scroll */
+.table-wrap table { min-width: 600px; }
+
+/* RTL scroll hint: fade on left edge when table overflows */
+.table-wrap {
+  position: relative;
+}
+.table-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 32px;
+  background: linear-gradient(to right, rgba(255,255,255,0.9), transparent);
+  pointer-events: none;
+  border-radius: 0 0 0 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.table-wrap.has-overflow::after {
+  opacity: 1;
 }
