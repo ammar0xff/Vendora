@@ -1159,81 +1159,154 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     """ for wn, v in wallet_totals.items())
 
     cash_sales_total = sum(float(p["total"]) for p in pb if p["method"] == "cash")
+    total_returns = float(summary.get('returns_total', 0))
+    total_expenses = float(summary.get('expenses_total', 0))
+
+    # Build unified flat table — one row per item/transaction
+    # Columns: اسم الصنف | الكمية | السعر | الإجمالي | الخوارج | المرتجعات | ملاحظات
+    flat_rows = []
+    for s2 in sales:
+        items = s2.get("items", [])
+        pm = s2.get("wallet_name") or "نقدي"
+        for it in items:
+            flat_rows.append({
+                "time": s2["created_at"],
+                "name": it["product_name"],
+                "qty": ar_num(float(it["qty"]), 0),
+                "unit": it["unit"],
+                "price": ar_egp(float(it["unit_price"])),
+                "total": ar_egp(float(it["line_total"])),
+                "expense": "",
+                "ret": "",
+                "note": pm if pm != "نقدي" else "",
+                "row_type": "sale"
+            })
+    for r2 in returns:
+        flat_rows.append({
+            "time": r2["created_at"],
+            "name": r2["invoice_number"],
+            "qty": "", "unit": "", "price": "",
+            "total": "",
+            "expense": "",
+            "ret": ar_egp(float(r2["total"])),
+            "note": "مرتجع",
+            "row_type": "return"
+        })
+    for t2 in txns:
+        is_exp = t2["type"] in ("expense", "withdrawal")
+        flat_rows.append({
+            "time": t2["created_at"],
+            "name": t2.get("note") or TX_AR.get(t2["type"], t2["type"]),
+            "qty": "", "unit": "", "price": "",
+            "total": "" if is_exp else ar_egp(float(t2["amount"])),
+            "expense": ar_egp(float(t2["amount"])) if is_exp else "",
+            "ret": "",
+            "note": t2.get("wallet_name") or "نقدي",
+            "row_type": "expense" if is_exp else "deposit"
+        })
+    flat_rows.sort(key=lambda x: x["time"])
+
+    def row_style(rt):
+        if rt == "return": return "background:#fff5f5"
+        if rt == "expense": return "background:#fffbf0"
+        if rt == "deposit": return "background:#f0fff4"
+        return ""
+
+    flat_rows_html = "".join(f"""
+        <tr style="{row_style(r['row_type'])}">
+          <td style="font-size:10px;overflow:hidden;text-overflow:ellipsis">{r['name']}</td>
+          <td style="text-align:center;font-size:10px;white-space:nowrap">{r['qty']}</td>
+          <td style="text-align:center;font-size:10px;white-space:nowrap">{r['unit']}</td>
+          <td style="text-align:left;font-size:10px;white-space:nowrap">{r['price']}</td>
+          <td style="text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#166534">{r['total']}</td>
+          <td style="text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#991b1b">{r['expense']}</td>
+          <td style="text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#dc2626">{r['ret']}</td>
+          <td style="font-size:9px;color:#888">{r['note']}</td>
+        </tr>
+    """ for r in flat_rows)
 
     body = f"""
 {top_band(store, "تسليم عهدة الوردية", "", fmt_date(shift.get('started_at')))}
 <div class="body">
 
-  <!-- Info bar — compact single row -->
-  <div style="display:flex;gap:0;border:1px solid #ddd;margin-bottom:10px">
-    <div style="flex:1;padding:5px 10px;border-left:1px solid #ddd"><div class="party-label">الكاشير / المسلِّم</div><div style="font-size:11px;font-weight:800;color:#111">{shift.get('cashier_name','—')}</div></div>
-    <div style="flex:1;padding:5px 10px;border-left:1px solid #ddd"><div class="party-label">الفرع</div><div style="font-size:11px;font-weight:800;color:#111">{shift.get('wh_name','—')}</div></div>
-    <div style="flex:1;padding:5px 10px;border-left:1px solid #ddd"><div class="party-label">فتح الوردية</div><div style="font-size:10px;font-weight:700">{fmt_dt(shift.get('started_at'))}</div></div>
-    <div style="flex:1;padding:5px 10px"><div class="party-label">إغلاق الوردية</div><div style="font-size:10px;font-weight:700">{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</div></div>
+  <!-- Info bar -->
+  <div style="display:flex;gap:0;border:1px solid #ddd;margin-bottom:8px;font-size:10px">
+    <div style="flex:1;padding:4px 8px;border-left:1px solid #ddd"><span style="color:#999;font-size:8px">الكاشير: </span><strong>{shift.get('cashier_name','—')}</strong></div>
+    <div style="flex:1;padding:4px 8px;border-left:1px solid #ddd"><span style="color:#999;font-size:8px">الفرع: </span><strong>{shift.get('wh_name','—')}</strong></div>
+    <div style="flex:1;padding:4px 8px;border-left:1px solid #ddd"><span style="color:#999;font-size:8px">فتح: </span><strong>{fmt_dt(shift.get('started_at'))}</strong></div>
+    <div style="flex:1;padding:4px 8px"><span style="color:#999;font-size:8px">إغلاق: </span><strong>{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</strong></div>
   </div>
 
-  <!-- Operations table — tight, aligned -->
-  <div class="tbl-label">سجل العمليات</div>
-  <table style="table-layout:fixed">
+  <!-- Main table — all operations in one view -->
+  <table style="table-layout:fixed;width:100%">
     <colgroup>
-      <col style="width:70px"><col style="width:52px"><col><col style="width:80px">
-      <col style="width:60px"><col style="width:75px"><col style="width:75px">
+      <col><col style="width:32px"><col style="width:28px">
+      <col style="width:65px"><col style="width:70px">
+      <col style="width:65px"><col style="width:65px"><col style="width:50px">
     </colgroup>
-    <thead><tr>
-      <th style="text-align:right">الوقت</th>
-      <th style="text-align:center">النوع</th>
-      <th>البيان</th>
-      <th style="text-align:right">الطرف</th>
-      <th style="text-align:center">الدفع</th>
-      <th style="text-align:left;color:#166534">دائن</th>
-      <th style="text-align:left;color:#991b1b">مدين</th>
-    </tr></thead>
-    <tbody>{ops_rows_html}</tbody>
+    <thead>
+      <tr>
+        <th>اسم الصنف / البيان</th>
+        <th style="text-align:center">الكمية</th>
+        <th style="text-align:center">الوحدة</th>
+        <th style="text-align:left">السعر</th>
+        <th style="text-align:left;color:#166534">الإجمالي</th>
+        <th style="text-align:left;color:#991b1b">الخوارج</th>
+        <th style="text-align:left;color:#dc2626">المرتجعات</th>
+        <th>ملاحظات</th>
+      </tr>
+    </thead>
+    <tbody>{flat_rows_html}</tbody>
+    <!-- Totals row -->
+    <tfoot>
+      <tr style="border-top:2px solid #111;background:#f9f9f9">
+        <td colspan="4" style="padding:5px 8px;font-weight:700;font-size:10px">المجموع</td>
+        <td style="padding:5px 8px;text-align:left;font-weight:900;font-size:11px;color:#166534;white-space:nowrap">{ar_egp(float(summary.get('sales_total',0)))}</td>
+        <td style="padding:5px 8px;text-align:left;font-weight:900;font-size:11px;color:#991b1b;white-space:nowrap">{ar_egp(total_expenses)}</td>
+        <td style="padding:5px 8px;text-align:left;font-weight:900;font-size:11px;color:#dc2626;white-space:nowrap">{ar_egp(total_returns)}</td>
+        <td></td>
+      </tr>
+    </tfoot>
   </table>
 
-  <!-- Summary + Wallets side by side — page-break-inside:avoid -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;page-break-inside:avoid;break-inside:avoid">
-
-    <!-- Cash summary — no black header, just border -->
-    <table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px">
-      <thead><tr><th colspan="2" style="padding:5px 10px;text-align:right;border-bottom:2px solid #111;font-size:10px;background:#f9f9f9">ملخص النقدي</th></tr></thead>
+  <!-- Summary + Wallets + Grand Total — keep together -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;page-break-inside:avoid;break-inside:avoid">
+    <table style="border-collapse:collapse;border:1px solid #ddd;font-size:10px">
+      <thead><tr><th colspan="2" style="padding:4px 8px;text-align:right;border-bottom:1.5px solid #111;background:#f9f9f9;font-size:10px">ملخص النقدي</th></tr></thead>
       <tbody>
-        <tr><td style="padding:3px 10px;border-bottom:1px solid #eee">الرصيد الافتتاحي</td><td style="padding:3px 10px;text-align:left;font-weight:700;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
-        <tr><td style="padding:3px 10px;border-bottom:1px solid #eee">مبيعات نقدي</td><td style="padding:3px 10px;text-align:left;font-weight:700;color:#166534;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(cash_sales_total)}</td></tr>
-        <tr><td style="padding:3px 10px;border-bottom:1px solid #eee">مرتجعات</td><td style="padding:3px 10px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1px solid #eee;white-space:nowrap">({ar_egp(float(summary.get('returns_total',0)))})</td></tr>
-        <tr><td style="padding:3px 10px;border-bottom:2px solid #111">مصروفات</td><td style="padding:3px 10px;text-align:left;font-weight:700;color:#991b1b;border-bottom:2px solid #111;white-space:nowrap">({ar_egp(float(summary.get('expenses_total',0)))})</td></tr>
-        <tr><td style="padding:6px 10px;font-weight:800;font-size:11px">💵 صافي النقدي</td><td style="padding:6px 10px;text-align:left;font-weight:900;font-size:15px;white-space:nowrap">{ar_egp(cash_in)}</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee">الرصيد الافتتاحي</td><td style="padding:3px 8px;text-align:left;font-weight:700;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee">مبيعات نقدي</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#166534;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(cash_sales_total)}</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1px solid #eee">مرتجعات</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1px solid #eee;white-space:nowrap">({ar_egp(total_returns)})</td></tr>
+        <tr><td style="padding:3px 8px;border-bottom:1.5px solid #111">مصروفات</td><td style="padding:3px 8px;text-align:left;font-weight:700;color:#991b1b;border-bottom:1.5px solid #111;white-space:nowrap">({ar_egp(total_expenses)})</td></tr>
+        <tr><td style="padding:5px 8px;font-weight:800">💵 صافي النقدي</td><td style="padding:5px 8px;text-align:left;font-weight:900;font-size:14px;white-space:nowrap">{ar_egp(cash_in)}</td></tr>
       </tbody>
     </table>
-
-    <!-- Wallets + Grand Total -->
     <div style="display:flex;flex-direction:column;gap:6px">
-      {f'''<table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px;flex:1">
-        <thead><tr><th colspan="2" style="padding:5px 10px;text-align:right;border-bottom:2px solid #111;font-size:10px;background:#f9f9f9">المحافظ الإلكترونية</th></tr></thead>
+      {f'''<table style="border-collapse:collapse;border:1px solid #ddd;font-size:10px;width:100%">
+        <thead><tr><th colspan="2" style="padding:4px 8px;text-align:right;border-bottom:1.5px solid #111;background:#f9f9f9;font-size:10px">المحافظ الإلكترونية</th></tr></thead>
         <tbody>{wallet_summary_html}</tbody>
       </table>''' if wallet_totals else ''}
-      <!-- Grand Total — Hero block -->
       <div style="border:2px solid #111;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:auto">
-        <span style="font-size:11px;font-weight:700;color:#333">الإجمالي الكلي</span>
-        <span style="font-size:20px;font-weight:900;color:#111">{ar_egp(total_all)}</span>
+        <span style="font-size:11px;font-weight:700">الإجمالي الكلي</span>
+        <span style="font-size:20px;font-weight:900">{ar_egp(total_all)}</span>
       </div>
     </div>
   </div>
 
-  <!-- Signatures — generous spacing, page-break-inside:avoid -->
-  <div style="margin-top:16px;border-top:1px solid #ddd;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;text-align:center;page-break-inside:avoid;break-inside:avoid">
-    <div style="border:1px solid #ddd;padding:10px">
-      <p style="font-size:9px;font-weight:700;color:#555;margin-bottom:36px;text-transform:uppercase;letter-spacing:.5px">المسلِّم</p>
-      <p style="font-size:11px;font-weight:800;color:#111;margin-bottom:6px">{shift.get('cashier_name','')}</p>
-      <div style="border-top:1.5px solid #333;padding-top:5px;font-size:8px;color:#999">التوقيع</div>
+  <!-- Signatures -->
+  <div style="margin-top:14px;border-top:1px solid #ddd;padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center;page-break-inside:avoid;break-inside:avoid">
+    <div style="border:1px solid #ddd;padding:8px">
+      <p style="font-size:8px;font-weight:700;color:#555;margin-bottom:32px">المسلِّم</p>
+      <p style="font-size:10px;font-weight:800;color:#111;margin-bottom:5px">{shift.get('cashier_name','')}</p>
+      <div style="border-top:1.5px solid #333;padding-top:4px;font-size:8px;color:#999">التوقيع</div>
     </div>
-    <div style="border:1px solid #ddd;padding:10px">
-      <p style="font-size:9px;font-weight:700;color:#555;margin-bottom:36px;text-transform:uppercase;letter-spacing:.5px">المستلِم</p>
-      <div style="border-top:1.5px solid #333;padding-top:5px;font-size:8px;color:#999;margin-top:17px">الاسم والتوقيع</div>
+    <div style="border:1px solid #ddd;padding:8px">
+      <p style="font-size:8px;font-weight:700;color:#555;margin-bottom:32px">المستلِم</p>
+      <div style="border-top:1.5px solid #333;padding-top:4px;font-size:8px;color:#999;margin-top:15px">الاسم والتوقيع</div>
     </div>
-    <div style="border:1px solid #ddd;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:space-between">
-      <p style="font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">الختم الرسمي</p>
-      <div style="width:60px;height:60px;border-radius:50%;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;font-size:8px;color:#bbb;margin:8px auto">الختم</div>
+    <div style="border:1px solid #ddd;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:space-between">
+      <p style="font-size:8px;font-weight:700;color:#555">الختم</p>
+      <div style="width:56px;height:56px;border-radius:50%;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;font-size:8px;color:#bbb">الختم</div>
       <div style="font-size:8px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div>
     </div>
   </div>
