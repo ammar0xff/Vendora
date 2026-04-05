@@ -230,7 +230,7 @@ export default function PayrollPage() {
         <h1 className="page-title">إدارة الرواتب والموظفين</h1>
       </div>
 
-      <div className="flex gap-0 mb-6 border-b border-slate-200 overflow-x-auto">
+      <div className="flex gap-0 mb-6 border-b border-slate-200 overflow-x-auto pb-px" style={{ WebkitOverflowScrolling: 'touch' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
@@ -266,8 +266,8 @@ export default function PayrollPage() {
 
           {loadingPayroll ? <PageLoader /> : (
             <div className="card p-0 overflow-hidden">
-              <div className="table-wrap">
-                <table>
+              <div className="table-wrap" style={{ overflowX: 'auto' }}>
+                <table style={{ minWidth: '900px' }}>
                   <thead>
                     <tr>
                       <th>الموظف</th><th>الراتب الأساسي</th><th>أيام الحضور</th><th>تأخير</th><th>خصم التأخير</th>

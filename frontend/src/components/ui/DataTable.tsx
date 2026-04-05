@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react'
+import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 interface Column<T> {
@@ -35,6 +35,17 @@ function SkeletonRow({ cols }: { cols: number }) {
 export default function DataTable<T>({ columns, data, loading, emptyMessage = 'لا توجد بيانات', emptyIcon = '📭', rowKey, onRowClick, maxHeight }: Props<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const check = () => el.classList.toggle('has-overflow', el.scrollWidth > el.clientWidth + 4)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [data])
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -58,7 +69,7 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = '�
   }, [data, sortKey, sortDir])
 
   return (
-    <div className="table-wrap" style={maxHeight ? { maxHeight, overflowY: 'auto' } : {}}>
+    <div className="table-wrap" ref={wrapRef} style={maxHeight ? { maxHeight, overflowY: 'auto' } : {}}>
       <table>
         <thead>
           <tr>
