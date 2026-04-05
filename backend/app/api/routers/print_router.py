@@ -1020,15 +1020,14 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     summary = await compute_summary(db, shift_id)
 
     shift_row = await db.execute(text("""
-        SELECT sh.*, u.full_name as cashier_name, w.name as wh_name,
-               m.full_name as manager_name
+        SELECT sh.*, u.full_name as cashier_name, w.name as wh_name
         FROM shifts sh
         LEFT JOIN users u ON u.id = sh.cashier_id
-        LEFT JOIN users m ON m.id = sh.manager_id
         LEFT JOIN warehouses w ON w.id = sh.warehouse_id
         WHERE sh.id = :id
     """), {"id": shift_id})
     shift = dict(shift_row.fetchone()._mapping)
+    shift["manager_name"] = ""  # will be filled from close data if available
 
     # All drawer transactions
     tx_rows = await db.execute(text("""
