@@ -1027,21 +1027,45 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
         WHERE sh.id = :id
     """), {"id": shift_id})
     shift = dict(shift_row.fetchone()._mapping)
-    shift["manager_name"] = ""  # will be filled from close data if available
 
-    # All drawer transactions
+    # All drawer transactions (deposits/expenses/withdrawals)
     tx_rows = await db.execute(text("""
         SELECT dt.type, dt.amount, dt.note, dt.payment_method,
                pw.name as wallet_name, dt.created_at
         FROM drawer_transactions dt
         LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
-        WHERE dt.shift_id = :sid
-        AND dt.type IN ('deposit','expense','withdrawal')
+        WHERE dt.shift_id = :sid AND dt.type IN ('deposit','expense','withdrawal')
         ORDER BY dt.created_at
     """), {"sid": shift_id})
     txns = [dict(r._mapping) for r in tx_rows.fetchall()]
 
-    # Wallet totals (sales + deposits - expenses)
+    # Sales for this shift
+    sales_rows = await db.execute(text("""
+        SELECT s.invoice_number, s.created_at,
+               COALESCE(c.name,'عميل عادي') as customer,
+               COALESCE(s.payment_method,'cash') as payment_method,
+               pw.name as wallet_name,
+               COALESCE(SUM(si.qty * si.unit_price - si.discount),0) - COALESCE(MAX(s.discount_amount),0) as total
+        FROM sales s
+        LEFT JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
+        LEFT JOIN sale_items si ON si.sale_id = s.id
+        WHERE s.shift_id = :sid AND s.status = 'confirmed'
+        GROUP BY s.id, c.name, pw.name ORDER BY s.created_at
+    """), {"sid": shift_id})
+    sales = [dict(r._mapping) for r in sales_rows.fetchall()]
+
+    # Returns
+    ret_rows = await db.execute(text("""
+        SELECT s.invoice_number, s.created_at,
+               COALESCE(SUM(si.qty * si.unit_price),0) as total
+        FROM sales s LEFT JOIN sale_items si ON si.sale_id = s.id
+        WHERE s.shift_id = :sid AND s.status = 'returned'
+        GROUP BY s.id ORDER BY s.created_at
+    """), {"sid": shift_id})
+    returns = [dict(r._mapping) for r in ret_rows.fetchall()]
+
+    # Wallet totals
     wallet_totals: dict = {}
     pb = summary.get("payment_breakdown", [])
     for p in pb:
@@ -1055,82 +1079,82 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
 
     cash_in = float(summary.get("cash_in_drawer", 0))
     total_all = cash_in + sum(wallet_totals.values())
-
     TX_AR = {"deposit": "دواخل", "expense": "خوارج", "withdrawal": "سحب"}
 
-    tx_rows_html = "".join(f"""
+    # Unified ops list
+    all_ops = []
+    for s2 in sales:
+        all_ops.append({"time": s2["created_at"], "type": "مبيعات", "ref": s2["invoice_number"],
+                        "party": s2["customer"], "payment": s2["wallet_name"] or "نقدي",
+                        "credit": float(s2["total"]), "debit": 0})
+    for r2 in returns:
+        all_ops.append({"time": r2["created_at"], "type": "مرتجع", "ref": r2["invoice_number"],
+                        "party": "", "payment": "—", "credit": 0, "debit": float(r2["total"])})
+    for t2 in txns:
+        is_in = t2["type"] == "deposit"
+        all_ops.append({"time": t2["created_at"], "type": TX_AR.get(t2["type"], t2["type"]),
+                        "ref": t2.get("note") or "—", "party": "",
+                        "payment": t2.get("wallet_name") or "نقدي",
+                        "credit": float(t2["amount"]) if is_in else 0,
+                        "debit": float(t2["amount"]) if not is_in else 0})
+    all_ops.sort(key=lambda x: x["time"])
+
+    ops_rows_html = "".join(f"""
         <tr>
-          <td style="font-size:9px;color:#555;white-space:nowrap">{fmt_dt(t['created_at'])}</td>
-          <td><span style="font-size:9px;font-weight:700;padding:1px 6px;border:1px solid {'#166534' if t['type']=='deposit' else '#991b1b'};color:{'#166534' if t['type']=='deposit' else '#991b1b'}">{TX_AR.get(t['type'],t['type'])}</span></td>
-          <td style="font-size:10px">{t.get('note') or '—'}</td>
-          <td style="font-size:10px;color:#555">{t.get('wallet_name') or 'نقدي'}</td>
-          <td style="text-align:left;font-weight:700;font-size:10px;white-space:nowrap;{'color:#166534' if t['type']=='deposit' else 'color:#991b1b'}">{ar_egp(float(t['amount']))}</td>
+          <td style="font-size:9px;color:#555;white-space:nowrap">{fmt_dt(op['time'])}</td>
+          <td><span style="font-size:9px;font-weight:700;padding:1px 5px;border:1px solid {'#166534' if op['credit']>0 else '#991b1b'};color:{'#166534' if op['credit']>0 else '#991b1b'}">{op['type']}</span></td>
+          <td style="font-size:10px">{op['ref']}</td>
+          <td style="font-size:10px;color:#555">{op['party'] or '—'}</td>
+          <td style="font-size:10px;color:#555">{op['payment']}</td>
+          <td style="text-align:left;font-weight:700;font-size:10px;color:#166534;white-space:nowrap">{ar_egp(op['credit']) if op['credit'] else ''}</td>
+          <td style="text-align:left;font-weight:700;font-size:10px;color:#991b1b;white-space:nowrap">{ar_egp(op['debit']) if op['debit'] else ''}</td>
         </tr>
-    """ for t in txns)
+    """ for op in all_ops)
 
     wallet_summary_html = "".join(f"""
-        <tr>
-          <td style="padding:5px 10px;font-size:11px">{wn}</td>
-          <td style="padding:5px 10px;text-align:left;font-weight:700;font-size:11px">{ar_egp(v)}</td>
-        </tr>
+        <tr><td style="padding:4px 10px;font-size:11px">{wn}</td>
+        <td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px">{ar_egp(v)}</td></tr>
     """ for wn, v in wallet_totals.items())
+
+    cash_sales_total = sum(float(p["total"]) for p in pb if p["method"] == "cash")
 
     body = f"""
 {top_band(store, "تسليم عهدة الوردية", "", fmt_date(shift.get('started_at')))}
 <div class="body">
-
-  <!-- Info row -->
-  <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+  <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
     <tr>
-      <td style="width:25%;padding:6px 10px;border:1px solid #ccc;vertical-align:top">
-        <div class="party-label">الكاشير</div>
-        <div class="party-name">{shift.get('cashier_name','—')}</div>
-      </td>
-      <td style="width:25%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:top">
-        <div class="party-label">الفرع</div>
-        <div class="party-name">{shift.get('wh_name','—')}</div>
-      </td>
-      <td style="width:25%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:top">
-        <div class="party-label">فتح الوردية</div>
-        <div style="font-size:11px;font-weight:700">{fmt_dt(shift.get('started_at'))}</div>
-      </td>
-      <td style="width:25%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:top">
-        <div class="party-label">إغلاق الوردية</div>
-        <div style="font-size:11px;font-weight:700">{fmt_dt(shift.get('closed_at')) if shift.get('closed_at') else 'مفتوحة'}</div>
-      </td>
+      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;vertical-align:top"><div class="party-label">الكاشير / المسلِّم</div><div class="party-name">{shift.get('cashier_name','—')}</div></td>
+      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;border-right:none;vertical-align:top"><div class="party-label">الفرع</div><div class="party-name">{shift.get('wh_name','—')}</div></td>
+      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;border-right:none;vertical-align:top"><div class="party-label">فتح الوردية</div><div style="font-size:11px;font-weight:700">{fmt_dt(shift.get('started_at'))}</div></td>
+      <td style="width:25%;padding:5px 10px;border:1px solid #ccc;border-right:none;vertical-align:top"><div class="party-label">إغلاق الوردية</div><div style="font-size:11px;font-weight:700">{"مفتوحة" if not shift.get('closed_at') else fmt_dt(shift.get('closed_at'))}</div></td>
     </tr>
   </table>
 
-  <!-- Summary grid -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+  <div class="tbl-label">سجل العمليات</div>
+  <table>
+    <thead><tr>
+      <th style="white-space:nowrap">الوقت</th><th style="white-space:nowrap">النوع</th>
+      <th style="width:100%">البيان</th><th style="white-space:nowrap">الطرف</th>
+      <th style="white-space:nowrap">وسيلة الدفع</th>
+      <th style="text-align:left;white-space:nowrap;color:#166534">دائن</th>
+      <th style="text-align:left;white-space:nowrap;color:#991b1b">مدين</th>
+    </tr></thead>
+    <tbody>{ops_rows_html}</tbody>
+  </table>
 
-    <!-- Left: financial summary -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
     <table style="border-collapse:collapse;border:1px solid #ccc">
-      <thead><tr style="background:#111">
-        <th style="color:#fff;padding:6px 10px;text-align:right;font-size:10px">البيان</th>
-        <th style="color:#fff;padding:6px 10px;text-align:left;font-size:10px">المبلغ</th>
-      </tr></thead>
+      <thead><tr style="background:#111"><th colspan="2" style="color:#fff;padding:6px 10px;text-align:right;font-size:10px">ملخص النقدي</th></tr></thead>
       <tbody>
-        <tr style="background:#f9f9f9"><td style="padding:5px 10px;font-size:11px">الرصيد الافتتاحي</td><td style="padding:5px 10px;text-align:left;font-weight:700;font-size:11px">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
-        <tr><td style="padding:5px 10px;font-size:11px">إجمالي المبيعات</td><td style="padding:5px 10px;text-align:left;font-weight:700;font-size:11px;color:#166534">{ar_egp(float(summary.get('sales_total',0)))}</td></tr>
-        <tr style="background:#f9f9f9"><td style="padding:5px 10px;font-size:11px">المرتجعات</td><td style="padding:5px 10px;text-align:left;font-weight:700;font-size:11px;color:#991b1b">({ar_egp(float(summary.get('returns_total',0)))})</td></tr>
-        <tr><td style="padding:5px 10px;font-size:11px">المصروفات</td><td style="padding:5px 10px;text-align:left;font-weight:700;font-size:11px;color:#991b1b">({ar_egp(float(summary.get('expenses_total',0)))})</td></tr>
-        <tr style="background:#f9f9f9"><td style="padding:5px 10px;font-size:11px">الدواخل النقدية</td><td style="padding:5px 10px;text-align:left;font-weight:700;font-size:11px;color:#166534">{ar_egp(float(summary.get('deposits_total',0)))}</td></tr>
-        <tr style="background:#111"><td style="padding:7px 10px;color:#fff;font-weight:700;font-size:11px">💵 نقدي في الدرج</td><td style="padding:7px 10px;text-align:left;color:#fff;font-weight:900;font-size:14px">{ar_egp(cash_in)}</td></tr>
+        <tr style="background:#f9f9f9"><td style="padding:4px 10px;font-size:11px">الرصيد الافتتاحي</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
+        <tr><td style="padding:4px 10px;font-size:11px">مبيعات نقدي</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px;color:#166534">{ar_egp(cash_sales_total)}</td></tr>
+        <tr style="background:#f9f9f9"><td style="padding:4px 10px;font-size:11px">مرتجعات</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px;color:#991b1b">({ar_egp(float(summary.get('returns_total',0)))})</td></tr>
+        <tr><td style="padding:4px 10px;font-size:11px">مصروفات</td><td style="padding:4px 10px;text-align:left;font-weight:700;font-size:11px;color:#991b1b">({ar_egp(float(summary.get('expenses_total',0)))})</td></tr>
+        <tr style="background:#111"><td style="padding:6px 10px;color:#fff;font-weight:700;font-size:11px">💵 صافي النقدي</td><td style="padding:6px 10px;text-align:left;color:#fff;font-weight:900;font-size:14px">{ar_egp(cash_in)}</td></tr>
       </tbody>
     </table>
-
-    <!-- Right: wallets + total -->
     <div>
-      <table style="border-collapse:collapse;border:1px solid #ccc;width:100%;margin-bottom:8px">
-        <thead><tr style="background:#111">
-          <th style="color:#fff;padding:6px 10px;text-align:right;font-size:10px">المحافظ الإلكترونية</th>
-          <th style="color:#fff;padding:6px 10px;text-align:left;font-size:10px">الرصيد</th>
-        </tr></thead>
-        <tbody>
-          {wallet_summary_html if wallet_summary_html else '<tr><td colspan="2" style="text-align:center;padding:8px;color:#999;font-size:10px">لا توجد معاملات إلكترونية</td></tr>'}
-        </tbody>
-      </table>
+      {"" if not wallet_totals else f'''<table style="border-collapse:collapse;border:1px solid #ccc;width:100%;margin-bottom:8px"><thead><tr style="background:#111"><th colspan="2" style="color:#fff;padding:6px 10px;text-align:right;font-size:10px">المحافظ الإلكترونية</th></tr></thead><tbody>''' + wallet_summary_html + '''</tbody></table>'''}
       <div style="background:#111;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
         <span style="color:rgba(255,255,255,.7);font-size:11px;font-weight:600">الإجمالي الكلي</span>
         <span style="color:#fff;font-size:16px;font-weight:900">{ar_egp(total_all)}</span>
@@ -1138,37 +1162,11 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     </div>
   </div>
 
-  <!-- Transactions detail -->
-  {f'''<div class="tbl-label">تفاصيل الدواخل والخوارج</div>
-  <table>
-    <thead><tr>
-      <th style="white-space:nowrap">الوقت</th>
-      <th style="white-space:nowrap">النوع</th>
-      <th style="width:100%">البيان</th>
-      <th style="white-space:nowrap">وسيلة الدفع</th>
-      <th style="text-align:left;white-space:nowrap">المبلغ</th>
-    </tr></thead>
-    <tbody>{tx_rows_html}</tbody>
-  </table>''' if txns else ''}
-
-  <!-- Signatures -->
-  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">
-    <div>
-      <p style="font-size:9px;font-weight:700;color:#333;margin-bottom:24px">توقيع الكاشير</p>
-      <p style="font-size:10px;font-weight:700;color:#111;margin-bottom:4px">{shift.get('cashier_name','')}</p>
-      <div style="border-top:1px solid #999;padding-top:4px;font-size:8px;color:#999">الاسم والتوقيع</div>
-    </div>
-    <div>
-      <p style="font-size:9px;font-weight:700;color:#333;margin-bottom:24px">توقيع المستلم</p>
-      <p style="font-size:10px;font-weight:700;color:#111;margin-bottom:4px">{shift.get('manager_name','') or '—'}</p>
-      <div style="border-top:1px solid #999;padding-top:4px;font-size:8px;color:#999">الاسم والتوقيع</div>
-    </div>
-    <div style="text-align:center">
-      <div style="width:56px;height:56px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:8px;color:#ccc">الختم</div>
-      <div style="font-size:8px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div>
-    </div>
+  <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">
+    <div><p style="font-size:9px;font-weight:700;color:#333;margin-bottom:22px">توقيع المسلِّم</p><p style="font-size:10px;font-weight:700;color:#111;margin-bottom:3px">{shift.get('cashier_name','')}</p><div style="border-top:1px solid #999;padding-top:4px;font-size:8px;color:#999">الاسم والتوقيع</div></div>
+    <div><p style="font-size:9px;font-weight:700;color:#333;margin-bottom:22px">توقيع المستلِم</p><div style="border-top:1px solid #999;padding-top:4px;font-size:8px;color:#999;margin-top:22px">الاسم والتوقيع</div></div>
+    <div><div style="width:52px;height:52px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:8px;color:#ccc">الختم</div><div style="font-size:8px;color:#999">طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</div></div>
   </div>
-
 </div>"""
     return HTMLResponse(wrap(body, "تسليم عهدة الوردية"))
 
