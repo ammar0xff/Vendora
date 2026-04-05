@@ -111,10 +111,10 @@
   .sidebar-link.active { background: rgba(255,255,255,0.15); color: white; }
 
   .page-header {
-    @apply flex items-center justify-between mb-6;
+    @apply flex items-center justify-between mb-6 flex-wrap gap-3;
   }
   .page-title {
-    @apply text-2xl font-black;
+    @apply text-xl sm:text-2xl font-black;
     color: var(--primary);
     letter-spacing: -0.02em;
   }
