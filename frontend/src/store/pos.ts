@@ -23,6 +23,7 @@ interface POSState {
   addItem: (item: Omit<CartItem, 'qty' | 'item_discount' | 'item_discount_pct'>) => void
   updateQty: (product_id: string, qty: number) => void
   updateItemDiscount: (product_id: string, discount: number, pct: number) => void
+  updatePrice: (product_id: string, price: number) => void
   removeItem: (product_id: string) => void
   clear: () => void
   subtotal: () => number   // before invoice discount
@@ -53,6 +54,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
   updateItemDiscount: (product_id, discount, pct) => {
     set({ items: get().items.map(i => i.product_id === product_id ? { ...i, item_discount: discount, item_discount_pct: pct } : i) })
+  },
+  updatePrice: (product_id, price) => {
+    set({ items: get().items.map(i => i.product_id === product_id ? { ...i, unit_price: price, item_discount: 0, item_discount_pct: 0 } : i) })
   },
   removeItem: (product_id) => set({ items: get().items.filter(i => i.product_id !== product_id) }),
   clear: () => set({ items: [], customer: '', invoice_discount: 0, invoice_discount_pct: 0 }),
