@@ -1007,3 +1007,100 @@ async def pdf_archive(doc_id: uuid.UUID, paper_size: str = None, token: str = Qu
 async def pdf_inventory(warehouse_id: uuid.UUID, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
     return await _make_pdf(await print_inventory(warehouse_id, token, db, user), "تقرير المخزون", f"inventory_{warehouse_id}.pdf", db, paper_size)
 
+
+
+@router.get("/shift/{shift_id}", response_class=HTMLResponse)
+async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
+                               db: AsyncSession = Depends(get_db), _=Depends(get_print_user)):
+    s = await get_settings(db)
+    store = {"name": s.get("store_name", ""), "phone": s.get("store_phone", "")}
+
+    # Get shift + summary
+    from app.services.shift_service import compute_summary
+    summary = await compute_summary(db, shift_id)
+
+    shift_row = await db.execute(text("SELECT sh.*, u.full_name as cashier_name, w.name as wh_name FROM shifts sh LEFT JOIN users u ON u.id = sh.cashier_id LEFT JOIN warehouses w ON w.id = sh.warehouse_id WHERE sh.id = :id"), {"id": shift_id})
+    shift = dict(shift_row.fetchone()._mapping)
+
+    # Wallet tx breakdown
+    wallet_rows = await db.execute(text("""
+        SELECT dt.type, dt.amount, dt.note, dt.payment_method, pw.name as wallet_name, dt.created_at
+        FROM drawer_transactions dt
+        LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
+        WHERE dt.shift_id = :sid ORDER BY dt.created_at
+    """), {"sid": shift_id})
+    txns = [dict(r._mapping) for r in wallet_rows.fetchall()]
+
+    # Build wallet totals
+    wallet_totals: dict = {}
+    for t in txns:
+        if t["payment_method"] == "wallet" and t["wallet_name"]:
+            wn = t["wallet_name"]
+            if wn not in wallet_totals:
+                wallet_totals[wn] = 0
+            wallet_totals[wn] += float(t["amount"]) if t["type"] == "deposit" else -float(t["amount"])
+
+    pb = summary.get("payment_breakdown", [])
+    cash_sales = sum(float(p["total"]) for p in pb if p["method"] == "cash")
+    for p in pb:
+        if p["method"] != "cash" and p.get("wallet_name"):
+            wn = p["wallet_name"]
+            wallet_totals[wn] = wallet_totals.get(wn, 0) + float(p["total"])
+
+    cash_in = float(summary.get("cash_in_drawer", 0))
+
+    wallet_rows_html = "".join(f"""
+        <tr><td>{wn}</td><td style="text-align:left;font-weight:700;color:#16a34a">{ar_egp(v)}</td></tr>
+    """ for wn, v in wallet_totals.items())
+
+    tx_rows_html = "".join(f"""
+        <tr>
+          <td style="font-size:9px;color:#666">{fmt_dt(t['created_at'])}</td>
+          <td>{'دواخل' if t['type']=='deposit' else 'خوارج' if t['type'] in ('expense','withdrawal') else 'مبيعات'}</td>
+          <td>{t.get('note') or '—'}</td>
+          <td>{t.get('wallet_name') or 'نقدي'}</td>
+          <td style="text-align:left;font-weight:700;{'color:#16a34a' if t['type']=='deposit' else 'color:#dc2626'}">{ar_egp(float(t['amount']))}</td>
+        </tr>
+    """ for t in txns if t["type"] in ("deposit", "expense", "withdrawal"))
+
+    body = f"""
+{top_band(store, "تقرير الوردية", shift.get('id','')[:8], fmt_dt(shift.get('started_at')))}
+<div class="body">
+  <div class="meta-row">
+    <div class="meta-cell"><div class="m-lbl">الكاشير</div><div class="m-val">{shift.get('cashier_name','—')}</div></div>
+    <div class="meta-cell"><div class="m-lbl">الفرع</div><div class="m-val">{shift.get('wh_name','—')}</div></div>
+    <div class="meta-cell"><div class="m-lbl">الفتح</div><div class="m-val">{fmt_dt(shift.get('started_at'))}</div></div>
+    <div class="meta-cell"><div class="m-lbl">الإغلاق</div><div class="m-val">{fmt_dt(shift.get('closed_at')) if shift.get('closed_at') else '—'}</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <table style="border-collapse:collapse;border:1px solid #ccc">
+      <thead><tr style="background:#111"><th style="color:#fff;padding:6px 10px;text-align:right">ملخص الإيرادات</th><th style="color:#fff;padding:6px 10px;text-align:left">المبلغ</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:4px 10px">الرصيد الافتتاحي</td><td style="text-align:left;padding:4px 10px;font-weight:700">{ar_egp(float(shift.get('initial_amount',0)))}</td></tr>
+        <tr><td style="padding:4px 10px">إجمالي المبيعات</td><td style="text-align:left;padding:4px 10px;font-weight:700;color:#16a34a">{ar_egp(float(summary.get('sales_total',0)))}</td></tr>
+        <tr><td style="padding:4px 10px">المرتجعات</td><td style="text-align:left;padding:4px 10px;font-weight:700;color:#dc2626">{ar_egp(float(summary.get('returns_total',0)))}</td></tr>
+        <tr><td style="padding:4px 10px">المصروفات</td><td style="text-align:left;padding:4px 10px;font-weight:700;color:#dc2626">{ar_egp(float(summary.get('expenses_total',0)))}</td></tr>
+        <tr style="background:#111"><td style="padding:6px 10px;color:#fff;font-weight:700">💵 نقدي في الدرج</td><td style="text-align:left;padding:6px 10px;color:#fff;font-weight:900;font-size:14px">{ar_egp(cash_in)}</td></tr>
+      </tbody>
+    </table>
+    <table style="border-collapse:collapse;border:1px solid #ccc">
+      <thead><tr style="background:#111"><th style="color:#fff;padding:6px 10px;text-align:right">المحافظ الإلكترونية</th><th style="color:#fff;padding:6px 10px;text-align:left">المبلغ</th></tr></thead>
+      <tbody>
+        {wallet_rows_html if wallet_rows_html else '<tr><td colspan="2" style="text-align:center;padding:8px;color:#999">لا توجد معاملات</td></tr>'}
+      </tbody>
+    </table>
+  </div>
+
+  {f'<div class="tbl-label">حركات الدرج</div><table><thead><tr><th>الوقت</th><th>النوع</th><th>البيان</th><th>وسيلة الدفع</th><th style="text-align:left">المبلغ</th></tr></thead><tbody>{tx_rows_html}</tbody></table>' if tx_rows_html else ''}
+</div>
+<div style="border-top:1px solid #ccc;padding:6px 16px;font-size:8px;color:#666;display:flex;justify-content:space-between">
+  <span>طُبع: {datetime.now().strftime('%Y/%m/%d %H:%M')}</span>
+  <span>{store['name']}</span>
+</div>"""
+    return HTMLResponse(wrap(body, f"تقرير الوردية"))
+
+
+@router.get("/pdf/shift/{shift_id}")
+async def pdf_shift(shift_id: uuid.UUID, paper_size: str = None, token: str = Query(None), db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
+    return await _make_pdf(await print_shift_summary(shift_id, token, db, user), "تقرير الوردية", f"shift_{shift_id}.pdf", db, paper_size)

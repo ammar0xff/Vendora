@@ -405,6 +405,8 @@ export default function POSPage() {
     },
     onSuccess: () => {
       toast.success(`✅ تم تسليم الدرج إلى ${handoverUsername} — الوردية لا تزال مفتوحة باسمه`, { duration: 5000 })
+      const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
+      if (shift?.id) window.open(`/api/print/pdf/shift/${shift.id}?token=${token}`, '_blank')
       setShowHandover(false)
       setHandoverUsername('')
       setHandoverPassword('')
@@ -437,8 +439,11 @@ export default function POSPage() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (d: any) => {
       toast.success('✅ تم إغلاق الوردية وتسليم الدرج')
+      // Open shift summary PDF
+      const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
+      if (shift?.id) window.open(`/api/print/pdf/shift/${shift.id}?token=${token}`, '_blank')
       setShowClose(false)
       setClosingBalance('')
       setNextDayDrawer('')
