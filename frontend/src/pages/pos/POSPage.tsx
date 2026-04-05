@@ -27,6 +27,20 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
   const balance = Number(summary?.expected_balance ?? shift.initial_amount)
   const cashInDrawer = Number(summary?.cash_in_drawer ?? balance)
   const breakdown = summary?.payment_breakdown || []
+  const walletTxBreakdown = summary?.wallet_tx_breakdown || []
+
+  // Merge wallet sales + wallet deposits per wallet
+  const walletMap: Record<string, { name: string; type: string; total: number }> = {}
+  breakdown.filter((p: any) => p.method !== 'cash').forEach((p: any) => {
+    const k = p.wallet_name
+    if (!walletMap[k]) walletMap[k] = { name: p.wallet_name, type: p.wallet_type, total: 0 }
+    walletMap[k].total += Number(p.total)
+  })
+  walletTxBreakdown.forEach((t: any) => {
+    const k = t.wallet_name
+    if (!walletMap[k]) walletMap[k] = { name: t.wallet_name, type: t.wallet_type, total: 0 }
+    walletMap[k].total += t.tx_type === 'deposit' ? Number(t.total) : -Number(t.total)
+  })
   return (
     <div className="flex items-center gap-2">
       {warehouseName && (
@@ -52,10 +66,10 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
               <span className="text-slate-600">💵 نقدي (الدرج)</span>
               <span className="font-bold text-slate-800">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
             </div>
-            {breakdown.filter((p: any) => p.method !== 'cash').map((p: any) => (
-              <div key={p.wallet_name} className="flex justify-between text-xs">
-                <span className="text-slate-600">{p.wallet_type === 'vodafone_cash' ? '📱' : '💳'} {p.wallet_name}</span>
-                <span className="font-bold text-slate-800">{Number(p.total).toLocaleString('ar-EG')} ج.م</span>
+            {Object.values(walletMap).map((w: any) => (
+              <div key={w.name} className="flex justify-between text-xs">
+                <span className="text-slate-600">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
+                <span className="font-bold text-slate-800">{Number(w.total).toLocaleString('ar-EG')} ج.م</span>
               </div>
             ))}
             <div className="border-t border-slate-100 pt-1.5 flex justify-between text-xs">

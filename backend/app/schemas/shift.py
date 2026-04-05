@@ -53,6 +53,7 @@ class ShiftSummary(BaseModel):
     variance: Optional[Decimal]
     transaction_count: int
     payment_breakdown: Optional[list] = []
+    wallet_tx_breakdown: Optional[list] = []
 
 
 class ShiftOut(BaseModel):
