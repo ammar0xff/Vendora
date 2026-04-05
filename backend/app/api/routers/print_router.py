@@ -1041,7 +1041,7 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
 
     # Sales for this shift
     sales_rows = await db.execute(text("""
-        SELECT s.invoice_number, s.created_at,
+        SELECT s.id, s.invoice_number, s.created_at,
                COALESCE(c.name,'عميل عادي') as customer,
                COALESCE(s.payment_method,'cash') as payment_method,
                pw.name as wallet_name,
@@ -1054,6 +1054,24 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
         GROUP BY s.id, c.name, pw.name ORDER BY s.created_at
     """), {"sid": shift_id})
     sales = [dict(r._mapping) for r in sales_rows.fetchall()]
+
+    # Fetch items for each sale
+    if sales:
+        sale_ids = [str(s["id"]) for s in sales]
+        items_rows = await db.execute(text(f"""
+            SELECT si.sale_id, p.name as product_name, p.unit, si.qty, si.unit_price,
+                   (si.qty * si.unit_price - si.discount) as line_total
+            FROM sale_items si JOIN products p ON p.id = si.product_id
+            WHERE si.sale_id = ANY(ARRAY[{','.join(f"'{i}'" for i in sale_ids)}]::uuid[])
+            ORDER BY si.id
+        """))
+        items_by_sale: dict = {}
+        for r in items_rows.fetchall():
+            d = dict(r._mapping)
+            sid = str(d["sale_id"])
+            items_by_sale.setdefault(sid, []).append(d)
+        for s in sales:
+            s["items"] = items_by_sale.get(str(s["id"]), [])
 
     # Returns
     ret_rows = await db.execute(text("""
@@ -1084,22 +1102,34 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     # Unified ops list
     all_ops = []
     for s2 in sales:
-        all_ops.append({"time": s2["created_at"], "type": "مبيعات", "ref": s2["invoice_number"],
-                        "party": s2["customer"], "payment": s2["wallet_name"] or "نقدي",
-                        "credit": float(s2["total"]), "debit": 0})
+        items = s2.get("items", [])
+        if len(items) == 1:
+            # Single item — show inline
+            it = items[0]
+            all_ops.append({"time": s2["created_at"], "type": "مبيعات",
+                            "ref": f"{it['product_name']} ({ar_num(float(it['qty']),0)} {it['unit']} × {ar_egp(float(it['unit_price']))})",
+                            "party": s2["customer"], "payment": s2["wallet_name"] or "نقدي",
+                            "credit": float(s2["total"]), "debit": 0, "sub": []})
+        else:
+            # Multiple items — show invoice then sub-rows
+            all_ops.append({"time": s2["created_at"], "type": "مبيعات",
+                            "ref": s2["invoice_number"], "party": s2["customer"],
+                            "payment": s2["wallet_name"] or "نقدي",
+                            "credit": float(s2["total"]), "debit": 0, "sub": items})
     for r2 in returns:
         all_ops.append({"time": r2["created_at"], "type": "مرتجع", "ref": r2["invoice_number"],
-                        "party": "", "payment": "—", "credit": 0, "debit": float(r2["total"])})
+                        "party": "", "payment": "—", "credit": 0, "debit": float(r2["total"]), "sub": []})
     for t2 in txns:
         is_in = t2["type"] == "deposit"
         all_ops.append({"time": t2["created_at"], "type": TX_AR.get(t2["type"], t2["type"]),
                         "ref": t2.get("note") or "—", "party": "",
                         "payment": t2.get("wallet_name") or "نقدي",
                         "credit": float(t2["amount"]) if is_in else 0,
-                        "debit": float(t2["amount"]) if not is_in else 0})
+                        "debit": float(t2["amount"]) if not is_in else 0, "sub": []})
     all_ops.sort(key=lambda x: x["time"])
 
-    ops_rows_html = "".join(f"""
+    def op_row(op):
+        rows = f"""
         <tr>
           <td style="font-size:9px;color:#555;white-space:nowrap">{fmt_dt(op['time'])}</td>
           <td><span style="font-size:9px;font-weight:700;padding:1px 5px;border:1px solid {'#166534' if op['credit']>0 else '#991b1b'};color:{'#166534' if op['credit']>0 else '#991b1b'}">{op['type']}</span></td>
@@ -1108,8 +1138,20 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
           <td style="font-size:10px;color:#555">{op['payment']}</td>
           <td style="text-align:left;font-weight:700;font-size:10px;color:#166534;white-space:nowrap">{ar_egp(op['credit']) if op['credit'] else ''}</td>
           <td style="text-align:left;font-weight:700;font-size:10px;color:#991b1b;white-space:nowrap">{ar_egp(op['debit']) if op['debit'] else ''}</td>
-        </tr>
-    """ for op in all_ops)
+        </tr>"""
+        for it in op.get("sub", []):
+            rows += f"""
+        <tr style="background:#f9f9f9">
+          <td></td><td></td>
+          <td style="font-size:9px;color:#555;padding-right:16px">↳ {it['product_name']}</td>
+          <td style="font-size:9px;color:#555;text-align:center">{ar_num(float(it['qty']),0)} {it['unit']}</td>
+          <td style="font-size:9px;color:#555">{ar_egp(float(it['unit_price']))}</td>
+          <td style="text-align:left;font-size:9px;color:#166534;white-space:nowrap">{ar_egp(float(it['line_total']))}</td>
+          <td></td>
+        </tr>"""
+        return rows
+
+    ops_rows_html = "".join(op_row(op) for op in all_ops)
 
     wallet_summary_html = "".join(f"""
         <tr><td style="padding:4px 10px;font-size:11px">{wn}</td>
