@@ -103,6 +103,18 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     cash_expenses    = cash_tx.get("expense", 0) + cash_tx.get("withdrawal", 0)
     cash_returns     = float(returns)  # returns always go back to drawer
 
+    # Wallet deposits/expenses breakdown
+    wallet_tx_rows = await db.execute(sqlt("""
+        SELECT dt.payment_method, pw.name as wallet_name, pw.type as wallet_type,
+               dt.type as tx_type, SUM(dt.amount) as total
+        FROM drawer_transactions dt
+        LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
+        WHERE dt.shift_id = :sid AND dt.payment_method = 'wallet'
+        AND dt.type IN ('deposit','expense','withdrawal')
+        GROUP BY dt.payment_method, pw.name, pw.type, dt.type
+    """), {"sid": shift_id})
+    wallet_tx_breakdown = [dict(r._mapping) for r in wallet_tx_rows.fetchall()]
+
     return {
         "shift_id": shift_id,
         "initial_amount": shift.initial_amount,
@@ -118,6 +130,7 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "variance": variance,
         "transaction_count": tx_count.scalar_one(),
         "payment_breakdown": payment_breakdown,
+        "wallet_tx_breakdown": wallet_tx_breakdown,
     }
 
 
