@@ -44,10 +44,15 @@ class ShiftSummary(BaseModel):
     sales_total: Decimal
     returns_total: Decimal
     expenses_total: Decimal
+    deposits_total: Optional[Decimal] = Decimal("0")
+    withdrawals_total: Optional[Decimal] = Decimal("0")
     expected_balance: Decimal
+    cash_in_drawer: Optional[Decimal] = None
+    wallet_total: Optional[Decimal] = None
     closing_balance: Optional[Decimal]
     variance: Optional[Decimal]
     transaction_count: int
+    payment_breakdown: Optional[list] = []
 
 
 class ShiftOut(BaseModel):
