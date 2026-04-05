@@ -1020,9 +1020,11 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     summary = await compute_summary(db, shift_id)
 
     shift_row = await db.execute(text("""
-        SELECT sh.*, u.full_name as cashier_name, w.name as wh_name
+        SELECT sh.*, u.full_name as cashier_name, w.name as wh_name,
+               m.full_name as receiver_name
         FROM shifts sh
         LEFT JOIN users u ON u.id = sh.cashier_id
+        LEFT JOIN users m ON m.id = sh.closed_by
         LEFT JOIN warehouses w ON w.id = sh.warehouse_id
         WHERE sh.id = :id
     """), {"id": shift_id})
@@ -1252,7 +1254,7 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
       </td>
       <td style="padding:5px 10px">
         <div style="font-size:8px;color:#999;margin-bottom:2px">إلى (المستلم)</div>
-        <div style="font-size:10px;font-weight:700;color:#ccc">_________________</div>
+        <div style="font-size:10px;font-weight:700">{shift.get('receiver_name') or '_________________'}</div>
       </td>
     </tr>
   </table>
