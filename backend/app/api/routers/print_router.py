@@ -1216,13 +1216,13 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     flat_rows_html = "".join(f"""
         <tr style="{row_style(r['row_type'])};border-bottom:1px solid #e8e8e8">
           <td style="padding:4px 6px;font-size:10px;word-break:break-word;{B}">{r['name']}</td>
-          <td style="padding:4px 4px;text-align:center;font-size:10px;{B}">{r['qty']}</td>
-          <td style="padding:4px 4px;text-align:center;font-size:9px;color:#666;{B}">{r['unit']}</td>
-          <td style="padding:4px 6px;text-align:left;font-size:10px;{B}">{r['price']}</td>
-          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;color:#166534;{B}">{r['total']}</td>
-          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;color:#991b1b;{B}">{r['expense']}</td>
-          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;color:#dc2626;{B}">{r['ret']}</td>
-          <td style="padding:4px 4px;font-size:8px;color:#888;text-align:center">{r['note']}</td>
+          <td style="padding:4px 4px;text-align:center;font-size:10px;white-space:nowrap;{B}">{r['qty']}</td>
+          <td style="padding:4px 4px;text-align:center;font-size:9px;color:#666;white-space:nowrap;{B}">{r['unit']}</td>
+          <td style="padding:4px 6px;text-align:left;font-size:10px;white-space:nowrap;{B}">{r['price']}</td>
+          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#166534;{B}">{r['total']}</td>
+          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#991b1b;{B}">{r['expense']}</td>
+          <td style="padding:4px 6px;text-align:left;font-weight:700;font-size:10px;white-space:nowrap;color:#dc2626;{B}">{r['ret']}</td>
+          <td style="padding:4px 4px;font-size:8px;color:#888;text-align:center;white-space:nowrap">{r['note']}</td>
         </tr>
     """ for r in flat_rows)
 
@@ -1260,14 +1260,14 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
   <table style="width:100%;border-collapse:collapse;border:1px solid #ccc">
     <thead>
       <tr style="background:#111">
-        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:right;border-left:1px solid #333">اسم الصنف / البيان</th>
-        <th style="padding:5px 4px;color:#fff;font-size:9px;text-align:center;border-left:1px solid #333">الكمية</th>
-        <th style="padding:5px 4px;color:#fff;font-size:9px;text-align:center;border-left:1px solid #333">الوحدة</th>
-        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333">السعر</th>
-        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333">الإجمالي</th>
-        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333">الخوارج</th>
-        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333">المرتجعات</th>
-        <th style="padding:5px 4px;color:#fff;font-size:9px;text-align:right">ملاحظات</th>
+        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:right;border-left:1px solid #333;width:100%">اسم الصنف / البيان</th>
+        <th style="padding:5px 4px;color:#fff;font-size:9px;text-align:center;border-left:1px solid #333;white-space:nowrap">الكمية</th>
+        <th style="padding:5px 4px;color:#fff;font-size:9px;text-align:center;border-left:1px solid #333;white-space:nowrap">الوحدة</th>
+        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333;white-space:nowrap">السعر</th>
+        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333;white-space:nowrap">الإجمالي</th>
+        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333;white-space:nowrap">الخوارج</th>
+        <th style="padding:5px 6px;color:#fff;font-size:9px;text-align:left;border-left:1px solid #333;white-space:nowrap">المرتجعات</th>
+        <th style="padding:5px 4px;color:#fff;font-size:9px;text-align:right;white-space:nowrap">ملاحظات</th>
       </tr>
     </thead>
     <tbody>
