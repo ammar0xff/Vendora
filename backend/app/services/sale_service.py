@@ -162,7 +162,7 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     if getattr(data, 'wallet_id', None) and not data.is_credit:
         from app.services.wallet_service import record_wallet_tx
         await record_wallet_tx(db, data.wallet_id, total, "sale", sale.id,
-                               f"بيع {sale.invoice_number}", user_id)
+                               f"بيع {sale.invoice_number}", cashier_id)
 
     await db.commit()
     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))
