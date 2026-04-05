@@ -893,11 +893,15 @@ export default function POSPage() {
                       <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={11} /></button>
                     </div>
                     <div className="flex items-center gap-1">
-                      <input type="number" min={item.unit_cost} step="0.5"
+                      <input type="number" min="0" step="0.5"
                         value={item.unit_price}
                         onChange={e => {
                           const newPrice = Number(e.target.value)
-                          if (newPrice >= item.unit_cost) updatePrice(item.product_id, newPrice)
+                          if (newPrice > 0) updatePrice(item.product_id, newPrice)
+                        }}
+                        onBlur={e => {
+                          const newPrice = Number(e.target.value)
+                          if (newPrice < item.unit_cost) updatePrice(item.product_id, item.unit_cost)
                         }}
                         className={clsx('w-20 text-center text-sm font-bold border rounded-lg py-0.5 outline-none focus:border-blue-300',
                           item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50' : 'border-slate-200')}
