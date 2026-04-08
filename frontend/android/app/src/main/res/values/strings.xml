@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EG-CO ERP</string>
+    <string name="title_activity_main">EG-CO ERP</string>
+    <string name="package_name">com.egco.erp</string>
+    <string name="custom_url_scheme">com.egco.erp</string>
+</resources>
