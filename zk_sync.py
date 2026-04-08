@@ -1,75 +1,58 @@
 #!/usr/bin/env python3
 """
-ZK device sync script — runs on the HOST (not inside Docker).
-Pulls attendance from the biometric device and posts to the ERP API.
+ZK device sync — uses the old system's device adapter and attendance pairing logic directly.
 
 Usage:
-    python3 zk_sync.py --host 192.168.1.201 --api http://localhost --user admin --password changeme
+    python3 zk_sync.py
+    python3 zk_sync.py --device-host 192.168.1.201 --api http://localhost --user ammar --password changeme
 
 Install deps:  pip install pyzk requests
 Schedule:      crontab -e  →  */30 * * * * python3 /path/to/zk_sync.py
 """
+import sys
 import argparse
 import requests
-from collections import defaultdict
-from datetime import timezone
+
+# Use the old system's device adapter directly
+OLD_SYSTEM_PATH = '/home/ammar/Desktop/AMMAR/موظفين'
+sys.path.insert(0, OLD_SYSTEM_PATH)
+
+from device_adapters.k14_pro import DeviceAdapter, DeviceAdapterError
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device-host', default='192.168.1.201')
     parser.add_argument('--device-port', type=int, default=4370)
     parser.add_argument('--api', default='http://localhost')
-    parser.add_argument('--user', default='admin')
+    parser.add_argument('--user', default='ammar')
     parser.add_argument('--password', default='changeme')
     args = parser.parse_args()
 
-    # Login
-    r = requests.post(f'{args.api}/api/auth/login', json={'username': args.user, 'password': args.password})
+    # Login to ERP
+    r = requests.post(f'{args.api}/api/auth/login',
+                      json={'username': args.user, 'password': args.password})
     r.raise_for_status()
     token = r.json()['access_token']
     headers = {'Authorization': f'Bearer {token}'}
 
-    # Connect to ZK device
-    try:
-        from zk import ZK
-    except ImportError:
-        print("Install pyzk:  pip install pyzk")
-        return
+    # Fetch from device using old system's adapter (handles all ZK quirks + pairing)
+    adapter = DeviceAdapter(host=args.device_host, port=args.device_port)
+    adapter.connect()
+    records = adapter.fetch_attendance()  # already paired check_in/check_out per day
+    adapter.conn.disconnect()
+    print(f"Fetched {len(records)} attendance records from device")
 
-    zk = ZK(args.device_host, port=args.device_port, timeout=5)
-    conn = zk.connect()
-    conn.disable_device()
-    punches = conn.get_attendance()
-    conn.enable_device()
-    conn.disconnect()
-    print(f"Fetched {len(punches)} punches from device")
-
-    # Group by (user_id, date) → first=check_in, last=check_out
-    groups = defaultdict(list)
-    for p in punches:
-        dt = p.timestamp
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        groups[(str(p.user_id), dt.date().isoformat())].append(dt.isoformat())
-
-    # Post to API
+    # Post each record to ERP
     added = updated = skipped = 0
-    for (uid, date), times in groups.items():
-        times.sort()
-        payload = {
-            'device_uid': uid,
-            'work_date': date,
-            'check_in': times[0],
-            'check_out': times[-1] if len(times) > 1 else None,
-        }
-        r = requests.post(f'{args.api}/api/hr/attendance/from-device', json=payload, headers=headers)
+    for rec in records:
+        r = requests.post(f'{args.api}/api/hr/attendance/from-device', json=rec, headers=headers)
         if r.status_code == 200:
-            result = r.json()
-            if result.get('action') == 'added': added += 1
-            elif result.get('action') == 'updated': updated += 1
-            else: skipped += 1
+            action = r.json().get('action', '')
+            if action == 'added':    added += 1
+            elif action == 'updated': updated += 1
+            else:                    skipped += 1
         else:
-            print(f"  WARN {date} uid={uid}: {r.status_code} {r.text[:80]}")
+            print(f"  WARN emp={rec['emp_id']} {rec.get('check_in','')[:10]}: {r.status_code} {r.text[:80]}")
 
     print(f"Done — added={added} updated={updated} skipped={skipped}")
 
