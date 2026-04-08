@@ -524,9 +524,43 @@ async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_rol
              "added": r[4], "updated": r[5], "message": r[6]} for r in rows]
 
 
+@router.post("/attendance/from-device")
+async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    """Accept a single attendance record from the host-side zk_sync.py script."""
+    uid = data.get('device_uid')
+    date = data.get('work_date')
+    check_in = data.get('check_in')
+    check_out = data.get('check_out')
+
+    emp = (await db.execute(text(
+        "SELECT id FROM hr_employees WHERE emp_code=:uid"
+    ), {"uid": uid})).fetchone()
+    if not emp:
+        return {"action": "skipped", "reason": "unknown uid"}
+
+    existing = (await db.execute(text(
+        "SELECT id, edited FROM hr_attendance WHERE employee_id=:e AND work_date=:d"
+    ), {"e": emp[0], "d": date})).fetchone()
+
+    if existing:
+        if existing[1]:  # manually edited — preserve
+            return {"action": "skipped", "reason": "manually edited"}
+        await db.execute(text(
+            "UPDATE hr_attendance SET check_in=:ci, check_out=:co WHERE id=:id"
+        ), {"ci": check_in, "co": check_out, "id": existing[0]})
+        await db.commit()
+        return {"action": "updated"}
+    else:
+        await db.execute(text(
+            "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status) VALUES (:e,:d,:ci,:co,'present')"
+        ), {"e": emp[0], "d": date, "ci": check_in, "co": check_out})
+        await db.commit()
+        return {"action": "added"}
+
+
 @router.post("/sync-device")
 async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
-    """Pull attendance from ZK biometric device and merge into hr_attendance."""
+    """Trigger sync from ZK device — only works if backend can reach the device directly."""
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
     host = settings.get("device_host", "192.168.1.201")
     port = int(settings.get("device_port", 4370))
@@ -535,9 +569,8 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
     try:
         from zk import ZK
     except ImportError:
-        raise HTTPException(500, "pyzk not installed — run: pip install pyzk")
+        raise HTTPException(500, "pyzk not installed")
 
-    # Connect and fetch
     try:
         zk = ZK(host, port=port, timeout=timeout, force_udp=False, ommit_ping=False)
         conn = zk.connect()
@@ -552,7 +585,6 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
         await db.commit()
         raise HTTPException(502, f"Device connection failed: {e}")
 
-    # Group punches by (user_id, date) → first=check_in, last=check_out
     from collections import defaultdict
     from datetime import timezone
     groups: dict = defaultdict(list)
@@ -562,7 +594,6 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
             dt = dt.replace(tzinfo=timezone.utc)
         groups[(str(p.user_id), dt.date())].append(dt)
 
-    # Get emp_code → employee_id mapping
     emp_rows = (await db.execute(text("SELECT id, emp_code FROM hr_employees WHERE emp_code IS NOT NULL"))).fetchall()
     code_map = {r[1]: r[0] for r in emp_rows}
 
@@ -580,7 +611,7 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
         ), {"e": emp_id, "d": date})).fetchone()
 
         if existing:
-            if existing[1]:  # edited=True → skip, preserve manual edit
+            if existing[1]:
                 continue
             await db.execute(text(
                 "UPDATE hr_attendance SET check_in=:ci, check_out=:co WHERE id=:id"
