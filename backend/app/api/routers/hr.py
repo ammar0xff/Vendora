@@ -527,8 +527,8 @@ async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_rol
 @router.post("/attendance/from-device")
 async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
     """Accept a single attendance record from the host-side zk_sync.py script."""
-    uid = data.get('device_uid')
-    date = data.get('work_date')
+    uid = str(data.get('emp_id', ''))
+    date = data.get('check_in', '')[:10]  # YYYY-MM-DD from ISO string
     check_in = data.get('check_in')
     check_out = data.get('check_out')
 
@@ -536,7 +536,7 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
         "SELECT id FROM hr_employees WHERE emp_code=:uid"
     ), {"uid": uid})).fetchone()
     if not emp:
-        return {"action": "skipped", "reason": "unknown uid"}
+        return {"action": "skipped", "reason": f"unknown uid {uid}"}
 
     existing = (await db.execute(text(
         "SELECT id, edited FROM hr_attendance WHERE employee_id=:e AND work_date=:d"
