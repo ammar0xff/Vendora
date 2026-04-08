@@ -89,6 +89,22 @@ MIGRATIONS = [
         ALTER TABLE sales ADD COLUMN IF NOT EXISTS wallet_id uuid REFERENCES payment_wallets(id) ON DELETE SET NULL;
         ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method text DEFAULT 'cash';
     """),
+
+    # v7 — ZK device sync log + device settings
+    ("v7_hr_sync_log", """
+        CREATE TABLE IF NOT EXISTS hr_sync_log (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            synced_at timestamptz DEFAULT now(),
+            status text NOT NULL,
+            fetched int DEFAULT 0,
+            added int DEFAULT 0,
+            updated int DEFAULT 0,
+            message text
+        );
+        INSERT INTO hr_settings (key, value) VALUES ('device_host', '192.168.1.201') ON CONFLICT (key) DO NOTHING;
+        INSERT INTO hr_settings (key, value) VALUES ('device_port', '4370') ON CONFLICT (key) DO NOTHING;
+        INSERT INTO hr_settings (key, value) VALUES ('device_timeout', '5') ON CONFLICT (key) DO NOTHING;
+    """),
 ]
 
 def run():

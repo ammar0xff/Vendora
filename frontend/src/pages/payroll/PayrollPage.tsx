@@ -168,6 +168,66 @@ function EmployeeForm({ emp, shifts, onSave, onClose }: any) {
 const STATUS_LABELS: Record<string, string> = { present: 'حضور', absent: 'غياب', leave: 'إجازة', mission: 'مأمورية', excuse: 'عذر', weekend: 'عطلة', 'pre-hire': 'قبل التعيين' }
 const STATUS_COLORS: Record<string, string> = { present: 'badge-green', absent: 'badge-red', leave: 'badge-blue', mission: 'badge-blue', excuse: 'badge-yellow', weekend: 'badge-gray', 'pre-hire': 'badge-gray' }
 
+function DeviceSyncCard({ settings, onSettingsChange, onSave }: any) {
+  const qc = useQueryClient()
+  const [syncing, setSyncing] = useState(false)
+  const { data: syncLog } = useQuery({ queryKey: ['hr-sync-log'], queryFn: () => api.get('/hr/sync-log').then(r => r.data) })
+
+  const doSync = async () => {
+    setSyncing(true)
+    try {
+      const r = await api.post('/hr/sync-device')
+      toast.success(`✅ تمت المزامنة — ${r.data.added} جديد، ${r.data.updated} محدّث`)
+      qc.invalidateQueries({ queryKey: ['hr-sync-log'] })
+      qc.invalidateQueries({ queryKey: ['hr-attendance'] })
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || 'فشل الاتصال بالجهاز')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3 className="font-bold text-slate-700 mb-4">🔌 جهاز البصمة (ZK)</h3>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">IP الجهاز</label>
+          <input className="input text-sm" value={settings.device_host || '192.168.1.201'}
+            onChange={e => onSettingsChange('device_host', e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">المنفذ</label>
+          <input className="input text-sm" value={settings.device_port || '4370'}
+            onChange={e => onSettingsChange('device_port', e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <button onClick={onSave} className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">حفظ الإعدادات</button>
+        <button onClick={doSync} disabled={syncing}
+          className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+          style={{ background: '#1e3a5f' }}>
+          {syncing ? '⏳ جاري المزامنة...' : '🔄 مزامنة الحضور الآن'}
+        </button>
+      </div>
+      {/* Sync log */}
+      {syncLog?.length > 0 && (
+        <div className="space-y-1 max-h-40 overflow-y-auto">
+          <p className="text-xs font-bold text-slate-400 mb-1">آخر عمليات المزامنة</p>
+          {syncLog.slice(0, 10).map((l: any) => (
+            <div key={l.id} className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-lg ${l.status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              <span>{new Date(l.synced_at).toLocaleString('ar-EG')}</span>
+              {l.status === 'success'
+                ? <span>{l.fetched} بصمة — {l.added} جديد، {l.updated} محدّث</span>
+                : <span>{l.message}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PayrollPage() {
   const [tab, setTab] = useState<'employees' | 'payroll' | 'attendance' | 'advances' | 'shifts' | 'audit' | 'settings' | 'reports'>('employees')
   const [selectedMonth, setSelectedMonth] = useState(format(startOfMonth(new Date()), 'yyyy-MM'))
@@ -503,7 +563,8 @@ export default function PayrollPage() {
 
       {/* ── Settings Tab ── */}
       {tab === 'settings' && (
-        <div className="card max-w-lg">
+        <div className="space-y-5 max-w-lg">
+          <div className="card">
           <h3 className="font-bold text-slate-700 mb-5">إعدادات حساب الرواتب</h3>
           <div className="space-y-4">
             {[
@@ -537,6 +598,10 @@ export default function PayrollPage() {
               حفظ الإعدادات
             </button>
           </div>
+          </div>
+
+          {/* ZK Device Sync */}
+          <DeviceSyncCard settings={sf} onSettingsChange={(k: string, v: string) => setSettingsForm({ ...sf, [k]: v })} onSave={() => saveSettingsMut.mutate()} />
         </div>
       )}
 

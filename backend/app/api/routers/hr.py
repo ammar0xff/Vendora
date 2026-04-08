@@ -511,3 +511,89 @@ async def attendance_report(month: str, db: AsyncSession = Depends(get_db), _=De
     html = ReportGenerator.generate_attendance_report(report_rows, month)
     from fastapi.responses import HTMLResponse
     return HTMLResponse(content=html)
+
+
+# ── ZK Device Sync ────────────────────────────────────────────────────────────
+
+@router.get("/sync-log")
+async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    rows = (await db.execute(text(
+        "SELECT id, synced_at, status, fetched, added, updated, message FROM hr_sync_log ORDER BY synced_at DESC LIMIT 50"
+    ))).fetchall()
+    return [{"id": str(r[0]), "synced_at": r[1], "status": r[2], "fetched": r[3],
+             "added": r[4], "updated": r[5], "message": r[6]} for r in rows]
+
+
+@router.post("/sync-device")
+async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+    """Pull attendance from ZK biometric device and merge into hr_attendance."""
+    settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
+    host = settings.get("device_host", "192.168.1.201")
+    port = int(settings.get("device_port", 4370))
+    timeout = int(settings.get("device_timeout", 5))
+
+    try:
+        from zk import ZK
+    except ImportError:
+        raise HTTPException(500, "pyzk not installed — run: pip install pyzk")
+
+    # Connect and fetch
+    try:
+        zk = ZK(host, port=port, timeout=timeout, force_udp=False, ommit_ping=False)
+        conn = zk.connect()
+        conn.disable_device()
+        punches = conn.get_attendance()
+        conn.enable_device()
+        conn.disconnect()
+    except Exception as e:
+        await db.execute(text(
+            "INSERT INTO hr_sync_log (status, message) VALUES ('failure', :m)"
+        ), {"m": str(e)})
+        await db.commit()
+        raise HTTPException(502, f"Device connection failed: {e}")
+
+    # Group punches by (user_id, date) → first=check_in, last=check_out
+    from collections import defaultdict
+    from datetime import timezone
+    groups: dict = defaultdict(list)
+    for p in punches:
+        dt = p.timestamp
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        groups[(str(p.user_id), dt.date())].append(dt)
+
+    # Get emp_code → employee_id mapping
+    emp_rows = (await db.execute(text("SELECT id, emp_code FROM hr_employees WHERE emp_code IS NOT NULL"))).fetchall()
+    code_map = {r[1]: r[0] for r in emp_rows}
+
+    added = updated = 0
+    for (uid, date), times in groups.items():
+        emp_id = code_map.get(uid)
+        if not emp_id:
+            continue
+        times.sort()
+        check_in = times[0]
+        check_out = times[-1] if len(times) > 1 else None
+
+        existing = (await db.execute(text(
+            "SELECT id, edited FROM hr_attendance WHERE employee_id=:e AND work_date=:d"
+        ), {"e": emp_id, "d": date})).fetchone()
+
+        if existing:
+            if existing[1]:  # edited=True → skip, preserve manual edit
+                continue
+            await db.execute(text(
+                "UPDATE hr_attendance SET check_in=:ci, check_out=:co WHERE id=:id"
+            ), {"ci": check_in, "co": check_out, "id": existing[0]})
+            updated += 1
+        else:
+            await db.execute(text(
+                "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status) VALUES (:e,:d,:ci,:co,'present')"
+            ), {"e": emp_id, "d": date, "ci": check_in, "co": check_out})
+            added += 1
+
+    await db.execute(text(
+        "INSERT INTO hr_sync_log (status, fetched, added, updated) VALUES ('success',:f,:a,:u)"
+    ), {"f": len(punches), "a": added, "u": updated})
+    await db.commit()
+    return {"fetched": len(punches), "added": added, "updated": updated}
