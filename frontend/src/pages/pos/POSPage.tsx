@@ -469,7 +469,7 @@ export default function POSPage() {
 
 
   // ── Shift open but belongs to another cashier (non-admins only) ──────
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager'
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.is_manager === true || user?.permissions?.includes('manage_shifts')
   const shiftOwner = shift && shift.cashier_id !== user?.id && !isAdmin
     ? (shift.cashier_name || (allUsers as any[])?.find((u: any) => u.id === shift.cashier_id)?.full_name || 'موظف آخر')
     : null

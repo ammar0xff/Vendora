@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   server: {
     // In production, point to your server. For dev, use the local server.
     // Change this to your public IP/domain when building for distribution.
-    url: 'http://192.168.1.50',
+    url: 'http://81.10.109.140',
     cleartext: true, // allow HTTP (not just HTTPS) on Android
   },
   android: {

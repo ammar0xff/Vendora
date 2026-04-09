@@ -26,3 +26,5 @@ Thumbs.db
 *.swp
 frontend/android/gradle-8.11.1-all.zip
 frontend/android/app/build/
+frontend/android/*.zip
+frontend/android/gradle*.zip
