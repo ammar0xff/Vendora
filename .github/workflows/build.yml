@@ -99,3 +99,38 @@ jobs:
         with:
           name: egco-erp-Android
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps & build
+        working-directory: frontend
+        run: |
+          npm ci
+          VITE_API_URL=http://81.10.109.140 npm run build
+          npx cap sync ios
+
+      - name: Build iOS IPA
+        uses: yukiarrr/ios-build-action@v1.5.0
+        with:
+          project-path: frontend/ios/App/App.xcodeproj
+          p12-base64: ${{ secrets.IOS_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_P12_PASSWORD }}
+          mobileprovision-base64: ${{ secrets.IOS_MOBILEPROVISION_BASE64 }}
+          code-signing-identity: ${{ secrets.IOS_CODE_SIGNING_IDENTITY }}
+          team-id: ${{ secrets.IOS_TEAM_ID }}
+          export-method: ad-hoc
+          output-path: egco-erp.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egco-erp-iOS
+          path: egco-erp.ipa
