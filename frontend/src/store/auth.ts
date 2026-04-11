@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-interface User { id: string; username: string; full_name: string; role: string }
+interface User { id: string; username: string; full_name: string; role: string; is_manager?: boolean; permissions?: string[] }
 interface AuthState {
   token: string | null
   user: User | null

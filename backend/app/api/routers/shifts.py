@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from datetime import datetime
 from app.db.base import get_db
 from app.schemas.shift import ShiftOpen, ShiftClose, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary
@@ -58,7 +58,12 @@ async def current_shift(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_
     shift = result.scalar_one_or_none()
     if not shift:
         raise NotFoundError("No open shift")
-    return shift
+    # attach cashier_name
+    out = ShiftOut.model_validate(shift)
+    if shift.cashier_id:
+        name = (await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": shift.cashier_id})).scalar()
+        out.cashier_name = name
+    return out
 
 @router.post("/{shift_id}/close", response_model=ShiftOut)
 async def close_shift(shift_id: uuid.UUID, data: ShiftClose, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):

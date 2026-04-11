@@ -16,7 +16,7 @@ import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
 
 // ── Drawer Balance Badge ──────────────────────────────────────────────────
-function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseName, supervisorName, wallets }: any) {
+function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseName, supervisorName, wallets, currentUserId }: any) {
   if (!shift) return (
     <div className="flex items-center gap-2">
       <button onClick={onOpen} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#16a34a' }}>
@@ -51,6 +51,11 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
       {supervisorName && (
         <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 text-purple-700 text-xs font-semibold">
           👤 مشرف: {supervisorName}
+        </div>
+      )}
+      {shift?.cashier_name && shift.cashier_id !== currentUserId && (
+        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">
+          🧑‍💼 الكاشير: {shift.cashier_name}
         </div>
       )}
       <div className="relative group">
@@ -463,9 +468,10 @@ export default function POSPage() {
 
 
 
-  // ── Shift open but belongs to another cashier ─────────────────────────
-  const shiftOwner = shift && shift.cashier_id !== user?.id
-    ? (allUsers as any[])?.find((u: any) => u.id === shift.cashier_id)
+  // ── Shift open but belongs to another cashier (non-admins only) ──────
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.is_manager === true || user?.permissions?.includes('manage_shifts')
+  const shiftOwner = shift && shift.cashier_id !== user?.id && !isAdmin
+    ? (shift.cashier_name || (allUsers as any[])?.find((u: any) => u.id === shift.cashier_id)?.full_name || 'موظف آخر')
     : null
 
   if (shiftOwner) return (
@@ -478,16 +484,16 @@ export default function POSPage() {
       <div className="relative z-10 flex-1 flex items-center justify-center">
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center max-w-sm w-full mx-4">
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black text-white" style={{ background: '#c8a84b' }}>
-            {shiftOwner.full_name?.[0]}
+            {typeof shiftOwner === 'string' ? shiftOwner[0] : '؟'}
           </div>
           <h2 className="text-xl font-black text-slate-800 mb-1">الدرج مع موظف آخر</h2>
-          <p className="text-2xl font-black mb-1" style={{ color: '#1e3a5f' }}>{shiftOwner.full_name}</p>
+          <p className="text-2xl font-black mb-1" style={{ color: '#1e3a5f' }}>{shiftOwner}</p>
           <p className="text-slate-400 text-sm mb-2">🏪 {mainWh?.name}</p>
           <p className="text-slate-400 text-xs mb-8">
             رصيد الدرج: <span className="font-bold text-slate-600">{Number(summary?.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
           </p>
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700">
-            لإجراء أي عملية بيع، يجب أن يسلّم <strong>{shiftOwner.full_name}</strong> الدرج إليك أولاً
+            لإجراء أي عملية بيع، يجب أن يسلّم <strong>{shiftOwner}</strong> الدرج إليك أولاً
           </div>
         </div>
       </div>
@@ -602,7 +608,7 @@ export default function POSPage() {
           </button>
           <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} warehouseName={mainWh?.name}
             supervisorName={shift?.supervisor_id ? (allUsers as any[])?.find((u: any) => u.id === shift.supervisor_id)?.full_name : null}
-            wallets={wallets} />
+            wallets={wallets} currentUserId={user?.id} />
 
         </div>
       </div>

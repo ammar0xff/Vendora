@@ -59,6 +59,7 @@ class ShiftSummary(BaseModel):
 class ShiftOut(BaseModel):
     id: uuid.UUID
     cashier_id: Optional[uuid.UUID]
+    cashier_name: Optional[str] = None
     warehouse_id: Optional[uuid.UUID]
     supervisor_id: Optional[uuid.UUID]
     status: ShiftStatus

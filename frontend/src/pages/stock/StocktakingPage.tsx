@@ -24,24 +24,28 @@ export default function StocktakingPage() {
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
 
-  // Reset entries when warehouse changes
+  // Reset entries and refresh balances when warehouse changes
   useEffect(() => {
     setEntries({})
+    qc.invalidateQueries({ queryKey: ['balances-stocktaking'] })
+    qc.invalidateQueries({ queryKey: ['products-all-stocktaking'] })
   }, [activeWarehouseId])
   const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products-all-stocktaking'],
     queryFn: () => productsApi.list({}),
+    staleTime: 0,
   })
 
   const productIds = (products || []).map((p: any) => p.id)
   const { data: balances } = useQuery({
-    queryKey: ['balances-stocktaking', activeWarehouseId, productIds.join(',')],
+    queryKey: ['balances-stocktaking', activeWarehouseId],
     queryFn: () => activeWarehouseId
       ? api.post(`/stock/balance/bulk?warehouse_id=${activeWarehouseId}`, productIds).then(r => r.data)
       : api.post('/stock/balance/total', productIds).then(r => r.data),
     enabled: productIds.length > 0,
+    staleTime: 0,
   })
 
   const filtered = useMemo(() => {
