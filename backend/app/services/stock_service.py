@@ -42,13 +42,15 @@ async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=
         ref_type=ref_type,
     )
     db.add(mv)
-    # When opening stock or any IN movement is recorded, mark product as tracked
-    mt = str(data.movement_type).split('.')[-1]  # handle both "opening_stock" and "MovementType.opening_stock"
-    if mt in ("opening_stock", "purchase", "adjustment_in"):
+    # Mark product as tracked in this specific warehouse when stock is recorded
+    mt = str(data.movement_type).split('.')[-1]
+    if mt in ("opening_stock", "purchase", "adjustment_in", "transfer_in", "return_in"):
         from sqlalchemy import text as sqlt
-        await db.execute(sqlt(
-            "UPDATE products SET stock_status='tracked' WHERE id=:id AND stock_status='untracked'"
-        ), {"id": data.product_id})
+        await db.execute(sqlt("""
+            INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
+            VALUES (:wid, :pid, 'tracked')
+            ON CONFLICT (warehouse_id, product_id) DO UPDATE SET status = 'tracked'
+        """), {"wid": data.warehouse_id, "pid": data.product_id})
     return mv
 
 

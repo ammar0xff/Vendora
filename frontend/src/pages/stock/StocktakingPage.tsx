@@ -33,8 +33,8 @@ export default function StocktakingPage() {
   const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products-all-stocktaking'],
-    queryFn: () => productsApi.list({}),
+    queryKey: ['products-all-stocktaking', activeWarehouseId],
+    queryFn: () => productsApi.list(activeWarehouseId ? { warehouse_id: activeWarehouseId } : {}),
     staleTime: 0,
   })
 
