@@ -105,6 +105,20 @@ MIGRATIONS = [
         INSERT INTO hr_settings (key, value) VALUES ('device_port', '4370') ON CONFLICT (key) DO NOTHING;
         INSERT INTO hr_settings (key, value) VALUES ('device_timeout', '5') ON CONFLICT (key) DO NOTHING;
     """),
+
+    ("v8_warehouse_product_status", """
+        CREATE TABLE IF NOT EXISTS warehouse_product_status (
+            warehouse_id uuid NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
+            product_id   uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            status       text NOT NULL DEFAULT 'untracked',
+            PRIMARY KEY (warehouse_id, product_id)
+        );
+        -- Seed: any product that has movements in a warehouse → tracked in that warehouse
+        INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
+        SELECT DISTINCT warehouse_id, product_id, 'tracked'
+        FROM stock_movements
+        ON CONFLICT DO NOTHING;
+    """),
 ]
 
 def run():

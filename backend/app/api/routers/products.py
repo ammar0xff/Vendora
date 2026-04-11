@@ -100,6 +100,7 @@ async def list_products(
     search: str | None = None,
     subcategory_id: uuid.UUID | None = None,
     category_id: uuid.UUID | None = None,
+    warehouse_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
@@ -110,7 +111,22 @@ async def list_products(
         q = q.where(Product.subcategory_id == subcategory_id)
     if category_id:
         q = q.join(Subcategory).where(Subcategory.category_id == category_id)
-    return (await db.execute(q)).scalars().all()
+    products = (await db.execute(q)).scalars().all()
+
+    if warehouse_id:
+        from sqlalchemy import text as sqlt
+        rows = (await db.execute(sqlt(
+            "SELECT product_id, status FROM warehouse_product_status WHERE warehouse_id = :wid"
+        ), {"wid": warehouse_id})).fetchall()
+        wh_status = {str(r[0]): r[1] for r in rows}
+        result = []
+        for p in products:
+            d = ProductOut.model_validate(p).model_dump()
+            d['stock_status'] = wh_status.get(str(p.id), 'untracked')
+            result.append(d)
+        return result
+
+    return products
 
 
 @router.post("/products", response_model=ProductOut)
