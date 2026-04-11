@@ -6,6 +6,7 @@ export default function ProductForm({ product, onSave, onClose }: any) {
   const [form, setForm] = useState(product || {
     name: '', unit: 'عدد', retail_price: 0, wholesale_price: 0,
     cost_price: 0, barcode: '', subcategory_id: '', company: '',
+    stock_status: 'tracked',
   })
   const [categoryId, setCategoryId] = useState('')
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
