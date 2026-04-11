@@ -113,7 +113,6 @@ MIGRATIONS = [
             status       text NOT NULL DEFAULT 'untracked',
             PRIMARY KEY (warehouse_id, product_id)
         );
-        -- Seed: any product that has movements in a warehouse → tracked in that warehouse
         INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
         SELECT DISTINCT warehouse_id, product_id, 'tracked'
         FROM stock_movements
