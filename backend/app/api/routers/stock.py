@@ -116,6 +116,23 @@ async def add_movement(data: StockMovementCreate, db: AsyncSession = Depends(get
     return mv
 
 
+@router.delete("/movements", status_code=204)
+async def reset_warehouse_stock(
+    warehouse_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    """Delete all stock movements for a warehouse (reset inventory)."""
+    from sqlalchemy import text as sqlt
+    await db.execute(sqlt("DELETE FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})
+    # Reset products that now have no movements anywhere back to untracked
+    await db.execute(sqlt("""
+        UPDATE products SET stock_status = 'untracked'
+        WHERE id NOT IN (SELECT DISTINCT product_id FROM stock_movements)
+    """))
+    await db.commit()
+
+
 @router.get("/movements")
 async def list_movements(
     product_id: uuid.UUID | None = None,

@@ -42,7 +42,7 @@ class Product(Base):
     cost_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     reorder_point: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=0)
     reorder_qty: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=0)
-    stock_status: Mapped[str] = mapped_column(String(32), default="tracked")
+    stock_status: Mapped[str] = mapped_column(String(32), default="untracked")
     # Extra descriptive fields from the original system
     company: Mapped[str | None] = mapped_column(String(128), nullable=True)
     size: Mapped[str | None] = mapped_column(String(64), nullable=True)
