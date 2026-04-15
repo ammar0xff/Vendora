@@ -6,7 +6,7 @@ import api from '../../api/client'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil } from 'lucide-react'
+import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil, ChevronDown, ChevronLeft } from 'lucide-react'
 
 function WalletsTab() {
   const qc = useQueryClient()
@@ -72,6 +72,122 @@ function WalletsTab() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function CategoriesTree({ categories, subcategories, onAddCat, onEditCat, onDeleteCat, onAddSub, onEditSub, onDeleteSub }: any) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(categories.map((c: any) => c.id)))
+  const toggle = (id: string) => setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+
+  const getSubs = (catId: string) => subcategories.filter((s: any) => s.category_id === catId)
+  const totalSubs = subcategories.length
+
+  return (
+    <div className="card max-w-2xl">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="font-bold text-slate-800">الفئات والتصنيفات</h3>
+          <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {totalSubs} تصنيف فرعي</p>
+        </div>
+        <button onClick={onAddCat}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+          style={{ background: '#1e3a5f' }}>
+          <Plus size={13} /> فئة جديدة
+        </button>
+      </div>
+
+      {!categories.length && (
+        <div className="text-center py-12 text-slate-400">
+          <Tag size={32} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">لا توجد فئات — أضف فئة للبدء</p>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        {categories.map((cat: any) => {
+          const subs = getSubs(cat.id)
+          const isOpen = expanded.has(cat.id)
+          return (
+            <div key={cat.id}>
+              {/* Category row */}
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 group transition-colors">
+                {/* Expand toggle */}
+                <button onClick={() => toggle(cat.id)}
+                  className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0 transition-colors">
+                  {subs.length > 0
+                    ? (isOpen ? <ChevronDown size={14} /> : <ChevronLeft size={14} />)
+                    : <span className="w-3.5 h-px bg-slate-200 block" />}
+                </button>
+                {/* Icon */}
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#1e3a5f15' }}>
+                  <Tag size={13} style={{ color: '#1e3a5f' }} />
+                </div>
+                {/* Name */}
+                <span className="flex-1 font-semibold text-sm text-slate-800">{cat.name}</span>
+                {/* Sub count badge */}
+                {subs.length > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">{subs.length}</span>
+                )}
+                {/* Actions — show on hover */}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => onAddSub(cat.id)}
+                    className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600 transition-colors" title="إضافة تصنيف فرعي">
+                    <Plus size={13} />
+                  </button>
+                  <button onClick={() => onEditCat(cat)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600 transition-colors" title="تعديل">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={() => onDeleteCat(cat.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors" title="حذف">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Subcategories */}
+              {isOpen && subs.length > 0 && (
+                <div className="mr-10 mb-1 border-r-2 border-slate-100 pr-3 space-y-0.5">
+                  {subs.map((sub: any) => (
+                    <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 group transition-colors">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#c8a84b18' }}>
+                        <Layers size={11} style={{ color: '#c8a84b' }} />
+                      </div>
+                      <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => onEditSub(sub)}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600 transition-colors" title="تعديل">
+                          <Pencil size={12} />
+                        </button>
+                        <button onClick={() => onDeleteSub(sub.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors" title="حذف">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Add sub inline */}
+                  <button onClick={() => onAddSub(cat.id)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
+                    <Plus size={12} /> إضافة تصنيف فرعي
+                  </button>
+                </div>
+              )}
+
+              {/* Empty category — show add sub prompt */}
+              {isOpen && subs.length === 0 && (
+                <div className="mr-10 mb-1 border-r-2 border-slate-100 pr-3">
+                  <button onClick={() => onAddSub(cat.id)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
+                    <Plus size={12} /> إضافة تصنيف فرعي
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -268,37 +384,16 @@ export default function SettingsPage() {
 
       {/* Categories */}
       {tab === 'categories' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-700">الفئات الرئيسية ({categories?.length || 0})</h3>
-              <button onClick={() => setShowAddCat(true)} className="btn-primary btn-sm"><Plus size={14} /> إضافة</button>
-            </div>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {categories?.map((c: any) => (
-                <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <span className="font-medium text-sm text-slate-700">{c.name}</span>
-                  <div className="flex gap-1"><button onClick={() => setEditCat(c)} className="text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={14} /></button><button onClick={() => { if (confirm('حذف الفئة؟')) deleteCat.mutate(c.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button></div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-700">التصنيفات الفرعية ({subcategories?.length || 0})</h3>
-              <button onClick={() => setShowAddSub(true)} className="btn-primary btn-sm"><Plus size={14} /> إضافة</button>
-            </div>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {subcategories?.map((s: any) => (
-                <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <span className="font-medium text-sm text-slate-700">{s.name}</span>
-                  <div className="flex gap-1"><button onClick={() => setEditSub(s)} className="text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={14} /></button><button onClick={() => { if (confirm('حذف التصنيف؟')) deleteSub.mutate(s.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <CategoriesTree
+          categories={categories || []}
+          subcategories={subcategories || []}
+          onAddCat={() => setShowAddCat(true)}
+          onEditCat={setEditCat}
+          onDeleteCat={(id: string) => { if (confirm('حذف الفئة وكل تصنيفاتها الفرعية؟')) deleteCat.mutate(id) }}
+          onAddSub={(catId: string) => { setSelectedCatForSub(catId); setShowAddSub(true) }}
+          onEditSub={setEditSub}
+          onDeleteSub={(id: string) => { if (confirm('حذف التصنيف؟')) deleteSub.mutate(id) }}
+        />
       )}
 
       {/* Product options */}
