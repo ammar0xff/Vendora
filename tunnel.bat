@@ -2,7 +2,7 @@
 setlocal
 
 :: ── CONFIG ──────────────────────────────────────────────────────────────────
-set NGROK_TOKEN=YOUR_NGROK_AUTHTOKEN_HERE
+set NGROK_TOKEN=2j3Qyz6zRbqTrHa8rfNP3h4ZCw4_3XYfFRrg6Eee36ZJKnbtU
 set SSH_PORT=22
 :: ─────────────────────────────────────────────────────────────────────────────
 
