@@ -76,112 +76,181 @@ function WalletsTab() {
   )
 }
 
-function CategoriesTree({ categories, subcategories, onAddCat, onEditCat, onDeleteCat, onAddSub, onEditSub, onDeleteSub }: any) {
+function CategoriesTree({ categories, subcategories }: { categories: any[], subcategories: any[] }) {
+  const qc = useQueryClient()
   const [expanded, setExpanded] = useState<Set<string>>(new Set(categories.map((c: any) => c.id)))
-  const toggle = (id: string) => setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  // editing: { type: 'cat'|'sub'|'new-cat'|'new-sub', id?, catId?, name }
+  const [editing, setEditing] = useState<any>(null)
 
+  const toggle = (id: string) => setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   const getSubs = (catId: string) => subcategories.filter((s: any) => s.category_id === catId)
-  const totalSubs = subcategories.length
+
+  const saveCat = useMutation({
+    mutationFn: (e: any) => e.id ? categoriesApi.update(e.id, e.name) : categoriesApi.create(e.name),
+    onSuccess: (_, e) => {
+      toast.success(e.id ? 'تم التعديل' : 'تمت الإضافة')
+      setEditing(null)
+      qc.invalidateQueries({ queryKey: ['categories'] })
+    },
+    onError: () => toast.error('فشل الحفظ — تأكد من الاتصال'),
+  })
+
+  const saveSub = useMutation({
+    mutationFn: (e: any) => e.id
+      ? subcategoriesApi.update(e.id, e.catId, e.name)
+      : subcategoriesApi.create(e.catId, e.name),
+    onSuccess: (_, e) => {
+      toast.success(e.id ? 'تم التعديل' : 'تمت الإضافة')
+      setEditing(null)
+      qc.invalidateQueries({ queryKey: ['subcategories'] })
+    },
+    onError: () => toast.error('فشل الحفظ — تأكد من الاتصال'),
+  })
+
+  const deleteCat = useMutation({
+    mutationFn: categoriesApi.delete,
+    onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['categories'] }); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
+    onError: () => toast.error('فشل الحذف — قد تكون الفئة مرتبطة بمنتجات'),
+  })
+
+  const deleteSub = useMutation({
+    mutationFn: subcategoriesApi.delete,
+    onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
+    onError: () => toast.error('فشل الحذف — قد يكون التصنيف مرتبطاً بمنتجات'),
+  })
+
+  const handleSave = () => {
+    if (!editing?.name?.trim()) { toast.error('الاسم مطلوب'); return }
+    if (editing.type === 'cat' || editing.type === 'new-cat') saveCat.mutate(editing)
+    else saveSub.mutate(editing)
+  }
+
+  const isSaving = saveCat.isPending || saveSub.isPending
+
+  // Inline input row
+  const InlineInput = ({ onCancel }: { onCancel: () => void }) => (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200">
+      <input autoFocus className="flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder-slate-400"
+        placeholder="اكتب الاسم..."
+        value={editing?.name || ''}
+        onChange={e => setEditing((p: any) => ({ ...p, name: e.target.value }))}
+        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel() }} />
+      <button onClick={handleSave} disabled={isSaving}
+        className="px-3 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+        style={{ background: '#1e3a5f' }}>
+        {isSaving ? '...' : 'حفظ'}
+      </button>
+      <button onClick={onCancel} className="px-2 py-1 rounded-lg text-xs text-slate-500 hover:bg-slate-100">إلغاء</button>
+    </div>
+  )
 
   return (
     <div className="card max-w-2xl">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-bold text-slate-800">الفئات والتصنيفات</h3>
-          <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {totalSubs} تصنيف فرعي</p>
+          <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {subcategories.length} تصنيف فرعي</p>
         </div>
-        <button onClick={onAddCat}
+        <button onClick={() => setEditing({ type: 'new-cat', name: '' })}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
           style={{ background: '#1e3a5f' }}>
           <Plus size={13} /> فئة جديدة
         </button>
       </div>
 
-      {!categories.length && (
-        <div className="text-center py-12 text-slate-400">
-          <Tag size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">لا توجد فئات — أضف فئة للبدء</p>
+      {/* New category input */}
+      {editing?.type === 'new-cat' && (
+        <div className="mb-3">
+          <InlineInput onCancel={() => setEditing(null)} />
         </div>
       )}
 
-      <div className="space-y-1">
+      {!categories.length && !editing && (
+        <div className="text-center py-10 text-slate-400">
+          <Tag size={28} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">لا توجد فئات — اضغط "فئة جديدة" للبدء</p>
+        </div>
+      )}
+
+      <div className="space-y-0.5">
         {categories.map((cat: any) => {
           const subs = getSubs(cat.id)
           const isOpen = expanded.has(cat.id)
+          const isEditingCat = editing?.type === 'cat' && editing?.id === cat.id
+
           return (
             <div key={cat.id}>
               {/* Category row */}
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 group transition-colors">
-                {/* Expand toggle */}
-                <button onClick={() => toggle(cat.id)}
-                  className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0 transition-colors">
-                  {subs.length > 0
-                    ? (isOpen ? <ChevronDown size={14} /> : <ChevronLeft size={14} />)
-                    : <span className="w-3.5 h-px bg-slate-200 block" />}
-                </button>
-                {/* Icon */}
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#1e3a5f15' }}>
-                  <Tag size={13} style={{ color: '#1e3a5f' }} />
-                </div>
-                {/* Name */}
-                <span className="flex-1 font-semibold text-sm text-slate-800">{cat.name}</span>
-                {/* Sub count badge */}
-                {subs.length > 0 && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">{subs.length}</span>
-                )}
-                {/* Actions — show on hover */}
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => onAddSub(cat.id)}
-                    className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600 transition-colors" title="إضافة تصنيف فرعي">
-                    <Plus size={13} />
+              {isEditingCat ? (
+                <div className="mb-1"><InlineInput onCancel={() => setEditing(null)} /></div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 group transition-colors">
+                  <button onClick={() => toggle(cat.id)}
+                    className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0">
+                    {subs.length > 0
+                      ? (isOpen ? <ChevronDown size={14} /> : <ChevronLeft size={14} />)
+                      : <span className="w-3 h-px bg-slate-200 block" />}
                   </button>
-                  <button onClick={() => onEditCat(cat)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600 transition-colors" title="تعديل">
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => onDeleteCat(cat.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors" title="حذف">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Subcategories */}
-              {isOpen && subs.length > 0 && (
-                <div className="mr-10 mb-1 border-r-2 border-slate-100 pr-3 space-y-0.5">
-                  {subs.map((sub: any) => (
-                    <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 group transition-colors">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#c8a84b18' }}>
-                        <Layers size={11} style={{ color: '#c8a84b' }} />
-                      </div>
-                      <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => onEditSub(sub)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600 transition-colors" title="تعديل">
-                          <Pencil size={12} />
-                        </button>
-                        <button onClick={() => onDeleteSub(sub.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors" title="حذف">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {/* Add sub inline */}
-                  <button onClick={() => onAddSub(cat.id)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
-                    <Plus size={12} /> إضافة تصنيف فرعي
-                  </button>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#1e3a5f12' }}>
+                    <Tag size={13} style={{ color: '#1e3a5f' }} />
+                  </div>
+                  <span className="flex-1 font-semibold text-sm text-slate-800">{cat.name}</span>
+                  {subs.length > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{subs.length}</span>
+                  )}
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
+                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="إضافة تصنيف فرعي">
+                      <Plus size={13} />
+                    </button>
+                    <button onClick={() => setEditing({ type: 'cat', id: cat.id, name: cat.name })}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل">
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => { if (confirm(`حذف "${cat.name}" وكل تصنيفاتها الفرعية (${subs.length})؟`)) deleteCat.mutate(cat.id) }}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Empty category — show add sub prompt */}
-              {isOpen && subs.length === 0 && (
-                <div className="mr-10 mb-1 border-r-2 border-slate-100 pr-3">
-                  <button onClick={() => onAddSub(cat.id)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
-                    <Plus size={12} /> إضافة تصنيف فرعي
-                  </button>
+              {/* Subcategories */}
+              {isOpen && (
+                <div className="mr-10 border-r-2 border-slate-100 pr-3 mb-1 space-y-0.5">
+                  {subs.map((sub: any) => {
+                    const isEditingSub = editing?.type === 'sub' && editing?.id === sub.id
+                    return isEditingSub ? (
+                      <div key={sub.id}><InlineInput onCancel={() => setEditing(null)} /></div>
+                    ) : (
+                      <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 group transition-colors">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#c8a84b15' }}>
+                          <Layers size={11} style={{ color: '#c8a84b' }} />
+                        </div>
+                        <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => setEditing({ type: 'sub', id: sub.id, catId: sub.category_id, name: sub.name })}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل">
+                            <Pencil size={12} />
+                          </button>
+                          <button onClick={() => { if (confirm(`حذف "${sub.name}"؟`)) deleteSub.mutate(sub.id) }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* New sub input */}
+                  {editing?.type === 'new-sub' && editing?.catId === cat.id ? (
+                    <InlineInput onCancel={() => setEditing(null)} />
+                  ) : (
+                    <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
+                      <Plus size={11} /> تصنيف فرعي جديد
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -384,16 +453,7 @@ export default function SettingsPage() {
 
       {/* Categories */}
       {tab === 'categories' && (
-        <CategoriesTree
-          categories={categories || []}
-          subcategories={subcategories || []}
-          onAddCat={() => setShowAddCat(true)}
-          onEditCat={setEditCat}
-          onDeleteCat={(id: string) => { if (confirm('حذف الفئة وكل تصنيفاتها الفرعية؟')) deleteCat.mutate(id) }}
-          onAddSub={(catId: string) => { setSelectedCatForSub(catId); setShowAddSub(true) }}
-          onEditSub={setEditSub}
-          onDeleteSub={(id: string) => { if (confirm('حذف التصنيف؟')) deleteSub.mutate(id) }}
-        />
+        <CategoriesTree categories={categories || []} subcategories={subcategories || []} />
       )}
 
       {/* Product options */}
