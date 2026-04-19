@@ -59,11 +59,13 @@ def deploy():
 
 
 def deploy_fast():
-    """Update code WITHOUT backup — faster, no safety net."""
-    confirm = input("⚠️  Deploy without backup? Type 'yes' to confirm: ")
+    """Update code WITHOUT manual backup — auto-backs up first."""
+    confirm = input("⚠️  Deploy? (auto-backup will run first) Type 'yes' to confirm: ")
     if confirm.strip().lower() != "yes":
         print("Cancelled.")
         return
+    print("💾 Auto-backup before deploy...")
+    backup()
     print("🚀 Fast deploy...")
     compose("build")
     compose("up", "-d")
