@@ -1032,10 +1032,10 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
 
     # Check if this shift was handed over — get receiver from archived handover doc
     handover_row = await db.execute(text("""
-        SELECT metadata_ FROM archived_documents
+        SELECT metadata FROM archived_documents
         WHERE doc_type = 'shift_handover'
-        AND (metadata_->>'from_shift')::text = :sid
-        OR metadata_->>'from_user' IS NOT NULL
+        AND (metadata->>'from_shift')::text = :sid
+        OR metadata->>'from_user' IS NOT NULL
         ORDER BY created_at DESC LIMIT 1
     """), {"sid": str(shift_id)})
     handover = handover_row.fetchone()
