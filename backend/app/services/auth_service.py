@@ -21,6 +21,8 @@ def issue_token(user: User) -> dict:
 
 async def create_user(db: AsyncSession, data) -> User:
     from app.core.roles import ROLE_DEFAULT_PERMISSIONS
+    from sqlalchemy.exc import IntegrityError
+    from fastapi import HTTPException
     user = User(
         username=data.username,
         full_name=data.full_name,
@@ -29,7 +31,11 @@ async def create_user(db: AsyncSession, data) -> User:
         permissions=ROLE_DEFAULT_PERMISSIONS.get(data.role, []),
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(400, f"اسم المستخدم '{data.username}' مستخدم بالفعل")
     await db.refresh(user)
     return user
 

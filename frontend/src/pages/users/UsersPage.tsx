@@ -157,7 +157,7 @@ export default function UsersPage() {
 
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: usersApi.list })
 
-  const createMut = useMutation({ mutationFn: usersApi.create, onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: () => toast.error('فشل') })
+  const createMut = useMutation({ mutationFn: usersApi.create, onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل إضافة المستخدم') })
   const updateMut = useMutation({ mutationFn: ({ id, data }: any) => usersApi.update(id, data), onSuccess: () => { toast.success('تم التحديث'); setEditUser(null); qc.invalidateQueries({ queryKey: ['users'] }) } })
   const resetMut = useMutation({ mutationFn: ({ id, password }: any) => api.post(`/users/${id}/reset-password`, { password }), onSuccess: () => toast.success('تم تغيير كلمة المرور') })
   const deleteMut = useMutation({ mutationFn: usersApi.delete, onSuccess: () => { toast.success('تم التعطيل'); qc.invalidateQueries({ queryKey: ['users'] }) } })
