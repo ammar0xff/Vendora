@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import { Truck, PackagePlus, ClipboardList, ChevronDown, ChevronLeft, Plus, Minus, X, Search } from 'lucide-react'
 import { clsx } from 'clsx'
 
-type OpType = 'dispatch' | 'goods_receipt' | 'stock_request'
+type OpType = 'dispatch' | 'goods_receipt'
 
 interface CartItem { product_id: string; name: string; unit: string; qty: number; unit_cost: number }
 
@@ -110,8 +110,6 @@ export default function OperationsPage() {
         return api.post('/operations/dispatch', { from_warehouse_id: fromWh, to_warehouse_id: toWh, items: payload, notes }).then(r => r.data)
       if (activeOp === 'goods_receipt')
         return api.post('/operations/goods-receipt', { warehouse_id: toWh, supplier_name: supplier, items: payload, notes }).then(r => r.data)
-      if (activeOp === 'stock_request')
-        return api.post('/operations/stock-request', { from_warehouse_id: fromWh, to_warehouse_id: toWh, items: payload, notes }).then(r => r.data)
     },
     onSuccess: (data: any) => {
       toast.success(`✅ تم إنشاء المستند ${data.doc_number}`)
@@ -124,15 +122,14 @@ export default function OperationsPage() {
 
   const opConfig = {
     dispatch:      { label: 'إذن صرف', icon: Truck,         color: '#1e3a5f', desc: 'نقل بضاعة من مخزن إلى معرض' },
-    goods_receipt: { label: 'استلام بضاعة', icon: PackagePlus, color: '#16a34a', desc: 'استلام بضاعة جديدة من تاجر' },
-    stock_request: { label: 'طلب نواقص', icon: ClipboardList, color: '#c8a84b', desc: 'طلب توريد من مخزن' },
+    goods_receipt: { label: 'استلام مشتريات', icon: PackagePlus, color: '#16a34a', desc: 'استلام بضاعة جديدة من تاجر' },
   }
 
   const docTypeLabel: Record<string, string> = {
-    dispatch_order: 'إذن صرف', goods_receipt: 'استلام بضاعة', stock_request: 'طلب نواقص'
+    dispatch_order: 'إذن صرف', goods_receipt: 'استلام مشتريات', stock_request: 'استلام مشتريات'
   }
   const docTypeBadge: Record<string, string> = {
-    dispatch_order: 'badge-blue', goods_receipt: 'badge-green', stock_request: 'badge-yellow'
+    dispatch_order: 'badge-blue', goods_receipt: 'badge-green', stock_request: 'badge-green'
   }
 
   const showrooms = warehouses?.filter((w: any) => w.warehouse_type === 'showroom') || []
@@ -143,7 +140,7 @@ export default function OperationsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">العمليات والمستندات</h1>
-          <p className="text-slate-500 text-sm mt-1">إذونات الصرف — استلام البضاعة — طلبات النواقص</p>
+          <p className="text-slate-500 text-sm mt-1">إذونات الصرف — استلام المشتريات</p>
         </div>
       </div>
 
@@ -218,7 +215,7 @@ export default function OperationsPage() {
               )}
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">
-                  {activeOp === 'dispatch' ? 'إلى المعرض' : activeOp === 'goods_receipt' ? 'المخزن المستلِم' : 'المعرض الطالب'}
+                  {activeOp === 'dispatch' ? 'إلى المعرض' : 'المخزن المستلِم'}
                 </label>
                 <select className="input" value={toWh} onChange={e => setToWh(e.target.value)}>
                   <option value="">اختر...</option>

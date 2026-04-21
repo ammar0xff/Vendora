@@ -14,8 +14,8 @@ const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; prin
   quotation:       { label: 'عرض سعر',          icon: FileText,      color: '#c8a84b', printPath: d => printUrl(`/print/sale/${d.ref_id}`),             pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
   purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,   color: '#7c3aed', printPath: d => printUrl(`/print/purchase/${d.ref_id}`),         pdfPath: d => pdfUrl(`/print/pdf/purchase/${d.ref_id}`) },
   dispatch_order:  { label: 'إذن صرف',          icon: Truck,         color: '#1e3a5f', printPath: d => printUrl(`/print/dispatch/${d.doc_number}`),     pdfPath: d => pdfUrl(`/print/pdf/dispatch/${d.doc_number}`) },
-  goods_receipt:   { label: 'استلام بضاعة',     icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  stock_request:   { label: 'طلب نواقص',        icon: ClipboardList, color: '#d97706', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  goods_receipt:   { label: 'استلام مشتريات',  icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  stock_request:   { label: 'استلام مشتريات',  icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
   shift_report:    { label: 'تقرير وردية',      icon: BarChart2,     color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
   shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,     color: '#dc2626', printPath: d => printUrl(`/print/handover/${d.doc_number}`),     pdfPath: d => pdfUrl(`/print/pdf/handover/${d.doc_number}`) },
   inventory_report:{ label: 'تقرير مخزون',      icon: BarChart2,     color: '#059669', printPath: d => printUrl(`/print/archive/${d.id}`) },
@@ -27,7 +27,7 @@ const TYPE_FILTERS = [
   { key: 'quotation',      label: 'عروض أسعار' },
   { key: 'dispatch_order', label: 'إذونات صرف' },
   { key: 'shift_handover', label: 'تسليم عهدة' },
-  { key: 'goods_receipt',  label: 'استلام بضاعة' },
+  { key: 'goods_receipt',  label: 'استلام مشتريات' },
   { key: 'purchase_invoice', label: 'فواتير مشتريات' },
   { key: 'safe_deposit', label: 'توريد خزنة' },
 ]
@@ -95,7 +95,7 @@ export default function ArchivePage() {
           summary = `${meta.from_user_name || meta.from_user || '—'} → ${meta.to_user_name || meta.to_user || '—'}`
           if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`
         } else if (d.doc_type === 'goods_receipt') {
-          summary = meta.supplier || meta.from || 'استلام بضاعة'
+          summary = meta.supplier || meta.from || 'استلام مشتريات'
           if (meta.items?.length) sub = `${meta.items.length} صنف`
         } else {
           summary = d.customer_name || meta.warehouse || ''
