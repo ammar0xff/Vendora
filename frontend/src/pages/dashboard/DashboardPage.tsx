@@ -170,7 +170,7 @@ function StorekeeperDashboard({ whId }: any) {
         <div className="card p-4">
           <h3 className="font-bold text-slate-700 mb-3 text-sm">إجراءات سريعة</h3>
           <div className="grid grid-cols-2 gap-2">
-            {[{ label: 'الأصناف', icon: '📦', to: '/inventory' }, { label: 'إذن صرف', icon: '🚚', to: '/operations' }, { label: 'استلام بضاعة', icon: '📥', to: '/purchases' }, { label: 'اقتراحات شراء', icon: '🛒', to: '/purchase-orders' }].map(({ label, icon, to }) => (
+            {[{ label: 'الأصناف', icon: '📦', to: '/inventory' }, { label: 'إذن صرف', icon: '🚚', to: '/operations' }, { label: 'استلام مشتريات', icon: '📥', to: '/purchases' }, { label: 'اقتراحات شراء', icon: '🛒', to: '/purchase-orders' }].map(({ label, icon, to }) => (
               <button key={to} onClick={() => navigate(to)} className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
                 <span className="text-lg">{icon}</span><span className="text-xs font-semibold text-slate-700">{label}</span>
               </button>
