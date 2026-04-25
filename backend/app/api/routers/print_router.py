@@ -597,14 +597,14 @@ async def print_handover(doc_number: str, token: str = Query(None),
     sale_items_map = {}
     if sales and shift_id:
         sale_ids = [str(s['id']) for s in sales]
-        items_data = await db.execute(text("""
+        items_data = await db.execute(text(f"""
             SELECT si.sale_id, p.name as product_name, p.unit,
                    si.qty, si.unit_price, (si.qty * si.unit_price - si.discount) as line_total
             FROM sale_items si JOIN products p ON p.id = si.product_id
-            WHERE si.sale_id = ANY(:ids)
+            WHERE si.sale_id = ANY(ARRAY[{','.join(f"'{i}'" for i in sale_ids)}]::uuid[])
             ORDER BY si.sale_id, si.id
-        """), {"ids": sale_ids})
-        for row in items_data.fetchall():
+        """)) if sale_ids else None
+        for row in items_data.fetchall() if items_data else []:
             r = dict(row._mapping)
             sid = str(r['sale_id'])
             sale_items_map.setdefault(sid, []).append(r)
