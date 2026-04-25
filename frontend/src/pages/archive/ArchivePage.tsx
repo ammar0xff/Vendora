@@ -3,33 +3,33 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { archiveApi } from '../../api/endpoints'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ClipboardList, ShoppingBag, Info, Wallet, FileDown } from 'lucide-react'
+import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ShoppingBag, Wallet } from 'lucide-react'
 
 const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-const printUrl = (path: string) => `/api${path}?token=${getToken()}`
 const pdfUrl = (path: string) => `/api${path}?token=${getToken()}`
 
-const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; printPath?: (d: any) => string; pdfPath?: (d: any) => string }> = {
-  sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,       color: '#16a34a', printPath: d => printUrl(`/print/sale/${d.ref_id}`),             pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
-  quotation:       { label: 'عرض سعر',          icon: FileText,      color: '#c8a84b', printPath: d => printUrl(`/print/sale/${d.ref_id}`),             pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
-  purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,   color: '#7c3aed', printPath: d => printUrl(`/print/purchase/${d.ref_id}`),         pdfPath: d => pdfUrl(`/print/pdf/purchase/${d.ref_id}`) },
-  dispatch_order:  { label: 'إذن صرف',          icon: Truck,         color: '#1e3a5f', printPath: d => printUrl(`/print/dispatch/${d.doc_number}`),     pdfPath: d => pdfUrl(`/print/pdf/dispatch/${d.doc_number}`) },
-  goods_receipt:   { label: 'استلام مشتريات',  icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  stock_request:   { label: 'استلام مشتريات',  icon: Package,       color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  shift_report:    { label: 'تقرير وردية',      icon: BarChart2,     color: '#0891b2', printPath: d => printUrl(`/print/archive/${d.id}`),              pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,     color: '#dc2626', printPath: d => printUrl(`/print/handover/${d.doc_number}`),     pdfPath: d => pdfUrl(`/print/pdf/handover/${d.doc_number}`) },
-  inventory_report:{ label: 'تقرير مخزون',      icon: BarChart2,     color: '#059669', printPath: d => printUrl(`/print/archive/${d.id}`) },
+const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; pdfPath?: (d: any) => string }> = {
+  sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,    color: '#16a34a', pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
+  quotation:       { label: 'عرض سعر',          icon: FileText,   color: '#c8a84b', pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
+  purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,color: '#7c3aed', pdfPath: d => pdfUrl(`/print/pdf/purchase/${d.ref_id}`) },
+  dispatch_order:  { label: 'إذن صرف',          icon: Truck,      color: '#1e3a5f', pdfPath: d => pdfUrl(`/print/pdf/dispatch/${d.doc_number}`) },
+  goods_receipt:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  stock_request:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  shift_report:    { label: 'تقرير وردية',      icon: BarChart2,  color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,  color: '#dc2626', pdfPath: d => pdfUrl(`/print/pdf/handover/${d.doc_number}`) },
+  inventory_report:{ label: 'تقرير مخزون',      icon: BarChart2,  color: '#059669', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  safe_deposit:    { label: 'توريد خزنة',       icon: Wallet,     color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
 }
 
 const TYPE_FILTERS = [
   { key: '', label: 'الكل' },
-  { key: 'sale_invoice',   label: 'فواتير' },
-  { key: 'quotation',      label: 'عروض أسعار' },
-  { key: 'dispatch_order', label: 'إذونات صرف' },
-  { key: 'shift_handover', label: 'تسليم عهدة' },
-  { key: 'goods_receipt',  label: 'استلام مشتريات' },
-  { key: 'purchase_invoice', label: 'فواتير مشتريات' },
-  { key: 'safe_deposit', label: 'توريد خزنة' },
+  { key: 'sale_invoice',    label: 'فواتير مبيعات' },
+  { key: 'quotation',       label: 'عروض أسعار' },
+  { key: 'purchase_invoice',label: 'فواتير مشتريات' },
+  { key: 'dispatch_order',  label: 'إذونات صرف' },
+  { key: 'goods_receipt',   label: 'استلام مشتريات' },
+  { key: 'shift_handover',  label: 'تسليم عهدة' },
+  { key: 'safe_deposit',    label: 'توريد خزنة' },
 ]
 
 export default function ArchivePage() {
@@ -39,7 +39,6 @@ export default function ArchivePage() {
   const [docType, setDocType] = useState('')
   const qc = useQueryClient()
 
-  // Fetch ALL docs once — filter client-side
   const { data: docs, isLoading } = useQuery({
     queryKey: ['archive'],
     queryFn: () => archiveApi.list({ limit: 1000 }),
@@ -49,6 +48,7 @@ export default function ArchivePage() {
   const deleteMut = useMutation({
     mutationFn: archiveApi.delete,
     onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['archive'] }) },
+    onError: () => toast.error('فشل الحذف'),
   })
 
   const counts = useMemo(() =>
@@ -71,30 +71,28 @@ export default function ArchivePage() {
         const cfg = DOC_CONFIG[d.doc_type]
         const Icon = cfg?.icon || FileText
         const meta = d.metadata_ || d.metadata || {}
-
-        // Build human-readable summary based on doc type
         let summary = ''
         let sub = ''
+
         if (d.doc_type === 'sale_invoice' || d.doc_type === 'quotation') {
           summary = d.customer_name || 'عميل نقدي'
           if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`
           if (meta.items?.length) sub += `  ·  ${meta.items.length} صنف`
         } else if (d.doc_type === 'safe_deposit') {
           summary = meta.safe_name || 'خزنة'
-          if (meta.received_by) sub = `استلم: ${meta.received_by}`
-          if (d.amount) sub += `  ·  ${Number(d.amount).toLocaleString('ar-EG')} ج.م`
+          if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`
+          if (meta.received_by) sub += `  ·  استلم: ${meta.received_by}`
         } else if (d.doc_type === 'purchase_invoice') {
           summary = meta.supplier || 'مورد غير محدد'
           if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`
           if (meta.items_count) sub += `  ·  ${meta.items_count} صنف`
-          if (meta.received_by) sub += `  ·  استلم: ${meta.received_by}`
         } else if (d.doc_type === 'dispatch_order') {
-          summary = `${meta.from_warehouse || '—'} ← ${meta.to_warehouse || '—'}`
+          summary = `${meta.from_warehouse || meta.from || '—'} ← ${meta.to_warehouse || meta.to || '—'}`
           if (meta.items?.length) sub = `${meta.items.length} صنف`
         } else if (d.doc_type === 'shift_handover') {
           summary = `${meta.from_user_name || meta.from_user || '—'} → ${meta.to_user_name || meta.to_user || '—'}`
           if (d.amount) sub = `${Number(d.amount).toLocaleString('ar-EG')} ج.م`
-        } else if (d.doc_type === 'goods_receipt') {
+        } else if (d.doc_type === 'goods_receipt' || d.doc_type === 'stock_request') {
           summary = meta.supplier || meta.from || 'استلام مشتريات'
           if (meta.items?.length) sub = `${meta.items.length} صنف`
         } else {
@@ -103,28 +101,22 @@ export default function ArchivePage() {
 
         return (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: (cfg?.color || '#64748b') + '15' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: (cfg?.color || '#64748b') + '15' }}>
               <Icon size={16} style={{ color: cfg?.color || '#64748b' }} />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+                  style={{ background: (cfg?.color || '#64748b') + '15', color: cfg?.color || '#64748b' }}>
+                  {cfg?.label || d.doc_type}
+                </span>
                 <p className="font-mono text-xs text-slate-400">{d.doc_number}</p>
               </div>
-              {summary && <p className="font-bold text-slate-800 text-sm truncate">{summary}</p>}
+              {summary && <p className="font-semibold text-slate-800 text-sm truncate mt-0.5">{summary}</p>}
               {sub && <p className="text-xs text-slate-400">{sub}</p>}
             </div>
           </div>
-        )
-      }
-    },
-    {
-      key: 'doc_type', label: 'النوع', width: '130px', render: (d: any) => {
-        const cfg = DOC_CONFIG[d.doc_type]
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
-            style={{ background: (cfg?.color || '#64748b') + '15', color: cfg?.color || '#64748b' }}>
-            {cfg?.label || d.doc_type}
-          </span>
         )
       }
     },
@@ -133,37 +125,20 @@ export default function ArchivePage() {
         <div>
           <p className="text-sm text-slate-600">{new Date(d.created_at).toLocaleDateString('ar-EG')}</p>
           <p className="text-xs text-slate-400">{new Date(d.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
+          {d.created_by_name && <p className="text-xs text-slate-400 mt-0.5">👤 {d.created_by_name}</p>}
         </div>
       )
     },
     {
-      key: 'actions', label: '', width: '90px', render: (d: any) => {
+      key: 'actions', label: '', width: '70px', render: (d: any) => {
         const cfg = DOC_CONFIG[d.doc_type]
         return (
           <div className="flex gap-1 justify-end">
-            {/* Info tooltip */}
-            <div className="relative group">
-              <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600">
-                <Info size={14} />
-              </button>
-              <div className="absolute left-0 top-full mt-1 w-56 bg-slate-800 text-white text-xs rounded-xl p-3 shadow-xl z-50 hidden group-hover:block">
-                <p className="font-bold mb-1">{d.doc_number}</p>
-                <p className="text-slate-300">📅 {new Date(d.created_at).toLocaleString('ar-EG')}</p>
-                {d.created_by_name && <p className="text-slate-300 mt-1">👤 {d.created_by_name}</p>}
-              </div>
-            </div>
-            {cfg?.printPath && (
-              <button onClick={e => { e.stopPropagation(); window.open(cfg.pdfPath ? cfg.pdfPath!(d) : cfg.printPath!(d), '_blank') }}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="طباعة">
+            {cfg?.pdfPath && (
+              <button onClick={e => { e.stopPropagation(); window.open(cfg.pdfPath!(d), '_blank') }}
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="طباعة / PDF">
                 <Printer size={14} />
               </button>
-            )}
-            {cfg?.pdfPath && (
-              <a href={cfg.pdfPath!(d)} target="_blank" rel="noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center" title="تحميل PDF">
-                <FileDown size={14} />
-              </a>
             )}
             <button onClick={e => { e.stopPropagation(); if (confirm('حذف المستند؟')) deleteMut.mutate(d.id) }}
               className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
@@ -185,7 +160,7 @@ export default function ArchivePage() {
       </div>
 
       {/* Type filter pills */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
         {TYPE_FILTERS.map(({ key, label }) => {
           const count = key ? (counts[key] || 0) : (docs?.length || 0)
           if (key && !count) return null
@@ -204,14 +179,14 @@ export default function ArchivePage() {
         })}
       </div>
 
-      {/* Filters row */}
+      {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap items-center">
         <div className="relative">
           <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input className="input pr-9 text-sm w-56" placeholder="بحث برقم المستند أو العميل..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <input type="date" className="input text-sm w-40" value={fromDate} onChange={e => setFromDate(e.target.value)} placeholder="من تاريخ" />
-        <input type="date" className="input text-sm w-40" value={toDate} onChange={e => setToDate(e.target.value)} placeholder="إلى تاريخ" />
+        <input type="date" className="input text-sm w-40" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+        <input type="date" className="input text-sm w-40" value={toDate} onChange={e => setToDate(e.target.value)} />
         {(fromDate || toDate || search) && (
           <button onClick={() => { setSearch(''); setFromDate(''); setToDate('') }}
             className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50">✕ مسح</button>
