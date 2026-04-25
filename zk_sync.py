@@ -85,6 +85,8 @@ def main():
 
     # Post each record to ERP
     added = updated = skipped = 0
+    for rec in records[:3]:  # print first 3 for debugging
+        print(f"  DEBUG rec: {rec}")
     for rec in records:
         r = requests.post(f'{args.api}/api/hr/attendance/from-device', json=rec, headers=headers)
         if r.status_code == 200:
@@ -93,7 +95,7 @@ def main():
             elif action == 'updated': updated += 1
             else:                    skipped += 1
         else:
-            print(f"  WARN emp={rec['emp_id']} {rec.get('check_in','')[:10]}: {r.status_code} {r.text[:80]}")
+            print(f"  WARN emp={rec['emp_id']} {rec.get('check_in','')[:10]}: {r.status_code} {r.text[:200]}")
 
     print(f"Done — added={added} updated={updated} skipped={skipped}")
 
