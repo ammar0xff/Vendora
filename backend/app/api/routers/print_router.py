@@ -420,7 +420,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
   <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
     <tr>
       <td style="width:42%;padding:6px 10px;border:1px solid #ccc;border-right:2px solid #111;vertical-align:top">
-        <div class="party-label">فاتورة إلى</div>
+        <div class="party-label">{'عرض سعر لـ' if is_q else 'فاتورة إلى'}</div>
         <div class="party-name">{customer_name}</div>
         {f'<div class="party-detail">{customer_detail}</div>' if customer_detail else ''}
       </td>
@@ -470,7 +470,6 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 </div>"""
 
-    return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
 
 
