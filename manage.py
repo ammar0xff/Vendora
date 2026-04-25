@@ -128,13 +128,15 @@ def backup():
     out = BACKUP_DIR / f"backup_{ts}.sql"
     print(f"💾 Creating backup → {out}")
     result = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "inventory_db"],
-        capture_output=True, text=True
+        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "--no-password", "inventory_db"],
+        capture_output=True  # binary mode — no text=True to avoid Windows encoding issues
     )
     if result.returncode != 0:
-        print(f"❌ Backup failed:\n{result.stderr}")
+        print(f"❌ Backup failed:\n{result.stderr.decode('utf-8', errors='replace')}")
         sys.exit(1)
-    out.write_text(result.stdout, encoding="utf-8")
+    out.write_bytes(result.stdout)  # write raw bytes, guaranteed UTF-8 from postgres
+    size = out.stat().st_size // 1024
+    print(f"✅ Backup saved: {out} ({size} KB)")
     size = out.stat().st_size // 1024
     print(f"✅ Backup saved: {out} ({size} KB)")
 
@@ -165,9 +167,18 @@ def restore(file: str):
     compose("stop", "backend", "frontend")
     run(COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-c", "DROP DATABASE IF EXISTS inventory_db;"])
     run(COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-c", "CREATE DATABASE inventory_db;"])
+
+    # Auto-detect encoding (Windows pg_dump may produce UTF-16)
+    raw = path.read_bytes()
+    if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+        bom = 'utf-16-le' if raw[:2] == b'\xff\xfe' else 'utf-16-be'
+        content = raw.decode(bom).encode('utf-8').decode('utf-8')
+    else:
+        content = raw.decode('utf-8', errors='replace')
+
     result = subprocess.run(
         COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],
-        input=path.read_text(encoding="utf-8"),
+        input=content,
         capture_output=True, text=True
     )
     errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l]
