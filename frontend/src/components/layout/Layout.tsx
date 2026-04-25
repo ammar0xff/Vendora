@@ -26,7 +26,7 @@ const NAV_GROUPS = [
     label: 'المبيعات',
     items: [
       { to: '/pos',        icon: ShoppingCart, label: 'نقطة البيع',    perm: 'pos',        warehouseTypes: ['showroom'] },
-      { to: '/sales',      icon: Receipt,      label: 'الفواتير',      perm: 'sales',      warehouseTypes: ['showroom'] },
+      { to: '/sales',      icon: Receipt,      label: 'المبيعات والمرتجعات', perm: 'sales',      warehouseTypes: ['showroom'] },
       { to: '/quotations', icon: FileText,      label: 'عروض الأسعار', perm: 'quotations', warehouseTypes: ['showroom'] },
       { to: '/customers',  icon: UserCheck,    label: 'العملاء',       perm: 'customers',  warehouseTypes: ['showroom'] },
     ]
