@@ -12,12 +12,53 @@ Schedule:      crontab -e  →  */30 * * * * python3 /path/to/zk_sync.py
 import sys
 import argparse
 import requests
+import os
 
-# Use the old system's device adapter directly
-OLD_SYSTEM_PATH = '/home/ammar/Desktop/AMMAR/موظفين'
-sys.path.insert(0, OLD_SYSTEM_PATH)
+# Try to import from old system path (Linux or Windows)
+_old_paths = [
+    r'C:\موظفين',
+    r'C:\Users\Right click\Desktop\موظفين',
+    '/home/ammar/Desktop/AMMAR/موظفين',
+]
+for _p in _old_paths:
+    if os.path.isdir(_p):
+        sys.path.insert(0, _p)
+        break
 
-from device_adapters.k14_pro import DeviceAdapter, DeviceAdapterError
+try:
+    from device_adapters.k14_pro import DeviceAdapter, DeviceAdapterError
+except ModuleNotFoundError:
+    # Fallback: built-in minimal ZK adapter (no old system needed)
+    try:
+        from zk import ZK
+    except ImportError:
+        print("Install pyzk:  pip install pyzk requests")
+        sys.exit(1)
+    from collections import defaultdict
+    from datetime import timezone
+
+    class DeviceAdapterError(Exception): pass
+
+    class DeviceAdapter:
+        def __init__(self, host, port=4370, timeout=5):
+            self.host = host; self.port = port; self.timeout = timeout; self.conn = None
+        def connect(self):
+            zk = ZK(self.host, port=self.port, timeout=self.timeout)
+            try: self.conn = zk.connect()
+            except Exception as e: raise DeviceAdapterError(str(e))
+        def fetch_attendance(self):
+            punches = self.conn.get_attendance()
+            groups = defaultdict(list)
+            for p in punches:
+                dt = p.timestamp
+                if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
+                groups[(str(p.user_id), dt.date().isoformat())].append(dt)
+            records = []
+            for (uid, date), times in groups.items():
+                times.sort()
+                records.append({'emp_id': uid, 'check_in': times[0].isoformat(),
+                                 'check_out': times[-1].isoformat() if len(times) > 1 else None})
+            return records
 
 def main():
     parser = argparse.ArgumentParser()
