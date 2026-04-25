@@ -113,6 +113,7 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
     total_late_min = 0
     total_early_min = 0
     total_missing_min = 0
+    s_len = shift_length  # default — overridden per-day inside loop
     working_days = 0
     actual_working_days = 0
     vacation_days = 0
