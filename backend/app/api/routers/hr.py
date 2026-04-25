@@ -536,8 +536,8 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
         work_date = _date.fromisoformat(date_str)
     except ValueError:
         return {"action": "skipped", "reason": f"invalid date {date_str}"}
-    check_in = _dt.fromisoformat(check_in_raw) if check_in_raw else None
-    check_out = _dt.fromisoformat(check_out_raw) if check_out_raw else None
+    check_in = _dt.fromisoformat(check_in_raw).replace(tzinfo=None) if check_in_raw else None
+    check_out = _dt.fromisoformat(check_out_raw).replace(tzinfo=None) if check_out_raw else None
 
     emp = (await db.execute(text(
         "SELECT id FROM hr_employees WHERE emp_code=:uid"
