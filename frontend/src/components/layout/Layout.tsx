@@ -37,7 +37,6 @@ const NAV_GROUPS = [
       { to: '/inventory',  icon: Package,  label: 'الأصناف',   perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/suppliers',  icon: Building2, label: 'الموردون',  perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/operations',        icon: Truck,       label: 'المشتريات والعمليات', perm: 'operations', warehouseTypes: ['all'] },
-      { to: '/stock-adjustments', icon: Package,    label: 'تسويات المخزون', perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/stocktaking',      icon: ClipboardList, label: 'الجرد',           perm: 'inventory',  warehouseTypes: ['all'] },
     ]
   },
