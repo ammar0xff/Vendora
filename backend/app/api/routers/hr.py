@@ -321,7 +321,7 @@ async def _report_auth(token: str | None = None, db: AsyncSession = Depends(get_
 async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML payroll report for all employees — matches Qt ReportGenerator.generate_payroll_report()"""
     import sys, os
-    sys.path.insert(0, '/home/ammar/Desktop/AMMAR/موظفين')
+    sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
     from app.services.payroll_engine import calculate_payroll
 
@@ -389,7 +389,7 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
                           db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate individual employee HTML report — matches Qt generate_employee_report() and generate_payslip_ticket()"""
     import sys
-    sys.path.insert(0, '/home/ammar/Desktop/AMMAR/موظفين')
+    sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
     from models import Employee, Attendance
     from app.services.payroll_engine import calculate_payroll
@@ -483,7 +483,7 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
 async def attendance_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML attendance report — matches Qt generate_attendance_report()"""
     import sys
-    sys.path.insert(0, '/home/ammar/Desktop/AMMAR/موظفين')
+    sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
 
     rows = (await db.execute(text("""
