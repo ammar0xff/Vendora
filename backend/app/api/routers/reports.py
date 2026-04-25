@@ -102,3 +102,98 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
         "items": items,
         "summary": {"total_products": len(items), "total_cost_value": total_cost, "total_retail_value": total_retail},
     }
+
+
+@router.get("/ledger/daily-items")
+async def daily_items(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "cashier", "manager", "accountant"))):
+    """Daily ledger: each product sold with qty, price, total, returns, expenses."""
+    from datetime import datetime
+    from sqlalchemy import text as sqlt
+    import uuid as _uuid
+    start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
+    end   = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
+    wh_filter = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
+    params: dict = {"start": start, "end": end}
+    if warehouse_id: params["wh_id"] = _uuid.UUID(warehouse_id)
+
+    items = (await db.execute(sqlt(f"""
+        SELECT p.name, p.unit, si.unit_price as price,
+               SUM(si.qty) as qty,
+               SUM(si.qty * si.unit_price - si.discount) as total
+        FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        JOIN products p ON p.id = si.product_id
+        WHERE s.status = 'confirmed' AND s.created_at BETWEEN :start AND :end {wh_filter}
+        GROUP BY p.name, p.unit, si.unit_price
+        ORDER BY total DESC
+    """), params)).fetchall()
+
+    returns = (await db.execute(sqlt(f"""
+        SELECT p.name, SUM(si.qty * si.unit_price - si.discount) as total
+        FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        JOIN products p ON p.id = si.product_id
+        WHERE s.status = 'returned' AND s.created_at BETWEEN :start AND :end {wh_filter}
+        GROUP BY p.name
+    """), params)).fetchall()
+    returns_map = {r.name: float(r.total) for r in returns}
+
+    expenses = (await db.execute(sqlt(f"""
+        SELECT dt.note, SUM(dt.amount) as total
+        FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
+        WHERE dt.type = 'expense' AND dt.created_at BETWEEN :start AND :end
+        {'AND sh.warehouse_id = :wh_id' if warehouse_id else ''}
+        GROUP BY dt.note
+    """), params)).fetchall()
+
+    return {
+        "items": [{"name": r.name, "unit": r.unit, "price": float(r.price), "qty": float(r.qty),
+                   "total": float(r.total), "returns": returns_map.get(r.name, 0)} for r in items],
+        "expenses": [{"note": r.note or "مصروف", "total": float(r.total)} for r in expenses],
+    }
+
+
+@router.get("/ledger/periodic")
+async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "manager", "accountant"))):
+    """Weekly / monthly / yearly summary: income, expenses, net."""
+    from sqlalchemy import text as sqlt
+    import uuid as _uuid
+
+    if period == "weekly":
+        trunc = "week"
+        label_fmt = "YYYY-WW"
+    elif period == "monthly":
+        trunc = "month"
+        label_fmt = "YYYY-MM"
+    else:  # yearly
+        trunc = "year"
+        label_fmt = "YYYY"
+
+    wh_filter = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
+    params: dict = {}
+    if warehouse_id: params["wh_id"] = _uuid.UUID(warehouse_id)
+
+    rows = (await db.execute(sqlt(f"""
+        SELECT TO_CHAR(DATE_TRUNC('{trunc}', s.created_at), '{label_fmt}') as period,
+               COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) as income,
+               COALESCE(SUM(CASE WHEN s.status='returned' THEN si.qty * si.unit_price - si.discount ELSE 0 END), 0) as returns
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
+        WHERE s.status IN ('confirmed','returned') {wh_filter}
+        GROUP BY DATE_TRUNC('{trunc}', s.created_at)
+        ORDER BY DATE_TRUNC('{trunc}', s.created_at) DESC
+        LIMIT 52
+    """), params)).fetchall()
+
+    exp_rows = (await db.execute(sqlt(f"""
+        SELECT TO_CHAR(DATE_TRUNC('{trunc}', dt.created_at), '{label_fmt}') as period,
+               COALESCE(SUM(dt.amount), 0) as expenses
+        FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
+        WHERE dt.type = 'expense'
+        {'AND sh.warehouse_id = :wh_id' if warehouse_id else ''}
+        GROUP BY DATE_TRUNC('{trunc}', dt.created_at)
+    """), params)).fetchall()
+    exp_map = {r.period: float(r.expenses) for r in exp_rows}
+
+    return [{"period": r.period, "income": float(r.income), "returns": float(r.returns),
+             "expenses": exp_map.get(r.period, 0),
+             "net": float(r.income) - float(r.returns) - exp_map.get(r.period, 0)} for r in rows]

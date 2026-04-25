@@ -1,210 +1,237 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { reportsApi, stockApi } from '../../api/endpoints'
 import api from '../../api/client'
 import { useAppStore } from '../../store/app'
-import { PageLoader } from '../../components/ui/Loaders'
-import toast from 'react-hot-toast'
-import { format, subMonths } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
-import { BarChart3, TrendingUp, Package, Users, Printer, FileDown } from 'lucide-react'
+import { format, startOfWeek, endOfWeek } from 'date-fns'
 
-const COLORS = ['#1e3a5f', '#c8a84b', '#16a34a', '#7c3aed', '#dc2626', '#0891b2']
+const fmt = (n: any) => Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 
 export default function ReportsPage() {
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const monthStart = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
-  const [from, setFrom] = useState(monthStart)
-  const [to, setTo] = useState(today)
-
-  const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
+  const [tab, setTab] = useState<'ledger' | 'stats'>('ledger')
+  const [ledgerPeriod, setLedgerPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily')
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [statsFrom, setStatsFrom] = useState(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'))
+  const [statsTo, setStatsTo] = useState(format(new Date(), 'yyyy-MM-dd'))
   const { activeWarehouseId } = useAppStore()
-  const isCompanyView = !activeWarehouseId
-  // Use active warehouse, fallback to first for valuation/print
-  const mainWh = activeWarehouseId || warehouses?.[0]?.id
+  const wh = activeWarehouseId || undefined
 
-  const { data: profit, isLoading: loadingProfit } = useQuery({
-    queryKey: ['profit', from, to, activeWarehouseId], queryFn: () => reportsApi.profit(from, to, activeWarehouseId || undefined)
+  // Daily items
+  const { data: dailyData, isLoading: loadingDaily } = useQuery({
+    queryKey: ['ledger-daily', date, wh],
+    queryFn: () => api.get('/reports/ledger/daily-items', { params: { target_date: date, warehouse_id: wh } }).then(r => r.data),
+    enabled: ledgerPeriod === 'daily',
   })
+
+  // Periodic (weekly/monthly/yearly)
+  const { data: periodicData, isLoading: loadingPeriodic } = useQuery({
+    queryKey: ['ledger-periodic', ledgerPeriod, wh],
+    queryFn: () => api.get('/reports/ledger/periodic', { params: { period: ledgerPeriod, warehouse_id: wh } }).then(r => r.data),
+    enabled: ledgerPeriod !== 'daily',
+  })
+
+  // Stats
   const { data: topProducts } = useQuery({
-    queryKey: ['top-products', from, to], queryFn: () => reportsApi.topProducts(from, to)
+    queryKey: ['top-products', statsFrom, statsTo],
+    queryFn: () => api.get('/reports/sales/top-products', { params: { from_date: statsFrom + 'T00:00:00', to_date: statsTo + 'T23:59:59', limit: 15 } }).then(r => r.data),
+    enabled: tab === 'stats',
   })
   const { data: byCashier } = useQuery({
-    queryKey: ['by-cashier', from, to, activeWarehouseId], queryFn: () => reportsApi.byCashier(from, to, activeWarehouseId || undefined)
-  })
-  const { data: valuation } = useQuery({
-    queryKey: ['valuation', mainWh], queryFn: () => stockApi.valuation(mainWh!), enabled: !!mainWh
+    queryKey: ['by-cashier', statsFrom, statsTo, wh],
+    queryFn: () => api.get('/reports/sales/by-cashier', { params: { from_date: statsFrom + 'T00:00:00', to_date: statsTo + 'T23:59:59', warehouse_id: wh } }).then(r => r.data),
+    enabled: tab === 'stats',
   })
 
-  const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-  const handleInventoryPrint = () => {
-    if (!mainWh) return toast.error('اختر فرعاً أولاً')
-    window.open(`/api/print/inventory/${mainWh}?token=${token}`, '_blank')
-  }
-
-  // Monthly trend
-  const months = Array.from({ length: 6 }, (_, i) => {
-    const d = subMonths(new Date(), 5 - i)
-    return { year: d.getFullYear(), month: d.getMonth() + 1, label: d.toLocaleString('ar-EG', { month: 'short' }) }
-  })
-  const m0 = useQuery({ queryKey: ['m', months[0].year, months[0].month], queryFn: () => reportsApi.monthly(months[0].year, months[0].month, activeWarehouseId || undefined) })
-  const m1 = useQuery({ queryKey: ['m', months[1].year, months[1].month], queryFn: () => reportsApi.monthly(months[1].year, months[1].month, activeWarehouseId || undefined) })
-  const m2 = useQuery({ queryKey: ['m', months[2].year, months[2].month], queryFn: () => reportsApi.monthly(months[2].year, months[2].month, activeWarehouseId || undefined) })
-  const m3 = useQuery({ queryKey: ['m', months[3].year, months[3].month], queryFn: () => reportsApi.monthly(months[3].year, months[3].month, activeWarehouseId || undefined) })
-  const m4 = useQuery({ queryKey: ['m', months[4].year, months[4].month], queryFn: () => reportsApi.monthly(months[4].year, months[4].month, activeWarehouseId || undefined) })
-  const m5 = useQuery({ queryKey: ['m', months[5].year, months[5].month], queryFn: () => reportsApi.monthly(months[5].year, months[5].month, activeWarehouseId || undefined) })
-  const chartData = [m0, m1, m2, m3, m4, m5].map((q, i) => ({ name: months[i].label, مبيعات: Number(q.data?.total_sales || 0) }))
+  const periodLabels: Record<string, string> = { weekly: 'الأسبوع', monthly: 'الشهر', yearly: 'السنة' }
 
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">التقارير والإحصائيات</h1>
-        <div className="flex gap-3 items-center flex-wrap">
-          <button onClick={handleInventoryPrint} className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200">
-            <Printer size={16} /> طباعة تقرير المخزون
-          </button>
-          <a href={`/api/print/pdf/inventory/${mainWh}?token=${token}&paper_size=A4`} target="_blank" rel="noreferrer"
-            className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200 text-red-600 hover:bg-red-50">
-            <FileDown size={16} /> تحميل PDF
-          </a>
-          <label className="text-sm text-slate-500">من</label>
-          <input type="date" className="input w-40" value={from} onChange={e => setFrom(e.target.value)} />
-          <label className="text-sm text-slate-500">إلى</label>
-          <input type="date" className="input w-40" value={to} onChange={e => setTo(e.target.value)} />
-        </div>
+        <h1 className="page-title">التقارير المالية</h1>
       </div>
 
-      {/* Profit summary */}
-      {profit && (
-        <>
-          {/* P&L Summary */}
-          <div className="card mb-6">
-            <h3 className="font-bold text-slate-700 mb-4">قائمة الأرباح والخسائر</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              {[
-                { label: 'إجمالي الإيرادات', value: profit.total_revenue, color: '#16a34a', icon: TrendingUp },
-                { label: 'تكلفة البضاعة (COGS)', value: profit.total_cogs, color: '#dc2626', icon: Package },
-                { label: 'مجمل الربح', value: profit.gross_profit, sub: `${profit.gross_margin}%`, color: '#1e3a5f', icon: BarChart3 },
-                { label: 'صافي الربح', value: profit.net_profit, sub: `${profit.net_margin}%`, color: Number(profit.net_profit) >= 0 ? '#16a34a' : '#dc2626', icon: TrendingUp },
-              ].map(({ label, value, sub, color, icon: Icon }) => (
-                <div key={label} className="stat-card">
-                  <div className="stat-icon" style={{ background: color + '20' }}><Icon size={22} style={{ color }} /></div>
-                  <div>
-                    <p className="text-slate-500 text-xs mb-1">{label}</p>
-                    <p className="text-xl font-black" style={{ color }}>{Number(value).toLocaleString('ar-EG')} ج.م</p>
-                    {sub && <p className="text-xs text-slate-400">{sub}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* Main tabs */}
+      <div className="flex gap-0 mb-6 border-b border-slate-200">
+        {[{ id: 'ledger', label: '📒 دفتر الأستاذ' }, { id: 'stats', label: '📊 الإحصائيات' }].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id as any)}
+            className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-            {/* P&L waterfall */}
-            <div className="border border-slate-100 rounded-xl overflow-hidden text-sm">
-              {[
-                { label: 'إيرادات المبيعات', value: profit.total_revenue, type: 'revenue' },
-                { label: 'المرتجعات', value: -Number(profit.total_returns || 0), type: 'deduct' },
-                { label: 'صافي الإيرادات', value: profit.net_revenue, type: 'subtotal' },
-                { label: 'تكلفة البضاعة المباعة', value: -Number(profit.total_cogs), type: 'deduct' },
-                { label: 'مجمل الربح', value: profit.gross_profit, type: 'subtotal' },
-                ...(profit.expenses_detail || []).map((e: any) => ({ label: `مصروف: ${e.note}`, value: -e.amount, type: 'deduct' })),
-                { label: 'إجمالي المصروفات', value: -Number(profit.total_expenses || 0), type: 'deduct' },
-                { label: 'صافي الربح', value: profit.net_profit, type: 'total' },
-              ].map((row, i) => (
-                <div key={i} className={`flex justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 ${row.type === 'total' ? 'bg-slate-800 text-white font-black' : row.type === 'subtotal' ? 'bg-slate-50 font-bold' : ''}`}>
-                  <span className={row.type === 'total' ? 'text-white' : 'text-slate-600'}>{row.label}</span>
-                  <span className={`font-bold ${row.type === 'total' ? 'text-white text-base' : Number(row.value) < 0 ? 'text-red-600' : 'text-green-700'}`}>
-                    {Number(row.value) < 0 ? '(' : ''}{Math.abs(Number(row.value)).toLocaleString('ar-EG')} ج.م{Number(row.value) < 0 ? ')' : ''}
-                  </span>
-                </div>
+      {/* ── LEDGER TAB ── */}
+      {tab === 'ledger' && (
+        <div>
+          {/* Period selector */}
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <div className="flex rounded-xl overflow-hidden border border-slate-200">
+              {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
+                <button key={p} onClick={() => setLedgerPeriod(p)}
+                  className={`px-4 py-2 text-xs font-bold transition-all ${ledgerPeriod === p ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                  style={ledgerPeriod === p ? { background: '#1e3a5f' } : {}}>
+                  {p === 'daily' ? 'يومي' : p === 'weekly' ? 'أسبوعي' : p === 'monthly' ? 'شهري' : 'سنوي'}
+                </button>
               ))}
             </div>
+            {ledgerPeriod === 'daily' && (
+              <input type="date" className="input w-44 text-sm" value={date} onChange={e => setDate(e.target.value)} />
+            )}
           </div>
-        </>
+
+          {/* Daily table */}
+          {ledgerPeriod === 'daily' && (
+            <div className="space-y-4">
+              <div className="card p-0 overflow-hidden">
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>اسم الصنف / البيان</th>
+                        <th style={{ textAlign: 'center', width: '60px' }}>الوحدة</th>
+                        <th style={{ textAlign: 'center', width: '80px' }}>السعر</th>
+                        <th style={{ textAlign: 'center', width: '70px' }}>الكمية</th>
+                        <th style={{ textAlign: 'center', width: '100px' }}>الإجمالي</th>
+                        <th style={{ textAlign: 'center', width: '90px' }}>المرتجعات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadingDaily && <tr><td colSpan={6} className="text-center py-8 text-slate-400">جاري التحميل...</td></tr>}
+                      {!loadingDaily && !dailyData?.items?.length && (
+                        <tr><td colSpan={6} className="text-center py-8 text-slate-400">لا توجد مبيعات في هذا اليوم</td></tr>
+                      )}
+                      {dailyData?.items?.map((item: any, i: number) => (
+                        <tr key={i}>
+                          <td className="font-medium text-slate-800">{item.name}</td>
+                          <td className="text-center text-slate-500 text-xs">{item.unit}</td>
+                          <td className="text-center text-slate-600">{fmt(item.price)}</td>
+                          <td className="text-center font-bold">{fmt(item.qty)}</td>
+                          <td className="text-center font-bold text-green-700">{fmt(item.total)}</td>
+                          <td className="text-center text-red-500">{item.returns > 0 ? fmt(item.returns) : '—'}</td>
+                        </tr>
+                      ))}
+                      {/* Expenses rows */}
+                      {dailyData?.expenses?.map((e: any, i: number) => (
+                        <tr key={`exp-${i}`} className="bg-amber-50">
+                          <td className="text-amber-700 font-medium">💸 {e.note}</td>
+                          <td colSpan={3}></td>
+                          <td className="text-center font-bold text-amber-700">({fmt(e.total)})</td>
+                          <td></td>
+                        </tr>
+                      ))}
+                      {/* Totals */}
+                      {dailyData?.items?.length > 0 && (() => {
+                        const totalIncome = dailyData.items.reduce((s: number, i: any) => s + i.total, 0)
+                        const totalReturns = dailyData.items.reduce((s: number, i: any) => s + i.returns, 0)
+                        const totalExpenses = (dailyData.expenses || []).reduce((s: number, e: any) => s + e.total, 0)
+                        return (
+                          <tr className="font-black" style={{ background: '#1e3a5f', color: 'white' }}>
+                            <td colSpan={4} className="text-white">الإجمالي</td>
+                            <td className="text-center text-white">{fmt(totalIncome)}</td>
+                            <td className="text-center text-red-300">{totalReturns > 0 ? fmt(totalReturns) : '—'}</td>
+                          </tr>
+                        )
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Periodic table (weekly/monthly/yearly) */}
+          {ledgerPeriod !== 'daily' && (
+            <div className="card p-0 overflow-hidden">
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{periodLabels[ledgerPeriod]}</th>
+                      <th style={{ textAlign: 'center' }}>الدواخل</th>
+                      <th style={{ textAlign: 'center' }}>المرتجعات</th>
+                      <th style={{ textAlign: 'center' }}>الخوارج</th>
+                      <th style={{ textAlign: 'center' }}>إجمالي الإيراد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingPeriodic && <tr><td colSpan={5} className="text-center py-8 text-slate-400">جاري التحميل...</td></tr>}
+                    {!loadingPeriodic && !periodicData?.length && (
+                      <tr><td colSpan={5} className="text-center py-8 text-slate-400">لا توجد بيانات</td></tr>
+                    )}
+                    {periodicData?.map((row: any, i: number) => (
+                      <tr key={i}>
+                        <td className="font-bold text-slate-800 font-mono">{row.period}</td>
+                        <td className="text-center text-green-700 font-bold">{fmt(row.income)}</td>
+                        <td className="text-center text-red-500">{row.returns > 0 ? fmt(row.returns) : '—'}</td>
+                        <td className="text-center text-amber-600">{row.expenses > 0 ? fmt(row.expenses) : '—'}</td>
+                        <td className="text-center font-black" style={{ color: row.net >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(row.net)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-        {/* Monthly trend */}
-        <div className="card">
-          <h3 className="font-bold text-slate-700 mb-5 flex items-center gap-2"><BarChart3 size={18} /> اتجاه المبيعات الشهري</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData} barSize={28}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`, 'المبيعات']} />
-              <Bar dataKey="مبيعات" fill="#1e3a5f" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* ── STATS TAB ── */}
+      {tab === 'stats' && (
+        <div>
+          {/* Date range */}
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <input type="date" className="input w-40 text-sm" value={statsFrom} onChange={e => setStatsFrom(e.target.value)} />
+            <span className="text-slate-400 text-sm">إلى</span>
+            <input type="date" className="input w-40 text-sm" value={statsTo} onChange={e => setStatsTo(e.target.value)} />
+          </div>
 
-        {/* Top products — horizontal bar */}
-        <div className="card">
-          <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Package size={18} /> أكثر المنتجات مبيعاً</h3>
-          {topProducts?.length ? (
-            <div className="space-y-3">
-              {topProducts.slice(0, 8).map((p: any, i: number) => {
-                const maxRev = Number(topProducts[0]?.total_revenue || 1)
-                const pct = Math.round((Number(p.total_revenue) / maxRev) * 100)
-                return (
-                  <div key={p.product_id}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold text-slate-700 truncate flex-1 ml-3">{i+1}. {p.product_name}</span>
-                      <div className="text-left flex-shrink-0">
-                        <span className="text-sm font-black" style={{ color: COLORS[i % COLORS.length] }}>{Number(p.total_revenue).toLocaleString('ar-EG')} ج.م</span>
-                        <span className="text-xs text-slate-400 mr-2">{Number(p.total_qty).toLocaleString('ar-EG')} {p.unit}</span>
-                      </div>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: COLORS[i % COLORS.length] }} />
-                    </div>
-                  </div>
-                )
-              })}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top products */}
+            <div className="card p-0 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100">
+                <h3 className="font-bold text-slate-700">🏆 أكثر المنتجات مبيعاً</h3>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>#</th><th>المنتج</th><th style={{ textAlign: 'center' }}>الكمية</th><th style={{ textAlign: 'center' }}>الإيراد</th></tr></thead>
+                  <tbody>
+                    {!topProducts?.length && <tr><td colSpan={4} className="text-center py-6 text-slate-400">لا توجد بيانات</td></tr>}
+                    {topProducts?.map((p: any, i: number) => (
+                      <tr key={p.product_id}>
+                        <td className="text-slate-400 text-xs">{i + 1}</td>
+                        <td className="font-medium text-slate-800">{p.product_name}</td>
+                        <td className="text-center text-slate-600">{fmt(p.total_qty)}</td>
+                        <td className="text-center font-bold text-green-700">{fmt(p.total_revenue)} ج.م</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          ) : <p className="text-slate-400 text-center py-12">لا توجد بيانات</p>}
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Top products table — compact */}
-        <div className="card">
-          <h3 className="font-bold text-slate-700 mb-4">تفاصيل المبيعات بالمنتج</h3>
-          <div className="table-wrap max-h-64 overflow-y-auto">
-            <table>
-              <thead><tr><th style={{width:'32px'}}>#</th><th>المنتج</th><th style={{textAlign:'center'}}>الكمية</th><th style={{textAlign:'left'}}>الإيراد</th></tr></thead>
-              <tbody>
-                {topProducts?.map((p: any, i: number) => (
-                  <tr key={p.product_id}>
-                    <td className="text-slate-400 text-xs">{i + 1}</td>
-                    <td className="font-semibold text-sm">{p.product_name}</td>
-                    <td className="text-center text-slate-600">{Number(p.total_qty).toLocaleString('ar-EG')} {p.unit}</td>
-                    <td className="font-black text-green-700" style={{textAlign:'left'}}>{Number(p.total_revenue).toLocaleString('ar-EG')} ج.م</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* By cashier */}
+            <div className="card p-0 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100">
+                <h3 className="font-bold text-slate-700">👤 مبيعات الكاشيرين</h3>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>الكاشير</th><th style={{ textAlign: 'center' }}>الفواتير</th><th style={{ textAlign: 'center' }}>الإجمالي</th></tr></thead>
+                  <tbody>
+                    {!byCashier?.length && <tr><td colSpan={3} className="text-center py-6 text-slate-400">لا توجد بيانات</td></tr>}
+                    {byCashier?.map((c: any) => (
+                      <tr key={c.cashier_id}>
+                        <td className="font-semibold text-slate-800">{c.cashier_name}</td>
+                        <td className="text-center text-slate-500">{c.invoice_count}</td>
+                        <td className="text-center font-bold text-green-700">{fmt(c.total_sales)} ج.م</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* By cashier */}
-        <div className="card">
-          <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Users size={16} /> مبيعات الكاشيرين</h3>
-          <div className="table-wrap max-h-64 overflow-y-auto">
-            <table>
-              <thead><tr><th>الموظف</th><th>الفواتير</th><th>الإجمالي</th></tr></thead>
-              <tbody>
-                {byCashier?.map((c: any) => (
-                  <tr key={c.cashier_id}>
-                    <td className="font-medium">{c.cashier_name}</td>
-                    <td>{c.invoice_count}</td>
-                    <td className="font-bold text-green-700">{Number(c.total_sales).toLocaleString('ar-EG')} ج.م</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
