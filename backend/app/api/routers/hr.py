@@ -407,11 +407,12 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     emp = dict(zip(emp_cols, emp_row))
 
     att_rows = (await db.execute(text("""
-        SELECT check_in,check_out,status,edited,edited_by,edit_reason,
+        SELECT work_date,check_in,check_out,status,edited,edited_by,edit_reason,
                excuse_no_late,excuse_no_early,excuse_allow_overtime,shift_override
         FROM hr_attendance WHERE employee_id=:eid AND TO_CHAR(work_date,'YYYY-MM')=:month
+        ORDER BY work_date
     """), {'eid': emp_id, 'month': month})).fetchall()
-    att_cols = ['check_in','check_out','status','edited','edited_by','edit_reason','excuse_no_late','excuse_no_early','excuse_allow_overtime','shift_override']
+    att_cols = ['work_date','check_in','check_out','status','edited','edited_by','edit_reason','excuse_no_late','excuse_no_early','excuse_allow_overtime','shift_override']
     attendances = [dict(zip(att_cols, r)) for r in att_rows]
 
     adv_rows = (await db.execute(text("SELECT amount, date, note FROM hr_advances WHERE employee_id=:eid AND TO_CHAR(date,'YYYY-MM')=:month"), {'eid': emp_id, 'month': month})).fetchall()
@@ -458,7 +459,12 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     for a in attendances:
         ci = a['check_in']
         co = a['check_out']
+        wd = a.get('work_date')
         if ci and hasattr(ci, 'replace'): ci = ci.replace(tzinfo=None)
+        elif wd:
+            # No check_in recorded — use work_date at midnight so the day appears in report
+            from datetime import datetime as _dt2, date as _d2
+            ci = _dt2.combine(wd if isinstance(wd, _d2) else _d2.fromisoformat(str(wd)), _dt2.min.time())
         if co and hasattr(co, 'replace'): co = co.replace(tzinfo=None)
         att_objs.append(Attendance(
             str(emp['emp_code'] or emp['id']), ci, co,
