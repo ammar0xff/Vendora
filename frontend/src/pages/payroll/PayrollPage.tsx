@@ -541,7 +541,12 @@ export default function PayrollPage() {
                   {advances?.map((a: any) => (
                     <tr key={a.id}>
                       <td className="font-semibold">{a.emp_name}</td>
-                      <td className="font-bold text-amber-700">{Number(a.amount).toLocaleString('ar-EG')} ج.م</td>
+                      <td>
+                        <span className={`font-bold ${a.record_type === 'خصم' ? 'text-red-600' : a.record_type === 'مكافأة' ? 'text-green-600' : 'text-amber-700'}`}>
+                          {a.record_type === 'خصم' ? '−' : a.record_type === 'مكافأة' ? '+' : ''}{Number(a.amount).toLocaleString('ar-EG')} ج.م
+                        </span>
+                        <span className="text-xs text-slate-400 mr-1">({a.record_type || 'سلفة'})</span>
+                      </td>
                       <td className="text-sm text-slate-500">{new Date(a.date).toLocaleDateString('ar-EG')}</td>
                       <td className="text-sm text-slate-400">{a.note || '-'}</td>
                     </tr>
@@ -632,21 +637,22 @@ export default function PayrollPage() {
       </Modal>
 
       {/* Daily Breakdown Modal */}
-      <Modal open={!!breakdown} onClose={() => setBreakdown(null)} title={`تفاصيل: ${breakdown?.employee}`} size="xl">
+      <Modal open={!!breakdown} onClose={() => setBreakdown(null)} title={`تفاصيل الحضور — ${breakdown?.employee}`} size="xl">
         {breakdown && (
           <div className="table-wrap max-h-[70vh] overflow-y-auto">
             <table>
-              <thead><tr><th>التاريخ</th><th>الحالة</th><th>دخول</th><th>خروج</th><th>ساعات</th><th>تأخير</th><th>إضافي</th><th>ملاحظة</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>الحالة</th><th>دخول</th><th>خروج</th><th>ساعات</th><th>تأخير</th><th>مبكر</th><th>إضافي</th><th>ملاحظة</th></tr></thead>
               <tbody>
                 {breakdown.breakdown?.map((d: any, i: number) => (
-                  <tr key={i} className={d.status === 'absent' ? 'bg-red-50' : d.status === 'weekend' ? 'bg-slate-50' : ''}>
-                    <td className="text-sm font-medium">{d.date}</td>
+                  <tr key={i} className={d.status === 'absent' ? 'bg-red-50' : d.status === 'weekend' ? 'bg-slate-50' : d.status === 'pre-hire' ? 'bg-slate-50 opacity-50' : ''}>
+                    <td className="text-sm font-medium">{new Date(d.date).toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric', month: 'numeric' })}</td>
                     <td><span className={STATUS_COLORS[d.status] || 'badge-gray'}>{STATUS_LABELS[d.status] || d.status}</span></td>
-                    <td className="text-xs text-slate-600">{d.check_in ? d.check_in.slice(11, 16) : '-'}</td>
-                    <td className="text-xs text-slate-600">{d.check_out ? d.check_out.slice(11, 16) : '-'}</td>
-                    <td className="font-semibold">{d.work_hours > 0 ? d.work_hours.toFixed(1) : '-'}</td>
-                    <td className={d.late_minutes > 0 ? 'text-amber-600 font-semibold' : ''}>{d.late_minutes > 0 ? `${d.late_minutes}د` : '-'}</td>
-                    <td className={d.overtime_hours > 0 ? 'text-blue-600 font-semibold' : ''}>{d.overtime_hours > 0 ? `${d.overtime_hours.toFixed(1)}h` : '-'}</td>
+                    <td className="text-xs text-slate-600 font-mono">{d.check_in ? d.check_in.slice(11, 16) : '—'}</td>
+                    <td className="text-xs text-slate-600 font-mono">{d.check_out ? d.check_out.slice(11, 16) : '—'}</td>
+                    <td className="font-semibold text-center">{d.work_hours > 0 ? d.work_hours.toFixed(1) : '—'}</td>
+                    <td className={`text-center ${d.late_minutes > 0 ? 'text-amber-600 font-semibold' : 'text-slate-300'}`}>{d.late_minutes > 0 ? `${d.late_minutes}د` : '—'}</td>
+                    <td className={`text-center ${d.early_minutes > 0 ? 'text-orange-500 font-semibold' : 'text-slate-300'}`}>{d.early_minutes > 0 ? `${d.early_minutes}د` : '—'}</td>
+                    <td className={`text-center ${d.overtime_hours > 0 ? 'text-blue-600 font-semibold' : 'text-slate-300'}`}>{d.overtime_hours > 0 ? `${d.overtime_hours.toFixed(1)}h` : '—'}</td>
                     <td className="text-xs text-slate-400 max-w-xs truncate">{d.note || ''}</td>
                   </tr>
                 ))}

@@ -11,33 +11,64 @@ import calendar
 LOCAL_TZ_OFFSET = timedelta(hours=2)
 
 def to_local(dt):
-    """Convert UTC datetime to local time (UTC+2)."""
+    """Return naive local datetime. DB stores Cairo time as UTC-marked — strip timezone only."""
     if dt is None:
         return None
     if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
-        return dt.astimezone(timezone.utc).replace(tzinfo=None) + LOCAL_TZ_OFFSET
-    return dt  # already naive, assume local
+        # Strip timezone — times are already in local Cairo time stored with UTC marker
+        return dt.replace(tzinfo=None)
+    return dt
 
 
 def parse_shift(shift_str: str, shifts_map: dict = None) -> tuple:
-    """Parse '11:00-23:00' or shift name → (start_hour, end_hour)"""
+    """Parse shift string → (start_hour, end_hour).
+    Handles: '11:00-23:00', '9-21', '11 صباحاً الى 11 مساءً', shift name/id lookup.
+    """
     if not shift_str:
-        return 8, 16
-    # Try direct time format HH:MM-HH:MM
+        return 9, 21  # default 9am-9pm
+
+    # Try direct HH:MM-HH:MM or H-H
     try:
-        start, end = shift_str.split("-")
-        return int(start.split(":")[0]), int(end.split(":")[0])
+        parts = shift_str.replace('–', '-').replace('—', '-').split('-')
+        if len(parts) == 2:
+            s = int(parts[0].strip().split(':')[0])
+            e = int(parts[1].strip().split(':')[0])
+            return s, e
     except Exception:
         pass
+
+    # Try Arabic format: "9 صباحا الى 9 مساءً" or "11 صباحاً الى 11 مساءً"
+    import re
+    nums = re.findall(r'\d+', shift_str)
+    if len(nums) >= 2:
+        s, e = int(nums[0]), int(nums[1])
+        # Detect AM/PM from Arabic keywords
+        lower = shift_str.lower()
+        parts_ar = shift_str.split('الى') if 'الى' in shift_str else shift_str.split('إلى')
+        if len(parts_ar) == 2:
+            start_part, end_part = parts_ar[0], parts_ar[1]
+            # Start hour
+            if 'مساء' in start_part or 'pm' in start_part.lower():
+                if s < 12: s += 12
+            elif 'صباح' in start_part or 'am' in start_part.lower():
+                if s == 12: s = 0
+            # End hour
+            if 'مساء' in end_part or 'pm' in end_part.lower():
+                if e < 12: e += 12
+            elif 'صباح' in end_part or 'am' in end_part.lower():
+                if e == 12: e = 0
+        return s, e
+
     # Try resolving by name or id from shifts_map
     if shifts_map:
-        for s in shifts_map.values():
-            if s.get('name') == shift_str or s.get('id') == shift_str:
+        for s_obj in shifts_map.values():
+            if s_obj.get('name') == shift_str or str(s_obj.get('id')) == str(shift_str):
                 try:
-                    return int(s['start_time'].split(':')[0]), int(s['end_time'].split(':')[0])
+                    return int(s_obj['start_time'].split(':')[0]), int(s_obj['end_time'].split(':')[0])
                 except Exception:
                     pass
-    return 8, 16
+
+    return 9, 21  # fallback
 
 
 def attendance_day(dt: datetime) -> Optional[date]:
@@ -61,7 +92,8 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
     month: 'YYYY-MM' string
     """
     monthly_salary = float(employee.get('monthly_salary', 0))
-    days_in_month = 26
+    # days_in_month from settings, default 26
+    days_in_month = int(float(settings.get('days_in_month', 26)))
     emp_shift = employee.get('shift_schedule', '') or ''
     ignore_lateness = bool(employee.get('ignore_lateness', False))
     max_late_for_ot = int(employee.get('max_lateness_before_overtime_cancellation', 30))
