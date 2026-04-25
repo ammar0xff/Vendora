@@ -85,8 +85,6 @@ def main():
 
     # Post each record to ERP
     added = updated = skipped = 0
-    for rec in records[:3]:  # print first 3 for debugging
-        print(f"  DEBUG rec: {rec}")
     for rec in records:
         r = requests.post(f'{args.api}/api/hr/attendance/from-device', json=rec, headers=headers)
         if r.status_code == 200:
