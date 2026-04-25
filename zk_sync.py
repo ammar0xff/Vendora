@@ -64,7 +64,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device-host', default='192.168.1.201')
     parser.add_argument('--device-port', type=int, default=4370)
-    parser.add_argument('--api', default='http://localhost')
+    parser.add_argument('--api', default='http://192.168.1.50')
     parser.add_argument('--user', default='ammar')
     parser.add_argument('--password', default='changeme')
     args = parser.parse_args()
