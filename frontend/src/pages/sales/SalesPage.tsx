@@ -144,7 +144,7 @@ export default function SalesPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">سجل المبيعات</h1>
+        <h1 className="page-title">سجل المبيعات والمرتجعات</h1>
         <div className="text-sm text-slate-500">
           {sales?.filter((s: any) => s.status !== 'quotation').length || 0} فاتورة
         </div>
