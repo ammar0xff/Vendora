@@ -5,8 +5,9 @@ import api from '../../api/client'
 import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Truck, PackagePlus, ClipboardList, ChevronDown, ChevronLeft, Plus, Minus, X, Search } from 'lucide-react'
+import { Truck, PackagePlus, ChevronDown, ChevronLeft, Plus, Minus, X, Search } from 'lucide-react'
 import { clsx } from 'clsx'
+import PurchasesPage from '../purchases/PurchasesPage'
 
 type OpType = 'dispatch' | 'goods_receipt'
 
@@ -85,6 +86,7 @@ function ItemsTable({ items, setItems, showCost }: { items: CartItem[]; setItems
 }
 
 export default function OperationsPage() {
+  const [tab, setTab] = useState<'ops' | 'purchases'>('ops')
   const [activeOp, setActiveOp] = useState<OpType | null>(null)
   const [items, setItems] = useState<CartItem[]>([])
   const [fromWh, setFromWh] = useState('')
@@ -139,10 +141,27 @@ export default function OperationsPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">العمليات والمستندات</h1>
-          <p className="text-slate-500 text-sm mt-1">إذونات الصرف — استلام المشتريات</p>
+          <h1 className="page-title">المشتريات والعمليات</h1>
         </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-0 mb-6 border-b border-slate-200 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {[
+          { id: 'purchases', label: '📦 فواتير المشتريات' },
+          { id: 'ops',       label: '🚚 العمليات والنقل' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id as any)}
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'purchases' && <PurchasesPage />}
+
+      {tab === 'ops' && (
+        <div>
 
       {/* Operation type cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -261,6 +280,8 @@ export default function OperationsPage() {
             </div>
           </div>
         </Modal>
+      )}
+      </div>
       )}
     </div>
   )
