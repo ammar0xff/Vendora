@@ -528,9 +528,16 @@ async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_rol
 async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
     """Accept a single attendance record from the host-side zk_sync.py script."""
     uid = str(data.get('emp_id', ''))
-    date = data.get('check_in', '')[:10]  # YYYY-MM-DD from ISO string
-    check_in = data.get('check_in')
-    check_out = data.get('check_out')
+    from datetime import date as _date, datetime as _dt
+    check_in_raw = data.get('check_in')
+    check_out_raw = data.get('check_out')
+    date_str = str(check_in_raw or '')[:10]
+    try:
+        work_date = _date.fromisoformat(date_str)
+    except ValueError:
+        return {"action": "skipped", "reason": f"invalid date {date_str}"}
+    check_in = _dt.fromisoformat(check_in_raw) if check_in_raw else None
+    check_out = _dt.fromisoformat(check_out_raw) if check_out_raw else None
 
     emp = (await db.execute(text(
         "SELECT id FROM hr_employees WHERE emp_code=:uid"
@@ -540,7 +547,7 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
 
     existing = (await db.execute(text(
         "SELECT id, edited FROM hr_attendance WHERE employee_id=:e AND work_date=:d"
-    ), {"e": emp[0], "d": date})).fetchone()
+    ), {"e": emp[0], "d": work_date})).fetchone()
 
     if existing:
         if existing[1]:  # manually edited — preserve
@@ -553,7 +560,7 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
     else:
         await db.execute(text(
             "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status) VALUES (:e,:d,:ci,:co,'present')"
-        ), {"e": emp[0], "d": date, "ci": check_in, "co": check_out})
+        ), {"e": emp[0], "d": work_date, "ci": check_in, "co": check_out})
         await db.commit()
         return {"action": "added"}
 
