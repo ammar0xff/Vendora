@@ -227,7 +227,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-xs font-semibold truncate">{user?.full_name}</p>
-                <p className="text-white/40 text-xs">{(user as any)?.role === 'admin' ? 'مدير' : 'موظف'}</p>
+                <p className="text-white/40 text-xs">{(user as any)?.role === 'admin' ? 'مدير عام' : (user as any)?.role === 'manager' ? 'مشرف' : (user as any)?.role === 'cashier' ? 'كاشير' : (user as any)?.role === 'accountant' ? 'محاسب' : (user as any)?.role === 'storekeeper' ? 'أمين مخازن' : (user as any)?.role || 'موظف'}</p>
               </div>
             </div>
           )}
