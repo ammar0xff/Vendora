@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
 from datetime import datetime
 import uuid
@@ -18,7 +18,7 @@ async def list_safes(db: AsyncSession = Depends(get_db), _=Depends(get_current_u
 
 
 @router.post("", status_code=201)
-async def create_safe(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_safe(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     r = await db.execute(text(
         "INSERT INTO safes (name, location) VALUES (:name, :loc) RETURNING *"
     ), {"name": data["name"], "loc": data.get("location", "")})
@@ -27,7 +27,7 @@ async def create_safe(data: dict, db: AsyncSession = Depends(get_db), _=Depends(
 
 
 @router.put("/{safe_id}")
-async def update_safe(safe_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_safe(safe_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     await db.execute(text(
         "UPDATE safes SET name=:name, location=:loc WHERE id=:id"
     ), {"name": data["name"], "loc": data.get("location", ""), "id": safe_id})

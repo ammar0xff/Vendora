@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from app.dependencies import get_db, get_current_user, require_role
+from app.dependencies import get_db, get_current_user, require_role, require_perm
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -51,7 +51,7 @@ async def update_supplier(sid: uuid.UUID, data: SupplierIn, db: AsyncSession = D
     return dict(row._mapping)
 
 @router.delete("/{sid}", status_code=204)
-async def delete_supplier(sid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_supplier(sid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     await db.execute(text("DELETE FROM suppliers WHERE id=:id"), {"id": sid})
     await db.commit()
 

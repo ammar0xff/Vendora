@@ -36,8 +36,29 @@ async def get_print_user(token: str = Query(None), db: AsyncSession = Depends(ge
 
 
 def require_role(*roles: str):
+    """Allow access if user's role OR permissions match any of the given roles/permissions."""
     async def checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-        return current_user
+        if current_user.role == 'admin':
+            return current_user
+        if current_user.role in roles:
+            return current_user
+        user_perms = current_user.permissions or []
+        if any(r in user_perms for r in roles):
+            return current_user
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    return checker
+
+
+# ── Permission-based shortcuts ────────────────────────────────────────────────
+# Use these instead of require_role("admin") for granular access control
+
+def require_perm(*perms: str):
+    """Allow if user has admin role OR any of the listed permissions."""
+    async def checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role == 'admin':
+            return current_user
+        user_perms = current_user.permissions or []
+        if any(p in user_perms for p in perms):
+            return current_user
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return checker

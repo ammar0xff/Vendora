@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 @router.post("/upload-logo")
-async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     import os, shutil
     from app.core.config import settings as cfg
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
@@ -61,7 +61,7 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("")
-async def update_settings(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_settings(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     import json as _json
     from app.models.settings import StoreSetting
     for key, value in data.items():
@@ -94,7 +94,7 @@ async def get_product_options(db: AsyncSession = Depends(get_db), _=Depends(get_
 
 
 @router.put("/product-options")
-async def update_product_options(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_product_options(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     """Update one or more option lists. Pass {sizes:[...], companies:[...], ...}"""
     from app.models.settings import StoreSetting
     import json as _json

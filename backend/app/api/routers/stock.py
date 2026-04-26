@@ -7,7 +7,7 @@ from app.schemas.stock import StockMovementCreate, StockMovementOut, StockBalanc
 from app.models.stock import StockMovement
 from app.models.warehouse import Warehouse
 from app.services import stock_service
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
 import uuid
 
@@ -21,7 +21,7 @@ async def list_warehouses(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/warehouses")
-async def create_warehouse(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_warehouse(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     w = Warehouse(code=data["code"], name=data["name"], warehouse_type=data.get("warehouse_type", "warehouse"))
     db.add(w)
     await db.commit()
@@ -30,7 +30,7 @@ async def create_warehouse(data: dict, db: AsyncSession = Depends(get_db), _=Dep
 
 
 @router.put("/warehouses/{wh_id}")
-async def update_warehouse(wh_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_warehouse(wh_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     result = await db.execute(select(Warehouse).where(Warehouse.id == wh_id))
     w = result.scalar_one_or_none()
     if not w:
@@ -43,7 +43,7 @@ async def update_warehouse(wh_id: uuid.UUID, data: dict, db: AsyncSession = Depe
 
 
 @router.delete("/warehouses/{wh_id}", status_code=204)
-async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     result = await db.execute(select(Warehouse).where(Warehouse.id == wh_id))
     w = result.scalar_one_or_none()
     if w:
@@ -120,7 +120,7 @@ async def add_movement(data: StockMovementCreate, db: AsyncSession = Depends(get
 async def reset_warehouse_stock(
     warehouse_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin")),
+    _=Depends(require_perm("settings")),
 ):
     """Delete all stock movements for a warehouse (reset inventory)."""
     from sqlalchemy import text as sqlt

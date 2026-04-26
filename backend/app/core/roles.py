@@ -13,17 +13,17 @@ ROLE_DEFAULT_PERMISSIONS = {
     "admin": [
         "pos", "sales", "quotations", "inventory", "operations",
         "customers", "reports", "archive", "payroll", "users",
-        "settings", "admin", "shifts",
+        "settings", "admin", "shifts", "finance",
     ],
     "manager": [
         "pos", "sales", "quotations", "inventory", "operations",
-        "customers", "reports", "archive", "shifts",
+        "customers", "reports", "archive", "shifts", "finance", "settings", "payroll",
     ],
     "cashier": [
         "pos", "sales", "quotations", "customers", "shifts",
     ],
     "storekeeper": [
-        "inventory", "operations", "purchases", "archive",
+        "inventory", "operations", "archive",
     ],
     "accountant": [
         "reports", "finance", "archive", "customers", "inventory", "payroll",

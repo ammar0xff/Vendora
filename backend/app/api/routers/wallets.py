@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 import uuid
 
 router = APIRouter(prefix="/wallets", tags=["wallets"])
@@ -18,7 +18,7 @@ async def list_wallets(db: AsyncSession = Depends(get_db), _=Depends(get_current
 
 
 @router.post("", status_code=201)
-async def create_wallet(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_wallet(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     r = await db.execute(text(
         "INSERT INTO payment_wallets (name, type, phone) VALUES (:name, :type, :phone) RETURNING *"
     ), {"name": data["name"], "type": data["type"], "phone": data.get("phone")})
@@ -27,7 +27,7 @@ async def create_wallet(data: dict, db: AsyncSession = Depends(get_db), _=Depend
 
 
 @router.put("/{wid}")
-async def update_wallet(wid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_wallet(wid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     await db.execute(text(
         "UPDATE payment_wallets SET name=:name, phone=:phone WHERE id=:id"
     ), {"name": data["name"], "phone": data.get("phone"), "id": wid})
@@ -36,7 +36,7 @@ async def update_wallet(wid: uuid.UUID, data: dict, db: AsyncSession = Depends(g
 
 
 @router.delete("/{wid}", status_code=204)
-async def delete_wallet(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_wallet(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     await db.execute(text("UPDATE payment_wallets SET is_active=false WHERE id=:id"), {"id": wid})
     await db.commit()
 
@@ -81,7 +81,7 @@ async def wallets_summary(
 
 
 @router.post("/{wid}/reset-balance", status_code=204)
-async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     """Reset a wallet balance to 0."""
     await db.execute(text("UPDATE payment_wallets SET balance = 0 WHERE id = :id"), {"id": wid})
     await db.commit()

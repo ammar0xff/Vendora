@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.base import get_db
 from app.models.archive import ArchivedDocument
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 from app.core.exceptions import NotFoundError
 import uuid
 
@@ -55,7 +55,7 @@ async def get_document(doc_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
 
 @router.delete("/{doc_id}", status_code=204)
-async def delete_document(doc_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_document(doc_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("archive"))):
     result = await db.execute(select(ArchivedDocument).where(ArchivedDocument.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:

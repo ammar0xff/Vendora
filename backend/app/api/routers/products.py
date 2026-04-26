@@ -5,7 +5,7 @@ from app.db.base import get_db
 from app.schemas.product import CategoryCreate, CategoryOut, SubcategoryCreate, SubcategoryOut, ProductCreate, ProductUpdate, ProductOut, ProductWithStock
 from app.models.product import Category, Subcategory, Product
 from app.services.stock_service import get_balance
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 from app.core.config import settings
 import uuid, os
 from app.core.exceptions import NotFoundError
@@ -21,7 +21,7 @@ async def list_categories(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/categories", response_model=CategoryOut)
-async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     cat = Category(name=data.name)
     db.add(cat)
     await db.commit()
@@ -30,7 +30,7 @@ async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_d
 
 
 @router.put("/categories/{cat_id}", response_model=CategoryOut)
-async def update_category(cat_id: uuid.UUID, data: CategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_category(cat_id: uuid.UUID, data: CategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Category).where(Category.id == cat_id))
     cat = result.scalar_one_or_none()
     if not cat:
@@ -42,7 +42,7 @@ async def update_category(cat_id: uuid.UUID, data: CategoryCreate, db: AsyncSess
 
 
 @router.put("/subcategories/{sub_id}", response_model=SubcategoryOut)
-async def update_subcategory(sub_id: uuid.UUID, data: SubcategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_subcategory(sub_id: uuid.UUID, data: SubcategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Subcategory).where(Subcategory.id == sub_id))
     sub = result.scalar_one_or_none()
     if not sub:
@@ -55,7 +55,7 @@ async def update_subcategory(sub_id: uuid.UUID, data: SubcategoryCreate, db: Asy
 
 
 @router.post("/products/{product_id}/move")
-async def move_product(product_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def move_product(product_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     """Move product to a different subcategory."""
     result = await db.execute(select(Product).where(Product.id == product_id))
     p = result.scalar_one_or_none()
@@ -67,7 +67,7 @@ async def move_product(product_id: uuid.UUID, data: dict, db: AsyncSession = Dep
 
 
 @router.delete("/categories/{cat_id}", status_code=204)
-async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Category).where(Category.id == cat_id))
     cat = result.scalar_one_or_none()
     if not cat:
@@ -86,7 +86,7 @@ async def list_subcategories(category_id: uuid.UUID | None = None, db: AsyncSess
 
 
 @router.post("/subcategories", response_model=SubcategoryOut)
-async def create_subcategory(data: SubcategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_subcategory(data: SubcategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     sub = Subcategory(category_id=data.category_id, name=data.name)
     db.add(sub)
     await db.commit()
@@ -130,7 +130,7 @@ async def list_products(
 
 
 @router.post("/products", response_model=ProductOut)
-async def create_product(data: ProductCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_product(data: ProductCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     p = Product(**data.model_dump())
     db.add(p)
     await db.commit()
@@ -157,7 +157,7 @@ async def get_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 
 @router.delete("/products/{product_id}", status_code=204)
-async def delete_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Product).where(Product.id == product_id))
     p = result.scalar_one_or_none()
     if not p:
@@ -167,7 +167,7 @@ async def delete_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_d
 
 
 @router.delete("/subcategories/{sub_id}", status_code=204)
-async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Subcategory).where(Subcategory.id == sub_id))
     sub = result.scalar_one_or_none()
     if not sub:
@@ -191,7 +191,7 @@ async def product_movements(product_id: uuid.UUID, from_date: str | None = None,
     return result.scalars().all()
 
 @router.put("/products/{product_id}", response_model=ProductOut)
-async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Product).where(Product.id == product_id))
     p = result.scalar_one_or_none()
     if not p:
@@ -204,7 +204,7 @@ async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSe
 
 
 @router.post("/products/{product_id}/image")
-async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     result = await db.execute(select(Product).where(Product.id == product_id))
     p = result.scalar_one_or_none()
     if not p:

@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError
 from sqlalchemy import text
@@ -162,7 +162,7 @@ async def list_payroll(month: Optional[str] = None, db: AsyncSession = Depends(g
 
 
 @router.post("/payroll/calculate")
-async def calculate_payroll(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+async def calculate_payroll(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     """Calculate payroll for all (or one) employee using the full engine."""
     from app.services.payroll_engine import calculate_payroll as calc
     import json as _json
@@ -257,7 +257,7 @@ async def get_daily_breakdown(payroll_id: uuid.UUID, db: AsyncSession = Depends(
 
 
 @router.put("/payroll/{payroll_id}")
-async def update_payroll(payroll_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_payroll(payroll_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     await db.execute(text("""
         UPDATE hr_payroll SET bonus=:bonus, deductions=:ded, drawer_variance=:var,
         net_salary=base_salary - (absent_days*(base_salary/26.0)) - advances + :bonus - :ded + :var,
