@@ -21,7 +21,7 @@ async def list_warehouses(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/warehouses")
-async def create_warehouse(data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def create_warehouse(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
     w = Warehouse(code=data["code"], name=data["name"], warehouse_type=data.get("warehouse_type", "warehouse"))
     db.add(w)
     await db.commit()
@@ -30,7 +30,7 @@ async def create_warehouse(data: dict, db: AsyncSession = Depends(get_db), _=Dep
 
 
 @router.put("/warehouses/{wh_id}")
-async def update_warehouse(wh_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def update_warehouse(wh_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
     result = await db.execute(select(Warehouse).where(Warehouse.id == wh_id))
     w = result.scalar_one_or_none()
     if not w:
@@ -43,7 +43,7 @@ async def update_warehouse(wh_id: uuid.UUID, data: dict, db: AsyncSession = Depe
 
 
 @router.delete("/warehouses/{wh_id}", status_code=204)
-async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
     result = await db.execute(select(Warehouse).where(Warehouse.id == wh_id))
     w = result.scalar_one_or_none()
     if w:

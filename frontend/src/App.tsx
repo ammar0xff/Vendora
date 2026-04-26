@@ -29,9 +29,21 @@ import FinanceLedgerPage from './pages/finance/FinanceLedgerPage'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } })
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { token } = useAuthStore()
+function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: string }) {
+  const { token, user } = useAuthStore()
   if (!token) return <Navigate to="/login" replace />
+  // Permission check
+  if (perm) {
+    const role = (user as any)?.role
+    const perms: string[] = (user as any)?.permissions || []
+    if (role !== 'admin' && !perms.includes(perm)) {
+      return <Layout><div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+        <div className="text-5xl">🔒</div>
+        <h2 className="text-xl font-black text-slate-800">غير مصرح</h2>
+        <p className="text-slate-500 text-sm">ليس لديك صلاحية الوصول لهذه الصفحة</p>
+      </div></Layout>
+    }
+  }
   return <Layout>{children}</Layout>
 }
 
@@ -65,27 +77,27 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-          <Route path="/pos" element={<ProtectedRoute><POSPage /></ProtectedRoute>} />
-          <Route path="/sales" element={<ProtectedRoute><SalesPage /></ProtectedRoute>} />
-          <Route path="/quotations" element={<ProtectedRoute><QuotationsPage /></ProtectedRoute>} />
-          <Route path="/finance" element={<ProtectedRoute><FinanceLedgerPage /></ProtectedRoute>} />
-          <Route path="/payroll" element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-          <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-          <Route path="/operations" element={<ProtectedRoute><OperationsPage /></ProtectedRoute>} />
-          <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
-          <Route path="/shifts" element={<ProtectedRoute><ShiftsPage /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
-          <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
-          <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
-          <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrdersPage /></ProtectedRoute>} />
-          <Route path="/stock-adjustments" element={<ProtectedRoute><StockAdjustmentsPage /></ProtectedRoute>} />
-          <Route path="/stocktaking" element={<ProtectedRoute><StocktakingPage /></ProtectedRoute>} />
-          <Route path="/safes" element={<ProtectedRoute><SafesPage /></ProtectedRoute>} />
-          <Route path="/accounting" element={<ProtectedRoute><AccountingPage /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/pos" element={<ProtectedRoute perm="pos"><POSPage /></ProtectedRoute>} />
+          <Route path="/sales" element={<ProtectedRoute perm="sales"><SalesPage /></ProtectedRoute>} />
+          <Route path="/quotations" element={<ProtectedRoute perm="quotations"><QuotationsPage /></ProtectedRoute>} />
+          <Route path="/finance" element={<ProtectedRoute perm="finance"><FinanceLedgerPage /></ProtectedRoute>} />
+          <Route path="/payroll" element={<ProtectedRoute perm="payroll"><PayrollPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute perm="admin"><AdminPage /></ProtectedRoute>} />
+          <Route path="/customers" element={<ProtectedRoute perm="customers"><CustomersPage /></ProtectedRoute>} />
+          <Route path="/operations" element={<ProtectedRoute perm="operations"><OperationsPage /></ProtectedRoute>} />
+          <Route path="/inventory" element={<ProtectedRoute perm="inventory"><InventoryPage /></ProtectedRoute>} />
+          <Route path="/shifts" element={<ProtectedRoute perm="shifts"><ShiftsPage /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute perm="reports"><ReportsPage /></ProtectedRoute>} />
+          <Route path="/archive" element={<ProtectedRoute perm="archive"><ArchivePage /></ProtectedRoute>} />
+          <Route path="/suppliers" element={<ProtectedRoute perm="inventory"><SuppliersPage /></ProtectedRoute>} />
+          <Route path="/purchases" element={<ProtectedRoute perm="inventory"><PurchasesPage /></ProtectedRoute>} />
+          <Route path="/purchase-orders" element={<ProtectedRoute perm="inventory"><PurchaseOrdersPage /></ProtectedRoute>} />
+          <Route path="/stock-adjustments" element={<ProtectedRoute perm="inventory"><StockAdjustmentsPage /></ProtectedRoute>} />
+          <Route path="/stocktaking" element={<ProtectedRoute perm="inventory"><StocktakingPage /></ProtectedRoute>} />
+          <Route path="/safes" element={<ProtectedRoute perm="finance"><SafesPage /></ProtectedRoute>} />
+          <Route path="/accounting" element={<ProtectedRoute perm="reports"><AccountingPage /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute perm="users"><UsersPage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute perm="settings"><SettingsPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
