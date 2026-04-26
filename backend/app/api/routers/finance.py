@@ -22,7 +22,7 @@ async def list_categories(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/financial-categories")
-async def create_category(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def create_category(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     r = await db.execute(text("""
         INSERT INTO financial_categories (name, type, color) VALUES (:name, :type, :color) RETURNING *
     """), {'name': data['name'], 'type': data.get('type','expense'), 'color': data.get('color','#64748b')})
@@ -31,7 +31,7 @@ async def create_category(data: dict, db: AsyncSession = Depends(get_db), _=Depe
 
 
 @router.put("/financial-categories/{cat_id}")
-async def update_category(cat_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def update_category(cat_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     await db.execute(text("UPDATE financial_categories SET name=:name, color=:color WHERE id=:id"),
                      {'id': cat_id, 'name': data['name'], 'color': data.get('color','#64748b')})
     await db.commit()
@@ -39,7 +39,7 @@ async def update_category(cat_id: uuid.UUID, data: dict, db: AsyncSession = Depe
 
 
 @router.delete("/financial-categories/{cat_id}", status_code=204)
-async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     try:
         await db.execute(text("DELETE FROM financial_categories WHERE id=:id"), {'id': cat_id})
         await db.commit()
@@ -53,7 +53,7 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 # ── User Permissions ───────────────────────────────────────────────────────
 @router.get("/permissions/{user_id}")
-async def get_permissions(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def get_permissions(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     r = await db.execute(text("SELECT permissions, is_manager FROM users WHERE id=:id"), {'id': user_id})
     row = r.fetchone()
     if not row: raise HTTPException(404)
@@ -61,7 +61,7 @@ async def get_permissions(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 
 
 @router.put("/permissions/{user_id}")
-async def update_permissions(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def update_permissions(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     import json as _json
     await db.execute(
         text("UPDATE users SET permissions=cast(:p as jsonb), is_manager=:m WHERE id=:id"),
