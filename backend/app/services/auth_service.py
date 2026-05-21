@@ -15,7 +15,8 @@ async def authenticate(db: AsyncSession, username: str, password: str) -> User:
 
 def issue_token(user: User) -> dict:
     token = create_access_token({"sub": str(user.id), "role": user.role, "username": user.username})
-    return {"access_token": token, "token_type": "bearer", "user_id": str(user.id), "username": user.username, "role": user.role}
+    return {"access_token": token, "token_type": "bearer", "user_id": str(user.id),
+            "username": user.username, "role": user.role, "full_name": user.full_name or user.username}
 
 
 async def create_user(db: AsyncSession, data) -> User:
