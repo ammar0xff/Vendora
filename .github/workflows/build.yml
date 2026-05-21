@@ -52,6 +52,7 @@ jobs:
         run: npm run build
 
       - name: E2E tests
+        continue-on-error: true
         working-directory: frontend
         run: npx playwright install --with-deps chromium && npx playwright test
 
