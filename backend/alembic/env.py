@@ -4,22 +4,6 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.db.base import Base
 
-import app.models.user
-import app.models.product
-import app.models.warehouse
-import app.models.stock
-import app.models.party
-import app.models.sale
-import app.models.shift
-import app.models.purchase
-import app.models.archive
-import app.models.payroll
-import app.models.payment_wallet
-import app.models.settings
-import app.models.customer_payment
-import app.models.expense
-import app.models.period
-import app.models.supplier_price
 
 config = context.config
 if config.config_file_name is not None:

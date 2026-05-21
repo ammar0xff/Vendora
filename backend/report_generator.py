@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Dict
-from models import Database, PayrollCalculator, Employee, Attendance
+from models import Employee, Attendance
 import os
 
 class ReportGenerator:
@@ -33,7 +33,7 @@ class ReportGenerator:
         # Calculate comprehensive totals
         total_employees = len(employees_payroll)
         total_base_salary = sum(p['base_salary'] for p in employees_payroll)
-        total_working_days = sum(p['working_days'] for p in employees_payroll)
+        sum(p['working_days'] for p in employees_payroll)
         total_actual_days = sum(p.get('actual_working_days', p['working_days']) for p in employees_payroll)
         total_vacation_days = sum(p.get('vacation_days', 0) for p in employees_payroll)
         total_lateness_mins = sum(p['lateness_minutes'] for p in employees_payroll)
@@ -402,7 +402,7 @@ class ReportGenerator:
         def fmt(val, decimals=2):
             try:
                 return f"{float(val):,.{decimals}f}"
-            except:
+            except Exception:
                 return "0.00"
 
         # Prepare sections HTML to avoid nested f-string complexity
@@ -659,7 +659,8 @@ class ReportGenerator:
             rows_html = ""
             daily = payroll.get('daily', [])
             for d in sorted(daily, key=lambda x: x.get('date') or ''):
-                if not d.get('date'): continue
+                if not d.get('date'):
+                    continue
                 date_str = datetime.fromisoformat(d.get('date')).strftime('%Y-%m-%d')
                 
                 status_raw = d.get('status', 'regular')
@@ -964,14 +965,17 @@ class ReportGenerator:
             finances = []
 
         def fmt(val):
-            try: return f"{float(val):,.2f}"
-            except: return "0.00"
+            try:
+                return f"{float(val):,.2f}"
+            except Exception:
+                return "0.00"
 
         def fmti(val):
             try:
                 v = float(val)
                 return f"{int(v):,}" if v == int(v) else f"{v:,.2f}"
-            except: return "0"
+            except Exception:
+                return "0"
 
         # ── Categorise finance records ──────────────────────────────────
         bonus_items   = [f for f in finances if f.get('type') == 'مكافأة']
@@ -1037,8 +1041,10 @@ class ReportGenerator:
         vac_days = payroll.get('vacation_days', 0)
         ot_h     = payroll.get('overtime_hours', 0)
         parts = [f"حضور <b>{fmti(att_days)}</b> يوم"]
-        if vac_days: parts.append(f"إجازة <b>{fmti(vac_days)}</b>")
-        if ot_h:     parts.append(f"إضافي <b>{fmt(ot_h)}</b> س")
+        if vac_days:
+            parts.append(f"إجازة <b>{fmti(vac_days)}</b>")
+        if ot_h:
+            parts.append(f"إضافي <b>{fmt(ot_h)}</b> س")
         att_bar_html = '&nbsp;&nbsp;·&nbsp;&nbsp;'.join(parts)
 
         now_str   = datetime.now().strftime('%d / %m / %Y')
@@ -1259,8 +1265,8 @@ body{{
         # Calculate statistics
         total_records = len(rows)
         unique_employees = len(set(r.get('uid', '') for r in rows if r.get('uid')))
-        total_scan_count = sum(int(r.get('rec_count', 0)) for r in rows if r.get('rec_count'))
-        records_with_checkin = sum(1 for r in rows if r.get('checkin'))
+        sum(int(r.get('rec_count', 0)) for r in rows if r.get('rec_count'))
+        sum(1 for r in rows if r.get('checkin'))
         records_complete = sum(1 for r in rows if r.get('checkin') and r.get('checkout'))
         
         # New: Work days vs Weekends (Assuming Fri/Sat are weekends)
@@ -1360,16 +1366,21 @@ body{{
                     weekend_days_count += 1
                 else:
                     work_days_count += 1
-            except: pass
+            except Exception:
+                pass
 
             ci = r.get('checkin') or ''
             co = r.get('checkout') or ''
             
-            try: ci_disp = f'<span class="time-badge check-in">{ReportGenerator._format_time_12(ci)}</span>' if ci else '-'
-            except: ci_disp = f'<span class="time-badge check-in">{ci}</span>' if ci else '-'
+            try:
+                ci_disp = f'<span class="time-badge check-in">{ReportGenerator._format_time_12(ci)}</span>' if ci else '-'
+            except Exception:
+                ci_disp = f'<span class="time-badge check-in">{ci}</span>' if ci else '-'
             
-            try: co_disp = f'<span class="time-badge check-out">{ReportGenerator._format_time_12(co)}</span>' if co else '-'
-            except: co_disp = f'<span class="time-badge check-out">{co}</span>' if co else '-'
+            try:
+                co_disp = f'<span class="time-badge check-out">{ReportGenerator._format_time_12(co)}</span>' if co else '-'
+            except Exception:
+                co_disp = f'<span class="time-badge check-out">{co}</span>' if co else '-'
             
             duration_disp = "-"
             if ci and co:
@@ -1379,7 +1390,8 @@ body{{
                     hours = (dt_co - dt_ci).total_seconds() / 3600
                     duration_disp = f'<span class="hours-badge">{hours:.2f} ساعة</span>'
                     total_worked_hours += hours
-                except: pass
+                except Exception:
+                    pass
 
             status = '<span style="color: green;">✓ كامل</span>' if ci and co else '<span style="color: orange;">⚠ ناقص</span>'
             row_class = "weekend" if is_weekend else ""

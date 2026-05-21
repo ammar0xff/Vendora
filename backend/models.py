@@ -252,10 +252,14 @@ class Database:
                     else:
                         # Device sync merging: combine timestamps to find In and Out
                         all_ts = []
-                        if existing_att.check_in: all_ts.append(existing_att.check_in)
-                        if existing_att.check_out: all_ts.append(existing_att.check_out)
-                        if attendance.check_in: all_ts.append(attendance.check_in)
-                        if attendance.check_out: all_ts.append(attendance.check_out)
+                        if existing_att.check_in:
+                            all_ts.append(existing_att.check_in)
+                        if existing_att.check_out:
+                            all_ts.append(existing_att.check_out)
+                        if attendance.check_in:
+                            all_ts.append(attendance.check_in)
+                        if attendance.check_out:
+                            all_ts.append(attendance.check_out)
                         
                         # Dedupe and sort
                         all_ts = sorted(list(set(all_ts)))
@@ -440,10 +444,11 @@ class PayrollCalculator:
             start_h = int(start.split(":")[0])
             end_h = int(end.split(":")[0])
             return start_h, end_h
-        except:
+        except Exception:
             # If shift_str is a shift name (e.g., 'ندى'), try to resolve from data/shifts.json
             try:
-                import json, os
+                import json
+                import os
                 shifts_path = os.path.join(os.getcwd(), 'data', 'shifts.json')
                 if os.path.exists(shifts_path):
                     with open(shifts_path, 'r', encoding='utf-8') as f:
@@ -528,18 +533,12 @@ class PayrollCalculator:
         if not target_date:
             target_date = datetime.now()
 
-        # If target month is the current month and month not ended yet, schedule only up to today
-        now = datetime.now()
-        if target_date.year == now.year and target_date.month == now.month:
-            scheduled_days = now.day
-        else:
-            scheduled_days = days_in_month
-
         # Group attendances by logical day to handle multiple sessions or duplicates
         grouped_attendances = defaultdict(list)
         for att in attendances:
             ref_ts = att.check_in or att.check_out
-            if not ref_ts: continue
+            if not ref_ts:
+                continue
             
             # Map to logical day using our fixed rollover
             day = attendance_day(ref_ts)
@@ -585,6 +584,7 @@ class PayrollCalculator:
         daily_breakdown = []
         
         leave_days_count = 0
+        now = datetime.now()
 
         # Determine date range to display in the report
         # We process from month_start to (month_end or today)
@@ -599,7 +599,8 @@ class PayrollCalculator:
         if employee.hire_date:
             try:
                 h_dt = datetime.strptime(employee.hire_date, '%Y-%m-%d').date()
-            except: pass
+            except Exception:
+                pass
 
         # Process each day in the date range
         current_day = start_date_for_loop
@@ -681,8 +682,10 @@ class PayrollCalculator:
             # Gather all timestamps for this day
             all_ts = []
             for item in day_items:
-                if item.check_in: all_ts.append(item.check_in)
-                if item.check_out: all_ts.append(item.check_out)
+                if item.check_in:
+                    all_ts.append(item.check_in)
+                if item.check_out:
+                    all_ts.append(item.check_out)
             
             # Use extreme timestamps as effective In and Out
             all_ts = sorted(list(set(all_ts)))
@@ -845,7 +848,7 @@ class PayrollCalculator:
                         # Cancel overtime due to lateness, UNLESS excuse_allow_overtime is enabled
                         if not (status == 'excuse' and excuse_allow_overtime):
                             daily_ot = 0.0
-                            assumed_note = (assumed_note + ' / ' if assumed_note else '') + f'إلغاء الإضافي'
+                            assumed_note = (assumed_note + ' / ' if assumed_note else '') + 'إلغاء الإضافي'
                         else:
                             assumed_note = (assumed_note + ' / ' if assumed_note else '') + 'عذر (تفعيل الإضافي)'
 

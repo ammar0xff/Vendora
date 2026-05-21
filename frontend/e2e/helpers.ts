@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test'
 
 const USER_ID = '550e8400-e29b-41d4-a716-446655440000'
-const CSRF_TOKEN = 'test-csrf-token-12345'
+export const CSRF_TOKEN = 'test-csrf-token-12345'
 const JWT_TOKEN = 'test.jwt.token'
 
 export const MOCK_USER = {
