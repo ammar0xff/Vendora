@@ -253,7 +253,8 @@ async def price_history(product_id: uuid.UUID, db: AsyncSession = Depends(get_db
 @router.post("/{po_id}/upload-invoice")
 async def upload_invoice_image(po_id: uuid.UUID, file: UploadFile = File(...),
                                 db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
-    import os, shutil
+    import os
+    import shutil
     from app.core.config import settings as cfg
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
     ext = os.path.splitext(file.filename or "invoice.jpg")[1] or ".jpg"
@@ -271,7 +272,6 @@ async def quick_add_product(data: QuickProductCreate, db: AsyncSession = Depends
     """Create a new product inline during purchase entry."""
     from app.models.product import Product
     from app.models.product import Subcategory
-    from sqlalchemy import or_
     
     # If subcategory_id is provided, use it
     if data.subcategory_id:
@@ -357,7 +357,6 @@ async def create_supplier_price(
     current_user=Depends(require_perm("operations"))
 ):
     """Create or update supplier price."""
-    from app.core.exceptions import BusinessError
     
     # Check if already exists
     existing = await db.scalar(

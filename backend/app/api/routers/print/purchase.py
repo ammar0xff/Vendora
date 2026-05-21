@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_print_user
-from . import router, get_settings, get_paper_size, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
+from . import router, get_settings, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date
 from datetime import datetime
 import uuid
 
@@ -27,7 +27,8 @@ async def print_purchase(po_id: uuid.UUID, token: str = Query(None),
         WHERE po.id = :id
     """), {"id": po_id})
     po = row.fetchone()
-    if not po: return HTMLResponse("Not found", 404)
+    if not po:
+        return HTMLResponse("Not found", 404)
     po = dict(po._mapping)
     items_row = await db.execute(text("""
         SELECT poi.*, p.name as product_name, p.unit

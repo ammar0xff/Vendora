@@ -1,6 +1,14 @@
 """Central print system — shared utilities."""
 from fastapi import APIRouter
+from fastapi.responses import Response
 from datetime import datetime
+
+from . import sale  # noqa: F401
+from . import dispatch  # noqa: F401
+from . import purchase  # noqa: F401
+from . import archive  # noqa: F401
+from . import inventory  # noqa: F401
+from . import shift  # noqa: F401
 
 router = APIRouter(prefix="/print", tags=["print"])
 
@@ -225,7 +233,6 @@ def _extract_meta(html_response) -> tuple:
 
 
 async def _make_pdf(html_response, title: str, filename: str, db, paper_size_override: str = None) -> "Response":
-    from fastapi.responses import Response
     body = _extract_body(html_response)
     company, doc_num = _extract_meta(html_response)
     ps = await get_paper_size(db, paper_size_override)
@@ -236,10 +243,3 @@ async def _make_pdf(html_response, title: str, filename: str, db, paper_size_ove
                     headers={"Content-Disposition": f'inline; filename="{filename}"'})
 
 
-# Import sub-modules to register endpoints on the shared router
-from . import sale  # noqa: F401
-from . import dispatch  # noqa: F401
-from . import purchase  # noqa: F401
-from . import archive  # noqa: F401
-from . import inventory  # noqa: F401
-from . import shift  # noqa: F401

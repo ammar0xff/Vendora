@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
@@ -11,6 +11,7 @@ from app.dependencies import get_current_user, require_role, require_perm, requi
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
 from app.services.audit_service import log as audit_log
+from decimal import Decimal
 import uuid
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -77,10 +78,14 @@ async def list_sales(
     from sqlalchemy import text as sqlt
     q = select(Sale, Customer.name.label("customer_name")).outerjoin(Customer, Sale.customer_id == Customer.id)
     q = q.options(selectinload(Sale.items)).order_by(Sale.created_at.desc()).limit(limit)
-    if from_date: q = q.where(Sale.created_at >= from_date)
-    if to_date: q = q.where(Sale.created_at <= to_date)
-    if cashier_id: q = q.where(Sale.cashier_id == cashier_id)
-    if status: q = q.where(Sale.status == status)
+    if from_date:
+        q = q.where(Sale.created_at >= from_date)
+    if to_date:
+        q = q.where(Sale.created_at <= to_date)
+    if cashier_id:
+        q = q.where(Sale.cashier_id == cashier_id)
+    if status:
+        q = q.where(Sale.status == status)
     rows = (await db.execute(q)).all()
     # Get user names in one query
     user_ids = list({str(sale.created_by) for sale, _ in rows if sale.created_by})
@@ -240,7 +245,6 @@ async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depe
     from app.services.stock_service import record_movement
     from app.models.archive import ArchivedDocument, DocType
     from app.models.shift import DrawerTransaction, DrawerTxType
-    from decimal import Decimal
 
     orig = (await db.execute(select(Sale).options(sil(Sale.items)).where(Sale.id == sale_id))).scalar_one_or_none()
     if not orig:
@@ -248,19 +252,22 @@ async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depe
 
     return_map = {str(i["product_id"]): Decimal(str(i["qty"])) for i in data.get("items", [])}
     if not return_map:
-        from app.core.exceptions import BusinessError; raise BusinessError("No items")
+        from app.core.exceptions import BusinessError
+        raise BusinessError("No items")
 
     ret = Sale(invoice_number="RET-" + datetime.utcnow().strftime('%m%d%H%M%S'),
                customer_id=orig.customer_id, warehouse_id=orig.warehouse_id,
                cashier_id=current_user.id, shift_id=data.get("shift_id") or orig.shift_id,
                sale_mode=orig.sale_mode, status=SaleStatus.returned,
                notes=f"مرتجع جزئي من {orig.invoice_number}")
-    db.add(ret); await db.flush()
+    db.add(ret)
+    await db.flush()
 
     total = Decimal("0")
     for oi in orig.items:
         pid = str(oi.product_id)
-        if pid not in return_map: continue
+        if pid not in return_map:
+            continue
         qty = return_map[pid]
         db.add(SaleItem(sale_id=ret.id, product_id=oi.product_id, qty=qty,
                         unit_price=oi.unit_price, unit_cost=oi.unit_cost, discount=Decimal("0")))

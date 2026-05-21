@@ -1,11 +1,10 @@
 from fastapi import Depends, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_print_user
-from . import router, get_settings, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
-import uuid
+from . import router, get_settings, _make_pdf, wrap, top_band, ar_num, fmt_date
 
 
 @router.get("/dispatch/{doc_number}", response_class=HTMLResponse)
@@ -26,7 +25,8 @@ async def print_dispatch(doc_number: str, token: str = Query(None),
         WHERE dm.doc_number = :doc
     """), {"doc": doc_number})
     dm = row.fetchone()
-    if not dm: return HTMLResponse("Not found", 404)
+    if not dm:
+        return HTMLResponse("Not found", 404)
     dm = dict(dm._mapping)
 
     items_row = await db.execute(text("""
@@ -94,7 +94,8 @@ async def print_handover(doc_number: str, token: str = Query(None),
         WHERE dm.doc_number = :doc AND dm.type = 'handover'
     """), {"doc": doc_number})
     hm = row.fetchone()
-    if not hm: return HTMLResponse("Not found", 404)
+    if not hm:
+        return HTMLResponse("Not found", 404)
     hm = dict(hm._mapping)
 
     items_row = await db.execute(text("""

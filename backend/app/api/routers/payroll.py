@@ -13,7 +13,7 @@ router = APIRouter(prefix="/payroll", tags=["payroll"])
 
 @router.get("/employees")
 async def list_employees(db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
-    return (await db.execute(select(Employee).where(Employee.is_active == True))).scalars().all()
+    return (await db.execute(select(Employee).where(Employee.is_active))).scalars().all()
 
 
 @router.post("/employees")

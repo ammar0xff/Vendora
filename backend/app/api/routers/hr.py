@@ -121,9 +121,11 @@ async def list_attendance(employee_id: Optional[str] = None, month: Optional[str
     q = "SELECT a.*, e.name as emp_name FROM hr_attendance a JOIN hr_employees e ON a.employee_id=e.id WHERE 1=1"
     params = {}
     if employee_id:
-        q += " AND a.employee_id=:eid"; params['eid'] = uuid.UUID(employee_id)
+        q += " AND a.employee_id=:eid"
+        params['eid'] = uuid.UUID(employee_id)
     if month:
-        q += " AND TO_CHAR(a.work_date,'YYYY-MM')=:month"; params['month'] = month
+        q += " AND TO_CHAR(a.work_date,'YYYY-MM')=:month"
+        params['month'] = month
     q += " ORDER BY a.work_date DESC"
     r = await db.execute(text(q), params)
     cols = r.keys()
@@ -147,7 +149,8 @@ async def add_attendance(data: AttendanceCreate, db: AsyncSession = Depends(get_
 
 @router.post("/attendance/import-csv")
 async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
-    import csv, io
+    import csv
+    import io
     content = await file.read()
     text_content = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text_content))
@@ -173,7 +176,6 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
         raise HTTPException(400, f"CSV must have employee_code and date columns. Found: {reader.fieldnames}")
 
     from datetime import date as _date, datetime as _dt
-    import uuid as _uuid
 
     added = updated = skipped = 0
     errors = []
@@ -264,7 +266,8 @@ async def list_payroll(month: Optional[str] = None, db: AsyncSession = Depends(g
     q = "SELECT p.*, e.name as emp_name, e.position FROM hr_payroll p JOIN hr_employees e ON p.employee_id=e.id WHERE 1=1"
     params = {}
     if month:
-        q += " AND p.month=:month"; params['month'] = month
+        q += " AND p.month=:month"
+        params['month'] = month
     q += " ORDER BY e.name"
     r = await db.execute(text(q), params)
     cols = r.keys()
@@ -461,7 +464,8 @@ async def get_daily_breakdown(payroll_id: uuid.UUID, db: AsyncSession = Depends(
     """Get daily attendance breakdown for a payroll record."""
     r = await db.execute(text("SELECT p.daily_breakdown, e.name FROM hr_payroll p JOIN hr_employees e ON p.employee_id=e.id WHERE p.id=:id"), {'id': payroll_id})
     row = r.fetchone()
-    if not row: raise NotFoundError()
+    if not row:
+        raise NotFoundError()
     return {'employee': row[1], 'breakdown': row[0]}
 
 
@@ -483,7 +487,8 @@ async def list_advances(employee_id: Optional[str] = None, db: AsyncSession = De
     q = "SELECT a.*, e.name as emp_name FROM hr_advances a JOIN hr_employees e ON a.employee_id=e.id WHERE 1=1"
     params = {}
     if employee_id:
-        q += " AND a.employee_id=:eid"; params['eid'] = uuid.UUID(employee_id)
+        q += " AND a.employee_id=:eid"
+        params['eid'] = uuid.UUID(employee_id)
     q += " ORDER BY a.date DESC"
     r = await db.execute(text(q), params)
     cols = r.keys()
@@ -515,7 +520,6 @@ async def _report_auth(token: str | None = None, db: AsyncSession = Depends(get_
         from fastapi import HTTPException
         raise HTTPException(401, "Not authenticated")
     from app.core.security import decode_token
-    from sqlalchemy import select
     from app.models.user import User
     import uuid
     payload = decode_token(token)
@@ -569,7 +573,7 @@ async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db),
         result['advance'] = result.get('advances', 0)
         # Qt ReportGenerator required fields
         days = 26
-        shift_len = result.get('total_hours', 0) / max(result.get('working_days', 1), 1)
+        result.get('total_hours', 0) / max(result.get('working_days', 1), 1)
         result['scheduled_month_hours'] = days * 12  # default 12h shift
         result['effective_days_in_month'] = days
         result['days_in_month'] = days
@@ -611,7 +615,8 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
         SELECT id,emp_code,name,position,monthly_salary,shift_schedule,shift_id,hire_date,
                ignore_lateness,max_lateness_before_overtime_cancellation FROM hr_employees WHERE id=:id
     """), {'id': emp_id})).fetchone()
-    if not emp_row: raise NotFoundError()
+    if not emp_row:
+        raise NotFoundError()
     emp_cols = ['id','emp_code','name','position','monthly_salary','shift_schedule','shift_id','hire_date','ignore_lateness','max_lateness_before_overtime_cancellation']
     emp = dict(zip(emp_cols, emp_row))
 
@@ -655,7 +660,6 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     result['ignore_lateness'] = bool(emp.get('ignore_lateness', False))
 
     # Build Employee and Attendance objects for Qt ReportGenerator
-    from datetime import datetime as _dt
     employee_obj = Employee(
         emp_id=str(emp['emp_code'] or emp['id']),
         name=emp['name'], position=emp['position'],
@@ -669,12 +673,14 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
         ci = a['check_in']
         co = a['check_out']
         wd = a.get('work_date')
-        if ci and hasattr(ci, 'replace'): ci = ci.replace(tzinfo=None)
+        if ci and hasattr(ci, 'replace'):
+            ci = ci.replace(tzinfo=None)
         elif wd:
             # No check_in recorded — use work_date at midnight so the day appears in report
             from datetime import datetime as _dt2, date as _d2
             ci = _dt2.combine(wd if isinstance(wd, _d2) else _d2.fromisoformat(str(wd)), _dt2.min.time())
-        if co and hasattr(co, 'replace'): co = co.replace(tzinfo=None)
+        if co and hasattr(co, 'replace'):
+            co = co.replace(tzinfo=None)
         att_objs.append(Attendance(
             str(emp['emp_code'] or emp['id']), ci, co,
             status=a.get('status','present') if a.get('status') != 'present' else 'regular',
@@ -713,8 +719,10 @@ async def attendance_report(month: str, db: AsyncSession = Depends(get_db), _=De
     for r in rows:
         ci = r[3]
         co = r[4]
-        if ci and hasattr(ci, 'replace'): ci = ci.replace(tzinfo=None)
-        if co and hasattr(co, 'replace'): co = co.replace(tzinfo=None)
+        if ci and hasattr(ci, 'replace'):
+            ci = ci.replace(tzinfo=None)
+        if co and hasattr(co, 'replace'):
+            co = co.replace(tzinfo=None)
         report_rows.append({
             'name': r[0], 'uid': r[1] or '', 'date': str(r[2]),
             'checkin': ci.isoformat() if ci else None,
@@ -822,7 +830,7 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
     code_map = {r[1]: r[0] for r in emp_rows}
 
     added = updated = 0
-    for (uid, date), times in groups.items():
+    for (uid, work_date), times in groups.items():
         emp_id = code_map.get(uid)
         if not emp_id:
             continue
@@ -832,7 +840,7 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
 
         existing = (await db.execute(text(
             "SELECT id, edited FROM hr_attendance WHERE employee_id=:e AND work_date=:d"
-        ), {"e": emp_id, "d": date})).fetchone()
+        ), {"e": emp_id, "d": work_date})).fetchone()
 
         if existing:
             if existing[1]:
@@ -844,7 +852,7 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
         else:
             await db.execute(text(
                 "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status) VALUES (:e,:d,:ci,:co,'present')"
-            ), {"e": emp_id, "d": date, "ci": check_in, "co": check_out})
+            ), {"e": emp_id, "d": work_date, "ci": check_in, "co": check_out})
             added += 1
 
     await db.execute(text(

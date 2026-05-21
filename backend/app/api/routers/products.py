@@ -13,7 +13,8 @@ from app.models.product import Category, Subcategory, Product, ProductBarcode
 from app.models.user import User
 from app.dependencies import get_current_user, require_perm
 from app.core.config import settings
-import uuid, os
+import uuid
+import os
 from app.core.exceptions import NotFoundError, BusinessError
 from app.services.audit_service import log as audit_log
 
@@ -132,8 +133,8 @@ async def list_products(
     _=Depends(get_current_user),
 ):
     from sqlalchemy import func, text as sqlt
-    base_q = select(Product).where(Product.is_active == True)
-    count_q = select(func.count(Product.id)).where(Product.is_active == True)
+    base_q = select(Product).where(Product.is_active)
+    count_q = select(func.count(Product.id)).where(Product.is_active)
     if search:
         like = f"%{search}%"
         base_q = base_q.where(Product.name.ilike(like))
@@ -307,7 +308,7 @@ async def add_barcode(
             await db.execute(
                 select(ProductBarcode)
                 .where(ProductBarcode.product_id == product_id)
-                .where(ProductBarcode.is_primary == True)
+                .where(ProductBarcode.is_primary)
             )
         ).scalars().all():
             other.is_primary = False
@@ -346,7 +347,7 @@ async def update_barcode(
         for other_bc in (await db.execute(
             select(ProductBarcode)
             .where(ProductBarcode.product_id == bc.product_id)
-            .where(ProductBarcode.is_primary == True)
+            .where(ProductBarcode.is_primary)
         )).scalars().all():
             other_bc.is_primary = False
     

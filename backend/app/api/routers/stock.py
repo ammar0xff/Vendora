@@ -18,7 +18,7 @@ router = APIRouter(prefix="/stock", tags=["stock"])
 
 @router.get("/warehouses", response_model=list[dict])
 async def list_warehouses(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    result = await db.execute(select(Warehouse).where(Warehouse.is_active == True))
+    result = await db.execute(select(Warehouse).where(Warehouse.is_active))
     return [{"id": str(w.id), "code": w.code, "name": w.name, "warehouse_type": w.warehouse_type} for w in result.scalars().all()]
 
 
@@ -114,8 +114,7 @@ async def get_total_balance_bulk(product_ids: list[uuid.UUID], db: AsyncSession 
 @router.get("/balance/breakdown/{product_id}")
 async def get_balance_breakdown(product_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Stock per warehouse for a single product."""
-    from sqlalchemy import func, case as sa_case, text as sqlt
-    IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
+    from sqlalchemy import text as sqlt
     rows = await db.execute(sqlt("""
         SELECT w.name as warehouse_name, w.warehouse_type,
                COALESCE(SUM(CASE WHEN sm.movement_type IN ('opening_stock','purchase','return_in','adjustment_in','transfer_in')

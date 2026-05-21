@@ -64,7 +64,8 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
     from app.models.warehouse import Warehouse
     from app.models.settings import StoreSetting
     from sqlalchemy import case as sa_case
-    import uuid as _uuid, datetime as _dt
+    import uuid as _uuid
+    import datetime as _dt
 
     wh_id = _uuid.UUID(warehouse_id)
     wh = (await db.execute(select(Warehouse).where(Warehouse.id == wh_id))).scalar_one_or_none()
@@ -81,7 +82,7 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
         .join(Subcategory, Product.subcategory_id == Subcategory.id)
         .join(Category, Subcategory.category_id == Category.id)
         .outerjoin(balance_subq, Product.id == balance_subq.c.product_id)
-        .where(Product.is_active == True)
+        .where(Product.is_active)
         .order_by(Category.name, Subcategory.name, Product.name)
     )
     settings = {r.key: r.value for r in (await db.execute(select(StoreSetting))).scalars().all()}
@@ -90,7 +91,8 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
     for p, sub_name, cat_name, qty in rows.all():
         q = float(qty or 0)
         cv, rv = q * float(p.cost_price), q * float(p.retail_price)
-        total_cost += cv; total_retail += rv
+        total_cost += cv
+        total_retail += rv
         items.append({"category": cat_name, "subcategory": sub_name, "name": p.name, "unit": p.unit,
                       "qty": q, "cost_price": float(p.cost_price), "retail_price": float(p.retail_price),
                       "cost_value": cv, "retail_value": rv})
@@ -356,9 +358,12 @@ async def aging_report(
 
     def bucket(created: datetime | dt_date) -> str:
         d = created if isinstance(created, dt_date) else created.date()
-        if d > d30: return "0-30"
-        if d > d60: return "30-60"
-        if d > d90: return "60-90"
+        if d > d30:
+            return "0-30"
+        if d > d60:
+            return "30-60"
+        if d > d90:
+            return "60-90"
         return "90+"
 
     # ── Customer Aging ──

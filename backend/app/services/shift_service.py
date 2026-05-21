@@ -23,7 +23,8 @@ async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, data) -> Shift:
     )
     existing = result.scalars().all()
     for old in existing[1:]:
-        old.status = ShiftStatus.closed; old.closed_at = datetime.utcnow()
+        old.status = ShiftStatus.closed
+        old.closed_at = datetime.utcnow()
     if existing:
         raise BusinessError("يوجد وردية مفتوحة بالفعل في هذا الفرع")
     shift = Shift(cashier_id=cashier_id, initial_amount=data.initial_amount,

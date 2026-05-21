@@ -47,7 +47,8 @@ async def update_supplier(sid: uuid.UUID, data: SupplierIn, db: AsyncSession = D
     ), {**data.model_dump(), "id": sid})
     await db.commit()
     row = r.fetchone()
-    if not row: raise HTTPException(404)
+    if not row:
+        raise HTTPException(404)
     return dict(row._mapping)
 
 @router.delete("/{sid}", status_code=204)
@@ -60,7 +61,8 @@ async def delete_supplier(sid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 async def supplier_ledger(sid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     sup = await db.execute(text("SELECT * FROM suppliers WHERE id=:id"), {"id": sid})
     sup_row = sup.fetchone()
-    if not sup_row: raise HTTPException(404)
+    if not sup_row:
+        raise HTTPException(404)
     txs = await db.execute(text(
         "SELECT * FROM supplier_transactions WHERE supplier_id=:id ORDER BY created_at DESC"
     ), {"id": sid})

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from app.models.stock import StockMovement, MovementType
 from app.models.product import Product
-from app.core.exceptions import BusinessError, NotFoundError
+from app.core.exceptions import BusinessError
 import uuid
 
 

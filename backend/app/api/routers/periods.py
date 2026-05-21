@@ -6,9 +6,6 @@ from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm
 from app.models.user import User
 from app.core.exceptions import BusinessError
-from app.models.period import AccountingPeriod
-from sqlalchemy import select
-import uuid
 
 router = APIRouter(prefix="/periods", tags=["periods"])
 

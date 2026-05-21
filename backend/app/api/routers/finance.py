@@ -60,7 +60,8 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 async def get_permissions(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     r = await db.execute(text("SELECT permissions, is_manager FROM users WHERE id=:id"), {'id': user_id})
     row = r.fetchone()
-    if not row: raise HTTPException(404)
+    if not row:
+        raise HTTPException(404)
     return {"permissions": row[0] or [], "is_manager": bool(row[1])}
 
 

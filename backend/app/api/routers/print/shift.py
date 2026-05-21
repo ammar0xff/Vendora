@@ -4,8 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_print_user
-from . import router, get_settings, get_paper_size, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
-from datetime import datetime
+from . import router, get_settings, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
 from app.services.shift_service import compute_summary
 import uuid
 
@@ -159,7 +158,7 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
         </tr>"""
         return rows
 
-    ops_rows_html = "".join(op_row(op) for op in all_ops)
+    "".join(op_row(op) for op in all_ops)
 
     wallet_summary_html = "".join(f"""
         <tr><td style="padding:3px 10px;font-size:10px;border-bottom:1px solid #eee">{wn}</td>
@@ -213,9 +212,12 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
     flat_rows.sort(key=lambda x: x["time"])
 
     def row_style(rt):
-        if rt == "return": return "background:#fff5f5"
-        if rt == "expense": return "background:#fffbf0"
-        if rt == "deposit": return "background:#f0fff4"
+        if rt == "return":
+            return "background:#fff5f5"
+        if rt == "expense":
+            return "background:#fffbf0"
+        if rt == "deposit":
+            return "background:#f0fff4"
         return ""
 
     B = "border-left:1px solid #ccc"
@@ -301,7 +303,7 @@ async def print_shift_summary(shift_id: uuid.UUID, token: str = Query(None),
       </tbody>
     </table>
     <div style="display:flex;flex-direction:column;gap:6px">
-      {"" if not wallet_totals else f'<table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px;width:100%"><thead><tr><th colspan="2" style="padding:4px 8px;text-align:right;border-bottom:1.5px solid #111;background:#f5f5f5;font-size:9px">المحافظ الإلكترونية</th></tr></thead><tbody>' + wallet_summary_html + '</tbody></table>'}
+      {"" if not wallet_totals else '<table style="border-collapse:collapse;border:1px solid #ccc;font-size:10px;width:100%"><thead><tr><th colspan="2" style="padding:4px 8px;text-align:right;border-bottom:1.5px solid #111;background:#f5f5f5;font-size:9px">المحافظ الإلكترونية</th></tr></thead><tbody>' + wallet_summary_html + '</tbody></table>'}
       <div style="border:2px solid #111;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:auto">
         <span style="font-size:11px;font-weight:700">الإجمالي الكلي</span>
         <span style="font-size:20px;font-weight:900">{ar_egp(total_all)}</span>

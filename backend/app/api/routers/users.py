@@ -63,9 +63,9 @@ async def update_user(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends
         if k not in allowed:
             continue
         expected_type = allowed[k]
-        if expected_type == bool:
+        if expected_type is bool:
             setattr(user, k, bool(v) if v is not None else None)
-        elif expected_type == str and v is not None:
+        elif expected_type is str and v is not None:
             setattr(user, k, str(v) if str(v) != "" else None)
         else:
             setattr(user, k, v)
@@ -84,7 +84,8 @@ async def reset_password(user_id: uuid.UUID, data: PasswordReset, db: AsyncSessi
     from sqlalchemy import text as sqlt
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    if not user: raise NotFoundError()
+    if not user:
+        raise NotFoundError()
     user.password_hash = hash_password(data.password)
     await db.execute(sqlt(
         "INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details) VALUES ('update', 'user', :eid, :by, 'إعادة تعيين كلمة المرور', :det::jsonb)"

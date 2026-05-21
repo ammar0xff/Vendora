@@ -107,7 +107,7 @@ export default function InventoryPage() {
   const deleteMut = useMutation({ mutationFn: productsApi.delete, onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['products'] }) } })
 
   const toggleCat = (id: string) => {
-    setExpandedCats(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+    setExpandedCats(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
   }
 
   const getSubsForCat = (catId: string) => subcategories?.filter((s: any) => s.category_id === catId) || []

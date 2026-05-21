@@ -22,13 +22,16 @@ async def print_archive_doc(doc_id: uuid.UUID, token: str = Query(None),
         WHERE ad.id = :id
     """), {"id": doc_id})
     doc = row.fetchone()
-    if not doc: return HTMLResponse("Not found", 404)
+    if not doc:
+        return HTMLResponse("Not found", 404)
     doc = dict(doc._mapping)
     _raw_meta = doc.get('metadata_') or doc.get('metadata') or {}
     if isinstance(_raw_meta, str):
         import json as _json
-        try: meta = _json.loads(_raw_meta)
-        except Exception: meta = {}
+        try:
+            meta = _json.loads(_raw_meta)
+        except Exception:
+            meta = {}
     else:
         meta = _raw_meta or {}
 

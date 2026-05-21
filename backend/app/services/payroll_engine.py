@@ -2,8 +2,8 @@
 payroll_engine.py — Full payroll calculation matching the Qt موظفين system.
 Logic ported directly from models.py PayrollCalculator.calculate_payroll()
 """
-from datetime import datetime, timedelta, date, timezone
-from typing import List, Dict, Optional
+from datetime import datetime, timedelta, date
+from typing import List, Optional
 from collections import defaultdict
 import calendar
 
@@ -43,20 +43,24 @@ def parse_shift(shift_str: str, shifts_map: dict = None) -> tuple:
     if len(nums) >= 2:
         s, e = int(nums[0]), int(nums[1])
         # Detect AM/PM from Arabic keywords
-        lower = shift_str.lower()
+        shift_str.lower()
         parts_ar = shift_str.split('الى') if 'الى' in shift_str else shift_str.split('إلى')
         if len(parts_ar) == 2:
             start_part, end_part = parts_ar[0], parts_ar[1]
             # Start hour
             if 'مساء' in start_part or 'pm' in start_part.lower():
-                if s < 12: s += 12
+                if s < 12:
+                    s += 12
             elif 'صباح' in start_part or 'am' in start_part.lower():
-                if s == 12: s = 0
+                if s == 12:
+                    s = 0
             # End hour
             if 'مساء' in end_part or 'pm' in end_part.lower():
-                if e < 12: e += 12
+                if e < 12:
+                    e += 12
             elif 'صباح' in end_part or 'am' in end_part.lower():
-                if e == 12: e = 0
+                if e == 12:
+                    e = 0
         return s, e
 
     # Try resolving by name or id from shifts_map
@@ -187,7 +191,8 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
 
         primary = day_items[0]
         status = primary.get('status', 'present')
-        if status == 'regular': status = 'present'
+        if status == 'regular':
+            status = 'present'
         excuse_no_late = bool(primary.get('excuse_no_late', False))
         excuse_no_early = bool(primary.get('excuse_no_early', False))
         excuse_allow_ot = bool(primary.get('excuse_allow_overtime', False))
@@ -216,8 +221,10 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
         missing_mins = 0
         daily_ot = 0.0
         note_parts = []
-        if edit_reason: note_parts.append(f'[{edit_reason}]')
-        if shift_override: note_parts.append(f'شيفت مؤقت: {shift_override}')
+        if edit_reason:
+            note_parts.append(f'[{edit_reason}]')
+        if shift_override:
+            note_parts.append(f'شيفت مؤقت: {shift_override}')
 
         if status == 'leave':
             if leave_days_count < 4:
@@ -255,7 +262,8 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
             # Handle missing check-out
             if not eff_out and eff_in and not is_edited and status not in ('leave', 'mission'):
                 shift_end_t = eff_in.replace(hour=e_h, minute=0, second=0, microsecond=0)
-                if e_h <= s_h: shift_end_t += timedelta(days=1)
+                if e_h <= s_h:
+                    shift_end_t += timedelta(days=1)
                 if current_day == now.date() and now < (shift_end_t + timedelta(hours=2)):
                     note_parts.append('قيد العمل')
                 else:
@@ -271,7 +279,8 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
                 work_hours = (eff_out - eff_in).total_seconds() / 3600
                 # Early leave
                 shift_end_t = eff_in.replace(hour=e_h, minute=0, second=0, microsecond=0)
-                if e_h <= s_h: shift_end_t += timedelta(days=1)
+                if e_h <= s_h:
+                    shift_end_t += timedelta(days=1)
                 if eff_out < shift_end_t:
                     gross_early = int((shift_end_t - eff_out).total_seconds() / 60)
                     penalty_from_co = int(missing_penalty_hours * 60) if 'افتراض خروج' in ' '.join(note_parts) else 0

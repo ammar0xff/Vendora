@@ -15,7 +15,8 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 @router.post("/upload-logo")
 async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
-    import os, shutil
+    import os
+    import shutil
     from app.core.config import settings as cfg
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
     ext = os.path.splitext(file.filename or "logo.png")[1] or ".png"

@@ -61,9 +61,11 @@ async def export_sales(from_date: str = Query(None), to_date: str = Query(None),
     params = {}
     whr = ["s.status IN ('confirmed','returned')"]
     if from_date:
-        whr.append("DATE(s.created_at) >= :fd"); params["fd"] = from_date
+        whr.append("DATE(s.created_at) >= :fd")
+        params["fd"] = from_date
     if to_date:
-        whr.append("DATE(s.created_at) <= :td"); params["td"] = to_date
+        whr.append("DATE(s.created_at) <= :td")
+        params["td"] = to_date
     rows = (await db.execute(text(f"""
         SELECT s.invoice_number, s.created_at::date as date, c.name as customer,
                s.total, s.discount_amount, s.net_total, s.paid_amount, s.is_credit,
@@ -134,9 +136,11 @@ async def export_expenses(from_date: str = Query(None), to_date: str = Query(Non
     params = {}
     whr = ["1=1"]
     if from_date:
-        whr.append("DATE(e.date) >= :fd"); params["fd"] = from_date
+        whr.append("DATE(e.date) >= :fd")
+        params["fd"] = from_date
     if to_date:
-        whr.append("DATE(e.date) <= :td"); params["td"] = to_date
+        whr.append("DATE(e.date) <= :td")
+        params["td"] = to_date
     rows = (await db.execute(text(f"""
         SELECT e.date, e.description, e.amount, ev.name as vendor, e.status,
                e.payment_method, e.is_recurring
@@ -156,9 +160,11 @@ async def export_purchases(from_date: str = Query(None), to_date: str = Query(No
     params = {}
     whr = ["1=1"]
     if from_date:
-        whr.append("DATE(p.created_at) >= :fd"); params["fd"] = from_date
+        whr.append("DATE(p.created_at) >= :fd")
+        params["fd"] = from_date
     if to_date:
-        whr.append("DATE(p.created_at) <= :td"); params["td"] = to_date
+        whr.append("DATE(p.created_at) <= :td")
+        params["td"] = to_date
     rows = (await db.execute(text(f"""
         SELECT p.po_number, p.created_at::date as date, s.name as supplier,
                p.total_cost, p.status, w.name as warehouse

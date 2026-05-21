@@ -1,8 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, cast
-from sqlalchemy.types import DateTime
+from sqlalchemy import select, func
 from app.models.sale import Sale, SaleItem
 from app.models.product import Product
 
@@ -28,7 +27,8 @@ async def daily_sales(db: AsyncSession, target_date: date, warehouse_id: str | N
 
 
 async def monthly_sales(db: AsyncSession, year: int, month: int, warehouse_id: str | None = None):
-    import calendar, uuid as _uuid
+    import calendar
+    import uuid as _uuid
     last_day = calendar.monthrange(year, month)[1]
     start = datetime(year, month, 1)
     end   = datetime(year, month, last_day, 23, 59, 59)

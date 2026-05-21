@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
@@ -81,8 +81,6 @@ async def change_password(data: UserPasswordUpdate, current_user: User = Depends
 
 @router.post("/print-token")
 async def issue_print_token(current_user: User = Depends(get_current_user)):
-    from app.core.security import create_access_token
-    from datetime import timedelta
     token = create_access_token(
         {"sub": str(current_user.id), "scope": "print"},
         expires_delta=timedelta(seconds=60),

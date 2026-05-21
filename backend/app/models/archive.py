@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Enum as SAEnum
+from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.db.base import Base

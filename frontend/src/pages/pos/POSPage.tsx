@@ -268,7 +268,7 @@ export default function POSPage() {
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: () => import('../../api/endpoints').then(m => m.categoriesApi.list()) })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: () => import('../../api/endpoints').then(m => m.subcategoriesApi.list()) })
   const getSubsForCat = (catId: string) => (subcategories as any[])?.filter((s: any) => s.category_id === catId) || []
-  const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
   const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data), staleTime: 10_000, refetchInterval: 30_000 })

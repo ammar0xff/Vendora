@@ -1,11 +1,10 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Enum as SAEnum, Boolean, Date, SmallInteger
+from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Boolean, Date, SmallInteger
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
-import enum
 
 
 class Employee(Base):

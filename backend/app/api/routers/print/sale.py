@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_print_user
-from . import router, get_settings, get_paper_size, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
+from . import router, get_settings, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
 import uuid
 
 
@@ -28,7 +28,8 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
         WHERE sa.id = :id
     """), {"id": sale_id})
     sale = row.fetchone()
-    if not sale: return HTMLResponse("Not found", 404)
+    if not sale:
+        return HTMLResponse("Not found", 404)
     sale = dict(sale._mapping)
 
     items_row = await db.execute(text("""
@@ -40,7 +41,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
     is_q = sale['status'] == 'quotation'
     doc_label = "عرض سعر" if is_q else "فاتورة مبيعات"
-    mode_label = "جملة" if sale.get('sale_mode') == 'wholesale' else "قطاعي"
+    "جملة" if sale.get('sale_mode') == 'wholesale' else "قطاعي"
     st_map = {"confirmed": ("مؤكدة","b-green"), "quotation": ("عرض سعر","b-yellow"),
               "returned": ("مرتجعة","b-red"), "cancelled": ("ملغاة","b-red")}
     st_lbl, st_cls = st_map.get(sale['status'], (sale['status'], "b-blue"))

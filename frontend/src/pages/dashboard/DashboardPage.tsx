@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { stockApi, reportsApi, shiftsApi } from '../../api/endpoints'
 import { format, subDays } from 'date-fns'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -46,8 +46,9 @@ function AdminDashboard({ whId, isCompanyView, warehouses }: any) {
     const d = subDays(new Date(), 6 - i)
     return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE').replace('Mon','إث').replace('Tue','ثل').replace('Wed','أر').replace('Thu','خم').replace('Fri','جم').replace('Sat','سب').replace('Sun','أح') }
   })
-  const dayQueries = days.map(d => useQuery({ queryKey: ['daily', d.date, whId], queryFn: () => reportsApi.daily(d.date, whId || undefined) }))
-  const chartData = days.map((d, i) => ({ name: d.label, مبيعات: Number(dayQueries[i].data?.total_sales || 0) }))
+  const dayQueries = days.map(d => ({ queryKey: ['daily', d.date, whId], queryFn: () => reportsApi.daily(d.date, whId || undefined) }))
+  const dayResults = useQueries({ queries: dayQueries })
+  const chartData = days.map((d, i) => ({ name: d.label, مبيعات: Number(dayResults[i].data?.total_sales || 0) }))
 
   const todaySales = Number(daily?.total_sales || 0)
   const yesterdaySales = Number(yesterday_data?.total_sales || 0)
@@ -210,8 +211,9 @@ function AccountantDashboard({ whId }: any) {
     const d = subDays(new Date(), 6 - i)
     return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE').replace('Mon','إث').replace('Tue','ثل').replace('Wed','أر').replace('Thu','خم').replace('Fri','جم').replace('Sat','سب').replace('Sun','أح') }
   })
-  const dayQueries = days.map(d => useQuery({ queryKey: ['daily', d.date, whId], queryFn: () => reportsApi.daily(d.date, whId || undefined) }))
-  const chartData = days.map((d, i) => ({ name: d.label, مبيعات: Number(dayQueries[i].data?.total_sales || 0) }))
+  const dayQueries = days.map(d => ({ queryKey: ['daily', d.date, whId], queryFn: () => reportsApi.daily(d.date, whId || undefined) }))
+  const dayResults = useQueries({ queries: dayQueries })
+  const chartData = days.map((d, i) => ({ name: d.label, مبيعات: Number(dayResults[i].data?.total_sales || 0) }))
 
   const rev = Number(profit?.total_revenue || 0)
   const gp = Number(profit?.gross_profit || 0)

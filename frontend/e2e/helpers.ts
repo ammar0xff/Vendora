@@ -172,7 +172,7 @@ export async function setupCustomersMock(page: Page) {
   })
 }
 
-export async function loginAs(page: Page, role = 'cashier') {
+export async function loginAs(page: Page, _role = 'cashier') {
   await setupLoginMocks(page)
   await setupAuthMocks(page)
   await setupSettingsMock(page)

@@ -77,7 +77,7 @@ async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _
             func.sum(SaleItem.qty * SaleItem.unit_price - SaleItem.discount), 0
         ))
         .join(Sale, Sale.id == SaleItem.sale_id)
-        .where(Sale.customer_id == cid, Sale.status == SaleStatus.confirmed, Sale.is_credit == True)
+        .where(Sale.customer_id == cid, Sale.status == SaleStatus.confirmed, Sale.is_credit)
     )
     total_invoiced = inv_result.scalar_one() or Decimal("0")
 
@@ -87,7 +87,7 @@ async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _
             func.sum(SaleItem.qty * SaleItem.unit_price - SaleItem.discount), 0
         ))
         .join(Sale, Sale.id == SaleItem.sale_id)
-        .where(Sale.customer_id == cid, Sale.status == SaleStatus.returned, Sale.is_credit == True)
+        .where(Sale.customer_id == cid, Sale.status == SaleStatus.returned, Sale.is_credit)
     )
     total_returned = ret_result.scalar_one() or Decimal("0")
 
@@ -121,7 +121,7 @@ async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
         select(Sale).options(selectinload(Sale.items))
         .where(Sale.customer_id == cid,
                Sale.status.in_([SaleStatus.confirmed, SaleStatus.returned]),
-               Sale.is_credit == True)
+               Sale.is_credit)
         .order_by(Sale.created_at.asc())  # oldest first for debt payment order
     )).scalars().all()
 

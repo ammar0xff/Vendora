@@ -45,7 +45,7 @@ async def get_current_user(
 
     user_id = _decode_user_id(payload)
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id), User.is_active == True)
+        select(User).where(User.id == uuid.UUID(user_id), User.is_active)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -62,7 +62,7 @@ async def get_print_user(request: Request, token: str = Query(None), db: AsyncSe
     if scope and scope != "print":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token scope")
     user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id), User.is_active == True))
+    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id), User.is_active))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")

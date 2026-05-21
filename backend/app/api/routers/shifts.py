@@ -32,7 +32,7 @@ async def open_shift(data: ShiftOpen, db: AsyncSession = Depends(get_db), curren
 async def last_drawer_amount(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     result = await db.execute(
         select(Shift.next_day_drawer)
-        .where(Shift.status == ShiftStatus.closed, Shift.next_day_drawer != None,
+        .where(Shift.status == ShiftStatus.closed, Shift.next_day_drawer is not None,
                Shift.warehouse_id == warehouse_id)
         .order_by(Shift.closed_at.desc()).limit(1)
     )
@@ -40,7 +40,7 @@ async def last_drawer_amount(warehouse_id: uuid.UUID, db: AsyncSession = Depends
     return {"amount": float(val) if val is not None else 0.0}
 
 
-async def current_shift(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def _current_shift_for_user(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = await db.execute(select(Shift).where(Shift.cashier_id == current_user.id, Shift.status == ShiftStatus.open))
     shift = result.scalar_one_or_none()
     if not shift:
@@ -49,7 +49,7 @@ async def current_shift(db: AsyncSession = Depends(get_db), current_user: User =
 
 
 @router.get("/current", response_model=ShiftOut)
-async def current_shift(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def get_current_shift(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Get the open shift for a specific warehouse."""
     result = await db.execute(
         select(Shift).where(Shift.warehouse_id == warehouse_id, Shift.status == ShiftStatus.open)
@@ -84,7 +84,7 @@ async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest,
     from sqlalchemy import text
 
     # Verify manager
-    mgr_row = await db.execute(select(User).where(User.id == data.manager_id, User.is_manager == True))
+    mgr_row = await db.execute(select(User).where(User.id == data.manager_id, User.is_manager))
     manager = mgr_row.scalar_one_or_none()
     if not manager:
         from app.core.exceptions import BusinessError
