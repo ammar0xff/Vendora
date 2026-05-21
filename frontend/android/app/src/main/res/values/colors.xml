@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 palette matching app theme -->
+    <color name="colorPrimary">#1E3A5F</color>
+    <color name="colorPrimaryDark">#152B47</color>
+    <color name="colorAccent">#C8A84B</color>
+    <color name="colorPrimaryContainer">#D6E3F5</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorOnPrimaryContainer">#0A1A2E</color>
+    <color name="colorSecondary">#C8A84B</color>
+    <color name="colorSecondaryContainer">#F5ECD6</color>
+    <color name="colorOnSecondary">#1A1A0A</color>
+    <color name="colorBackground">#F0F4F8</color>
+    <color name="colorOnBackground">#1A202C</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorOnSurface">#1A202C</color>
+    <color name="colorError">#DC2626</color>
+    <color name="colorOnError">#FFFFFF</color>
+    <color name="splash_background">#1E3A5F</color>
+</resources>
