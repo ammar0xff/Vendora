@@ -12,7 +12,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
+    ...(process.env.CI ? [] : [VitePWA({
       registerType: 'autoUpdate',
       manifest: false,
       workbox: {
@@ -52,10 +52,10 @@ export default defineConfig({
           },
         ],
       },
-    }),
+    })]),
   ],
   server: {
-    proxy: {
+    proxy: process.env.CI ? undefined : {
       '/api': { target: 'http://localhost:8000', rewrite: (p) => p.replace(/^\/api/, '') },
     },
   },
