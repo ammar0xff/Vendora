@@ -6,6 +6,8 @@ import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
 import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, TrendingUp, Edit2 } from 'lucide-react'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { openPrint } from '../../utils/format'
 
 // ── Profit helpers ────────────────────────────────────────────────────────────
 function profitColor(margin: number) {
@@ -56,6 +58,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
   const [customerName, setCustomerName] = useState(initial?.customer_name || '')
   const [selectedCustomer, setSelectedCustomer] = useState(initial?.customer_id || '')
   const [notes, setNotes] = useState(initial?.notes || '')
+  const [confirmBelowCost, setConfirmBelowCost] = useState(false)
   const [cart, setCart] = useState<any[]>(
     initial?.items?.map((it: any) => ({ product: { id: it.product_id, name: it.product_name, cost_price: it.unit_cost }, qty: it.qty, unit_price: it.unit_price })) || []
   )
@@ -117,7 +120,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
 
   const handleSubmit = () => {
     if (!cart.length) return toast.error('أضف منتجاً واحداً على الأقل')
-    if (hasBelowCost && !confirm('⚠️ بعض الأصناف أقل من سعر التكلفة. هل تريد المتابعة؟')) return
+    if (hasBelowCost) { setConfirmBelowCost(true); return }
     mut.mutate()
   }
 
@@ -246,18 +249,17 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
           <FileText size={16} /> {isEdit ? 'حفظ التعديلات' : 'إنشاء وطباعة'}
         </button>
       </div>
+      <ConfirmDialog open={confirmBelowCost} onClose={() => setConfirmBelowCost(false)} onConfirm={() => { setConfirmBelowCost(false); mut.mutate() }} message="⚠️ بعض الأصناف أقل من سعر التكلفة. هل تريد المتابعة؟" confirmText="متابعة" />
     </div>
   )
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-const printUrl = (path: string) => `/api${path}?token=${getToken()}`
-
 export default function QuotationsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [search, setSearch] = useState('')
+  const [confirmQuote, setConfirmQuote] = useState<any>(null)
   const qc = useQueryClient()
 
   const { data: quotations, isLoading } = useQuery({
@@ -278,7 +280,36 @@ export default function QuotationsPage() {
     },
   })
 
-  const handlePrint = (id: string) => window.open(printUrl(`/print/sale/${id}`), '_blank')
+  const precheckAndConfirm = async (id: string) => {
+    try {
+      const detail = await api.get(`/sales/${id}`).then(r => r.data)
+      const warehouseId = detail.warehouse_id
+      if (!warehouseId) {
+        toast.error('لا يوجد مخزن محدد لهذا العرض')
+        return
+      }
+      const items = detail.items || []
+      const productIds = Array.from(new Set(items.map((it: any) => it.product_id)))
+      if (productIds.length === 0) {
+        toast.error('لا توجد أصناف في العرض')
+        return
+      }
+      const balances = await stockApi.balanceBulk(warehouseId, productIds)
+      const insufficient = items.find((it: any) => {
+        const bal = Number(balances?.[it.product_id] ?? 0)
+        return bal < Number(it.qty)
+      })
+      if (insufficient) {
+        toast.error(`⚠️ كمية غير كافية: ${insufficient.product_name || insufficient.name || 'صنف'} — متاح ${Number(balances?.[insufficient.product_id] ?? 0)}`)
+        return
+      }
+      confirmMut.mutate(id)
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || 'فشل فحص المخزون')
+    }
+  }
+
+  const handlePrint = (id: string) => openPrint(`/print/sale/${id}`)
 
   const handleEdit = async (q: any) => {
     try {
@@ -313,7 +344,7 @@ export default function QuotationsPage() {
         <div className="flex gap-1.5 justify-end">
           <button onClick={() => handlePrint(r.id)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="طباعة"><Printer size={14} /></button>
           <button onClick={() => handleEdit(r)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
-          <button onClick={() => { if (confirm('تحويل إلى فاتورة مؤكدة؟ سيتم خصم الكميات.')) confirmMut.mutate(r.id) }}
+          <button onClick={() => setConfirmQuote(r.id)}
             className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: '#16a34a' }}>
             <CheckCircle size={12} /> تأكيد
           </button>
@@ -342,12 +373,19 @@ export default function QuotationsPage() {
         rowKey={(r: any) => r.id} emptyMessage="لا توجد عروض أسعار" emptyIcon="📋" />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="إنشاء عرض سعر جديد" size="xl">
-        <QuotationModal onClose={() => setShowCreate(false)} onCreated={(data) => { setShowCreate(false); if(data?.id) window.open(printUrl(`/print/sale/${data.id}`),'_blank'); qc.invalidateQueries({ queryKey: ['quotations'] }) }} />
+        <QuotationModal onClose={() => setShowCreate(false)} onCreated={(data) => { setShowCreate(false); if(data?.id) openPrint(`/print/sale/${data.id}`); qc.invalidateQueries({ queryKey: ['quotations'] }) }} />
       </Modal>
 
       <Modal open={!!editItem} onClose={() => setEditItem(null)} title="تعديل عرض السعر" size="xl">
-        {editItem && <QuotationModal initial={editItem} onClose={() => setEditItem(null)} onCreated={(data) => { setEditItem(null); if(data?.id) window.open(printUrl(`/print/sale/${data.id}`),'_blank'); qc.invalidateQueries({ queryKey: ['quotations'] }) }} />}
+        {editItem && <QuotationModal initial={editItem} onClose={() => setEditItem(null)} onCreated={(data) => { setEditItem(null); if(data?.id) openPrint(`/print/sale/${data.id}`); qc.invalidateQueries({ queryKey: ['quotations'] }) }} />}
       </Modal>
+      <ConfirmDialog
+        open={!!confirmQuote}
+        onClose={() => setConfirmQuote(null)}
+        onConfirm={() => { if (confirmQuote) precheckAndConfirm(confirmQuote); setConfirmQuote(null) }}
+        message="تحويل إلى فاتورة مؤكدة؟ سيتم خصم الكميات."
+        confirmText="تحويل"
+      />
     </div>
   )
 }

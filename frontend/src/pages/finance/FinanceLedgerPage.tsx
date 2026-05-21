@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { format, startOfMonth } from 'date-fns'
 import { Plus, Edit2, Trash2, TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronLeft } from 'lucide-react'
 import { clsx } from 'clsx'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 export default function FinanceLedgerPage() {
   const [from, setFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -21,6 +22,7 @@ export default function FinanceLedgerPage() {
   const { activeWarehouseId } = useAppStore()
   const isCompanyView = !activeWarehouseId
   const qc = useQueryClient()
+  const [confirmDelCat, setConfirmDelCat] = useState<any>(null)
 
   const { data: ledger, isLoading } = useQuery({
     queryKey: ['financial-ledger', from, to, activeWarehouseId],
@@ -204,12 +206,13 @@ export default function FinanceLedgerPage() {
                     <span className={c.type === 'expense' ? 'badge-red text-xs' : 'badge-green text-xs'}>{c.type === 'expense' ? 'خوارج' : 'دواخل'}</span>
                   </div>
                 </div>
-                <button onClick={() => { if (confirm('حذف الفئة؟')) deleteCatMut.mutate(c.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                <button onClick={() => setConfirmDelCat(c.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
               </div>
             ))}
           </div>
         </div>
       </Modal>
+      <ConfirmDialog open={!!confirmDelCat} onClose={() => setConfirmDelCat(null)} onConfirm={() => { deleteCatMut.mutate(confirmDelCat); setConfirmDelCat(null) }} message="حذف الفئة؟" danger confirmText="حذف" />
     </div>
   )
 }

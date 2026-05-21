@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, text
+from sqlalchemy import select, text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role, require_perm
+from app.dependencies import get_current_user, require_perm
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -46,8 +49,8 @@ async def pwa_manifest(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("")
-async def get_settings(db: AsyncSession = Depends(get_db)):
-    """Public endpoint — returns store settings (name, logo, etc.) for login page."""
+async def get_settings(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    """Returns store settings (name, logo, etc.)."""
     import json as _json
     from app.models.settings import StoreSetting
     result = await db.execute(select(StoreSetting))
@@ -55,7 +58,8 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
     for row in result.scalars().all():
         try:
             out[row.key] = _json.loads(row.value) if row.value and row.value.startswith(('[', '{')) else row.value
-        except Exception:
+        except (ValueError, _json.JSONDecodeError):
+            logger.warning("Failed to parse setting %s: %s", row.key, row.value)
             out[row.key] = row.value
     return out
 

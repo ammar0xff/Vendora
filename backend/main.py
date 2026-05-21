@@ -6,21 +6,21 @@ import os
 from app.db.base import engine, Base
 from app.api.router import router
 from app.core.config import settings
+from app.middleware import CSRFSecurityMiddleware
 
-# Import all models so Base knows about them before create_all
-import app.models.user       # noqa
-import app.models.product    # noqa
-import app.models.warehouse  # noqa
-import app.models.stock      # noqa
-import app.models.party      # noqa
-import app.models.payment_wallet  # noqa  ← must be before sale
-import app.models.sale       # noqa
-import app.models.shift      # noqa
-import app.models.purchase   # noqa
-import app.models.archive    # noqa
-import app.models.payroll    # noqa
-import app.models.settings   # noqa
-import app.models.customer_payment  # noqa
+import app.models.user
+import app.models.product
+import app.models.warehouse
+import app.models.stock
+import app.models.party
+import app.models.payment_wallet
+import app.models.sale
+import app.models.shift
+import app.models.purchase
+import app.models.archive
+import app.models.payroll
+import app.models.settings
+import app.models.customer_payment
 
 
 @asynccontextmanager
@@ -34,11 +34,13 @@ app = FastAPI(title="Inventory ERP API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=list(settings.CORS_ORIGINS) if settings.CORS_ORIGINS else ["*"],
+    allow_credentials=bool(settings.CORS_ORIGINS),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(CSRFSecurityMiddleware)
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
@@ -47,4 +49,11 @@ app.include_router(router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from app.db.base import AsyncSessionLocal
+    from sqlalchemy import text
+    try:
+        async with AsyncSessionLocal() as sess:
+            await sess.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        return {"status": "degraded", "database": "disconnected", "detail": str(e)}

@@ -112,37 +112,39 @@ async def daily_items(target_date: date = Query(default=date.today()), warehouse
     import uuid as _uuid
     start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
     end   = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
-    wh_filter = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
     params: dict = {"start": start, "end": end}
-    if warehouse_id: params["wh_id"] = _uuid.UUID(warehouse_id)
+    if warehouse_id:
+        params["wh_id"] = _uuid.UUID(warehouse_id)
 
-    items = (await db.execute(sqlt(f"""
+    items = (await db.execute(sqlt("""
         SELECT p.name, p.unit, si.unit_price as price,
                SUM(si.qty) as qty,
                SUM(si.qty * si.unit_price - si.discount) as total
         FROM sale_items si
         JOIN sales s ON s.id = si.sale_id
         JOIN products p ON p.id = si.product_id
-        WHERE s.status = 'confirmed' AND s.created_at BETWEEN :start AND :end {wh_filter}
+        WHERE s.status = 'confirmed' AND s.created_at BETWEEN :start AND :end
+          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
         GROUP BY p.name, p.unit, si.unit_price
         ORDER BY total DESC
     """), params)).fetchall()
 
-    returns = (await db.execute(sqlt(f"""
+    returns = (await db.execute(sqlt("""
         SELECT p.name, SUM(si.qty * si.unit_price - si.discount) as total
         FROM sale_items si
         JOIN sales s ON s.id = si.sale_id
         JOIN products p ON p.id = si.product_id
-        WHERE s.status = 'returned' AND s.created_at BETWEEN :start AND :end {wh_filter}
+        WHERE s.status = 'returned' AND s.created_at BETWEEN :start AND :end
+          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
         GROUP BY p.name
     """), params)).fetchall()
     returns_map = {r.name: float(r.total) for r in returns}
 
-    expenses = (await db.execute(sqlt(f"""
+    expenses = (await db.execute(sqlt("""
         SELECT dt.note, SUM(dt.amount) as total
         FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
         WHERE dt.type = 'expense' AND dt.created_at BETWEEN :start AND :end
-        {'AND sh.warehouse_id = :wh_id' if warehouse_id else ''}
+          AND (:wh_id IS NULL OR sh.warehouse_id = :wh_id)
         GROUP BY dt.note
     """), params)).fetchall()
 
@@ -159,26 +161,27 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
     from sqlalchemy import text as sqlt
     import uuid as _uuid
 
-    if period == "weekly":
-        trunc = "week"
-        label_fmt = "YYYY-WW"
-    elif period == "monthly":
-        trunc = "month"
-        label_fmt = "YYYY-MM"
-    else:  # yearly
-        trunc = "year"
-        label_fmt = "YYYY"
+    VALID_PERIODS = {
+        "weekly": ("week", "YYYY-\"W\"IW"),
+        "monthly": ("month", "YYYY-MM"),
+        "yearly": ("year", "YYYY"),
+    }
+    if period not in VALID_PERIODS:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Invalid period: {period}")
+    trunc, label_fmt = VALID_PERIODS[period]
 
-    wh_filter = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
     params: dict = {}
-    if warehouse_id: params["wh_id"] = _uuid.UUID(warehouse_id)
+    if warehouse_id:
+        params["wh_id"] = _uuid.UUID(warehouse_id)
 
     rows = (await db.execute(sqlt(f"""
         SELECT TO_CHAR(DATE_TRUNC('{trunc}', s.created_at), '{label_fmt}') as period,
                COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) as income,
                COALESCE(SUM(CASE WHEN s.status='returned' THEN si.qty * si.unit_price - si.discount ELSE 0 END), 0) as returns
         FROM sale_items si JOIN sales s ON s.id = si.sale_id
-        WHERE s.status IN ('confirmed','returned') {wh_filter}
+        WHERE s.status IN ('confirmed','returned')
+          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
         GROUP BY DATE_TRUNC('{trunc}', s.created_at)
         ORDER BY DATE_TRUNC('{trunc}', s.created_at) DESC
         LIMIT 52
@@ -189,7 +192,7 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
                COALESCE(SUM(dt.amount), 0) as expenses
         FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
         WHERE dt.type = 'expense'
-        {'AND sh.warehouse_id = :wh_id' if warehouse_id else ''}
+          AND (:wh_id IS NULL OR sh.warehouse_id = :wh_id)
         GROUP BY DATE_TRUNC('{trunc}', dt.created_at)
     """), params)).fetchall()
     exp_map = {r.period: float(r.expenses) for r in exp_rows}
@@ -197,3 +200,234 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
     return [{"period": r.period, "income": float(r.income), "returns": float(r.returns),
              "expenses": exp_map.get(r.period, 0),
              "net": float(r.income) - float(r.returns) - exp_map.get(r.period, 0)} for r in rows]
+
+
+@router.get("/cash-flow")
+async def cash_flow(
+    from_date: str = Query(...),
+    to_date: str = Query(...),
+    warehouse_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_role("admin", "manager", "accountant")),
+):
+    """Formal cash flow: incoming (sales, collections) vs outgoing (purchases, expenses, payroll)."""
+    from sqlalchemy import text as sqlt
+    from datetime import datetime
+    import uuid as _uuid
+
+    start = datetime.fromisoformat(from_date)
+    end = datetime.fromisoformat(to_date)
+    params: dict = {"start": start, "end": end}
+    if warehouse_id:
+        params["wh_id"] = _uuid.UUID(warehouse_id)
+
+    wh_filter_sales = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
+    wh_filter_sh = "AND sh.warehouse_id = :wh_id" if warehouse_id else ""
+    wh_filter_ex = "AND e.warehouse_id = :wh_id" if warehouse_id else ""
+    wh_filter_sm = "AND sm.warehouse_id = :wh_id" if warehouse_id else ""
+    wh_filter_po = "AND po.warehouse_id = :wh_id" if warehouse_id else ""
+
+    cash_sales = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(si.qty * si.unit_price - si.discount), 0)
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
+        WHERE s.status = 'confirmed' AND s.is_credit = false
+          AND s.created_at BETWEEN :start AND :end {wh_filter_sales}
+    """), params)).scalar()
+
+    credit_sales = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(si.qty * si.unit_price - si.discount), 0)
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
+        WHERE s.status = 'confirmed' AND s.is_credit = true
+          AND s.created_at BETWEEN :start AND :end {wh_filter_sales}
+    """), params)).scalar()
+
+    customer_payments = (await db.execute(sqlt("""
+        SELECT COALESCE(SUM(amount), 0) FROM customer_payments
+        WHERE created_at BETWEEN :start AND :end
+    """), params)).scalar()
+
+    returns_from_suppliers = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(sm.qty * sm.unit_cost), 0)
+        FROM stock_movements sm
+        WHERE sm.movement_type = 'return_in'
+          AND sm.created_at BETWEEN :start AND :end {wh_filter_sm}
+    """), params)).scalar()
+
+    purchases = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(po.amount_paid), 0)
+        FROM purchase_orders po
+        WHERE po.status IN ('received', 'partial')
+          AND po.received_at BETWEEN :start AND :end {wh_filter_po}
+    """), params)).scalar()
+
+    expenses_amt = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(e.amount), 0)
+        FROM expenses e
+        WHERE e.status = 'approved'
+          AND e.date >= :start::date AND e.date <= :end::date {wh_filter_ex}
+    """), params)).scalar()
+
+    drawer_expenses = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(dt.amount), 0)
+        FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
+        WHERE dt.type = 'expense'
+          AND dt.created_at BETWEEN :start AND :end {wh_filter_sh}
+    """), params)).scalar()
+
+    payroll_amt = (await db.execute(sqlt("""
+        SELECT COALESCE(SUM(pe.base_salary + COALESCE(pe.bonuses,0) - COALESCE(pe.deductions,0)), 0)
+        FROM payroll_entries pe
+        JOIN payroll_periods pp ON pp.id = pe.period_id
+        WHERE pp.status = 'approved'
+          AND pp.created_at BETWEEN :start AND :end
+    """), params)).scalar()
+
+    returns_to_customers = (await db.execute(sqlt(f"""
+        SELECT COALESCE(SUM(si.qty * si.unit_price - si.discount), 0)
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
+        WHERE s.status = 'returned'
+          AND s.created_at BETWEEN :start AND :end {wh_filter_sales}
+    """), params)).scalar()
+
+    supplier_payments = (await db.execute(sqlt("""
+        SELECT COALESCE(SUM(amount), 0) FROM supplier_transactions
+        WHERE type = 'credit' AND created_at BETWEEN :start AND :end
+    """), params)).scalar()
+
+    incoming = {
+        "cash_sales": float(cash_sales),
+        "credit_sales": float(credit_sales),
+        "customer_payments": float(customer_payments),
+        "returns_from_suppliers": float(returns_from_suppliers),
+        "total_incoming": float(cash_sales) + float(credit_sales) + float(customer_payments) + float(returns_from_suppliers),
+    }
+    outgoing = {
+        "purchases": float(purchases),
+        "expenses": float(expenses_amt) + float(drawer_expenses),
+        "payroll": float(payroll_amt),
+        "returns_to_customers": float(returns_to_customers),
+        "supplier_payments": float(supplier_payments),
+        "total_outgoing": float(purchases) + float(expenses_amt) + float(drawer_expenses) + float(payroll_amt) + float(returns_to_customers) + float(supplier_payments),
+    }
+
+    # Expense breakdown by category
+    cat_rows = (await db.execute(sqlt(f"""
+        SELECT fc.name, fc.color, COALESCE(SUM(e.amount), 0) as total
+        FROM expenses e JOIN financial_categories fc ON fc.id = e.category_id
+        WHERE e.status = 'approved' AND e.date >= :start::date AND e.date <= :end::date {wh_filter_ex}
+        GROUP BY fc.name, fc.color ORDER BY total DESC
+    """), params)).fetchall()
+
+    # Sales breakdown by warehouse
+    sales_rows = (await db.execute(sqlt(f"""
+        SELECT w.name, COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) as total
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN warehouses w ON w.id = s.warehouse_id
+        WHERE s.status = 'confirmed' AND s.created_at BETWEEN :start AND :end {wh_filter_sales}
+        GROUP BY w.name ORDER BY total DESC
+    """), params)).fetchall()
+
+    return {
+        "from_date": from_date,
+        "to_date": to_date,
+        "incoming": incoming,
+        "outgoing": outgoing,
+        "net_cash_flow": incoming["total_incoming"] - outgoing["total_outgoing"],
+        "details": {
+            "expenses_by_category": [{"name": r.name, "color": r.color, "amount": float(r.total)} for r in cat_rows],
+            "sales_by_warehouse": [{"warehouse": r.name, "amount": float(r.total)} for r in sales_rows],
+        },
+    }
+
+
+@router.get("/aging")
+async def aging_report(
+    as_of: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_role("admin", "manager", "accountant")),
+):
+    """Aging report: customer and supplier debts split into 0-30 / 30-60 / 60-90 / 90+ day buckets."""
+    from sqlalchemy import text as sqlt
+    from datetime import datetime, timedelta, date as dt_date
+
+    as_of_date = dt_date.fromisoformat(as_of) if as_of else dt_date.today()
+    d30 = as_of_date - timedelta(days=30)
+    d60 = as_of_date - timedelta(days=60)
+    d90 = as_of_date - timedelta(days=90)
+
+    def bucket(created: datetime | dt_date) -> str:
+        d = created if isinstance(created, dt_date) else created.date()
+        if d > d30: return "0-30"
+        if d > d60: return "30-60"
+        if d > d90: return "60-90"
+        return "90+"
+
+    # ── Customer Aging ──
+    # Get each credit sale invoice, compute remaining balance, bucket by date
+    customer_rows = (await db.execute(sqlt("""
+        SELECT c.id, c.name, s.id as sale_id, s.invoice_number, s.created_at,
+            (SELECT COALESCE(SUM(si.qty * si.unit_price - si.discount), 0)
+             FROM sale_items si WHERE si.sale_id = s.id) - COALESCE(s.discount_amount, 0) as invoice_total,
+            COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = c.id), 0) as total_paid
+        FROM sales s
+        JOIN customers c ON c.id = s.customer_id
+        WHERE s.is_credit = true AND s.status = 'confirmed'
+        ORDER BY c.name, s.created_at
+    """))).fetchall()
+
+    customer_map: dict = {}
+    for r in customer_rows:
+        cid = str(r.id)
+        if cid not in customer_map:
+            customer_map[cid] = {"id": cid, "name": r.name, "total_debt": 0, "buckets": {"0-30": 0, "30-60": 0, "60-90": 0, "90+": 0}, "invoices": []}
+        remaining = float(r.invoice_total) - float(r.total_paid)
+        if remaining <= 0:
+            continue
+        b = bucket(r.created_at)
+        customer_map[cid]["buckets"][b] += remaining
+        customer_map[cid]["total_debt"] += remaining
+        customer_map[cid]["invoices"].append({
+            "invoice": r.invoice_number, "date": r.created_at.isoformat(),
+            "total": float(r.invoice_total), "remaining": remaining, "bucket": b,
+        })
+
+    # ── Supplier Aging ──
+    # Debits (what we owe) - Credits (what we paid), aged by transaction date
+    supplier_rows = (await db.execute(sqlt("""
+        SELECT s.id, s.name, st.amount, st.type, st.created_at
+        FROM supplier_transactions st
+        JOIN suppliers s ON s.id = st.supplier_id
+        ORDER BY s.name, st.created_at
+    """)).fetchall())
+
+    supplier_map: dict = {}
+    for r in supplier_rows:
+        sid = str(r.id)
+        if sid not in supplier_map:
+            supplier_map[sid] = {"id": sid, "name": r.name, "total_debt": 0, "buckets": {"0-30": 0, "30-60": 0, "60-90": 0, "90+": 0}}
+        amt = float(r.amount) if r.type == 'debit' else -float(r.amount)
+        b = bucket(r.created_at)
+        supplier_map[sid]["buckets"][b] += amt
+        supplier_map[sid]["total_debt"] += amt
+
+    # Filter out zero/negative balances
+    customers = [c for c in customer_map.values() if c["total_debt"] > 0.01]
+    suppliers = [s for s in supplier_map.values() if s["total_debt"] > 0.01]
+
+    # Sort by debt descending
+    customers.sort(key=lambda x: x["total_debt"], reverse=True)
+    suppliers.sort(key=lambda x: x["total_debt"], reverse=True)
+
+    def totals(items: list) -> dict:
+        return {
+            "0-30": sum(i["buckets"]["0-30"] for i in items),
+            "30-60": sum(i["buckets"]["30-60"] for i in items),
+            "60-90": sum(i["buckets"]["60-90"] for i in items),
+            "90+": sum(i["buckets"]["90+"] for i in items),
+            "total": sum(i["total_debt"] for i in items),
+        }
+
+    return {
+        "as_of": as_of_date.isoformat(),
+        "customers": {"items": customers, "totals": totals(customers)},
+        "suppliers": {"items": suppliers, "totals": totals(suppliers)},
+    }

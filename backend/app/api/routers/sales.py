@@ -4,20 +4,63 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 from app.db.base import get_db
-from app.schemas.sale import SaleCreate, SaleOut
+from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate
 from app.models.sale import Sale, SaleItem, SaleStatus
 from app.services import sale_service
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm, require_open_period
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
+from app.services.audit_service import log as audit_log
 import uuid
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 @router.post("", response_model=SaleOut)
-async def create_sale(data: SaleCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return await sale_service.create_sale(db, data, current_user.id)
+async def create_sale(data: SaleCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales", "pos")), _=Depends(require_open_period)):
+    sale = await sale_service.create_sale(db, data, current_user.id)
+    await audit_log(db, "sale", "create", current_user.id, current_user.full_name, sale.id, {"invoice_number": sale.invoice_number, "total": float(sale.total)}, f"فاتورة {sale.invoice_number}")
+    return sale
+
+
+@router.post("/draft", response_model=SaleOut)
+async def create_draft(data: SaleCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales", "pos"))):
+    """Save a draft sale — no stock deduction."""
+    sale = await sale_service.create_draft_sale(db, data, current_user.id)
+    return sale
+
+
+@router.get("/drafts", response_model=list[SaleOut])
+async def list_drafts(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    """List all draft sales."""
+    result = await db.execute(
+        select(Sale).options(selectinload(Sale.items))
+        .where(Sale.status == SaleStatus.draft)
+        .order_by(Sale.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@router.put("/{sale_id}/confirm", response_model=SaleOut)
+async def confirm_draft(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales", "pos"))):
+    """Confirm a draft sale — deduct stock, assign invoice number."""
+    sale = await sale_service.confirm_draft_sale(db, sale_id, current_user.id)
+    await audit_log(db, "sale", "confirm_draft", current_user.id, current_user.full_name, sale.id, {"invoice_number": sale.invoice_number}, f"تأكيد مسودة فاتورة {sale.invoice_number}")
+    return sale
+
+
+@router.delete("/{sale_id}", status_code=204)
+async def delete_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
+    """Delete a draft or quotation."""
+    result = await db.execute(select(Sale).where(Sale.id == sale_id))
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise NotFoundError()
+    if sale.status not in (SaleStatus.draft, SaleStatus.quotation):
+        raise BusinessError("Only drafts and quotations can be deleted")
+    await db.execute(text("DELETE FROM sale_items WHERE sale_id=:id"), {"id": sale_id})
+    await db.execute(text("DELETE FROM sales WHERE id=:id"), {"id": sale_id})
+    await db.commit()
 
 
 @router.get("", response_model=list[SaleOut])
@@ -55,15 +98,19 @@ async def list_sales(
 
 
 @router.post("/quotations", response_model=SaleOut)
-async def create_quotation(data: SaleCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def create_quotation(data: SaleCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations", "sales"))):
     """إنشاء عرض سعر — لا يُخصم من المخزون."""
-    return await sale_service.create_quotation(db, data, current_user.id)
+    sale = await sale_service.create_quotation(db, data, current_user.id)
+    await audit_log(db, "quotation", "create", current_user.id, current_user.full_name, sale.id, {"invoice_number": sale.invoice_number}, f"عرض سعر {sale.invoice_number}")
+    return sale
 
 
 @router.post("/{sale_id}/confirm-quotation", response_model=SaleOut)
 async def confirm_quotation(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """تحويل عرض السعر إلى فاتورة مبيعات مؤكدة."""
-    return await sale_service.confirm_quotation(db, sale_id, current_user.id)
+    sale = await sale_service.confirm_quotation(db, sale_id, current_user.id)
+    await audit_log(db, "quotation", "confirm", current_user.id, current_user.full_name, sale_id, {}, "تأكيد عرض السعر")
+    return sale
 
 
 @router.get("/{sale_id}/print")
@@ -171,15 +218,17 @@ async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends
 
 
 @router.put("/{sale_id}/cancel")
-async def cancel_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def cancel_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
     sale = await sale_service.cancel_sale(db, sale_id, current_user.id)
     return {"detail": "Cancelled", "invoice_number": sale.invoice_number}
 
 
 @router.post("/{sale_id}/return")
-async def return_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def return_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
     """Full return of a confirmed sale."""
-    return await sale_service.return_sale(db, sale_id, current_user.id)
+    sale = await sale_service.return_sale(db, sale_id, current_user.id)
+    await audit_log(db, "sale", "return", current_user.id, current_user.full_name, sale_id, {}, f"إرجاع فاتورة {sale.invoice_number}")
+    return sale
 
 
 @router.post("/{sale_id}/partial-return")
@@ -239,17 +288,15 @@ async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depe
 async def update_sale_item_qty(
     sale_id: uuid.UUID,
     item_id: uuid.UUID,
-    data: dict,
+    data: SaleItemUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager"))
 ):
-    """Adjust qty of a sale item. Updates stock movements and drawer balance."""
+    """Adjust qty of a sale item with optimistic locking."""
     from sqlalchemy import text as sqlt
     from app.models.shift import DrawerTransaction, DrawerTxType
 
-    new_qty = Decimal(str(data["qty"]))
-    if new_qty <= 0:
-        raise HTTPException(400, "الكمية يجب أن تكون أكبر من صفر")
+    new_qty = data.qty
 
     # Get current item
     item_row = await db.execute(sqlt(
@@ -266,8 +313,19 @@ async def update_sale_item_qty(
     diff_qty = new_qty - old_qty
     diff_amount = diff_qty * Decimal(str(item.unit_price))
 
-    # Update sale_item qty
-    await db.execute(sqlt("UPDATE sale_items SET qty=:q WHERE id=:id"), {"q": new_qty, "id": item_id})
+    # Optimistic lock: ensure qty hasn't changed since client read it
+    if data.expected_qty is not None:
+        result = await db.execute(sqlt(
+            "UPDATE sale_items SET qty=:q WHERE id=:id AND qty=:expected"
+        ), {"q": new_qty, "id": item_id, "expected": data.expected_qty})
+        if result.rowcount == 0:
+            current = (await db.execute(sqlt("SELECT qty FROM sale_items WHERE id=:id"), {"id": item_id})).scalar_one_or_none()
+            if current is None:
+                raise HTTPException(404, "البند غير موجود")
+            raise HTTPException(409, f"تم تعديل الكمية بواسطة مستخدم آخر (الكمية الحالية: {current})")
+    else:
+        # No optimistic lock — last write wins (legacy path)
+        await db.execute(sqlt("UPDATE sale_items SET qty=:q WHERE id=:id"), {"q": new_qty, "id": item_id})
 
     # Update stock movement if tracked
     if item.stock_status == "tracked":
@@ -298,6 +356,7 @@ async def update_sale_item_qty(
             created_by=current_user.id
         ))
 
+    await audit_log(db, "sale_item", "update", current_user.id, current_user.full_name, item_id, {"qty": float(data.qty), "unit_price": float(item.unit_price)}, "تعديل صنف في الفاتورة")
     await db.commit()
     return {"ok": True, "old_qty": float(old_qty), "new_qty": float(new_qty), "diff_amount": float(diff_amount)}
 

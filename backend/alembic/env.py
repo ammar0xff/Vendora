@@ -14,6 +14,12 @@ import app.models.shift
 import app.models.purchase
 import app.models.archive
 import app.models.payroll
+import app.models.payment_wallet
+import app.models.settings
+import app.models.customer_payment
+import app.models.expense
+import app.models.period
+import app.models.supplier_price
 
 config = context.config
 if config.config_file_name is not None:

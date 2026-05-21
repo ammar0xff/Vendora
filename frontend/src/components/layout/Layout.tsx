@@ -1,13 +1,14 @@
-import { type ReactNode, useRef, useEffect, useState } from 'react'
-import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { type ReactNode, useEffect, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, BarChart3,
-  Archive, Settings, Users, LogOut, Wallet, FileText,
+  Archive, Settings, Users, LogOut, FileText,
   Building2, Receipt, Truck, UserCheck, ShieldCheck,
-  DollarSign, Scale, ShoppingBag, ChevronLeft, ChevronRight, ClipboardList, Vault
+  DollarSign, ChevronLeft, ChevronRight, ClipboardList, Vault, Clock, TrendingDown
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
+import { useOfflineStore } from '../../store/offline'
 import { useQuery } from '@tanstack/react-query'
 import { stockApi, settingsApi } from '../../api/endpoints'
 import { fixUploadUrl } from '../../utils/format'
@@ -16,9 +17,8 @@ import { clsx } from 'clsx'
 // Grouped nav structure
 const NAV_GROUPS = [
   {
-    label: null, // no header for top items
+    label: null,
     items: [
-      { to: '/admin', icon: ShieldCheck, label: 'الإدارة', perm: 'admin', warehouseTypes: ['all'] },
       { to: '/', icon: LayoutDashboard, label: 'الرئيسية', perm: null, warehouseTypes: ['all'] },
     ]
   },
@@ -36,6 +36,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/inventory',  icon: Package,  label: 'الأصناف',   perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/suppliers',  icon: Building2, label: 'الموردون',  perm: 'inventory',  warehouseTypes: ['all'] },
+      { to: '/supplier-prices', icon: TrendingDown, label: 'مقارنة أسعار الموردين', perm: 'operations', warehouseTypes: ['all'] },
       { to: '/operations',        icon: Truck,       label: 'المشتريات والعمليات', perm: 'operations', warehouseTypes: ['all'] },
       { to: '/stocktaking',      icon: ClipboardList, label: 'الجرد',           perm: 'inventory',  warehouseTypes: ['all'] },
     ]
@@ -43,10 +44,12 @@ const NAV_GROUPS = [
   {
     label: 'المالية',
     items: [
-      { to: '/reports',  icon: BarChart3, label: 'التقارير',       perm: 'reports',  warehouseTypes: ['all'] },
-      { to: '/finance',  icon: Scale,     label: 'الميزان المالي', perm: 'finance',  warehouseTypes: ['all'] },
-      { to: '/safes',    icon: Vault,     label: 'الخزن المالية',  perm: 'finance',  warehouseTypes: ['all'] },
-      { to: '/archive',  icon: Archive,   label: 'الأرشيف',        perm: 'archive',  warehouseTypes: ['all'] },
+      { to: '/accounting', icon: BarChart3, label: 'الحسابات',     perm: 'reports',  warehouseTypes: ['all'] },
+      { to: '/aging',      icon: Clock,     label: 'أعمار الديون', perm: 'finance',  warehouseTypes: ['all'] },
+      { to: '/cashflow',   icon: BarChart3, label: 'التدفق النقدي',perm: 'finance',  warehouseTypes: ['all'] },
+      { to: '/safes',      icon: Vault,     label: 'الخزن المالية',perm: 'finance',  warehouseTypes: ['all'] },
+      { to: '/expenses',   icon: DollarSign,label: 'المصروفات',    perm: 'finance',  warehouseTypes: ['all'] },
+      { to: '/archive',    icon: Archive,   label: 'الأرشيف',      perm: 'archive',  warehouseTypes: ['all'] },
     ]
   },
   {
@@ -59,6 +62,7 @@ const NAV_GROUPS = [
     label: 'الإدارة',
     items: [
       { to: '/users',    icon: Users,    label: 'المستخدمون', perm: 'users',    warehouseTypes: ['all'] },
+      { to: '/audit-log', icon: ShieldCheck, label: 'سجل التدقيق', perm: 'admin', warehouseTypes: ['all'] },
       { to: '/settings', icon: Settings, label: 'الإعدادات',  perm: 'settings', warehouseTypes: ['all'] },
     ]
   },
@@ -66,7 +70,6 @@ const NAV_GROUPS = [
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuthStore()
-  const navigate = useNavigate()
   const location = useLocation()
   const { activeWarehouseId, setActiveWarehouse } = useAppStore()
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
@@ -83,7 +86,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       const wh = warehouses.find((w: any) => w.id === defaultWhId)
       if (wh) setActiveWarehouse(wh.id, wh.name)
     }
-  }, [defaultWhId, warehouses?.length])
+  }, [defaultWhId, warehouses, warehouses?.length, isAdmin, setActiveWarehouse])
 
   const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
   const defaultWh = warehouses?.find((w: any) => w.id === defaultWhId)
@@ -255,9 +258,56 @@ export default function Layout({ children }: { children: ReactNode }) {
           {isCompanyView && isAdmin && (
             <span className="mr-auto text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">🏢 إدارة شاملة</span>
           )}
+          <SyncIndicator />
         </div>
         <div className="flex-1 p-4 lg:p-6 pt-14 lg:pt-6">{children}</div>
       </main>
     </div>
   )
+}
+
+function SyncIndicator() {
+  const isOnline = useOfflineStore(s => s.isOnline)
+  const queue = useOfflineStore(s => s.queue)
+  const pending = queue.filter(q => q.status === 'pending').length
+  const failed = queue.filter(q => q.status === 'failed').length
+  const syncing = queue.filter(q => q.status === 'syncing').length
+
+  if (!isOnline) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium whitespace-nowrap flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse" />
+        غير متصل
+      </span>
+    )
+  }
+
+  if (syncing > 0) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium whitespace-nowrap flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+        مزامنة...
+      </span>
+    )
+  }
+
+  if (pending > 0) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium whitespace-nowrap flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+        {pending} في الانتظار
+      </span>
+    )
+  }
+
+  if (failed > 0) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium whitespace-nowrap flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+        {failed} فشلت المزامنة
+      </span>
+    )
+  }
+
+  return null
 }

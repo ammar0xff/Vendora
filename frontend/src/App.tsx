@@ -1,16 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { persistQueryClient } from '@tanstack/react-query-persist-client'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/auth'
+import { persister } from './store/queryPersister'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import POSPage from './pages/pos/POSPage'
 import InventoryPage from './pages/inventory/InventoryPage'
 import ShiftsPage from './pages/shifts/ShiftsPage'
-import ReportsPage from './pages/reports/ReportsPage'
 import ArchivePage from './pages/archive/ArchivePage'
 import SuppliersPage from './pages/suppliers/SuppliersPage'
+import SupplierPricesPage from './pages/suppliers/SupplierPricesPage'
 import PurchasesPage from './pages/purchases/PurchasesPage'
 import PurchaseOrdersPage from './pages/purchases/PurchaseOrdersPage'
 import StockAdjustmentsPage from './pages/stock/StockAdjustmentsPage'
@@ -25,14 +27,32 @@ import OperationsPage from './pages/operations/OperationsPage'
 import CustomersPage from './pages/customers/CustomersPage'
 import AdminPage from './pages/admin/AdminPage'
 import PayrollPage from './pages/payroll/PayrollPage'
-import FinanceLedgerPage from './pages/finance/FinanceLedgerPage'
+import ExpensesPage from './pages/expenses/ExpensesPage'
+import CashFlowPage from './pages/cashflow/CashFlowPage'
+import AgingPage from './pages/aging/AgingPage'
+import AuditLogPage from './pages/audit/AuditLogPage'
+import OfflineSync from './components/OfflineSync'
+import OfflineBanner from './components/OfflineBanner'
 
-const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } })
+const qc = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      gcTime: 1000 * 60 * 60 * 24,
+    },
+  },
+})
+
+persistQueryClient({
+  queryClient: qc,
+  persister,
+  maxAge: 1000 * 60 * 60 * 24,
+})
 
 function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: string }) {
   const { token, user } = useAuthStore()
   if (!token) return <Navigate to="/login" replace />
-  // Permission check
   if (perm) {
     const role = (user as any)?.role
     const perms: string[] = (user as any)?.permissions || []
@@ -72,6 +92,8 @@ function FaviconUpdater() {
 export default function App() {
   return (
     <QueryClientProvider client={qc}>
+      <OfflineBanner />
+      <OfflineSync />
       <FaviconUpdater />
       <BrowserRouter>
         <Routes>
@@ -80,16 +102,20 @@ export default function App() {
           <Route path="/pos" element={<ProtectedRoute perm="pos"><POSPage /></ProtectedRoute>} />
           <Route path="/sales" element={<ProtectedRoute perm="sales"><SalesPage /></ProtectedRoute>} />
           <Route path="/quotations" element={<ProtectedRoute perm="quotations"><QuotationsPage /></ProtectedRoute>} />
-          <Route path="/finance" element={<ProtectedRoute perm="finance"><FinanceLedgerPage /></ProtectedRoute>} />
           <Route path="/payroll" element={<ProtectedRoute perm="payroll"><PayrollPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute perm="admin"><AdminPage /></ProtectedRoute>} />
           <Route path="/customers" element={<ProtectedRoute perm="customers"><CustomersPage /></ProtectedRoute>} />
           <Route path="/operations" element={<ProtectedRoute perm="operations"><OperationsPage /></ProtectedRoute>} />
           <Route path="/inventory" element={<ProtectedRoute perm="inventory"><InventoryPage /></ProtectedRoute>} />
           <Route path="/shifts" element={<ProtectedRoute perm="shifts"><ShiftsPage /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute perm="reports"><ReportsPage /></ProtectedRoute>} />
+          <Route path="/reports" element={<Navigate to="/accounting" replace />} />
           <Route path="/archive" element={<ProtectedRoute perm="archive"><ArchivePage /></ProtectedRoute>} />
+          <Route path="/expenses" element={<ProtectedRoute perm="finance"><ExpensesPage /></ProtectedRoute>} />
+          <Route path="/cashflow" element={<ProtectedRoute perm="finance"><CashFlowPage /></ProtectedRoute>} />
+          <Route path="/aging" element={<ProtectedRoute perm="finance"><AgingPage /></ProtectedRoute>} />
+          <Route path="/audit-log" element={<ProtectedRoute perm="admin"><AuditLogPage /></ProtectedRoute>} />
           <Route path="/suppliers" element={<ProtectedRoute perm="inventory"><SuppliersPage /></ProtectedRoute>} />
+          <Route path="/supplier-prices" element={<ProtectedRoute perm="operations"><SupplierPricesPage /></ProtectedRoute>} />
           <Route path="/purchases" element={<ProtectedRoute perm="inventory"><PurchasesPage /></ProtectedRoute>} />
           <Route path="/purchase-orders" element={<ProtectedRoute perm="inventory"><PurchaseOrdersPage /></ProtectedRoute>} />
           <Route path="/stock-adjustments" element={<ProtectedRoute perm="inventory"><StockAdjustmentsPage /></ProtectedRoute>} />

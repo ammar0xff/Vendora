@@ -1,13 +1,20 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select, text, or_
 from datetime import datetime
 from app.db.base import get_db
 from app.models.purchase import PurchaseOrder, PurchaseOrderItem, POStatus
+from app.models.supplier_price import SupplierPrice
+from app.models.product import Product
 from app.models.stock import MovementType
 from app.schemas.stock import StockMovementCreate
+from app.schemas.purchase import PurchaseCreate, PurchaseUpdate, PurchaseReceive, QuickProductCreate
+from app.schemas.supplier_price import (
+    SupplierPriceCreate, SupplierPriceUpdate, SupplierPriceOut, 
+    SupplierPriceComparison
+)
 from app.services.stock_service import record_movement
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_perm, require_open_period
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
 import uuid
@@ -75,30 +82,29 @@ async def get_purchase(po_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=D
 
 
 @router.post("")
-async def create_purchase(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def create_purchase(data: PurchaseCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory")), _=Depends(require_open_period)):
     from sqlalchemy import text as _text
     seq = (await db.execute(_text("SELECT nextval('purchase_seq')"))).scalar()
     po_number = f"PO-{seq:06d}"
     po = PurchaseOrder(
         po_number=po_number,
-        supplier_id=data.get("supplier_id"),
-        warehouse_id=data["warehouse_id"],
+        supplier_id=data.supplier_id,
+        warehouse_id=data.warehouse_id,
         created_by=current_user.id,
-        notes=data.get("notes"),
+        notes=data.notes,
     )
-    # Extra fields via raw update after flush
     db.add(po)
     await db.flush()
-    if data.get("amount_paid") or data.get("received_by_name"):
+    if data.amount_paid or data.received_by_name:
         await db.execute(_text("UPDATE purchase_orders SET amount_paid=:ap, received_by_name=:rbn WHERE id=:id"),
-                         {"ap": data.get("amount_paid", 0), "rbn": data.get("received_by_name", ""), "id": po.id})
-    for item in data.get("items", []):
+                         {"ap": data.amount_paid or 0, "rbn": data.received_by_name or "", "id": po.id})
+    for item in data.items:
         db.add(PurchaseOrderItem(
             po_id=po.id,
-            product_id=item["product_id"],
-            qty_ordered=item["qty"],
-            unit_cost=item["unit_cost"],
-            notes=item.get("notes"),
+            product_id=item.product_id,
+            qty_ordered=item.qty,
+            unit_cost=item.unit_cost,
+            notes=item.notes,
         ))
     await db.commit()
     await db.refresh(po)
@@ -106,7 +112,7 @@ async def create_purchase(data: dict, db: AsyncSession = Depends(get_db), curren
 
 
 @router.put("/{po_id}")
-async def update_purchase(po_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def update_purchase(po_id: uuid.UUID, data: PurchaseUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     """Update draft PO items/supplier before receiving."""
     result = await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == po_id))
     po = result.scalar_one_or_none()
@@ -115,31 +121,28 @@ async def update_purchase(po_id: uuid.UUID, data: dict, db: AsyncSession = Depen
     if po.status != POStatus.draft:
         raise BusinessError("Can only edit draft POs")
 
-    if "supplier_id" in data:
-        po.supplier_id = data["supplier_id"]
-    if "notes" in data:
-        po.notes = data["notes"]
+    if data.supplier_id is not None:
+        po.supplier_id = data.supplier_id
+    if data.notes is not None:
+        po.notes = data.notes
 
-    # Replace items
-    await db.execute(text("DELETE FROM purchase_order_items WHERE po_id=:id"), {"id": po_id})
-    for item in data.get("items", []):
-        db.add(PurchaseOrderItem(
-            po_id=po.id,
-            product_id=item["product_id"],
-            qty_ordered=item["qty"],
-            unit_cost=item["unit_cost"],
-            notes=item.get("notes"),
-        ))
+    if data.items is not None:
+        await db.execute(text("DELETE FROM purchase_order_items WHERE po_id=:id"), {"id": po_id})
+        for item in data.items:
+            db.add(PurchaseOrderItem(
+                po_id=po.id,
+                product_id=item.product_id,
+                qty_ordered=item.qty,
+                unit_cost=item.unit_cost,
+                notes=item.notes,
+            ))
     await db.commit()
     return {"ok": True}
 
 
 @router.post("/{po_id}/receive")
-async def receive_purchase(po_id: uuid.UUID, data: dict = {}, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Receive PO. Optionally pass overridden items with actual received qty/cost:
-    { items: [{product_id, qty_received, unit_cost}] }
-    """
+async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseReceive(), db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
+    """Receive PO. Optionally pass overridden items with actual received qty/cost."""
     result = await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == po_id))
     po = result.scalar_one_or_none()
     if not po:
@@ -149,8 +152,7 @@ async def receive_purchase(po_id: uuid.UUID, data: dict = {}, db: AsyncSession =
 
     items = (await db.execute(select(PurchaseOrderItem).where(PurchaseOrderItem.po_id == po_id))).scalars().all()
 
-    # Build override map if provided
-    overrides = {str(i["product_id"]): i for i in data.get("items", [])}
+    overrides = {str(i.product_id): {'qty_received': i.qty_received, 'unit_cost': i.unit_cost} for i in data.items}
 
     for item in items:
         override = overrides.get(str(item.product_id), {})
@@ -208,7 +210,7 @@ async def receive_purchase(po_id: uuid.UUID, data: dict = {}, db: AsyncSession =
         ), {"remaining": remaining, "sid": po.supplier_id})
 
     # Archive the purchase invoice
-    from app.models.archive import ArchivedDocument, DocType
+    from app.models.archive import ArchivedDocument
     supplier_name = (await db.execute(text("SELECT name FROM suppliers WHERE id=:id"), {"id": po.supplier_id})).scalar() if po.supplier_id else None
     total_received = sum(
         float(overrides.get(str(item.product_id), {}).get("unit_cost", item.unit_cost)) *
@@ -250,7 +252,7 @@ async def price_history(product_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 @router.post("/{po_id}/upload-invoice")
 async def upload_invoice_image(po_id: uuid.UUID, file: UploadFile = File(...),
-                                db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+                                db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     import os, shutil
     from app.core.config import settings as cfg
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
@@ -265,26 +267,159 @@ async def upload_invoice_image(po_id: uuid.UUID, file: UploadFile = File(...),
 
 
 @router.post("/quick-add-product")
-async def quick_add_product(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def quick_add_product(data: QuickProductCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     """Create a new product inline during purchase entry."""
     from app.models.product import Product
     from app.models.product import Subcategory
-    # Get or create a default subcategory
-    sub = (await db.execute(select(Subcategory).limit(1))).scalar_one_or_none()
-    if not sub:
-        from app.core.exceptions import BusinessError
-        raise BusinessError("لا توجد تصنيفات — أضف تصنيف أولاً")
+    from sqlalchemy import or_
+    
+    # If subcategory_id is provided, use it
+    if data.subcategory_id:
+        sub = await db.scalar(select(Subcategory).where(Subcategory.id == data.subcategory_id))
+        if not sub:
+            raise BusinessError("التصنيف الفرعي غير موجود")
+    else:
+        # Try to find a default subcategory named "عام" or "متنوع"
+        sub = await db.scalar(
+            select(Subcategory).where(
+                or_(
+                    Subcategory.name.ilike("عام"),
+                    Subcategory.name.ilike("متنوع"),
+                    Subcategory.name.ilike("general"),
+                    Subcategory.name.ilike("miscellaneous")
+                )
+            ).limit(1)
+        )
+        # If no default found, use first subcategory
+        if not sub:
+            sub = await db.scalar(select(Subcategory).limit(1))
+            if not sub:
+                raise BusinessError("لا توجد تصنيفات — أضف تصنيف أولاً")
+    
     p = Product(
-        name=data["name"],
-        unit=data.get("unit", "عدد"),
-        cost_price=data.get("cost_price", 0),
-        retail_price=data.get("retail_price", 0),
-        wholesale_price=data.get("wholesale_price", 0),
-        company=data.get("company", ""),
-        subcategory_id=data.get("subcategory_id") or sub.id,
+        name=data.name,
+        unit=data.unit or "عدد",
+        cost_price=float(data.cost_price or 0),
+        retail_price=float(data.retail_price or 0),
+        wholesale_price=float(data.wholesale_price or 0),
+        company=data.company or "",
+        subcategory_id=sub.id,
     )
     db.add(p)
     await db.commit()
     await db.refresh(p)
-    return {"id": str(p.id), "name": p.name, "unit": p.unit, "cost_price": float(p.cost_price),
-            "retail_price": float(p.retail_price), "barcode": p.barcode}
+    return {
+        "id": str(p.id),
+        "name": p.name,
+        "unit": p.unit,
+        "cost_price": float(p.cost_price),
+        "retail_price": float(p.retail_price),
+        "barcode": p.barcode,
+    }
+
+
+# ── Supplier Prices ────────────────────────────────────────────────────────
+@router.get("/supplier-prices/product/{product_id}", response_model=SupplierPriceComparison)
+async def get_product_supplier_prices(product_id: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    """Get all supplier prices for a product with comparison."""
+    prod_uuid = uuid.UUID(product_id)
+    prod = await db.scalar(select(Product).where(Product.id == prod_uuid))
+    if not prod:
+        raise NotFoundError()
+
+    rows = await db.execute(
+        text(
+            """
+            SELECT sp.id, sp.supplier_id, sp.product_id, sp.price, sp.currency, sp.min_qty,
+                   sp.last_purchase_date, sp.notes, sp.is_active, sp.created_at, sp.updated_at,
+                   s.name AS supplier_name
+            FROM supplier_prices sp
+            JOIN suppliers s ON s.id = sp.supplier_id
+            WHERE sp.product_id = :pid AND sp.is_active = true
+            ORDER BY sp.price ASC
+            """
+        ),
+        {"pid": prod_uuid},
+    )
+
+    suppliers = [dict(r._mapping) for r in rows.fetchall()]
+    return {
+        "product_id": prod_uuid,
+        "product_name": prod.name,
+        "suppliers": suppliers,
+    }
+
+
+@router.post("/supplier-prices", response_model=SupplierPriceOut)
+async def create_supplier_price(
+    data: SupplierPriceCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_perm("operations"))
+):
+    """Create or update supplier price."""
+    from app.core.exceptions import BusinessError
+    
+    # Check if already exists
+    existing = await db.scalar(
+        select(SupplierPrice).where(
+            SupplierPrice.supplier_id == data.supplier_id,
+            SupplierPrice.product_id == data.product_id
+        )
+    )
+    
+    if existing:
+        # Update
+        existing.price = data.price
+        existing.currency = data.currency
+        existing.min_qty = data.min_qty
+        existing.notes = data.notes
+        existing.is_active = True
+    else:
+        # Create
+        existing = SupplierPrice(**data.model_dump())
+        db.add(existing)
+    
+    await db.commit()
+    await db.refresh(existing)
+    return existing
+
+
+@router.put("/supplier-prices/{price_id}", response_model=SupplierPriceOut)
+async def update_supplier_price(
+    price_id: str,
+    data: SupplierPriceUpdate,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_perm("operations"))
+):
+    """Update supplier price."""
+    import uuid
+    from app.core.exceptions import NotFoundError
+    
+    sp = await db.scalar(select(SupplierPrice).where(SupplierPrice.id == uuid.UUID(price_id)))
+    if not sp:
+        raise NotFoundError()
+    
+    for k, v in data.model_dump(exclude_none=True).items():
+        setattr(sp, k, v)
+    
+    await db.commit()
+    await db.refresh(sp)
+    return sp
+
+
+@router.delete("/supplier-prices/{price_id}", status_code=204)
+async def delete_supplier_price(
+    price_id: str,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_perm("operations"))
+):
+    """Soft-delete supplier price."""
+    import uuid
+    from app.core.exceptions import NotFoundError
+    
+    sp = await db.scalar(select(SupplierPrice).where(SupplierPrice.id == uuid.UUID(price_id)))
+    if not sp:
+        raise NotFoundError()
+    
+    sp.is_active = False
+    await db.commit()

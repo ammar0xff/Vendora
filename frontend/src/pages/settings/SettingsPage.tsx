@@ -4,15 +4,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, categoriesApi, subcategoriesApi, stockApi } from '../../api/endpoints'
 import api from '../../api/client'
 import { PageLoader } from '../../components/ui/Loaders'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil, ChevronDown, ChevronLeft } from 'lucide-react'
+import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil, ChevronDown, ChevronLeft, Lock } from 'lucide-react'
+import PeriodsTab from './PeriodsTab'
+import { useAuthStore } from '../../store/auth'
 
 function WalletsTab() {
   const qc = useQueryClient()
   const { data: wallets, isLoading } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data) })
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', type: 'vodafone_cash', phone: '' })
+  const [confirmDelWallet, setConfirmDelWallet] = useState<{ id: string } | null>(null)
 
   const createMut = useMutation({
     mutationFn: () => api.post('/wallets', form).then(r => r.data),
@@ -42,7 +46,7 @@ function WalletsTab() {
               <p className="text-xs font-bold text-green-700 mt-0.5">رصيد: {Number(w.balance).toLocaleString('ar-EG')} ج.م</p>
             </div>
             {w.type !== 'cash' && (
-              <button onClick={() => { if (confirm('حذف؟')) deleteMut.mutate(w.id) }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
+              <button onClick={() => setConfirmDelWallet({ id: w.id })} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
             )}
           </div>
         ))}
@@ -72,6 +76,33 @@ function WalletsTab() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmDelWallet}
+        onClose={() => setConfirmDelWallet(null)}
+        onConfirm={() => deleteMut.mutate(confirmDelWallet!.id)}
+        message="هل أنت متأكد من حذف وسيلة الدفع؟"
+        danger
+      />
+    </div>
+  )
+}
+
+function InlineInput({ editing, setEditing, handleSave, isSaving, onCancel }: {
+  editing: any; setEditing: (f: any) => void; handleSave: () => void; isSaving: boolean; onCancel: () => void
+}) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200">
+      <input autoFocus className="flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder-slate-400"
+        placeholder="اكتب الاسم..."
+        value={editing?.name || ''}
+        onChange={e => setEditing((p: any) => ({ ...p, name: e.target.value }))}
+        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel() }} />
+      <button onClick={handleSave} disabled={isSaving}
+        className="px-3 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+        style={{ background: '#1e3a5f' }}>
+        {isSaving ? '...' : 'حفظ'}
+      </button>
+      <button onClick={onCancel} className="px-2 py-1 rounded-lg text-xs text-slate-500 hover:bg-slate-100">إلغاء</button>
     </div>
   )
 }
@@ -81,8 +112,10 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
   const [expanded, setExpanded] = useState<Set<string>>(new Set(categories.map((c: any) => c.id)))
   // editing: { type: 'cat'|'sub'|'new-cat'|'new-sub', id?, catId?, name }
   const [editing, setEditing] = useState<any>(null)
+  const [confirmDelCat, setConfirmDelCat] = useState<{ id: string; name: string; subsCount: number } | null>(null)
+  const [confirmDelSub, setConfirmDelSub] = useState<{ id: string; name: string } | null>(null)
 
-  const toggle = (id: string) => setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  const toggle = (id: string) => setExpanded(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
   const getSubs = (catId: string) => subcategories.filter((s: any) => s.category_id === catId)
 
   const saveCat = useMutation({
@@ -127,23 +160,6 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
 
   const isSaving = saveCat.isPending || saveSub.isPending
 
-  // Inline input row
-  const InlineInput = ({ onCancel }: { onCancel: () => void }) => (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200">
-      <input autoFocus className="flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder-slate-400"
-        placeholder="اكتب الاسم..."
-        value={editing?.name || ''}
-        onChange={e => setEditing((p: any) => ({ ...p, name: e.target.value }))}
-        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel() }} />
-      <button onClick={handleSave} disabled={isSaving}
-        className="px-3 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-50"
-        style={{ background: '#1e3a5f' }}>
-        {isSaving ? '...' : 'حفظ'}
-      </button>
-      <button onClick={onCancel} className="px-2 py-1 rounded-lg text-xs text-slate-500 hover:bg-slate-100">إلغاء</button>
-    </div>
-  )
-
   return (
     <div className="card max-w-2xl">
       <div className="flex items-center justify-between mb-4">
@@ -161,7 +177,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
       {/* New category input */}
       {editing?.type === 'new-cat' && (
         <div className="mb-3">
-          <InlineInput onCancel={() => setEditing(null)} />
+          <InlineInput editing={editing} setEditing={setEditing} handleSave={handleSave} isSaving={isSaving} onCancel={() => setEditing(null)} />
         </div>
       )}
 
@@ -207,7 +223,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                       className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل">
                       <Pencil size={13} />
                     </button>
-                    <button onClick={() => { if (confirm(`حذف "${cat.name}" وكل تصنيفاتها الفرعية (${subs.length})؟`)) deleteCat.mutate(cat.id) }}
+                    <button onClick={() => setConfirmDelCat({ id: cat.id, name: cat.name, subsCount: subs.length })}
                       className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
                       <Trash2 size={13} />
                     </button>
@@ -233,7 +249,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل">
                             <Pencil size={12} />
                           </button>
-                          <button onClick={() => { if (confirm(`حذف "${sub.name}"؟`)) deleteSub.mutate(sub.id) }}
+                          <button onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
                             <Trash2 size={12} />
                           </button>
@@ -244,7 +260,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
 
                   {/* New sub input */}
                   {editing?.type === 'new-sub' && editing?.catId === cat.id ? (
-                    <InlineInput onCancel={() => setEditing(null)} />
+                    <InlineInput editing={editing} setEditing={setEditing} handleSave={handleSave} isSaving={isSaving} onCancel={() => setEditing(null)} />
                   ) : (
                     <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
@@ -257,12 +273,26 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           )
         })}
       </div>
+      <ConfirmDialog
+        open={!!confirmDelCat}
+        onClose={() => setConfirmDelCat(null)}
+        onConfirm={() => deleteCat.mutate(confirmDelCat!.id)}
+        message={`حذف "${confirmDelCat?.name}" وكل تصنيفاتها الفرعية (${confirmDelCat?.subsCount})؟`}
+        danger
+      />
+      <ConfirmDialog
+        open={!!confirmDelSub}
+        onClose={() => setConfirmDelSub(null)}
+        onConfirm={() => deleteSub.mutate(confirmDelSub!.id)}
+        message={`حذف "${confirmDelSub?.name}"؟`}
+        danger
+      />
     </div>
   )
 }
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'store' | 'categories' | 'options' | 'warehouses' | 'wallets'>('store')
+  const [tab, setTab] = useState<'store' | 'categories' | 'options' | 'warehouses' | 'wallets' | 'periods'>('store')
   const [storeForm, setStoreForm] = useState<any>(null)
   const [showAddCat, setShowAddCat] = useState(false)
   const [showAddSub, setShowAddSub] = useState(false)
@@ -281,6 +311,8 @@ export default function SettingsPage() {
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const [editingWh, setEditingWh] = useState<any>(null)
   const [editWhName, setEditWhName] = useState('')
+  const [confirmResetWh, setConfirmResetWh] = useState<{ id: string; name: string } | null>(null)
+  const [confirmDelWh, setConfirmDelWh] = useState<{ id: string } | null>(null)
   const renameWh = useMutation({
     mutationFn: () => api.put(`/stock/warehouses/${editingWh.id}`, { name: editWhName }).then(r => r.data),
     onSuccess: () => { toast.success('تم تعديل الاسم'); setEditingWh(null); qc.invalidateQueries({ queryKey: ['warehouses'] }) },
@@ -301,6 +333,14 @@ export default function SettingsPage() {
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: () => subcategoriesApi.list() })
 
   const uploadLogo = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('يرجى اختيار ملف صورة فقط')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('حجم الصورة يجب أن يكون أقل من 2 ميجابايت')
+      return
+    }
     const fd = new FormData()
     fd.append('file', file)
     try {
@@ -319,17 +359,9 @@ export default function SettingsPage() {
     mutationFn: () => categoriesApi.create(newCatName),
     onSuccess: () => { toast.success('تمت الإضافة'); setShowAddCat(false); setNewCatName(''); qc.invalidateQueries({ queryKey: ['categories'] }) },
   })
-  const deleteCat = useMutation({
-    mutationFn: categoriesApi.delete,
-    onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['categories'] }) },
-  })
   const addSub = useMutation({
     mutationFn: () => subcategoriesApi.create(selectedCatForSub, newSubName),
     onSuccess: () => { toast.success('تمت الإضافة'); setShowAddSub(false); setNewSubName(''); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
-  })
-  const deleteSub = useMutation({
-    mutationFn: subcategoriesApi.delete,
-    onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
   })
   const updateCatMut = useMutation({
     mutationFn: ({ id, name }: any) => categoriesApi.update(id, name),
@@ -340,6 +372,10 @@ export default function SettingsPage() {
     onSuccess: () => { toast.success('تم التعديل'); setEditSub(null); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
   })
 
+  const currentUser = useAuthStore((s: any) => s.user)
+  const isAdmin = currentUser?.role === 'admin'
+  const hasPerm = (p: string) => isAdmin || currentUser?.permissions?.includes(p)
+
   if (isLoading) return <PageLoader />
 
   const sf = storeForm || settings || {}
@@ -348,8 +384,9 @@ export default function SettingsPage() {
     { id: 'store', label: 'إعدادات المتجر', icon: Save },
     { id: 'categories', label: 'الفئات والتصنيفات', icon: Tag },
     { id: 'options', label: 'خيارات المنتجات', icon: Layers },
-    { id: 'warehouses', label: 'المخازن', icon: Warehouse },
-    { id: 'wallets', label: 'وسائل الدفع', icon: Wallet },
+    ...(hasPerm('inventory') ? [{ id: 'warehouses', label: 'المخازن', icon: Warehouse }] : []),
+    ...(hasPerm('finance') ? [{ id: 'wallets', label: 'وسائل الدفع', icon: Wallet }] : []),
+    ...(hasPerm('finance') ? [{ id: 'periods', label: 'إغلاق الشهور', icon: Lock }] : []),
   ]
 
   return (
@@ -425,27 +462,37 @@ export default function SettingsPage() {
 
             {/* Contact phones */}
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-2">أرقام التواصل (تظهر في الفواتير)</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-600">أرقام التواصل (تظهر في الفواتير)</label>
+                <button onClick={() => {
+                  const arr = [...(sf.contact_phones || []), { name: '', phone: '' }]
+                  setStoreForm({ ...sf, contact_phones: arr })
+                }} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 font-medium">+ إضافة رقم</button>
+              </div>
               <div className="space-y-2">
-                {(sf.contact_phones || [{ name: '', phone: '' }, { name: '', phone: '' }, { name: '', phone: '' }]).map((c: any, i: number) => (
+                {(sf.contact_phones || [{ name: '', phone: '' }]).map((c: any, i: number) => (
                   <div key={i} className="flex gap-2">
                     <input className="input flex-1 text-sm" placeholder="الاسم" value={c.name || ''} onChange={e => {
-                      const arr = [...(sf.contact_phones || [{},{},{}])]
+                      const arr = [...(sf.contact_phones || [])]
                       arr[i] = { ...arr[i], name: e.target.value }
                       setStoreForm({ ...sf, contact_phones: arr })
                     }} />
                     <input className="input flex-1 text-sm" placeholder="رقم التليفون" value={c.phone || ''} onChange={e => {
-                      const arr = [...(sf.contact_phones || [{},{},{}])]
+                      const arr = [...(sf.contact_phones || [])]
                       arr[i] = { ...arr[i], phone: e.target.value }
                       setStoreForm({ ...sf, contact_phones: arr })
                     }} />
+                    <button onClick={() => {
+                      const arr = sf.contact_phones?.filter((_: any, j: number) => j !== i) || []
+                      setStoreForm({ ...sf, contact_phones: arr })
+                    }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 flex-shrink-0"><Trash2 size={14} /></button>
                   </div>
                 ))}
               </div>
             </div>
 
-            <button onClick={() => saveSettings.mutate(sf)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full flex items-center justify-center gap-2" style={{ background: '#1e3a5f' }}>
-              <Save size={16} /> حفظ الإعدادات
+            <button onClick={() => saveSettings.mutate(sf)} disabled={saveSettings.isPending} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full flex items-center justify-center gap-2" style={{ background: '#1e3a5f' }}>
+              <Save size={16} /> {saveSettings.isPending ? 'جاري...' : 'حفظ الإعدادات'}
             </button>
           </div>
         </div>
@@ -466,10 +513,16 @@ export default function SettingsPage() {
             { key: 'units', label: 'الوحدات' },
           ].map(({ key, label }) => (
             <div key={key} className="card">
-              <h3 className="font-bold text-slate-700 mb-3">{label} ({options[key]?.length || 0})</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-slate-700">{label} ({options[key]?.length || 0})</h3>
+                <button onClick={() => { setOptionKey(key); setNewOption('') }} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 font-medium">+ إضافة</button>
+              </div>
               <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
                 {options[key]?.map((v: string) => (
-                  <span key={v} className="badge-blue text-xs">{v}</span>
+                  <span key={v} className="inline-flex items-center gap-1 badge-blue text-xs">
+                    {v}
+                    <button onClick={() => deleteOptionMut.mutate({ key, value: v })} className="hover:text-red-600 mr-1">&times;</button>
+                  </span>
                 ))}
               </div>
             </div>
@@ -493,7 +546,9 @@ export default function SettingsPage() {
                   {editingWh?.id === w.id ? (
                     <div className="flex gap-2">
                       <input className="input text-sm py-1" value={editWhName} onChange={e => setEditWhName(e.target.value)} autoFocus />
-                      <button onClick={() => renameWh.mutate()} className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-green-600">حفظ</button>
+                      <button onClick={() => renameWh.mutate()} disabled={renameWh.isPending} className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-green-600 disabled:opacity-50">
+                        {renameWh.isPending ? '...' : 'حفظ'}
+                      </button>
                       <button onClick={() => setEditingWh(null)} className="px-2 py-1 rounded-lg text-xs bg-slate-100">إلغاء</button>
                     </div>
                   ) : (
@@ -505,19 +560,16 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => { setEditingWh(w); setEditWhName(w.name) }} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                  <button
-                    onClick={async () => {
-                      if (!confirm(`تصفير جرد "${w.name}"؟\nسيتم حذف كل حركات المخزون لهذا الفرع ولا يمكن التراجع.`)) return
-                      await api.delete(`/stock/movements?warehouse_id=${w.id}`)
-                      toast.success(`✅ تم تصفير جرد ${w.name}`)
-                      qc.invalidateQueries({ queryKey: ['balances'] })
-                    }}
-                    className="p-1 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600"
-                    title="تصفير الجرد">
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setConfirmResetWh({ id: w.id, name: w.name })}
+                      className="p-1 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600"
+                      title="تصفير الجرد">
+                      🗑️
+                    </button>
+                  )}
                   {w.code !== 'main' && (
-                    <button onClick={() => { if (confirm('حذف؟')) deleteWh.mutate(w.id) }} className="p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
+                    <button onClick={() => setConfirmDelWh({ id: w.id })} className="p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
                   )}
                 </div>
               </div>
@@ -527,6 +579,7 @@ export default function SettingsPage() {
       )}
 
       {tab === 'wallets' && <WalletsTab />}
+      {tab === 'periods' && <PeriodsTab />}
 
       <Modal open={showAddWh} onClose={() => setShowAddWh(false)} title="إضافة مخزن جديد">
         <div className="space-y-4">
@@ -544,7 +597,8 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">الكود (بالإنجليزية)</label>
-            <input className="input" value={newWhCode} onChange={e => setNewWhCode(e.target.value)} placeholder={newWhType==='showroom' ? 'مثال: SH4' : 'مثال: WH6'} />
+            <input className="input" value={newWhCode} onChange={e => setNewWhCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder={newWhType==='showroom' ? 'مثال: SH4' : 'مثال: WH6'} />
+            {newWhCode && !/^[A-Z0-9_-]+$/.test(newWhCode) && <p className="text-xs text-red-500 mt-1">يُسمح فقط بأحرف إنجليزية وأرقام و _ و -</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">الاسم</label>
@@ -557,15 +611,17 @@ export default function SettingsPage() {
         </div>
       </Modal>
 
-      <Modal open={showAddCat} onClose={() => setShowAddCat(false)} title="إضافة فئة جديدة">
-        <div className="space-y-4">
-          <input className="input" placeholder="اسم الفئة" value={newCatName} onChange={e => setNewCatName(e.target.value)} />
-          <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowAddCat(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold">إلغاء</button>
-            <button onClick={() => addCat.mutate()} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>إضافة</button>
-          </div>
-        </div>
-      </Modal>
+       <Modal open={showAddCat} onClose={() => setShowAddCat(false)} title="إضافة فئة جديدة">
+         <div className="space-y-4">
+           <input className="input" placeholder="اسم الفئة" value={newCatName} onChange={e => setNewCatName(e.target.value)} />
+           <div className="flex gap-3 justify-end">
+             <button onClick={() => setShowAddCat(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold">إلغاء</button>
+             <button onClick={() => addCat.mutate()} disabled={!newCatName.trim() || addCat.isPending} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+               {addCat.isPending ? 'جاري...' : 'إضافة'}
+             </button>
+           </div>
+         </div>
+       </Modal>
 
       <Modal open={showAddSub} onClose={() => setShowAddSub(false)} title="إضافة تصنيف فرعي">
         <div className="space-y-4">
@@ -582,7 +638,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowAddSub(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
-            <button onClick={() => addSub.mutate()} disabled={!selectedCatForSub} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>إضافة</button>
+            <button onClick={() => addSub.mutate()} disabled={!selectedCatForSub || !newSubName.trim()} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
           </div>
         </div>
       </Modal>
@@ -597,6 +653,27 @@ export default function SettingsPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmResetWh}
+        onClose={() => setConfirmResetWh(null)}
+        onConfirm={async () => {
+          if (!confirmResetWh) return
+          await api.delete(`/stock/movements?warehouse_id=${confirmResetWh.id}`)
+          toast.success(`✅ تم تصفير جرد ${confirmResetWh.name}`)
+          qc.invalidateQueries({ queryKey: ['balances'] })
+        }}
+        message={confirmResetWh ? `تصفير جرد "${confirmResetWh.name}"؟\nسيتم حذف كل حركات المخزون لهذا الفرع ولا يمكن التراجع.` : ''}
+        confirmText="تصفير"
+        danger
+      />
+      <ConfirmDialog
+        open={!!confirmDelWh}
+        onClose={() => setConfirmDelWh(null)}
+        onConfirm={() => deleteWh.mutate(confirmDelWh!.id)}
+        message="هل أنت متأكد من حذف المخزن؟"
+        danger
+      />
 
       {/* Edit Subcategory */}
       <Modal open={!!editSub} onClose={() => setEditSub(null)} title="تعديل التصنيف الفرعي">

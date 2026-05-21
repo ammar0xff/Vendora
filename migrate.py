@@ -107,16 +107,88 @@ MIGRATIONS = [
     """),
 
     ("v8_warehouse_product_status", """
-        CREATE TABLE IF NOT EXISTS warehouse_product_status (
-            warehouse_id uuid NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
-            product_id   uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-            status       text NOT NULL DEFAULT 'untracked',
-            PRIMARY KEY (warehouse_id, product_id)
+         CREATE TABLE IF NOT EXISTS warehouse_product_status (
+             warehouse_id uuid NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
+             product_id   uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+             status       text NOT NULL DEFAULT 'untracked',
+             PRIMARY KEY (warehouse_id, product_id)
+         );
+         INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
+         SELECT DISTINCT warehouse_id, product_id, 'tracked'
+         FROM stock_movements
+         ON CONFLICT DO NOTHING;
+     """),
+
+    ("v9_product_barcodes", """
+         CREATE TABLE IF NOT EXISTS product_barcodes (
+             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+             product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+             barcode text NOT NULL,
+             is_primary boolean NOT NULL DEFAULT false,
+             created_at timestamptz DEFAULT now(),
+             UNIQUE(barcode)
+         );
+         CREATE INDEX IF NOT EXISTS idx_product_barcodes_product ON product_barcodes(product_id);
+         CREATE INDEX IF NOT EXISTS idx_product_barcodes_barcode ON product_barcodes(barcode);
+         -- Migrate existing barcodes from products table if they exist
+         INSERT INTO product_barcodes (product_id, barcode, is_primary)
+         SELECT id, barcode, true FROM products WHERE barcode IS NOT NULL
+         ON CONFLICT (barcode) DO NOTHING;
+     """),
+
+    ("v10_supplier_prices", """
+         CREATE TABLE IF NOT EXISTS supplier_prices (
+             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+             supplier_id uuid NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+             product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+             price numeric(12,2) NOT NULL,
+             currency text DEFAULT 'EGP',
+             min_qty numeric(12,3) DEFAULT 1,
+             last_purchase_date timestamptz,
+             notes text,
+             is_active boolean DEFAULT true,
+             created_at timestamptz DEFAULT now(),
+             updated_at timestamptz DEFAULT now(),
+             UNIQUE(supplier_id, product_id)
+         );
+         CREATE INDEX IF NOT EXISTS idx_supplier_prices_supplier ON supplier_prices(supplier_id);
+         CREATE INDEX IF NOT EXISTS idx_supplier_prices_product ON supplier_prices(product_id);
+         -- Best-effort seed from existing purchase orders if tables exist.
+         DO $$
+         BEGIN
+           IF to_regclass('purchase_orders') IS NOT NULL AND to_regclass('purchase_order_items') IS NOT NULL THEN
+             INSERT INTO supplier_prices (supplier_id, product_id, price, last_purchase_date)
+             SELECT po.supplier_id, poi.product_id, poi.unit_cost, po.created_at
+             FROM purchase_orders po
+             JOIN purchase_order_items poi ON poi.po_id = po.id
+             WHERE po.supplier_id IS NOT NULL
+             ON CONFLICT (supplier_id, product_id) DO NOTHING;
+           END IF;
+         END $$;
+     """),
+
+    # v11 — HR payroll period workflow
+    ("v11_hr_payroll_periods", """
+        CREATE TABLE IF NOT EXISTS hr_payroll_periods (
+            month text PRIMARY KEY,
+            status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','review','approved','paid')),
+            submitted_by uuid,
+            submitted_at timestamptz,
+            approved_by uuid,
+            approved_at timestamptz,
+            paid_by uuid,
+            paid_at timestamptz,
+            created_at timestamptz DEFAULT now(),
+            updated_at timestamptz DEFAULT now()
         );
-        INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
-        SELECT DISTINCT warehouse_id, product_id, 'tracked'
-        FROM stock_movements
-        ON CONFLICT DO NOTHING;
+        CREATE INDEX IF NOT EXISTS idx_hr_payroll_periods_status ON hr_payroll_periods(status);
+    """),
+
+    # v12 — suppliers soft-delete
+    ("v12_suppliers_soft_delete", """
+        ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+        UPDATE suppliers SET is_active = true WHERE is_active IS NULL;
+        CREATE INDEX IF NOT EXISTS idx_suppliers_is_active ON suppliers(is_active);
     """),
 ]
 

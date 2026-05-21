@@ -6,10 +6,14 @@ export const authApi = {
   me: () => api.get('/auth/me').then(r => r.data),
   changePassword: (current_password: string, new_password: string) =>
     api.put('/auth/me/password', { current_password, new_password }),
+  printToken: () => api.post('/auth/print-token').then(r => r.data),
 }
 
 export const productsApi = {
-  list: (params?: Record<string, string>) => api.get('/products', { params }).then(r => r.data),
+  // Returns array of products for legacy callers.
+  list: (params?: Record<string, any>) => api.get('/products', { params }).then(r => r.data?.items ?? r.data),
+  // Returns full paginated payload: {items,total,page,size,pages}
+  listPage: (params?: Record<string, any>) => api.get('/products', { params }).then(r => r.data),
   get: (id: string) => api.get(`/products/${id}`).then(r => r.data),
   create: (data: any) => api.post('/products', data).then(r => r.data),
   update: (id: string, data: any) => api.put(`/products/${id}`, data).then(r => r.data),
@@ -21,6 +25,10 @@ export const productsApi = {
     const fd = new FormData(); fd.append('file', file)
     return api.post(`/products/${id}/image`, fd).then(r => r.data)
   },
+  // Barcodes
+  addBarcode: (productId: string, data: any) => api.post(`/products/${productId}/barcodes`, data).then(r => r.data),
+  updateBarcode: (barcodeId: string, data: any) => api.put(`/barcodes/${barcodeId}`, data).then(r => r.data),
+  deleteBarcode: (barcodeId: string) => api.delete(`/barcodes/${barcodeId}`),
 }
 
 export const categoriesApi = {
@@ -62,7 +70,7 @@ export const salesApi = {
 }
 
 export const shiftsApi = {
-  list: () => api.get('/shifts').then(r => r.data),
+  list: (params?: any) => api.get('/shifts', { params }).then(r => r.data),
   last: (warehouse_id: string) => api.get('/shifts/last-drawer', { params: { warehouse_id } }).then(r => r.data),
   current: (warehouse_id: string) => api.get('/shifts/current', { params: { warehouse_id } }).then(r => r.data),
   open: (initial_amount: number, warehouse_id: string, supervisor_id?: string) => api.post('/shifts/open', { initial_amount, warehouse_id, supervisor_id }).then(r => r.data),
@@ -104,6 +112,24 @@ export const settingsApi = {
   updateOptions: (data: any) => api.put('/settings/product-options', data),
 }
 
+export const expensesApi = {
+  list: (params?: any) => api.get('/expenses', { params }).then(r => r.data),
+  create: (data: any) => api.post('/expenses', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/expenses/${id}`, data).then(r => r.data),
+  approve: (id: string, data: any) => api.post(`/expenses/${id}/approve`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/expenses/${id}`),
+  summary: (params?: any) => api.get('/expenses/summary', { params }).then(r => r.data),
+  vendors: {
+    list: (search?: string) => api.get('/expense-vendors', { params: search ? { search } : {} }).then(r => r.data),
+    create: (data: any) => api.post('/expense-vendors', data).then(r => r.data),
+    update: (id: string, data: any) => api.put(`/expense-vendors/${id}`, data).then(r => r.data),
+  },
+}
+
+export const auditApi = {
+  list: (params?: any) => api.get('/audit-log', { params }).then(r => r.data),
+}
+
 export const customersApi = {
   list: (search?: string) => api.get('/customers', { params: search ? { search } : {} }).then(r => r.data),
   create: (data: any) => api.post('/customers', data).then(r => r.data),
@@ -111,4 +137,11 @@ export const customersApi = {
   account: (id: string) => api.get(`/customers/${id}/account`).then(r => r.data),
   ledger: (id: string) => api.get(`/customers/${id}/ledger`).then(r => r.data),
   addPayment: (id: string, amount: number, note: string) => api.post(`/customers/${id}/payments`, { amount, note }).then(r => r.data),
+}
+
+export const supplierPricesApi = {
+  getProductPrices: (productId: string) => api.get(`/purchases/supplier-prices/product/${productId}`).then(r => r.data),
+  create: (data: any) => api.post('/purchases/supplier-prices', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/purchases/supplier-prices/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/purchases/supplier-prices/${id}`),
 }

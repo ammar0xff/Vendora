@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
-import { stockApi } from '../../api/endpoints'
 import { useAppStore } from '../../store/app'
 import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { format, startOfMonth } from 'date-fns'
-import { Plus, Edit2, Trash2, TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronLeft } from 'lucide-react'
-import { clsx } from 'clsx'
+import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronLeft } from 'lucide-react'
 
 export default function FinanceLedgerContent() {
   const [from, setFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -18,6 +17,7 @@ export default function FinanceLedgerContent() {
   const [newCatName, setNewCatName] = useState('')
   const [newCatType, setNewCatType] = useState('expense')
   const [newCatColor, setNewCatColor] = useState('#dc2626')
+  const [confirmDelCat, setConfirmDelCat] = useState<string | null>(null)
   const { activeWarehouseId } = useAppStore()
   const isCompanyView = !activeWarehouseId
   const qc = useQueryClient()
@@ -204,12 +204,15 @@ export default function FinanceLedgerContent() {
                     <span className={c.type === 'expense' ? 'badge-red text-xs' : 'badge-green text-xs'}>{c.type === 'expense' ? 'خوارج' : 'دواخل'}</span>
                   </div>
                 </div>
-                <button onClick={() => { if (confirm('حذف الفئة؟')) deleteCatMut.mutate(c.id) }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                <button onClick={() => setConfirmDelCat(c.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
               </div>
             ))}
           </div>
         </div>
       </Modal>
+      <ConfirmDialog open={!!confirmDelCat} onClose={() => setConfirmDelCat(null)}
+        onConfirm={() => { deleteCatMut.mutate(confirmDelCat); setConfirmDelCat(null) }}
+        message="حذف الفئة؟" danger confirmText="حذف" />
     </div>
   )
 }

@@ -32,3 +32,4 @@ frontend/src-tauri/target/
 frontend/android/app/build/
 frontend/android/*.zip
 frontend/android/gradle*.zip
+.obsidian/

@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, stockApi } from '../../api/endpoints'
 import api from '../../api/client'
-import { PageLoader, EmptyState } from '../../components/ui/Loaders'
+import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Plus, Edit2, Trash2, Shield, Save, KeyRound } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, KeyRound } from 'lucide-react'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 const ALL_PAGES = [
   { id: 'pos',        label: 'نقطة البيع',       icon: '🛒' },
@@ -67,14 +68,14 @@ function PermissionsPanel({ users }: { users: any[] | undefined }) {
     queryKey: ['user-perms', selectedUser?.id],
     queryFn: () => api.get(`/permissions/${selectedUser.id}`).then(r => r.data),
     enabled: !!selectedUser,
+    staleTime: Infinity,
   })
 
   useEffect(() => {
-    if (userPerms) {
-      setPerms(userPerms.permissions || [])
-      setIsManager(!!userPerms.is_manager)
-    }
-  }, [userPerms])
+    if (!selectedUser || !userPerms) return
+    setPerms(userPerms.permissions || [])
+    setIsManager(!!userPerms.is_manager)
+  }, [selectedUser, userPerms])
 
   const saveMut = useMutation({
     mutationFn: () => api.put(`/permissions/${selectedUser.id}`, { permissions: perms, is_manager: isManager }),
@@ -153,6 +154,9 @@ export default function UsersPage() {
   const [tab, setTab] = useState<'users' | 'permissions'>('users')
   const [showAdd, setShowAdd] = useState(false)
   const [editUser, setEditUser] = useState<any>(null)
+  const [resetPwUser, setResetPwUser] = useState<any>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmDel, setConfirmDel] = useState<any>(null)
   const qc = useQueryClient()
 
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: usersApi.list })
@@ -200,8 +204,8 @@ export default function UsersPage() {
             { key: 'actions', label: '', render: (u: any) => (
               <div className="flex gap-1 justify-end">
                 <button onClick={() => setEditUser(u)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
-                <button onClick={() => { const pw = prompt('كلمة المرور الجديدة (4 أحرف على الأقل):'); if (pw?.trim() && pw.trim().length >= 4) resetMut.mutate({ id: u.id, password: pw.trim() }); else if (pw !== null) alert('كلمة المرور قصيرة جداً — 4 أحرف على الأقل') }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600" title="إعادة تعيين كلمة المرور"><KeyRound size={14} /></button>
-                <button onClick={() => { if (confirm('تعطيل المستخدم؟')) deleteMut.mutate(u.id) }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="تعطيل"><Trash2 size={14} /></button>
+                <button onClick={() => { setResetPwUser(u); setNewPassword('') }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600" title="إعادة تعيين كلمة المرور"><KeyRound size={14} /></button>
+                <button onClick={() => setConfirmDel({ id: u.id })} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="تعطيل"><Trash2 size={14} /></button>
               </div>
             )},
           ]}
@@ -217,9 +221,37 @@ export default function UsersPage() {
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة مستخدم جديد">
         <UserForm onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
       </Modal>
+
+      <Modal open={!!resetPwUser} onClose={() => setResetPwUser(null)} title={`إعادة تعيين كلمة المرور — ${resetPwUser?.full_name || ''}`} size="sm">
+        <div className="p-4 space-y-4">
+          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+            placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)"
+            className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-right"
+            autoFocus dir="auto" />
+          <div className="flex gap-3">
+            <button onClick={() => { setResetPwUser(null); setNewPassword('') }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+              إلغاء
+            </button>
+            <button onClick={() => {
+              if (newPassword.trim().length < 8) { toast.error('كلمة المرور قصيرة جداً — 8 أحرف على الأقل'); return }
+              resetMut.mutate({ id: resetPwUser.id, password: newPassword.trim() })
+              setResetPwUser(null)
+              setNewPassword('')
+            }} disabled={newPassword.trim().length < 8}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50"
+              style={{ background: '#1e3a5f' }}>
+              حفظ
+            </button>
+          </div>
+        </div>
+      </Modal>
       <Modal open={!!editUser} onClose={() => setEditUser(null)} title="تعديل المستخدم">
         {editUser && <UserForm user={editUser} onSave={(d: any) => updateMut.mutate({ id: editUser.id, data: d })} onClose={() => setEditUser(null)} />}
       </Modal>
+      <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)}
+        onConfirm={() => deleteMut.mutate(confirmDel.id)}
+        message="تعطيل المستخدم؟" danger confirmText="تعطيل" />
     </div>
   )
 }

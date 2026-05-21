@@ -34,7 +34,7 @@ def parse_shift(shift_str: str, shifts_map: dict = None) -> tuple:
             s = int(parts[0].strip().split(':')[0])
             e = int(parts[1].strip().split(':')[0])
             return s, e
-    except Exception:
+    except (ValueError, IndexError, AttributeError):
         pass
 
     # Try Arabic format: "9 صباحا الى 9 مساءً" or "11 صباحاً الى 11 مساءً"
@@ -65,7 +65,7 @@ def parse_shift(shift_str: str, shifts_map: dict = None) -> tuple:
             if s_obj.get('name') == shift_str or str(s_obj.get('id')) == str(shift_str):
                 try:
                     return int(s_obj['start_time'].split(':')[0]), int(s_obj['end_time'].split(':')[0])
-                except Exception:
+                except (ValueError, IndexError, KeyError):
                     pass
 
     return 9, 21  # fallback

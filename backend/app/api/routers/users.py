@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.db.base import get_db
-from app.schemas.user import UserCreate, UserUpdate, UserOut
+from app.schemas.user import UserCreate, UserOut, PasswordReset
 from app.services import auth_service
 from app.dependencies import require_role, get_current_user
 from app.models.user import User
@@ -57,26 +57,38 @@ async def update_user(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends
     user = result.scalar_one_or_none()
     if not user:
         raise NotFoundError("User not found")
-    allowed = {"full_name", "role", "is_manager", "default_warehouse_id"}
+    from app.core.roles import ROLE_LABELS
+    allowed = {"full_name": str, "role": str, "is_manager": bool, "default_warehouse_id": str}
     for k, v in data.items():
-        if k in allowed:
-            setattr(user, k, v if v != "" else None)
+        if k not in allowed:
+            continue
+        expected_type = allowed[k]
+        if expected_type == bool:
+            setattr(user, k, bool(v) if v is not None else None)
+        elif expected_type == str and v is not None:
+            setattr(user, k, str(v) if str(v) != "" else None)
+        else:
+            setattr(user, k, v)
+    # Validate role
+    if "role" in data and data["role"] not in ROLE_LABELS:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Invalid role: {data['role']}")
     await db.commit()
     await db.refresh(user)
     return user
 
 
 @router.post("/{user_id}/reset-password", status_code=204)
-async def reset_password(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def reset_password(user_id: uuid.UUID, data: PasswordReset, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     from app.core.security import hash_password
-    new_pw = data.get("password", "").strip()
-    if len(new_pw) < 4:
-        from fastapi import HTTPException
-        raise HTTPException(400, "كلمة المرور قصيرة جداً")
+    from sqlalchemy import text as sqlt
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user: raise NotFoundError()
-    user.password_hash = hash_password(new_pw)
+    user.password_hash = hash_password(data.password)
+    await db.execute(sqlt(
+        "INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details) VALUES ('update', 'user', :eid, :by, 'إعادة تعيين كلمة المرور', :det::jsonb)"
+    ), {"eid": str(user_id), "by": current_user.id, "det": '{"action":"password_reset"}'})
     await db.commit()
 
 

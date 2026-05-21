@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Vault, Wallet, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from 'lucide-react'
+import { Plus, Pencil, Vault, Wallet, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft, Loader2 } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { PageLoader } from '../../components/ui/Loaders'
 
 const WALLET_LABELS: Record<string, string> = { cash: '💵 نقدي', vodafone_cash: '📱 فودافون كاش', instapay: '💳 إنستا باي' }
 
@@ -14,9 +16,14 @@ export default function SafesPage() {
   const [note, setNote] = useState('')
   const [toSafeId, setToSafeId] = useState('')
   const [form, setForm] = useState<any>({})
+  const [confirmResetWallet, setConfirmResetWallet] = useState<any>(null)
 
-  const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data) })
-  const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data) })
+  const { data: safes, isLoading: loadingSafes, isError: safesError } = useQuery({
+    queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data),
+  })
+  const { data: wallets, isLoading: loadingWallets, isError: walletsError } = useQuery({
+    queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data),
+  })
   const { data: history } = useQuery({
     queryKey: ['safe-history', action?.target?.id],
     queryFn: () => api.get(`/safes/${action?.target?.id}/history`).then(r => r.data),
@@ -56,6 +63,8 @@ export default function SafesPage() {
   const totalSafes = safes?.reduce((s: number, x: any) => s + Number(x.balance), 0) || 0
   const totalWallets = wallets?.reduce((s: number, x: any) => s + Number(x.balance), 0) || 0
 
+  if (loadingSafes || loadingWallets) return <PageLoader text="جاري تحميل الخزن المالية..." />
+
   return (
     <div>
       <div className="page-header">
@@ -64,6 +73,12 @@ export default function SafesPage() {
           <Plus size={15} /> خزنة جديدة
         </button>
       </div>
+
+      {safesError && (
+        <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
+          تعذر تحميل الخزن — تحقق من الاتصال
+        </div>
+      )}
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -85,6 +100,9 @@ export default function SafesPage() {
 
       {/* Permanent Safes */}
       <p className="text-sm font-bold text-slate-500 mb-2 flex items-center gap-2"><Vault size={14} /> الخزن الأساسية</p>
+      {!safes?.length ? (
+        <div className="text-center py-10 text-slate-400 text-sm mb-6">لا توجد خزن أساسية — أضف خزنة جديدة</div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         {safes?.map((s: any) => (
           <div key={s.id} className="card p-4">
@@ -110,9 +128,13 @@ export default function SafesPage() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Temporary Wallets */}
       <p className="text-sm font-bold text-slate-500 mb-2 flex items-center gap-2"><Wallet size={14} /> المحافظ المؤقتة (تجمع إيرادات الورديات)</p>
+      {!wallets?.length ? (
+        <div className="text-center py-10 text-slate-400 text-sm mb-6">لا توجد محافظ مؤقتة</div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {wallets?.map((w: any) => (
           <div key={w.id} className="card p-4">
@@ -130,15 +152,14 @@ export default function SafesPage() {
             <button onClick={() => { setToSafeId(safes?.[0]?.id || ''); setAction({ type: 'transfer', target: w }) }}
               className="w-full py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1 mb-1"
               style={{ background: '#1e3a5f' }}><ArrowRightLeft size={12} /> تحويل للخزنة</button>
-            <button onClick={() => { if (confirm(`تصفير رصيد ${w.name} (${Number(w.balance).toLocaleString('ar-EG')} ج.م)؟`)) {
-              api.post(`/wallets/${w.id}/reset-balance`).then(() => { toast.success('✅ تم التصفير'); qc.invalidateQueries({ queryKey: ['wallets'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
-            }}}
+            <button onClick={() => setConfirmResetWallet(w)}
               className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 flex items-center justify-center gap-1">
               ✕ تصفير الرصيد
             </button>
           </div>
         ))}
       </div>
+      )}
 
       {/* Deposit Modal */}
       <Modal open={action?.type === 'deposit'} onClose={close} title={`إيداع في ${action?.target?.name}`}>
@@ -208,6 +229,7 @@ export default function SafesPage() {
           </button>
         </div>
       </Modal>
+      <ConfirmDialog open={!!confirmResetWallet} onClose={() => setConfirmResetWallet(null)} onConfirm={() => { api.post(`/wallets/${confirmResetWallet.id}/reset-balance`).then(() => { toast.success('✅ تم التصفير'); qc.invalidateQueries({ queryKey: ['wallets'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')); setConfirmResetWallet(null) }} message={`تصفير رصيد ${confirmResetWallet?.name} (${Number(confirmResetWallet?.balance || 0).toLocaleString('ar-EG')} ج.م)؟`} danger confirmText="تصفير" />
     </div>
   )
 }

@@ -146,7 +146,7 @@ export default function PurchaseOrdersPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowConfirm(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => createMut.mutate()} disabled={!warehouseId || createMut.isPending}
+            <button onClick={() => { if (!warehouseId) return toast.error('اختر المخزن أولاً'); createMut.mutate() }} disabled={createMut.isPending}
               className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
               إنشاء الأمر
             </button>

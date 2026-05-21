@@ -1,370 +1,683 @@
 #!/usr/bin/env python3
 """
 manage.py — ERP system management script
-Usage: python manage.py [deploy|stop|restart|status|backup|restore <file>|logs]
+
+Usage:
+  python manage.py <command> [options]
+
+Commands:
+  setup            First-time setup (Docker + init data)
+  deploy           Update code + backup + migrate DB (safe)
+  deploy-fresh     ⚠️  WIPE data + load init_data.sql
+  build            Build Docker images only
+  stop             Stop all services
+  restart          Restart all services
+  status           Show running status and health
+  backup           Backup database to backups/
+  restore <file>   Restore database from backup
+  restore-append   Append data from SQL file without wiping
+  migrate          Apply incremental DB migrations
+  update-init      Snapshot current DB to init_data.sql
+  export-clean     Export clean init_data.sql (master only)
+  logs             Tail live logs from all services
+  list-backups     List available backup files
+  build-apk        📱 Build Android APK via Capacitor + Gradle
+  build-appimage   🖥️  Build Linux AppImage via Tauri
+  build-exe        🪟 Build Windows EXE via Tauri
+
+Options:
+  --yes, -y        Skip confirmation prompts (use with caution)
+  --verbose, -v    Show detailed command output
+
+Examples:
+  python manage.py setup
+  python manage.py backup
+  python manage.py restore backup_20260329_120000.sql
+  python manage.py deploy
+  python manage.py deploy --yes
 """
-import subprocess, sys, os, datetime
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import logging
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable, NoReturn
 
-ROOT = Path(__file__).parent
-COMPOSE = ["docker", "compose", "-f", str(ROOT / "docker-compose.yml")]
-BACKUP_DIR = ROOT / "backups"
-
-
-def run(cmd, check=True, capture=False):
-    return subprocess.run(cmd, check=check, capture_output=capture, text=True)
-
-
-def compose(*args):
-    return run(COMPOSE + list(args))
+logging.basicConfig(
+    format="%(message)s",
+    level=logging.INFO,
+)
+log = logging.getLogger("manage")
 
 
-def status():
-    print("\n=== Container Status ===")
-    compose("ps")
-    print("\n=== Health Check ===")
-    try:
-        r = subprocess.run(["curl", "-s", "http://localhost/api/health"], capture_output=True, text=True, timeout=5)
-        if r.returncode == 0 and "ok" in r.stdout:
-            print("✅ System is UP — http://localhost")
-        else:
-            print("❌ System is DOWN or not responding")
-    except Exception:
-        print("❌ Cannot reach http://localhost")
+# ─── Config ─────────────────────────────────────────────────────────────────
 
 
-def migrate():
-    """Apply incremental DB migrations (safe, idempotent)."""
-    import importlib.util, sys as _sys
-    spec = importlib.util.spec_from_file_location("migrate", ROOT / "migrate.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    mod.run()
+@dataclass(frozen=True)
+class Settings:
+    compose_file: Path = field(default_factory=lambda: Path(__file__).parent / "docker-compose.yml")
+    backup_dir: Path = field(default_factory=lambda: Path(__file__).parent / "backups")
+    backup_retention: int = 10
+    db_service: str = "db"
+    backend_service: str = "backend"
+    frontend_service: str = "frontend"
+    db_name: str = "inventory_db"
+    db_user: str = "postgres"
+    health_url: str = "http://localhost/api/health"
+    init_sql: Path = field(default_factory=lambda: Path(__file__).parent / "init_data.sql")
+    migrate_py: Path = field(default_factory=lambda: Path(__file__).parent / "migrate.py")
+    frontend_dir: Path = field(default_factory=lambda: Path(__file__).parent / "frontend")
+    verbose: bool = False
 
 
-def deploy():
-    """Update code only — keeps existing DB data. Safe for production updates."""
-    print("🚀 Deploying code update (data preserved)...")
-    print("💾 Step 1/4: Backup current data...")
-    backup()
-    print("🔨 Step 2/4: Build new images...")
-    compose("build")
-    print("▶️  Step 3/4: Restart services (volumes untouched)...")
-    compose("up", "-d")
-    print("🔄 Step 4/4: Apply DB migrations...")
-    import time; time.sleep(8)
-    migrate()
-    print("\n✅ Deployed. Your data is safe.")
-    status()
+# ─── Docker helpers ────────────────────────────────────────────────────────
 
 
-def deploy_fast():
-    """Update code WITHOUT manual backup — auto-backs up first."""
-    confirm = input("⚠️  Deploy? (auto-backup will run first) Type 'yes' to confirm: ")
-    if confirm.strip().lower() != "yes":
-        print("Cancelled.")
-        return
-    print("💾 Auto-backup before deploy...")
-    backup()
-    print("🚀 Fast deploy...")
-    compose("build")
-    compose("up", "-d")
-    print("\n✅ Deployed.")
-    status()
+class Docker:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self._base = ["docker", "compose", "-f", str(settings.compose_file)]
 
+    def _run(
+        self,
+        args: list[str],
+        *,
+        capture: bool = False,
+        input_data: str | None = None,
+        check: bool = True,
+        desc: str = "",
+    ) -> subprocess.CompletedProcess:
+        cmd = self._base + args
+        if self.settings.verbose and desc:
+            log.info("  $ %s", " ".join(str(a) for a in cmd))
+        kwargs: dict = {}
+        if capture or input_data is not None:
+            kwargs["capture_output"] = True
+            kwargs["text"] = True
+        if input_data is not None:
+            kwargs["input"] = input_data
+        result = subprocess.run(cmd, check=False, **kwargs)
+        if check and result.returncode != 0:
+            msg = desc or "docker compose command failed"
+            stderr = (result.stderr or "").strip()[:500]
+            log.error("❌ %s (exit %d)", msg, result.returncode)
+            if stderr:
+                log.error("   %s", stderr)
+            sys.exit(1)
+        return result
 
-def deploy_fresh():
-    """
-    Fresh deploy using init_data.sql from repo.
-    ⚠️  WIPES ALL EXISTING DATA and loads the repo snapshot.
-    Use on new machines or to reset to repo state.
-    """
-    confirm = input("⚠️  This will WIPE ALL DATA and load init_data.sql from repo.\nType 'yes' to confirm: ")
-    if confirm.strip().lower() != "yes":
-        print("Cancelled.")
-        return
+    def up(self, *extra: str) -> None:
+        self._run(["up", "-d", *extra], desc="Starting services")
 
-    init_sql = ROOT / "init_data.sql"
-    if not init_sql.exists():
-        print("❌ init_data.sql not found in repo root.")
-        return
+    def stop(self, *services: str) -> None:
+        self._run(["stop", *services], desc="Stopping services")
 
-    print("🗑️  Step 1/4: Stop and remove volumes...")
-    compose("down", "-v")
-    print("🔨 Step 2/4: Build images...")
-    compose("build")
-    print("▶️  Step 3/4: Start (init_data.sql loads automatically)...")
-    compose("up", "-d")
-    print("⏳ Step 4/4: Waiting for DB to initialize...")
-    import time
-    for _ in range(30):
-        time.sleep(2)
+    def start(self, *services: str) -> None:
+        self._run(["start", *services], desc="Starting services")
+
+    def restart(self) -> None:
+        self._run(["restart"], desc="Restarting services")
+
+    def build(self) -> None:
+        self._run(["build"], desc="Building images")
+
+    def down(self, *extra: str) -> None:
+        self._run(["down", *extra], desc="Tearing down containers")
+
+    def ps(self) -> None:
+        self._run(["ps"], desc=None)
+
+    def logs(self, *extra: str) -> None:
+        self._run(["logs", *extra], desc=None)
+
+    def exec_db(
+        self,
+        cmd: list[str],
+        *,
+        input_data: str | None = None,
+        capture: bool = False,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess:
+        return self._run(
+            ["exec", "-T", self.settings.db_service, *cmd],
+            input_data=input_data,
+            capture=capture,
+            check=check,
+            desc=f"Running on db: {' '.join(cmd)}",
+        )
+
+    def pg_dump(self, extra_args: list[str] | None = None) -> bytes:
+        result = self._run(
+            [
+                "exec", "-T", self.settings.db_service, "pg_dump",
+                "-U", self.settings.db_user, "--no-password",
+                self.settings.db_name,
+                *(extra_args or []),
+            ],
+            capture=True,
+            desc="Dumping database",
+            check=True,
+        )
+        return result.stdout.encode("utf-8") if isinstance(result.stdout, str) else result.stdout
+
+    def health_check(self, timeout: int = 5) -> bool:
         try:
-            result = run(["curl", "-sf", "http://localhost/api/health"], capture=True, check=False)
-            if result.returncode == 0 and "ok" in result.stdout:
-                break
+            r = subprocess.run(
+                ["curl", "-sf", self.settings.health_url],
+                capture_output=True, text=True, timeout=timeout,
+            )
+            return r.returncode == 0 and "ok" in r.stdout
         except Exception:
-            pass
-    print("\n✅ Fresh deploy complete. Data loaded from init_data.sql.")
-    status()
+            return False
+
+    def require_db_running(self) -> None:
+        if not self.health_check():
+            log.error("❌ System is not running. Start it with: python manage.py setup")
+            sys.exit(1)
+
+    def wait_for_health(self, timeout: int = 60) -> None:
+        for _ in range(timeout // 2):
+            if self.health_check():
+                return
+            time.sleep(2)
+        log.error("❌ Health check timed out after %ds", timeout)
+        sys.exit(1)
 
 
-def stop():
-    print("🛑 Stopping all services...")
-    compose("stop")
-    print("✅ Stopped.")
+# ─── Commands ──────────────────────────────────────────────────────────────
 
 
-def restart():
-    print("🔄 Restarting all services...")
-    compose("restart")
-    print("✅ Restarted.")
-    status()
+def cmd_build(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Build Docker images without deploying."""
+    log.info("🔨 Building images...")
+    docker.build()
+    log.info("✅ Build complete.")
 
 
-def backup():
-    BACKUP_DIR.mkdir(exist_ok=True)
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = BACKUP_DIR / f"backup_{ts}.sql"
-    print(f"💾 Creating backup → {out}")
-    result = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "--no-password", "inventory_db"],
-        capture_output=True  # binary mode — no text=True to avoid Windows encoding issues
+def cmd_setup(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """First-time setup: check Docker, build images, start services."""
+    log.info("🔧 Running first-time setup...")
+
+    if not shutil.which("docker"):
+        log.error("❌ docker not found in PATH. Install Docker first.")
+        sys.exit(1)
+
+    init_path = settings.init_sql
+    if not init_path.exists():
+        log.warning("⚠️  No init_data.sql found — starting with empty database.")
+
+    docker.up("--build")
+    docker.wait_for_health()
+
+    log.info("✅ Setup complete!")
+    log.info("🌐 http://localhost")
+    log.info("👤 ammar / changeme")
+    _show_status(docker)
+
+
+def cmd_deploy(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Update code while preserving data."""
+    if not opts.yes:
+        _confirm("🚀 Deploy? (auto-backup will run first)")
+
+    log.info("💾 Backing up current data...")
+    _run_backup(settings, docker)
+    log.info("🔨 Building new images...")
+    docker.build()
+    log.info("▶️  Restarting services...")
+    docker.up()
+    log.info("⏳ Waiting for DB...")
+    time.sleep(8)
+    _maybe_run_migrations(settings)
+    log.info("✅ Deployed successfully.")
+    _show_status(docker)
+
+
+def cmd_deploy_fresh(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Wipe data and reload from init_data.sql. For new machines or resets."""
+    if not opts.yes:
+        _confirm("⚠️  This will WIPE ALL DATA and load init_data.sql from repo")
+
+    if not settings.init_sql.exists():
+        log.error("❌ init_data.sql not found in repo root.")
+        sys.exit(1)
+
+    log.info("🗑️  Removing volumes...")
+    docker.down("-v")
+    log.info("🔨 Building images...")
+    docker.build()
+    log.info("▶️  Starting (init_data.sql loads automatically)...")
+    docker.up()
+    docker.wait_for_health()
+    log.info("✅ Fresh deploy complete — data loaded from init_data.sql.")
+    _show_status(docker)
+
+
+def cmd_stop(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Stop all services."""
+    log.info("🛑 Stopping all services...")
+    docker.stop()
+    log.info("✅ Stopped.")
+
+
+def cmd_restart(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Restart all services."""
+    log.info("🔄 Restarting all services...")
+    docker.restart()
+    _show_status(docker)
+
+
+def cmd_status(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Show container status and health."""
+    _show_status(docker)
+
+
+def cmd_backup(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Backup database to backups/ directory."""
+    _run_backup(settings, docker)
+
+
+def cmd_restore(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Restore database from a backup file. WIPES existing data."""
+    path = _resolve_backup_path(settings, opts.file)
+    if not path:
+        _list_backups(settings)
+        sys.exit(1)
+
+    if not opts.yes:
+        _confirm(f"⚠️  This will OVERWRITE ALL data with {path.name}")
+
+    log.info("📥 Restoring from %s...", path)
+    docker.stop(settings.backend_service, settings.frontend_service)
+    docker.exec_db(["psql", "-U", settings.db_user, "-c", f"DROP DATABASE IF EXISTS {settings.db_name};"])
+    docker.exec_db(["psql", "-U", settings.db_user, "-c", f"CREATE DATABASE {settings.db_name};"])
+
+    content = _decode_sql_bytes(path.read_bytes())
+    result = docker.exec_db(
+        ["psql", "-U", settings.db_user, settings.db_name],
+        input_data=content, capture=True, check=False,
     )
-    if result.returncode != 0:
-        print(f"❌ Backup failed:\n{result.stderr.decode('utf-8', errors='replace')}")
-        sys.exit(1)
-    out.write_bytes(result.stdout)  # write raw bytes, guaranteed UTF-8 from postgres
-    size = out.stat().st_size // 1024
-    print(f"✅ Backup saved: {out} ({size} KB)")
-    size = out.stat().st_size // 1024
-    print(f"✅ Backup saved: {out} ({size} KB)")
-
-    # Keep only last 10 backups
-    backups = sorted(BACKUP_DIR.glob("backup_*.sql"))
-    for old in backups[:-10]:
-        old.unlink()
-        print(f"🗑️  Removed old backup: {old.name}")
+    _warn_restore_errors(result.stderr)
+    docker.start(settings.backend_service, settings.frontend_service)
+    log.info("✅ Restore complete.")
+    _show_status(docker)
 
 
-def restore(file: str):
-    path = Path(file)
-    if not path.exists():
-        path = BACKUP_DIR / file
-    if not path.exists():
-        print(f"❌ File not found: {file}")
-        print(f"Available backups:")
-        for b in sorted(BACKUP_DIR.glob("backup_*.sql")):
-            print(f"  {b.name}")
+def cmd_restore_append(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Append data from SQL file without wiping existing data."""
+    path = _resolve_backup_path(settings, opts.file)
+    if not path:
+        log.error("❌ File not found: %s", opts.file)
         sys.exit(1)
 
-    confirm = input(f"⚠️  This will OVERWRITE all data with {path.name}. Type 'yes' to confirm: ")
-    if confirm.strip().lower() != "yes":
-        print("Cancelled.")
-        return
+    if not opts.yes:
+        _confirm(f"Append data from {path.name} to existing DB?")
 
-    print(f"📥 Restoring from {path}...")
-    compose("stop", "backend", "frontend")
-    run(COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-c", "DROP DATABASE IF EXISTS inventory_db;"])
-    run(COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-c", "CREATE DATABASE inventory_db;"])
-
-    # Auto-detect encoding (Windows pg_dump may produce UTF-16)
-    raw = path.read_bytes()
-    if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
-        bom = 'utf-16-le' if raw[:2] == b'\xff\xfe' else 'utf-16-be'
-        content = raw.decode(bom).encode('utf-8').decode('utf-8')
-    else:
-        content = raw.decode('utf-8', errors='replace')
-
-    result = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],
-        input=content,
-        capture_output=True, text=True
-    )
-    errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l]
-    if errors:
-        print(f"⚠️  Warnings during restore:\n" + "\n".join(errors[:5]))
-    compose("start", "backend", "frontend")
-    print("✅ Restore complete.")
-    status()
-
-
-def restore_append(file: str):
-    """Append data from a SQL file WITHOUT wiping existing data.
-    For products: only inserts if not already present (ON CONFLICT DO NOTHING).
-    Tracked products in the live DB are never overwritten."""
-    path = Path(file)
-    if not path.exists():
-        path = BACKUP_DIR / file
-    if not path.exists():
-        print(f"❌ File not found: {file}")
-        sys.exit(1)
-
-    confirm = input(f"Append data from {path.name} to existing DB? Type 'yes' to confirm: ")
-    if confirm.strip().lower() != "yes":
-        print("Cancelled.")
-        return
-
-    print(f"📥 Appending from {path}...")
-    # Wrap in session that ignores duplicate key violations
-    sql = path.read_text(encoding="utf-8")
-    # Protect users: skip insert if user already exists
+    log.info("📥 Appending from %s...", path)
+    raw_sql = path.read_text(encoding="utf-8")
     safe_sql = (
         "SET session_replication_role = replica;\n"
-        + sql
+        + raw_sql
         + "\nSET session_replication_role = DEFAULT;\n"
-        # Ensure at least one default admin exists
-        + """
+        + f"""
 INSERT INTO users (id, username, full_name, hashed_password, role, is_active)
 VALUES (gen_random_uuid(), 'admin', 'مدير النظام',
   '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'admin', true)
 ON CONFLICT (username) DO NOTHING;
 """
     )
-
-    result = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "inventory_db"],
-        input=safe_sql, capture_output=True, text=True
+    result = docker.exec_db(
+        ["psql", "-U", settings.db_user, settings.db_name],
+        input_data=safe_sql, capture=True, check=False,
     )
-    errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "duplicate" not in l.lower() and "already exists" not in l]
+    errors = [
+        l for l in result.stderr.splitlines()
+        if "ERROR" in l and "duplicate" not in l.lower() and "already exists" not in l
+    ]
     if errors:
-        print(f"⚠️  Errors:\n" + "\n".join(errors[:10]))
+        log.warning("⚠️  Warnings:\n%s", "\n".join(errors[:10]))
     else:
-        print("✅ Append complete — existing tracked products untouched.")
+        log.info("✅ Append complete.")
 
 
-def update_init():
-    """Snapshot current DB state into init_data.sql (used by deploy-fresh)."""
-    print("📸 Snapshotting current DB to init_data.sql...")
-    result = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
-                   "--no-owner", "--no-acl"],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print("❌ Failed:", result.stderr[:200])
-        sys.exit(1)
-    (ROOT / "init_data.sql").write_text(result.stdout, encoding="utf-8")
-    lines = result.stdout.count("\n")
-    print(f"✅ init_data.sql updated ({lines:,} lines)")
+def cmd_migrate(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Apply incremental DB migrations (safe, idempotent)."""
+    _maybe_run_migrations(settings)
 
 
-def export_clean():
-    """Export clean init_data.sql for fresh installs:
-    - Master data only: products (all untracked), users, warehouses, settings, etc.
-    - Zero transactions: no sales, movements, shifts, invoices
-    """
-    MASTER = ["users", "warehouses", "categories", "subcategories",
-              "suppliers", "customers", "payment_wallets", "safes",
-              "store_settings", "hr_employees", "hr_settings", "financial_categories"]
+def cmd_update_init(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Snapshot current DB state into init_data.sql."""
+    docker.require_db_running()
+    log.info("📸 Snapshotting current DB to init_data.sql...")
+    raw = docker.pg_dump(["--no-owner", "--no-acl"])
+    settings.init_sql.write_bytes(raw)
+    lines = raw.decode("utf-8").count("\n")
+    log.info("✅ init_data.sql updated (%s lines)", f"{lines:,}")
 
-    print("📦 Exporting clean init_data.sql...")
 
-    # Schema
-    schema = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
-                   "--schema-only", "--no-owner", "--no-acl"],
-        capture_output=True, text=True
-    ).stdout
+def cmd_export_clean(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Export clean init_data.sql — master data only, no transactions."""
+    docker.require_db_running()
 
-    parts = [schema, "\n"]
+    master_tables = [
+        "users", "warehouses", "categories", "subcategories",
+        "suppliers", "customers", "payment_wallets", "safes",
+        "store_settings", "hr_employees", "hr_settings", "financial_categories",
+    ]
 
-    # Master tables
-    for tbl in MASTER:
-        r = subprocess.run(
-            COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
-                       "--data-only", "--no-owner", "--no-acl", f"--table={tbl}"],
-            capture_output=True, text=True
+    log.info("📦 Exporting clean init_data.sql...")
+
+    schema = docker.pg_dump(["--schema-only", "--no-owner", "--no-acl"]).decode("utf-8")
+    parts: list[str] = [schema, "\n"]
+
+    for tbl in master_tables:
+        r = docker.exec_db(
+            [
+                "pg_dump", "-U", settings.db_user, "-d", settings.db_name,
+                "--data-only", "--no-owner", "--no-acl", f"--table={tbl}",
+            ],
+            capture=True,
         )
-        parts.append(r.stdout)
+        parts.append(r.stdout or "")
 
-    # Products — dump then force untracked
-    r = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "pg_dump", "-U", "postgres", "-d", "inventory_db",
-                   "--data-only", "--no-owner", "--no-acl", "--table=products"],
-        capture_output=True, text=True
+    r = docker.exec_db(
+        [
+            "pg_dump", "-U", settings.db_user, "-d", settings.db_name,
+            "--data-only", "--no-owner", "--no-acl", "--table=products",
+        ],
+        capture=True,
     )
-    parts.append(r.stdout)
+    parts.append(r.stdout or "")
     parts.append("\n-- Reset all products to untracked\nUPDATE products SET stock_status='untracked';\n")
 
     sql = "".join(parts)
-    (ROOT / "init_data.sql").write_text(sql, encoding="utf-8")
-    print(f"✅ Clean init_data.sql exported ({sql.count(chr(10)):,} lines)")
-    print("   Products: all untracked | Transactions: empty")
+    settings.init_sql.write_text(sql, encoding="utf-8")
+    log.info("✅ Clean init_data.sql exported (%s lines)", f"{sql.count(chr(10)):,}")
+    log.info("   Products: untracked | Transactions: empty")
 
 
-def logs():
-    print("📋 Showing last 50 lines (Ctrl+C to exit)...")
+def cmd_logs(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Tail live logs from all services."""
+    log.info("📋 Press Ctrl+C to exit")
     try:
-        compose("logs", "--tail=50", "-f")
+        docker.logs("--tail=50", "-f")
     except KeyboardInterrupt:
         pass
 
 
-def setup():
-    """First-time setup: check Docker, build images, load initial data."""
-    print("🔧 Running first-time setup...")
+def cmd_list_backups(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """List available backup files."""
+    _list_backups(settings)
 
-    # Check Docker
-    try:
-        run(["docker", "info"], capture=True)
-    except Exception:
-        print("❌ Docker is not running. Please start Docker Desktop first.")
+
+# ─── App build commands ────────────────────────────────────────────────────
+
+
+def _npm_run(settings: Settings, script: str) -> None:
+    log.info("⚡ npm run %s", script)
+    result = subprocess.run(
+        ["npm", "run", script],
+        cwd=str(settings.frontend_dir),
+    )
+    if result.returncode != 0:
+        log.error("❌ npm run %s failed (exit %d)", script, result.returncode)
         sys.exit(1)
 
-    # Check init_data.sql
-    init_sql = ROOT / "init_data.sql"
-    if not init_sql.exists():
-        print("⚠️  No init_data.sql found — starting with empty database.")
 
-    compose("up", "-d", "--build")
-    print("\n✅ Setup complete!")
-    print("🌐 Open your browser at: http://localhost")
-    print("👤 Login: ammar / changeme")
-    status()
+def _gradle_build(settings: Settings, task: str) -> None:
+    android_dir = settings.frontend_dir / "android"
+    if not android_dir.exists():
+        log.error("❌ Android project not found at %s", android_dir)
+        log.error("   Run: cd frontend && npx cap add android")
+        sys.exit(1)
+    log.info("🏗️  Running gradle %s...", task)
+    gradlew = android_dir / "gradlew"
+    if not gradlew.exists():
+        log.error("❌ gradlew not found in %s", android_dir)
+        sys.exit(1)
+    result = subprocess.run([str(gradlew), task], cwd=str(android_dir))
+    if result.returncode != 0:
+        log.error("❌ Gradle %s failed (exit %d)", task, result.returncode)
+        sys.exit(1)
 
 
-COMMANDS = {
-    "deploy":        (deploy,        "Update code + backup + migrate DB (safe, keeps your data)"),
-    "deploy-fast":   (deploy_fast,   "Update code WITHOUT backup (faster, no safety net)"),
-    "deploy-fresh":  (deploy_fresh,  "⚠️  WIPE data + load init_data.sql from repo (new machine / reset)"),
-    "stop":          (stop,          "Stop all services"),
-    "restart":       (restart,       "Restart all services"),
-    "status":        (status,        "Show running status and health"),
-    "backup":        (backup,        "Backup database to backups/"),
-    "restore":        (restore,        "Restore database from a backup file (WIPES existing data)"),
-    "restore-append": (restore_append, "Append data from SQL file WITHOUT wiping existing data"),
-    "migrate":        (migrate,        "Apply incremental DB migrations (safe, idempotent)"),
-    "update-init":    (update_init,    "Snapshot current DB → init_data.sql"),
-    "export-clean":   (export_clean,   "Export clean init_data.sql — master data only, all products untracked"),
-    "logs":          (logs,          "Tail live logs from all services"),
-    "setup":         (setup,         "First-time setup"),
-}
+def cmd_build_apk(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Build Android APK via Capacitor + Gradle."""
+    if not shutil.which("npm"):
+        log.error("❌ npm not found in PATH")
+        sys.exit(1)
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
-        print("ERP Management Script\n")
-        print("Usage: python manage.py <command>\n")
-        print("Commands:")
-        for cmd, (_, desc) in COMMANDS.items():
-            print(f"  {cmd:<12} {desc}")
-        print("\nExamples:")
-        print("  python manage.py setup")
-        print("  python manage.py backup")
-        print("  python manage.py restore backup_20260329_120000.sql")
+    if not opts.no_icons:
+        log.info("🎨 Generating app icons from store logo...")
+        _npm_run(settings, "generate-icons")
+
+    log.info("🔨 Building frontend...")
+    _npm_run(settings, "build")
+
+    log.info("📱 Syncing Capacitor Android...")
+    _npm_run(settings, "cap:sync")
+
+    flavor = "release" if opts.release else "debug"
+    output_dir = f"app/build/outputs/apk/{flavor}/"
+    log.info("🏗️  Building %s APK...", flavor)
+    _gradle_build(settings, f"assemble{flavor.capitalize()}")
+
+    apk_dir = settings.frontend_dir / "android" / output_dir
+    apks = list(apk_dir.glob("*.apk"))
+    if apks:
+        log.info("✅ APK ready: %s", apks[0])
+        size_mb = apks[0].stat().st_size / (1024 * 1024)
+        log.info("   Size: %.1f MB", size_mb)
+        # Copy to project root for easy access
+        dst = Path.cwd() / apks[0].name
+        import shutil as _shutil
+        _shutil.copy2(apks[0], dst)
+        log.info("   Copied to: %s", dst)
+    else:
+        log.warning("⚠️  No APK found in %s", apk_dir)
+    log.info("✅ Build complete.")
+
+
+def cmd_build_appimage(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Build Linux AppImage via Tauri."""
+    if not shutil.which("npm"):
+        log.error("❌ npm not found in PATH")
+        sys.exit(1)
+
+    if not opts.no_icons:
+        log.info("🎨 Generating app icons from store logo...")
+        _npm_run(settings, "generate-icons")
+
+    log.info("🔨 Building frontend + Tauri bundle...")
+    _npm_run(settings, "build:desktop")
+
+    tauri_dir = settings.frontend_dir / "src-tauri" / "target" / "release" / "bundle"
+    log.info("")
+    log.info("✅ Desktop build complete.")
+    log.info("   Check %s for artifacts.", tauri_dir)
+    if tauri_dir.exists():
+        for f in sorted(tauri_dir.rglob("*")):
+            if f.is_file() and f.suffix in (".AppImage", ".deb", ".exe", ".msi", ".dmg"):
+                size_mb = f.stat().st_size / (1024 * 1024)
+                log.info("   📦 %s  (%.1f MB)", f.name, size_mb)
+
+
+def cmd_build_exe(settings: Settings, docker: Docker, opts: argparse.Namespace) -> None:
+    """Build Windows EXE via Tauri."""
+    cmd_build_appimage(settings, docker, opts)
+
+
+# ─── Internal helpers ──────────────────────────────────────────────────────
+
+
+def _run_backup(settings: Settings, docker: Docker) -> Path:
+    settings.backup_dir.mkdir(exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out = settings.backup_dir / f"backup_{ts}.sql"
+
+    docker.require_db_running()
+    log.info("💾 Creating backup → %s", out)
+
+    raw = docker.pg_dump()
+    out.write_bytes(raw)
+    size_kb = out.stat().st_size // 1024
+    log.info("✅ Backup saved: %s (%s KB)", out, f"{size_kb:,}")
+
+    # Prune old backups
+    backups = sorted(settings.backup_dir.glob("backup_*.sql"))
+    for old in backups[:-settings.backup_retention]:
+        old.unlink()
+        log.info("🧹 Pruned old backup: %s", old.name)
+
+    return out
+
+
+def _resolve_backup_path(settings: Settings, name: str | None) -> Path | None:
+    if not name:
+        return None
+    p = Path(name)
+    if p.exists():
+        return p.resolve()
+    alt = settings.backup_dir / name
+    if alt.exists():
+        return alt.resolve()
+    return None
+
+
+def _list_backups(settings: Settings) -> None:
+    backups = sorted(settings.backup_dir.glob("backup_*.sql")) if settings.backup_dir.exists() else []
+    if not backups:
+        log.info("No backups found in %s", settings.backup_dir)
+        return
+    log.info("Available backups:")
+    for b in backups:
+        size = b.stat().st_size // 1024
+        log.info("  %s  (%s KB)", b.name, f"{size:,}")
+
+
+def _show_status(docker: Docker) -> None:
+    log.info("")
+    log.info("=== Container Status ===")
+    docker.ps()
+    log.info("")
+    if docker.health_check():
+        log.info("✅ System is UP — %s", docker.settings.health_url)
+    else:
+        log.warning("⚠️  Health check failed — system may still be starting")
+
+
+def _warn_restore_errors(stderr: str) -> None:
+    errors = [
+        l for l in stderr.splitlines()
+        if "ERROR" in l and "already exists" not in l
+    ]
+    if errors:
+        log.warning("⚠️  Warnings during restore:\n%s", "\n".join(errors[:5]))
+
+
+def _decode_sql_bytes(raw: bytes) -> str:
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        encoding = "utf-16-le" if raw[:2] == b"\xff\xfe" else "utf-16-be"
+        return raw.decode(encoding)
+    return raw.decode("utf-8", errors="replace")
+
+
+def _maybe_run_migrations(settings: Settings) -> None:
+    if not settings.migrate_py.exists():
+        log.info("ℹ️  No migrate.py found — skipping migrations.")
+        return
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("migrate", settings.migrate_py)
+    if spec and spec.loader:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.run()
+        log.info("✅ Migrations applied.")
+
+
+def _confirm(msg: str) -> None:
+    resp = input(f"{msg}\nType 'yes' to confirm: ").strip().lower()
+    if resp != "yes":
+        log.info("Cancelled.")
         sys.exit(0)
 
-    cmd = sys.argv[1]
-    fn, _ = COMMANDS[cmd]
 
-    if cmd in ("restore", "restore-append"):
-        if len(sys.argv) < 3:
-            print("Available backups:")
-            for b in sorted(BACKUP_DIR.glob("backup_*.sql")) if BACKUP_DIR.exists() else []:
-                print(f"  {b.name}")
-            print(f"\nUsage: python manage.py {cmd} <filename>")
-            sys.exit(0)
-        fn(sys.argv[2])
-    else:
-        fn()
+# ─── CLI entry point ───────────────────────────────────────────────────────
 
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="manage.py",
+        description="ERP system management script",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python manage.py setup\n"
+            "  python manage.py backup\n"
+            "  python manage.py restore backup_20260329_120000.sql\n"
+            "  python manage.py deploy --yes\n"
+        ),
+    )
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed command output")
+
+    subparsers = parser.add_subparsers(dest="command", metavar="<command>", required=True)
+
+    for cmd_name, meta in COMMANDS.items():
+        fn, help_text = meta["fn"], meta["help"]
+        sub = subparsers.add_parser(cmd_name, help=help_text, description=help_text)
+        sub.set_defaults(fn=fn)
+        if cmd_name in ("restore", "restore-append"):
+            sub.add_argument("file", nargs="?", help="Backup filename (in backups/ or full path)")
+        if cmd_name in ("build-apk",):
+            sub.add_argument("--release", action="store_true", help="Build release APK (requires signing)")
+        if cmd_name in ("build-apk", "build-appimage", "build-exe"):
+            sub.add_argument("--no-icons", action="store_true", help="Skip icon generation from settings")
+
+    return parser
+
+
+def main() -> None:
+    parser = _build_parser()
+    opts = parser.parse_args()
+
+    settings = Settings(verbose=opts.verbose)
+    docker = Docker(settings)
+
+    if opts.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    opts.fn(settings, docker, opts)
+
+
+COMMANDS: dict[str, dict] = {
+    "setup":         {"fn": cmd_setup,         "help": "First-time setup: check Docker, build, start services"},
+    "deploy":        {"fn": cmd_deploy,        "help": "Update code + backup + migrate DB (safe)"},
+    "build":         {"fn": cmd_build,         "help": "Build Docker images without deploying"},
+    "deploy-fresh":  {"fn": cmd_deploy_fresh,  "help": "⚠️  WIPE data + load init_data.sql from repo"},
+    "stop":          {"fn": cmd_stop,          "help": "Stop all services"},
+    "restart":       {"fn": cmd_restart,       "help": "Restart all services"},
+    "status":        {"fn": cmd_status,        "help": "Show running status and health"},
+    "backup":        {"fn": cmd_backup,        "help": "Backup database to backups/"},
+    "restore":       {"fn": cmd_restore,       "help": "Restore database from a backup file (WIPES data)"},
+    "restore-append":{"fn": cmd_restore_append,"help": "Append data from SQL file without wiping"},
+    "migrate":       {"fn": cmd_migrate,       "help": "Apply incremental DB migrations (safe, idempotent)"},
+    "update-init":   {"fn": cmd_update_init,   "help": "Snapshot current DB to init_data.sql"},
+    "export-clean":  {"fn": cmd_export_clean,  "help": "Export clean init_data.sql — master data only"},
+    "logs":          {"fn": cmd_logs,          "help": "Tail live logs from all services"},
+    "list-backups":  {"fn": cmd_list_backups,  "help": "List available backup files"},
+    "build-apk":     {"fn": cmd_build_apk,     "help": "Build Android APK via Capacitor + Gradle"},
+    "build-appimage":{"fn": cmd_build_appimage,"help": "Build Linux AppImage via Tauri"},
+    "build-exe":     {"fn": cmd_build_exe,     "help": "Build Windows EXE via Tauri"},
+}
+
+
+if __name__ == "__main__":
+    main()

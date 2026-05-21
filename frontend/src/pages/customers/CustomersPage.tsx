@@ -5,6 +5,7 @@ import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { Search, Plus, ChevronLeft, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import ExportButton from '../../components/ui/ExportButton'
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('')
@@ -13,6 +14,7 @@ export default function CustomersPage() {
   const [showPayment, setShowPayment] = useState(false)
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
+  const [newCreditLimit, setNewCreditLimit] = useState('')
   const [payAmount, setPayAmount] = useState('')
   const [payNote, setPayNote] = useState('')
   const qc = useQueryClient()
@@ -28,8 +30,8 @@ export default function CustomersPage() {
   })
 
   const createMut = useMutation({
-    mutationFn: () => customersApi.create({ name: newName, phone: newPhone }),
-    onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); setNewName(''); setNewPhone(''); qc.invalidateQueries({ queryKey: ['customers'] }) },
+    mutationFn: () => customersApi.create({ name: newName, phone: newPhone, credit_limit: newCreditLimit ? Number(newCreditLimit) : null }),
+    onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); setNewName(''); setNewPhone(''); setNewCreditLimit(''); qc.invalidateQueries({ queryKey: ['customers'] }) },
   })
   const paymentMut = useMutation({
     mutationFn: () => customersApi.addPayment(selected.id, Number(payAmount), payNote),
@@ -50,9 +52,17 @@ export default function CustomersPage() {
       <div className="w-72 flex-shrink-0 flex flex-col">
         <div className="page-header mb-4">
           <h1 className="page-title">العملاء</h1>
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: '#1e3a5f' }}>
-            <Plus size={14} /> إضافة
-          </button>
+          <div className="flex items-center gap-3">
+            <ExportButton data={customers || []} columns={[
+              { label: 'الاسم', accessor: (c: any) => c.name },
+              { label: 'الهاتف', accessor: (c: any) => c.phone || '' },
+              { label: 'الرصيد', accessor: (c: any) => Number(c.balance_due) },
+              { label: 'حد الائتمان', accessor: (c: any) => Number(c.credit_limit || 0) },
+            ]} filename="العملاء" excelEndpoint="/export/customers" />
+            <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: '#1e3a5f' }}>
+              <Plus size={14} /> إضافة
+            </button>
+          </div>
         </div>
         <div className="relative mb-3">
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -69,11 +79,16 @@ export default function CustomersPage() {
                     <p className="font-bold text-slate-800 text-sm">{c.name}</p>
                     {c.phone && <p className="text-xs text-slate-400 mt-0.5">{c.phone}</p>}
                   </div>
-                  {Number(c.balance_due) > 0 && (
-                    <span className="text-xs font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                      {Number(c.balance_due).toLocaleString('ar-EG')} ج.م
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    {c.credit_limit && (
+                      <span className="text-[10px] text-slate-400 ml-1" title="حد الائتمان">{Number(c.credit_limit).toLocaleString('ar-EG')}</span>
+                    )}
+                    {Number(c.balance_due) > 0 && (
+                      <span className="text-xs font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                        {Number(c.balance_due).toLocaleString('ar-EG')} ج.م
+                      </span>
+                    )}
+                  </span>
                 </div>
               </button>
             ))}
@@ -101,22 +116,41 @@ export default function CustomersPage() {
             </div>
 
             {account && (
-              <div className="grid grid-cols-4 gap-4 mb-5">
-                {[
-                  { label: 'إجمالي الفواتير', value: account.total_invoiced, color: '#1e3a5f', icon: TrendingUp },
-                  { label: 'المرتجعات', value: account.total_returned, color: '#dc2626', icon: TrendingDown },
-                  { label: 'المدفوع', value: account.total_paid, color: '#16a34a', icon: DollarSign },
-                  { label: 'المتبقي', value: account.balance_due, color: account.balance_due > 0 ? '#d97706' : '#16a34a', icon: DollarSign },
-                ].map(({ label, value, color, icon: Icon }) => (
-                  <div key={label} className="stat-card">
-                    <div className="stat-icon" style={{ background: color + '20' }}><Icon size={18} style={{ color }} /></div>
-                    <div>
-                      <p className="text-slate-500 text-xs mb-0.5">{label}</p>
-                      <p className="text-lg font-black" style={{ color }}>{Number(value).toLocaleString('ar-EG')} ج.م</p>
+              <>
+                <div className="grid grid-cols-4 gap-4 mb-2">
+                  {[
+                    { label: 'إجمالي الفواتير', value: account.total_invoiced, color: '#1e3a5f', icon: TrendingUp },
+                    { label: 'المرتجعات', value: account.total_returned, color: '#dc2626', icon: TrendingDown },
+                    { label: 'المدفوع', value: account.total_paid, color: '#16a34a', icon: DollarSign },
+                    { label: 'المتبقي', value: account.balance_due, color: account.balance_due > 0 ? '#d97706' : '#16a34a', icon: DollarSign },
+                  ].map(({ label, value, color, icon: Icon }) => (
+                    <div key={label} className="stat-card">
+                      <div className="stat-icon" style={{ background: color + '20' }}><Icon size={18} style={{ color }} /></div>
+                      <div>
+                        <p className="text-slate-500 text-xs mb-0.5">{label}</p>
+                        <p className="text-lg font-black" style={{ color }}>{Number(value).toLocaleString('ar-EG')} ج.م</p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+                {selected.credit_limit ? (
+                  <div className={`mb-5 px-4 py-2 rounded-xl text-sm flex items-center gap-2 ${
+                    Number(account.balance_due) > Number(selected.credit_limit)
+                      ? 'bg-red-50 border border-red-200 text-red-700'
+                      : Number(account.balance_due) > Number(selected.credit_limit) * 0.8
+                        ? 'bg-amber-50 border border-amber-200 text-amber-700'
+                        : 'bg-green-50 border border-green-200 text-green-700'
+                  }`}>
+                    <span>حد الائتمان: {Number(selected.credit_limit).toLocaleString('ar-EG')} ج.م</span>
+                    <span className="mx-2">|</span>
+                    <span>المتبقي من الحد: {Math.max(0, Number(selected.credit_limit) - Number(account.balance_due)).toLocaleString('ar-EG')} ج.م</span>
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="mb-5 px-4 py-2 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-500">
+                    لا يوجد حد ائتمان محدد لهذا العميل
+                  </div>
+                )}
+              </>
             )}
 
             {/* Ledger */}
@@ -152,6 +186,7 @@ export default function CustomersPage() {
         <div className="space-y-4">
           <div><label className="block text-sm font-medium text-slate-600 mb-1">الاسم *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
           <div><label className="block text-sm font-medium text-slate-600 mb-1">رقم الهاتف</label><input className="input" value={newPhone} onChange={e => setNewPhone(e.target.value)} /></div>
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م) — اختياري</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
             <button onClick={() => createMut.mutate()} disabled={!newName} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
@@ -170,7 +205,7 @@ export default function CustomersPage() {
           <div><label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label><input className="input" value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="رقم إيصال، تاريخ..." /></div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowPayment(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => paymentMut.mutate()} disabled={!payAmount || paymentMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">تسجيل الدفعة</button>
+            <button onClick={() => { if (Number(payAmount) <= 0) return toast.error('المبلغ يجب أن يكون أكبر من 0'); paymentMut.mutate() }} disabled={!payAmount || Number(payAmount) <= 0 || paymentMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">تسجيل الدفعة</button>
           </div>
         </div>
       </Modal>

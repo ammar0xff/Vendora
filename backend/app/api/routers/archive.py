@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.base import get_db
 from app.models.archive import ArchivedDocument
-from app.dependencies import get_current_user, require_role, require_perm
-from app.core.exceptions import NotFoundError
+from app.dependencies import get_current_user, require_perm
+from app.core.exceptions import NotFoundError, BusinessError
 import uuid
 
 router = APIRouter(prefix="/archive", tags=["archive"])
@@ -60,5 +60,11 @@ async def delete_document(doc_id: uuid.UUID, db: AsyncSession = Depends(get_db),
     doc = result.scalar_one_or_none()
     if not doc:
         raise NotFoundError()
+
+    # If this archive row is linked to a real business record, don't hard-delete it.
+    # Example: shift handover docs referenced by shifts (ref_id = shift.id).
+    if doc.ref_id is not None:
+        raise BusinessError(f"لا يمكن حذف مستند مرتبط ({doc.doc_type}) — استخدم إلغاء/تراجع من العملية الأصلية")
+
     await db.delete(doc)
     await db.commit()

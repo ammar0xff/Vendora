@@ -35,3 +35,17 @@ export const fixUploadUrl = (url: string | null | undefined): string => {
   if (url.startsWith('/uploads/')) return '/api' + url
   return url
 }
+
+/** Build a full print URL — auth is via httpOnly cookie */
+export const printUrl = (path: string, size?: string): string => {
+  return `/api${path}${size ? `?paper_size=${size}` : ''}`
+}
+
+/** Open a print PDF in a new tab with popup blocker detection */
+export const openPrint = (path: string, size?: string): void => {
+  const url = printUrl(path, size)
+  const win = window.open(url, '_blank')
+  if (!win || win.closed || typeof win.closed === 'undefined') {
+    import('react-hot-toast').then(m => m.default.error('الرجاء السماح للنوافذ المنبثقة لطباعة الفاتورة', { duration: 4000 }))
+  }
+}

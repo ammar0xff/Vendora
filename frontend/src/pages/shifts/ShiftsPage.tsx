@@ -9,6 +9,8 @@ import toast from 'react-hot-toast'
 import { Wallet, Plus, Lock, TrendingUp, TrendingDown, DollarSign, Vault, Smartphone, Banknote } from 'lucide-react'
 
 export default function ShiftsPage() {
+  const [page, setPage] = useState(0)
+  const pageSize = 50
   const [showOpen, setShowOpen] = useState(false)
   const [showClose, setShowClose] = useState(false)
   const [showDeposit, setShowDeposit] = useState(false)
@@ -42,7 +44,14 @@ export default function ShiftsPage() {
     queryFn: () => shiftsApi.transactions(shift!.id),
     enabled: !!shift?.id,
   })
-  const { data: history } = useQuery({ queryKey: ['shifts'], queryFn: shiftsApi.list })
+  const { data: history } = useQuery({
+    queryKey: ['shifts', page, activeWarehouseId],
+    queryFn: () => shiftsApi.list({
+      limit: pageSize,
+      offset: page * pageSize,
+      ...(activeWarehouseId ? { warehouse_id: activeWarehouseId } : {}),
+    }),
+  })
   const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data) })
   const { data: managers } = useQuery({
     queryKey: ['managers'],
@@ -223,11 +232,26 @@ export default function ShiftsPage() {
 
           {/* History */}
           <div className="card">
-            <h3 className="font-bold text-slate-700 mb-4">سجل الورديات</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-700">سجل الورديات</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 disabled:opacity-50">
+                  السابق
+                </button>
+                <button onClick={() => setPage(p => p + 1)} disabled={!history?.length || history.length < pageSize}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 disabled:opacity-50">
+                  التالي
+                </button>
+              </div>
+            </div>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>تاريخ الفتح</th><th>تاريخ الإغلاق</th><th>الرصيد الافتتاحي</th><th>الرصيد الختامي</th><th>الحالة</th></tr></thead>
                 <tbody>
+                  {!history?.length && (
+                    <tr><td colSpan={5} className="text-center py-10 text-slate-400">لا توجد بيانات</td></tr>
+                  )}
                   {history?.map((s: any) => (
                     <tr key={s.id}>
                       <td className="text-sm">{new Date(s.started_at).toLocaleString('ar-EG')}</td>

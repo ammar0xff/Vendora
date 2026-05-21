@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class CategoryCreate(BaseModel):
@@ -32,16 +32,16 @@ class ProductCreate(BaseModel):
     name: str
     barcode: Optional[str] = None
     unit: str = "عدد"
-    retail_price: Decimal = Decimal("0")
-    wholesale_price: Decimal = Decimal("0")
-    cost_price: Decimal = Decimal("0")
+    retail_price: Decimal = Field(default=Decimal("0"), ge=0)
+    wholesale_price: Decimal = Field(default=Decimal("0"), ge=0)
+    cost_price: Decimal = Field(default=Decimal("0"), ge=0)
     company: Optional[str] = None
     size: Optional[str] = None
     product_type: Optional[str] = None
     material: Optional[str] = None
     image_url: Optional[str] = None
-    reorder_point: Decimal = Decimal("0")
-    reorder_qty: Decimal = Decimal("0")
+    reorder_point: Decimal = Field(default=Decimal("0"), ge=0)
+    reorder_qty: Decimal = Field(default=Decimal("0"), ge=0)
 
 
 class ProductUpdate(BaseModel):
@@ -60,6 +60,13 @@ class ProductUpdate(BaseModel):
     reorder_point: Optional[Decimal] = None
     reorder_qty: Optional[Decimal] = None
     stock_status: Optional[str] = None
+
+    @field_validator("retail_price", "wholesale_price", "cost_price", "reorder_point", "reorder_qty")
+    @classmethod
+    def prices_non_negative(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("must be >= 0")
+        return v
 
 
 class ProductOut(BaseModel):
@@ -86,3 +93,20 @@ class ProductOut(BaseModel):
 
 class ProductWithStock(ProductOut):
     current_qty: Decimal = Decimal("0")
+
+
+class ProductBarcodeCreate(BaseModel):
+    barcode: str
+    is_primary: bool = False
+
+
+class ProductBarcodeOut(BaseModel):
+    id: uuid.UUID
+    barcode: str
+    is_primary: bool
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class ProductWithBarcodes(ProductOut):
+    barcodes: list[ProductBarcodeOut] = []

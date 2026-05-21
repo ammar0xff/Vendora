@@ -3,13 +3,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role, require_perm
+from app.dependencies import get_current_user, require_perm
+from app.schemas.wallet import WalletCreate, WalletUpdate
 import uuid
 
 router = APIRouter(prefix="/wallets", tags=["wallets"])
-
-TYPE_LABELS = {"cash": "نقدي", "vodafone_cash": "فودافون كاش", "instapay": "إنستا باي"}
-
 
 @router.get("")
 async def list_wallets(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
@@ -18,25 +16,30 @@ async def list_wallets(db: AsyncSession = Depends(get_db), _=Depends(get_current
 
 
 @router.post("", status_code=201)
-async def create_wallet(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def create_wallet(data: WalletCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     r = await db.execute(text(
         "INSERT INTO payment_wallets (name, type, phone) VALUES (:name, :type, :phone) RETURNING *"
-    ), {"name": data["name"], "type": data["type"], "phone": data.get("phone")})
+    ), {"name": data.name, "type": data.type, "phone": data.phone})
     await db.commit()
     return dict(r.fetchone()._mapping)
 
 
 @router.put("/{wid}")
-async def update_wallet(wid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def update_wallet(wid: uuid.UUID, data: WalletUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     await db.execute(text(
         "UPDATE payment_wallets SET name=:name, phone=:phone WHERE id=:id"
-    ), {"name": data["name"], "phone": data.get("phone"), "id": wid})
+    ), {"name": data.name, "phone": data.phone, "id": wid})
     await db.commit()
     return {"ok": True}
 
 
 @router.delete("/{wid}", status_code=204)
 async def delete_wallet(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+    from app.core.exceptions import BusinessError
+    row = await db.execute(text("SELECT balance FROM payment_wallets WHERE id=:id"), {"id": wid})
+    balance = row.scalar_one_or_none()
+    if balance and float(balance) != 0:
+        raise BusinessError(f"لا يمكن حذف المحفظة — رصيدها {balance} ج.م. قم بتحويل الرصيد أولاً")
     await db.execute(text("UPDATE payment_wallets SET is_active=false WHERE id=:id"), {"id": wid})
     await db.commit()
 
@@ -51,7 +54,7 @@ async def wallets_summary(
 ):
     """Summary of sales per payment method."""
     conditions = ["s.status = 'confirmed'"]
-    params: dict = {}
+    params: dict = {}  # NOSONAR: values are parameterized
     if from_date:
         conditions.append("DATE(s.created_at) >= :fd")
         params["fd"] = from_date
@@ -83,6 +86,13 @@ async def wallets_summary(
 @router.post("/{wid}/reset-balance", status_code=204)
 async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     """Reset a wallet balance to 0."""
+    row = await db.execute(text("SELECT balance FROM payment_wallets WHERE id=:id FOR UPDATE"), {"id": wid})
+    old_balance = row.scalar_one_or_none()
+    if old_balance and float(old_balance) != 0:
+        await db.execute(text("""
+            INSERT INTO wallet_transactions (wallet_id, amount, tx_type, note)
+            VALUES (:wid, :amt, 'adjustment', 'تصفير الرصيد')
+        """), {"wid": wid, "amt": -old_balance})
     await db.execute(text("UPDATE payment_wallets SET balance = 0 WHERE id = :id"), {"id": wid})
     await db.commit()
 

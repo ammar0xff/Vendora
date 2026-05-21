@@ -32,6 +32,10 @@ async def _is_untracked(db, product_id) -> bool:
 
 async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     """Create a quotation (عرض سعر) — no stock deduction, status=quotation."""
+    gross_total = sum(float(i.qty) * float(i.unit_price) for i in data.items)
+    total_discount = sum(float(i.discount) for i in data.items)
+    net_total = gross_total - total_discount - float(data.discount_amount)
+
     sale = Sale(
         invoice_number=await _quotation_number(db),
         customer_id=data.customer_id,
@@ -40,6 +44,8 @@ async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sal
         shift_id=data.shift_id,
         sale_mode=data.sale_mode,
         discount_amount=data.discount_amount,
+        total=Decimal(str(gross_total)),
+        net_total=Decimal(str(net_total)),
         notes=data.notes,
         status=SaleStatus.quotation,
         created_by=cashier_id,
@@ -49,21 +55,19 @@ async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sal
     for item in data.items:
         db.add(SaleItem(sale_id=sale.id, product_id=item.product_id, qty=item.qty,
                         unit_price=item.unit_price, unit_cost=item.unit_cost, discount=item.discount))
-    await db.commit()
-    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))
-    sale = result.scalar_one()
-    # Auto-archive quotation
+    # Auto-archive within same transaction
     from app.models.archive import ArchivedDocument, DocType
     db.add(ArchivedDocument(doc_number=sale.invoice_number, doc_type=DocType.quotation,
                             ref_id=sale.id, created_by=cashier_id,
                             metadata_={"items_count": len(data.items), "mode": data.sale_mode}))
     await db.commit()
-    return sale
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))
+    return result.scalar_one()
 
 
 async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
     """Convert a quotation to a confirmed sale — deducts stock."""
-    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id))
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
         from app.core.exceptions import NotFoundError
@@ -73,7 +77,7 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
 
     for item in sale.items:
         if not await _is_untracked(db, item.product_id):
-            balance = await get_balance(db, item.product_id, sale.warehouse_id)
+            balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
             if balance < item.qty:
                 raise BusinessError(f"Insufficient stock for product {item.product_id}")
 
@@ -90,13 +94,92 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
     return sale
 
 
+async def create_draft_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
+    """Create a draft sale — no stock deduction, status=draft, no archive."""
+    gross_total = sum(float(i.qty) * float(i.unit_price) for i in data.items)
+    total_discount = sum(float(i.discount) for i in data.items)
+    net_total = gross_total - total_discount - float(data.discount_amount)
+
+    sale = Sale(
+        invoice_number=await _invoice_number(db),
+        customer_id=data.customer_id,
+        warehouse_id=data.warehouse_id,
+        cashier_id=cashier_id,
+        shift_id=data.shift_id,
+        sale_mode=data.sale_mode,
+        discount_amount=data.discount_amount,
+        total=Decimal(str(gross_total)),
+        net_total=Decimal(str(net_total)),
+        paid_amount=Decimal(str(net_total)),
+        notes=data.notes,
+        is_credit=data.is_credit,
+        payment_method=data.payment_method,
+        status=SaleStatus.draft,
+        created_by=cashier_id,
+    )
+    db.add(sale)
+    await db.flush()
+    for item in data.items:
+        db.add(SaleItem(sale_id=sale.id, product_id=item.product_id, qty=item.qty,
+                        unit_price=item.unit_price, unit_cost=item.unit_cost,
+                        discount=item.discount))
+    await db.commit()
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))
+    return result.scalar_one()
+
+
+async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
+    """Convert a draft sale to confirmed — assigns real invoice number, deducts stock."""
+    from app.core.exceptions import NotFoundError
+    from app.models.archive import ArchivedDocument, DocType
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise NotFoundError("Draft sale not found")
+    if sale.status != SaleStatus.draft:
+        raise BusinessError("Only draft sales can be confirmed")
+
+    for item in sale.items:
+        if not await _is_untracked(db, item.product_id):
+            balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
+            if balance < item.qty:
+                raise BusinessError(f"Insufficient stock for product {item.product_id}")
+
+    for item in sale.items:
+        mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
+                                  movement_type=MovementType.sale, qty=item.qty,
+                                  unit_cost=item.unit_cost, unit_price=item.unit_price)
+        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale")
+
+    new_inv = await _invoice_number(db)
+    sale.status = SaleStatus.confirmed
+    sale.invoice_number = new_inv
+    db.add(ArchivedDocument(doc_number=new_inv, doc_type=DocType.sale_invoice,
+                            ref_id=sale.id, created_by=user_id,
+                            metadata_={"items_count": len(sale.items)}))
+    await db.commit()
+    await db.refresh(sale)
+    return sale
+
+
 async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
-    # Validate stock for all items first (skip untracked products)
     for item in data.items:
         if not await _is_untracked(db, item.product_id):
-            balance = await get_balance(db, item.product_id, data.warehouse_id)
+            balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
             if balance < item.qty:
                 raise BusinessError(f"Insufficient stock for product {item.product_id}: available {balance}")
+
+    if data.is_credit and data.customer_id:
+        from sqlalchemy import text as sqlt
+        c = await db.execute(sqlt("SELECT credit_limit, balance FROM customers WHERE id=:id FOR UPDATE"), {"id": data.customer_id})
+        c = c.one_or_none()
+        if c and c.credit_limit is not None:
+            total = sum(float(i.qty) * float(i.unit_price) - float(i.discount) for i in data.items)
+            total -= float(data.discount_amount)
+            new_balance = float(c.balance or 0) + total
+            if new_balance > float(c.credit_limit):
+                remaining = float(c.credit_limit) - float(c.balance or 0)
+                raise BusinessError(f"تجاوز حد الائتمان (الحد: {c.credit_limit:.2f}, المتبقي: {remaining:.2f})")
 
     sale = Sale(
         invoice_number=await _invoice_number(db),
@@ -113,9 +196,10 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         created_by=cashier_id,
     )
     db.add(sale)
-    await db.flush()  # get sale.id
+    await db.flush()
 
-    total = 0
+    gross_total = 0
+    total_discount = 0
     for item in data.items:
         si = SaleItem(
             sale_id=sale.id,
@@ -126,7 +210,8 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
             discount=item.discount,
         )
         db.add(si)
-        total += float(item.qty) * float(item.unit_price) - float(item.discount)
+        gross_total += float(item.qty) * float(item.unit_price)
+        total_discount += float(item.discount)
 
         mv = StockMovementCreate(
             product_id=item.product_id,
@@ -138,47 +223,75 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         )
         await record_movement(db, mv, cashier_id, ref_id=sale.id, ref_type="sale")
 
-    total -= float(data.discount_amount)
+    net_total = gross_total - total_discount - float(data.discount_amount)
+    sale.total = Decimal(str(gross_total))
+    sale.net_total = Decimal(str(net_total))
+    paid = getattr(data, 'paid_amount', None)
+    if paid is not None:
+        sale.paid_amount = Decimal(str(paid))
+    elif data.is_credit:
+        sale.paid_amount = Decimal("0")
+    else:
+        sale.paid_amount = Decimal(str(net_total))
 
-    # Record drawer transaction if shift is provided
-    if data.shift_id:
-        dt = DrawerTransaction(
-            shift_id=data.shift_id,
-            type=DrawerTxType.sale,
-            amount=total,
-            ref_id=sale.id,
-            created_by=cashier_id,
-        )
-        db.add(dt)
+    # ── Split Payments ──────────────────────────────────────────────────
+    from sqlalchemy import text as sqlt
+    payments = getattr(data, 'payments', None)
+    if payments:
+        pmt_sum = sum(float(p.amount) for p in payments)
+        if abs(pmt_sum - total) > 0.01:
+            raise BusinessError(f"مجموع المدفوعات ({pmt_sum:.2f}) لا يساوي إجمالي الفاتورة ({total:.2f})")
+        is_credit = any(p.method == 'credit' for p in payments)
+        sale.is_credit = is_credit
+        sale.payment_method = payments[0].method
+        for p in payments:
+            await db.execute(sqlt(
+                "INSERT INTO sale_payments (sale_id, method, amount, wallet_id) VALUES (:sid, :m, :amt, :wid)"
+            ), {"sid": sale.id, "m": p.method, "amt": p.amount, "wid": p.wallet_id})
+            if p.method == 'cash' and data.shift_id:
+                db.add(DrawerTransaction(
+                    shift_id=data.shift_id, type=DrawerTxType.sale,
+                    amount=float(p.amount), ref_id=sale.id, created_by=cashier_id,
+                    note=f"قسط نقدي - {sale.invoice_number}",
+                ))
+            elif p.method == 'wallet' and p.wallet_id:
+                from app.services.wallet_service import record_wallet_tx
+                await record_wallet_tx(db, p.wallet_id, float(p.amount), "sale", sale.id,
+                                       f"قسط محفظة - {sale.invoice_number}", cashier_id)
+            elif p.method == 'credit' and data.customer_id:
+                await db.execute(sqlt(
+                    "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
+                ), {"amt": float(p.amount), "cid": data.customer_id})
+    else:
+        # Legacy single payment
+        if data.shift_id:
+            db.add(DrawerTransaction(
+                shift_id=data.shift_id, type=DrawerTxType.sale,
+                amount=total, ref_id=sale.id, created_by=cashier_id,
+            ))
+        if data.is_credit and data.customer_id:
+            await db.execute(sqlt(
+                "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
+            ), {"amt": total, "cid": data.customer_id})
+        if getattr(data, 'wallet_id', None) and not data.is_credit:
+            from app.services.wallet_service import record_wallet_tx
+            await record_wallet_tx(db, data.wallet_id, total, "sale", sale.id,
+                                   f"بيع {sale.invoice_number}", cashier_id)
 
-    # Update customer balance for credit sales
-    if data.is_credit and data.customer_id:
-        from sqlalchemy import text as sqlt
-        await db.execute(sqlt(
-            "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
-        ), {"amt": total, "cid": data.customer_id})
-
-    # Update wallet balance for electronic payments
-    if getattr(data, 'wallet_id', None) and not data.is_credit:
-        from app.services.wallet_service import record_wallet_tx
-        await record_wallet_tx(db, data.wallet_id, total, "sale", sale.id,
-                               f"بيع {sale.invoice_number}", cashier_id)
-
-    await db.commit()
-    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))
-    sale = result.scalar_one()
-    # Auto-archive
+    # Auto-archive within the same transaction
     from app.models.archive import ArchivedDocument, DocType
     db.add(ArchivedDocument(doc_number=sale.invoice_number, doc_type=DocType.sale_invoice,
                             amount=Decimal(str(total)), ref_id=sale.id, created_by=cashier_id,
                             metadata_={"items_count": len(data.items), "mode": str(data.sale_mode)}))
+
     await db.commit()
-    return sale
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale.id))
+    return result.scalar_one()
 
 
 async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> dict:
     """Full return: restore stock + record drawer return transaction."""
-    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id))
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
         from app.core.exceptions import NotFoundError
@@ -223,7 +336,7 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
 
 async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
-    result = await db.execute(select(Sale).where(Sale.id == sale_id))
+    result = await db.execute(select(Sale).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
         from app.core.exceptions import NotFoundError
@@ -232,4 +345,5 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
         raise BusinessError("Only confirmed sales can be cancelled")
     sale.status = SaleStatus.cancelled
     await db.commit()
+    await db.refresh(sale)
     return sale

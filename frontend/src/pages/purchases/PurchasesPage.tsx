@@ -8,9 +8,8 @@ import Modal from '../../components/ui/Modal'
 import ProductForm from '../../components/ui/ProductForm'
 import toast from 'react-hot-toast'
 import { Plus, Trash2, Eye, CheckCircle, Package, Printer } from 'lucide-react'
-
-const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-const printUrl = (path: string) => `/api${path}?token=${getToken()}`
+import ExportButton from '../../components/ui/ExportButton'
+import { openPrint } from '../../utils/format'
 
 const purchasesApi = {
   list: () => api.get('/purchases').then(r => r.data),
@@ -309,6 +308,7 @@ export default function PurchasesPage() {
   const [showNew, setShowNew] = useState(false)
   const [receivePO, setReceivePO] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [printingId, setPrintingId] = useState<string | null>(null)
   const qc = useQueryClient()
 
   const { data: purchases, isLoading } = useQuery({ queryKey: ['purchases'], queryFn: purchasesApi.list })
@@ -338,6 +338,8 @@ export default function PurchasesPage() {
             📎
             <input type="file" accept="image/*" className="hidden" onChange={async e => {
               const file = e.target.files?.[0]; if (!file) return
+              if (!file.type.startsWith('image/')) { toast.error('يرجى اختيار صورة'); return }
+              if (file.size > 5 * 1024 * 1024) { toast.error('الحجم يجب أن يكون أقل من 5 ميجابايت'); return }
               const fd = new FormData(); fd.append('file', file)
               await api.post(`/purchases/${r.id}/upload-invoice`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
               toast.success('تم رفع صورة الفاتورة'); qc.invalidateQueries({ queryKey: ['purchases'] })
@@ -347,8 +349,9 @@ export default function PurchasesPage() {
           {r.invoice_image_url && (
             <a href={r.invoice_image_url?.startsWith("/uploads") ? "/api" + r.invoice_image_url : r.invoice_image_url} target="_blank" rel="noreferrer" className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400" title="عرض الفاتورة" onClick={e => { e.preventDefault(); window.open(r.invoice_image_url, '_blank') }}>🖼️</a>
           )}
-          <button onClick={() => window.open(printUrl(`/print/purchase/${r.id}`), '_blank')}
-            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="طباعة">
+          <button onClick={() => { setPrintingId(r.id); openPrint(`/print/purchase/${r.id}`); setTimeout(() => setPrintingId(null), 2000) }}
+            disabled={printingId === r.id}
+            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600 disabled:opacity-40" title="طباعة">
             <Printer size={14} />
           </button>
           {r.status === 'draft' && (
@@ -366,9 +369,18 @@ export default function PurchasesPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">📦 فواتير المشتريات</h1>
-        <button onClick={() => setShowNew(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
-          <Plus size={15} /> فاتورة مشتريات جديدة
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButton data={filtered || []} columns={[
+            { label: 'رقم الأمر', accessor: (r: any) => r.po_number },
+            { label: 'المورد', accessor: (r: any) => r.supplier_name || '—' },
+            { label: 'الإجمالي', accessor: (r: any) => Number(r.total_cost) },
+            { label: 'الحالة', accessor: (r: any) => r.status },
+            { label: 'التاريخ', accessor: (r: any) => new Date(r.created_at).toLocaleDateString('en-CA') },
+          ]} filename="المشتريات" excelEndpoint="/export/purchases" />
+          <button onClick={() => setShowNew(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+            <Plus size={15} /> فاتورة مشتريات جديدة
+          </button>
+        </div>
       </div>
 
       <div className="mb-4">

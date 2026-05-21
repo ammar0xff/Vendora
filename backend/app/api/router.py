@@ -1,10 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from app.api.routers import auth, users, products, stock, sales, shifts, reports, parties, purchases, archive, payroll, settings, operations
 from app.api.routers import ledger as ledger_router
 from app.api.routers import hr, finance, suppliers, admin_overview, safes, wallets, collections as collections_router
-from app.api.routers import print_router
+from app.api.routers import print_router, expenses, periods, export as export_router
+from app.dependencies import require_csrf
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_csrf)])
 
 router.include_router(auth.router)
 router.include_router(users.router)
@@ -28,3 +29,6 @@ router.include_router(admin_overview.router)
 router.include_router(safes.router)
 router.include_router(collections_router.router)
 router.include_router(wallets.router)
+router.include_router(expenses.router)
+router.include_router(periods.router)
+router.include_router(export_router.router)

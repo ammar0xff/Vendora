@@ -9,8 +9,10 @@ import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
 import api from '../../api/client'
 import CollectionModal from '../../components/ui/CollectionModal'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { Plus, Edit2, Trash2, ChevronDown, ChevronLeft, Package, TrendingUp, Search, Layers, Tag, BarChart2 } from 'lucide-react'
+import ExportButton from '../../components/ui/ExportButton'
 import { clsx } from 'clsx'
 
 function BreakdownModal({ productId, unit }: { productId?: string; unit?: string }) {
@@ -44,6 +46,7 @@ function BreakdownModal({ productId, unit }: { productId?: string; unit?: string
 
 export default function InventoryPage() {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null)
   const [breakdownProduct, setBreakdownProduct] = useState<any>(null)
@@ -58,15 +61,27 @@ export default function InventoryPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [showCollection, setShowCollection] = useState(false)
   const [editProduct, setEditProduct] = useState<any>(null)
+
+  const { data: editProductFull } = useQuery({
+    queryKey: ['product', editProduct?.id],
+    queryFn: () => productsApi.get(editProduct.id),
+    enabled: !!editProduct?.id,
+  })
   const [viewMovements, setViewMovements] = useState<any>(null)
+  const [confirmDelProduct, setConfirmDelProduct] = useState<any>(null)
   const qc = useQueryClient()
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
 
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: () => subcategoriesApi.list() })
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', search, selectedCatId, selectedSubId],
+    queryKey: ['products', debouncedSearch, selectedCatId, selectedSubId],
     queryFn: () => productsApi.list({
-      ...(search ? { search } : {}),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(selectedSubId ? { subcategory_id: selectedSubId } : selectedCatId ? { category_id: selectedCatId } : {}),
     }),
   })
@@ -194,6 +209,17 @@ export default function InventoryPage() {
           <button onClick={() => setShowCollection(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 flex-shrink-0 border border-slate-300 text-slate-600 hover:bg-slate-50">
             <Package size={15} /> كوليكشن جديد
           </button>
+          <ExportButton
+            data={products || []}
+            columns={[
+              { label: 'المنتج', accessor: p => p.name },
+              { label: 'الشركة', accessor: p => p.company || '' },
+              { label: 'الوحدة', accessor: p => p.unit || '' },
+              { label: 'سعر القطاعي', accessor: p => Number(p.retail_price) },
+              { label: 'سعر الجملة', accessor: p => Number(p.wholesale_price) },
+              { label: 'سعر التكلفة', accessor: p => Number(p.cost_price) },
+            ]}
+            filename="products" excelEndpoint="/export/products" />
           <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 flex-shrink-0" style={{ background: '#1e3a5f' }}>
             <Plus size={15} /> إضافة منتج
           </button>
@@ -210,9 +236,18 @@ export default function InventoryPage() {
           <DataTable
             columns={[
               { key: 'name', label: 'المنتج', sortable: true, render: (p: any) => (
-                <div>
-                  <p className="font-bold text-slate-800">{p.name}</p>
-                  {p.company && <p className="text-xs text-slate-400">{p.company}</p>}
+                <div className="flex items-center gap-2">
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-100 flex-shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-100 flex items-center justify-center text-xs font-bold text-slate-300 flex-shrink-0">
+                      {p.name?.[0]}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-slate-800">{p.name}</p>
+                    {p.company && <p className="text-xs text-slate-400">{p.company}</p>}
+                  </div>
                 </div>
               )},
               { key: 'qty', label: 'المخزون', sortable: true, render: (p: any) => {
@@ -240,7 +275,7 @@ export default function InventoryPage() {
                   )}
                   <button onClick={() => setViewMovements(p)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-500" title="الحركات"><TrendingUp size={14} /></button>
                   <button onClick={() => setEditProduct(p)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل"><Edit2 size={14} /></button>
-                  <button onClick={() => { if (confirm('حذف؟')) deleteMut.mutate(p.id) }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف"><Trash2 size={14} /></button>
+                  <button onClick={() => setConfirmDelProduct(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف"><Trash2 size={14} /></button>
                 </div>
               )},
             ]}
@@ -248,6 +283,7 @@ export default function InventoryPage() {
             loading={isLoading}
             rowKey={(p: any) => p.id}
             emptyMessage="لا توجد منتجات" emptyIcon="📦"
+            emptyAction={{ label: 'إضافة منتج', onClick: () => setShowAdd(true) }}
           />
         </div>
       </div>
@@ -257,7 +293,13 @@ export default function InventoryPage() {
         <ProductForm onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
       </Modal>
       <Modal open={!!editProduct} onClose={() => setEditProduct(null)} title="تعديل المنتج" size="lg">
-        {editProduct && <ProductForm product={editProduct} onSave={(d: any) => updateMut.mutate({ id: editProduct.id, data: d })} onClose={() => setEditProduct(null)} />}
+        {editProduct && (
+          <ProductForm
+            product={editProductFull || editProduct}
+            onSave={(d: any) => updateMut.mutate({ id: editProduct.id, data: d })}
+            onClose={() => setEditProduct(null)}
+          />
+        )}
       </Modal>
       <Modal open={!!viewMovements} onClose={() => setViewMovements(null)} title={`حركات: ${viewMovements?.name}`} size="xl">
         <div className="table-wrap max-h-96 overflow-y-auto">
@@ -324,6 +366,7 @@ export default function InventoryPage() {
         </div>
       </Modal>
       {showCollection && <CollectionModal open={showCollection} onClose={() => setShowCollection(false)} />}
+      <ConfirmDialog open={!!confirmDelProduct} onClose={() => setConfirmDelProduct(null)} onConfirm={() => { deleteMut.mutate(confirmDelProduct); setConfirmDelProduct(null) }} message="حذف المنتج؟" danger confirmText="حذف" />
     </div>
   )
 }

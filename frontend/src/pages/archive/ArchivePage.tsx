@@ -2,23 +2,22 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { archiveApi } from '../../api/endpoints'
 import DataTable from '../../components/ui/DataTable'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ShoppingBag, Wallet } from 'lucide-react'
-
-const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-const pdfUrl = (path: string) => `/api${path}?token=${getToken()}`
+import { openPrint } from '../../utils/format'
 
 const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; pdfPath?: (d: any) => string }> = {
-  sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,    color: '#16a34a', pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
-  quotation:       { label: 'عرض سعر',          icon: FileText,   color: '#c8a84b', pdfPath: d => pdfUrl(`/print/pdf/sale/${d.ref_id}`) },
-  purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,color: '#7c3aed', pdfPath: d => pdfUrl(`/print/pdf/purchase/${d.ref_id}`) },
-  dispatch_order:  { label: 'إذن صرف',          icon: Truck,      color: '#1e3a5f', pdfPath: d => pdfUrl(`/print/pdf/dispatch/${d.doc_number}`) },
-  goods_receipt:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  stock_request:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  shift_report:    { label: 'تقرير وردية',      icon: BarChart2,  color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,  color: '#dc2626', pdfPath: d => pdfUrl(`/print/pdf/handover/${d.doc_number}`) },
-  inventory_report:{ label: 'تقرير مخزون',      icon: BarChart2,  color: '#059669', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
-  safe_deposit:    { label: 'توريد خزنة',       icon: Wallet,     color: '#0891b2', pdfPath: d => pdfUrl(`/print/pdf/archive/${d.id}`) },
+  sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,    color: '#16a34a', pdfPath: d => `/print/pdf/sale/${d.ref_id}` },
+  quotation:       { label: 'عرض سعر',          icon: FileText,   color: '#c8a84b', pdfPath: d => `/print/pdf/sale/${d.ref_id}` },
+  purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,color: '#7c3aed', pdfPath: d => `/print/pdf/purchase/${d.ref_id}` },
+  dispatch_order:  { label: 'إذن صرف',          icon: Truck,      color: '#1e3a5f', pdfPath: d => `/print/pdf/dispatch/${d.doc_number}` },
+  goods_receipt:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
+  stock_request:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
+  shift_report:    { label: 'تقرير وردية',      icon: BarChart2,  color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
+  shift_handover:  { label: 'تسليم عهدة',       icon: Handshake,  color: '#dc2626', pdfPath: d => `/print/pdf/handover/${d.doc_number}` },
+  inventory_report:{ label: 'تقرير مخزون',      icon: BarChart2,  color: '#059669', pdfPath: d => `/print/pdf/archive/${d.id}` },
+  safe_deposit:    { label: 'توريد خزنة',       icon: Wallet,     color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
 }
 
 const TYPE_FILTERS = [
@@ -37,6 +36,8 @@ export default function ArchivePage() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [docType, setDocType] = useState('')
+  const [confirmDelDoc, setConfirmDelDoc] = useState<any>(null)
+  const [printingId, setPrintingId] = useState<string | null>(null)
   const qc = useQueryClient()
 
   const { data: docs, isLoading } = useQuery({
@@ -48,7 +49,7 @@ export default function ArchivePage() {
   const deleteMut = useMutation({
     mutationFn: archiveApi.delete,
     onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['archive'] }) },
-    onError: () => toast.error('فشل الحذف'),
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل الحذف'),
   })
 
   const counts = useMemo(() =>
@@ -135,12 +136,13 @@ export default function ArchivePage() {
         return (
           <div className="flex gap-1 justify-end">
             {cfg?.pdfPath && (
-              <button onClick={e => { e.stopPropagation(); window.open(cfg.pdfPath!(d), '_blank') }}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="طباعة / PDF">
+              <button onClick={e => { e.stopPropagation(); setPrintingId(d.id); openPrint(cfg.pdfPath!(d)); setTimeout(() => setPrintingId(null), 2000) }}
+                disabled={printingId === d.id}
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600 disabled:opacity-40" title="طباعة / PDF">
                 <Printer size={14} />
               </button>
             )}
-            <button onClick={e => { e.stopPropagation(); if (confirm('حذف المستند؟')) deleteMut.mutate(d.id) }}
+            <button onClick={e => { e.stopPropagation(); setConfirmDelDoc(d) }}
               className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
               <Trash2 size={14} />
             </button>
@@ -149,6 +151,9 @@ export default function ArchivePage() {
       }
     },
   ]
+
+  const delCfg = confirmDelDoc ? DOC_CONFIG[confirmDelDoc.doc_type] : null
+  const delLabel = delCfg?.label || (confirmDelDoc?.doc_type || 'مستند')
 
   return (
     <div>
@@ -198,6 +203,15 @@ export default function ArchivePage() {
           rowKey={(d: any) => d.id} emptyMessage="لا توجد مستندات" emptyIcon="📁"
           maxHeight="calc(100vh - 280px)" />
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDelDoc}
+        onClose={() => setConfirmDelDoc(null)}
+        onConfirm={() => { deleteMut.mutate(confirmDelDoc.id); setConfirmDelDoc(null) }}
+        message={`حذف ${delLabel} رقم ${confirmDelDoc?.doc_number || ''}؟`}
+        danger
+        confirmText="حذف"
+      />
     </div>
   )
 }

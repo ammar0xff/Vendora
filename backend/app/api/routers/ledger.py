@@ -23,10 +23,12 @@ async def ledger(
 ):
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
-    wh_filter = f"AND s.warehouse_id = '{warehouse_id}'" if warehouse_id else ""
+    params: dict = {"start": start, "end": end}
+    if warehouse_id:
+        params["wh_id"] = uuid.UUID(warehouse_id)
 
     # Sale items
-    items_rows = await db.execute(text(f"""
+    items_rows = await db.execute(text("""
         SELECT
             si.id,
             si.sale_id,
@@ -48,9 +50,9 @@ async def ledger(
         LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
         WHERE s.status = 'confirmed'
           AND s.created_at BETWEEN :start AND :end
-          {wh_filter}
+          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
         ORDER BY s.created_at, si.id
-    """), {"start": start, "end": end})
+    """), params)
 
     sale_items = []
     for r in items_rows.fetchall():
@@ -72,7 +74,7 @@ async def ledger(
         })
 
     # Returns
-    ret_rows = await db.execute(text(f"""
+    ret_rows = await db.execute(text("""
         SELECT
             si.id,
             si.sale_id,
@@ -90,9 +92,9 @@ async def ledger(
         LEFT JOIN customers c ON c.id = s.customer_id
         WHERE s.status = 'returned'
           AND s.created_at BETWEEN :start AND :end
-          {wh_filter}
+          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
         ORDER BY s.created_at
-    """), {"start": start, "end": end})
+    """), params)
 
     returns = []
     for r in ret_rows.fetchall():
@@ -112,7 +114,7 @@ async def ledger(
         })
 
     # Expenses / deposits / withdrawals
-    tx_rows = await db.execute(text(f"""
+    tx_rows = await db.execute(text("""
         SELECT dt.id, dt.type, dt.amount, dt.note, dt.created_at,
                pw.name as wallet_name, dt.payment_method
         FROM drawer_transactions dt
@@ -120,9 +122,9 @@ async def ledger(
         LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
         WHERE dt.type IN ('expense','deposit','withdrawal')
           AND dt.created_at BETWEEN :start AND :end
-          {'AND sh.warehouse_id = :wid' if warehouse_id else ''}
+          AND (:wh_id IS NULL OR sh.warehouse_id = :wh_id)
         ORDER BY dt.created_at
-    """), {"start": start, "end": end, **({"wid": warehouse_id} if warehouse_id else {})})
+    """), params)
 
     TX_AR = {"expense": "خوارج", "deposit": "دواخل", "withdrawal": "سحب"}
     expenses = []

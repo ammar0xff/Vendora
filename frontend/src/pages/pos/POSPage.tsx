@@ -3,9 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi, salesApi, stockApi, shiftsApi, customersApi } from '../../api/endpoints'
 import api from '../../api/client'
 import { usePOSStore } from '../../store/pos'
+import { usePendingSalesStore } from '../../store/pendingSales'
+import { useLocalShiftStore } from '../../store/localShift'
+import { useOnlineStatus } from '../../hooks/useOnlineStatus'
+import { offlineCache } from '../../store/offlineCache'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
+import { openPrint } from '../../utils/format'
 import {
   Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle,
   X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw, AlertCircle,
@@ -140,30 +146,10 @@ function LedgerRow({ e, hasItems, singleItem }: any) {
 
 export default function POSPage() {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [selectedSub, setSelectedSub] = useState<string | null>(null)
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
-  const [printData, setPrintData] = useState<any>(null)
-  const [showHandover, setShowHandover] = useState(false)
-  const [showClose, setShowClose] = useState(false)
-  const [showOpenShift, setShowOpenShift] = useState(false)
-  const [showReturn, setShowReturn] = useState(false)
-  const [showExpense, setShowExpense] = useState(false)
-  const [showDrawerEntry, setShowDrawerEntry] = useState(false)
-  const [showCustomerDebt, setShowCustomerDebt] = useState(false)
-  const [debtCustomerSearch, setDebtCustomerSearch] = useState('')
-  const [debtCustomer, setDebtCustomer] = useState<any>(null)
-  const [debtPayAmount, setDebtPayAmount] = useState('')
-  const [debtPayNote, setDebtPayNote] = useState('')
-  const [showLedger, setShowLedger] = useState(false)
-  const [drawerEntryType, setDrawerEntryType] = useState('expense')
-  const [drawerEntryAmount, setDrawerEntryAmount] = useState('')
-  const [drawerEntryNote, setDrawerEntryNote] = useState('')
-  const [drawerEntryCategoryId, setDrawerEntryCategoryId] = useState('')
-  const [drawerEntryPaymentMethod, setDrawerEntryPaymentMethod] = useState('cash')
-  const [drawerEntryWalletId, setDrawerEntryWalletId] = useState('')
-  const [drawerEntryCustomer, setDrawerEntryCustomer] = useState<any>(null)
-  const [drawerCustomerSearch, setDrawerCustomerSearch] = useState('')
+  const [customerInput, setCustomerInput] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
   const [pendingCustomerName, setPendingCustomerName] = useState('')
@@ -175,8 +161,16 @@ export default function POSPage() {
   const [managerPasswordForClose, setManagerPasswordForClose] = useState('')
   const [closeSafeId, setCloseSafeId] = useState('')
   const [isCredit, setIsCredit] = useState(false)
+
   const [paymentMethod, setPaymentMethod] = useState('cash')
+
   const [paymentWalletId, setPaymentWalletId] = useState('')
+
+  const [splitPayments, setSplitPayments] = useState<{method: string; amount: number; walletId?: string}[]>([])
+  const [showSplitModal, setShowSplitModal] = useState(false)
+  const [splitMethod, setSplitMethod] = useState('cash')
+  const [splitAmount, setSplitAmount] = useState('')
+  const [splitWalletId, setSplitWalletId] = useState('')
   const [handoverUsername, setHandoverUsername] = useState('')
   const [handoverPassword, setHandoverPassword] = useState('')
   const [closingBalance, setClosingBalance] = useState('')
@@ -190,7 +184,22 @@ export default function POSPage() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
 
-  const { items, mode, customer, setMode, setCustomer, addItem, updateQty, updateItemDiscount, updatePrice, removeItem, clear, subtotal, totalDiscount, total, invoice_discount, invoice_discount_pct, setInvoiceDiscount } = usePOSStore()
+  const [showHeld, setShowHeld] = useState(false)
+  const [holdLabel, setHoldLabel] = useState('')
+  const prevWarehouseRef = useRef<string | null>(null)
+  const prevShiftRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const {
+    items, mode, customer,
+    suspended, holdCurrent, resume, deleteHeld,
+    setMode, setCustomer, addItem, updateQty, updateItemDiscount, updatePrice, removeItem, clear,
+    subtotal, totalDiscount, total, invoice_discount, invoice_discount_pct, setInvoiceDiscount,
+  } = usePOSStore()
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { activeWarehouseId } = useAppStore()
@@ -198,18 +207,46 @@ export default function POSPage() {
   // Strictly use selected warehouse — no fallback
   const mainWh = warehouses?.find((w: any) => w.id === activeWarehouseId) ?? null
 
-  const { data: shift } = useQuery({
+  // If user switches warehouse, cart cannot be trusted (different stock/shift).
+  useEffect(() => {
+    const wh = mainWh?.id || null
+    if (prevWarehouseRef.current && wh && prevWarehouseRef.current !== wh) {
+      clear()
+      setSelectedCustomer(null)
+      setIsCredit(false)
+      setSplitPayments([])
+    }
+    prevWarehouseRef.current = wh
+  }, [mainWh?.id])
+
+  const localShiftData = useLocalShiftStore(s => s.shift)
+  const { data: serverShift } = useQuery({
     queryKey: ['current-shift', mainWh?.id], queryFn: () => shiftsApi.current(mainWh!.id),
     retry: false, throwOnError: false, refetchInterval: 30_000, enabled: !!mainWh?.id,
   })
+  const shift = serverShift || (localShiftData?.warehouse_id === mainWh?.id
+    ? { ...localShiftData, cashier_id: localShiftData.cashier_id || '', started_at: new Date(localShiftData.opened_at).toISOString(), status: 'open' }
+    : null)
+
+  // If shift changes (closed/handed over), clear persisted cart state.
+  useEffect(() => {
+    const sid = shift?.id || null
+    if (prevShiftRef.current && sid && prevShiftRef.current !== sid) {
+      clear()
+      setSelectedCustomer(null)
+      setIsCredit(false)
+      setSplitPayments([])
+    }
+    prevShiftRef.current = sid
+  }, [shift?.id])
   const { data: summary } = useQuery({
     queryKey: ['shift-summary', shift?.id], queryFn: () => shiftsApi.summary(shift!.id),
     enabled: !!shift?.id, refetchInterval: 15_000,
   })
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', search, selectedCat, selectedSub],
-    queryFn: () => productsApi.list({ ...(search ? { search } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
+    queryKey: ['products', debouncedSearch, selectedCat, selectedSub],
+    queryFn: () => productsApi.list({ ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
   })
 
   // Collections — shown in search results
@@ -265,6 +302,11 @@ export default function POSPage() {
   })
 
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products')
+  const [confirmReturn, setConfirmReturn] = useState<number | null>(null)
+  const [confirmDelItem, setConfirmDelItem] = useState<any>(null)
+  const [confirmDelReturn, setConfirmDelReturn] = useState<any>(null)
+  const [confirmDelTx, setConfirmDelTx] = useState<any>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const handleAddProduct = (p: any) => {
     if (!shift) { toast.error('افتح وردية أولاً قبل البيع', { icon: '🔒' }); return }
@@ -292,36 +334,73 @@ export default function POSPage() {
     } catch { /* normal search */ }
   }
 
+  const isOnline = useOnlineStatus()
+
   const checkoutMut = useMutation({
-    mutationFn: () => salesApi.create({
-      warehouse_id: mainWh?.id,
-      shift_id: shift?.id || null,
-      sale_mode: mode,
-      is_credit: isCredit,
-      customer_id: selectedCustomer?.id || null,
-      discount_amount: totalDiscount(),
-      payment_method: isCredit ? 'credit' : paymentMethod,
-      wallet_id: paymentWalletId || undefined,
-      items: items.map(i => {
-        const lineTotal = i.qty * i.unit_price
-        const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
-        return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc }
-      }),
-    }),
+    mutationFn: async () => {
+      const useSplits = splitPayments.length > 0
+      const total = items.reduce((s, i) => s + i.qty * i.unit_price - (i.item_discount_pct > 0 ? i.qty * i.unit_price * (i.item_discount_pct / 100) : i.item_discount), 0) - totalDiscount()
+
+      if (!isOnline) {
+        const saleItems = items.map(i => {
+          const lineTotal = i.qty * i.unit_price
+          const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
+          return { product_id: i.product_id, name: i.name, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc }
+        })
+        usePendingSalesStore.getState().addSale({
+          local_id: crypto.randomUUID?.() || String(Date.now()),
+          warehouse_id: mainWh?.id || '',
+          warehouse_name: mainWh?.name || '',
+          sale_mode: mode,
+          is_credit: useSplits ? splitPayments.some(p => p.method === 'credit') : isCredit,
+          customer_id: selectedCustomer?.id || null,
+          customer_name: selectedCustomer?.name || null,
+          discount_amount: totalDiscount(),
+          payment_method: useSplits ? splitPayments[0]?.method : (isCredit ? 'credit' : paymentMethod),
+          wallet_id: useSplits ? (splitPayments.find(p => p.method === 'wallet')?.walletId || undefined) : (paymentWalletId || undefined),
+          items: saleItems,
+          total,
+        })
+        return { queued: true }
+      }
+
+      return salesApi.create({
+        warehouse_id: mainWh?.id,
+        shift_id: shift?.id || null,
+        sale_mode: mode,
+        is_credit: useSplits ? splitPayments.some(p => p.method === 'credit') : isCredit,
+        customer_id: selectedCustomer?.id || null,
+        discount_amount: totalDiscount(),
+        payment_method: useSplits ? splitPayments[0]?.method : (isCredit ? 'credit' : paymentMethod),
+        wallet_id: useSplits ? (splitPayments.find(p => p.method === 'wallet')?.walletId || undefined) : (paymentWalletId || undefined),
+        payments: useSplits ? splitPayments.map(p => ({ method: p.method, amount: p.amount, wallet_id: p.walletId || null })) : undefined,
+        items: items.map(i => {
+          const lineTotal = i.qty * i.unit_price
+          const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
+          return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc }
+        }),
+      })
+    },
     onSuccess: async (data) => {
+      if (data.queued) {
+        toast.success('✅ تم حفظ الفاتورة محلياً — ستتم المزامنة عند الاتصال', { duration: 5000 })
+        clear()
+        setSelectedCustomer(null)
+        setCustomerSearch('')
+        setIsCredit(false)
+        setSplitPayments([])
+        return
+      }
       toast.success(`✅ فاتورة ${data.invoice_number}`)
       clear()
       setSelectedCustomer(null)
       setCustomerSearch('')
       setIsCredit(false)
+      setSplitPayments([])
       qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
       qc.invalidateQueries({ queryKey: ['recent-sales'] })
       qc.invalidateQueries({ queryKey: ['wallets'] })
-      // Auto-open PDF
-      try {
-        const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-        window.open(`/api/print/pdf/sale/${data.id}?token=${token}`, '_blank')
-      } catch { /* print failed silently */ }
+      openPrint(`/print/pdf/sale/${data.id}`)
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل في إتمام البيع'),
   })
@@ -391,12 +470,30 @@ export default function POSPage() {
   })
 
   const openShiftMut = useMutation({
-    mutationFn: () => shiftsApi.open(Number(lastDrawer?.amount) || 0, mainWh!.id, supervisorId || undefined),
+    mutationFn: async () => {
+      if (!isOnline) {
+        const { user } = useAuthStore.getState()
+        useLocalShiftStore.getState().openShift({
+          id: crypto.randomUUID?.() || String(Date.now()),
+          warehouse_id: mainWh!.id,
+          warehouse_name: mainWh!.name,
+          initial_amount: Number(lastDrawer?.amount) || 0,
+          cashier_id: user?.id || '',
+          cashier_name: user?.full_name || user?.username || '',
+          supervisor_id: supervisorId || null,
+          opened_at: Date.now(),
+        })
+        return { id: 'local', initial_amount: Number(lastDrawer?.amount) || 0 }
+      }
+      return shiftsApi.open(Number(lastDrawer?.amount) || 0, mainWh!.id, supervisorId || undefined)
+    },
     onSuccess: (data) => {
-      toast.success('تم فتح الوردية')
+      toast.success(isOnline ? 'تم فتح الوردية' : 'تم فتح الوردية محلياً — ستتم المزامنة عند الاتصال')
       setShowOpenShift(false)
-      qc.setQueryData(['current-shift', mainWh?.id], data)
-      qc.invalidateQueries({ queryKey: ['last-drawer'] })
+      if (isOnline) {
+        qc.setQueryData(['current-shift', mainWh?.id], data)
+        qc.invalidateQueries({ queryKey: ['last-drawer'] })
+      }
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل في فتح الوردية'),
   })
@@ -412,8 +509,7 @@ export default function POSPage() {
     },
     onSuccess: () => {
       toast.success(`✅ تم تسليم الدرج إلى ${handoverUsername} — الوردية لا تزال مفتوحة باسمه`, { duration: 5000 })
-      const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-      if (shift?.id) window.open(`/api/print/pdf/shift/${shift.id}?token=${token}`, '_blank')
+      if (shift?.id) openPrint(`/print/pdf/shift/${shift.id}`)
       setShowHandover(false)
       setHandoverUsername('')
       setHandoverPassword('')
@@ -448,9 +544,7 @@ export default function POSPage() {
     },
     onSuccess: (d: any) => {
       toast.success('✅ تم إغلاق الوردية وتسليم الدرج')
-      // Open shift summary PDF
-      const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-      if (shift?.id) window.open(`/api/print/pdf/shift/${shift.id}?token=${token}`, '_blank')
+      if (shift?.id) openPrint(`/print/pdf/shift/${shift.id}`)
       setShowClose(false)
       setClosingBalance('')
       setNextDayDrawer('')
@@ -722,11 +816,16 @@ export default function POSPage() {
                   return (
                     <button key={p.id} onClick={() => handleAddProduct(p)}
                       className="bg-white rounded-xl border border-slate-100 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 group">
-                      {/* Color block */}
-                      <div className="w-full h-10 rounded-lg mb-2 flex items-center justify-center text-base font-black text-white"
-                        style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)' }}>
-                        {p.name[0]}
-                      </div>
+                      {/* Image or initial */}
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name}
+                          className="w-full h-14 object-contain rounded-lg mb-2 bg-white" />
+                      ) : (
+                        <div className="w-full h-10 rounded-lg mb-2 flex items-center justify-center text-base font-black text-white"
+                          style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)' }}>
+                          {p.name[0]}
+                        </div>
+                      )}
                       {/* Name */}
                       <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
                       {p.company && <p className="text-xs text-slate-400 truncate">{p.company}</p>}
@@ -791,55 +890,80 @@ export default function POSPage() {
                   className={clsx('px-2.5 py-1 rounded-lg text-xs font-bold border transition-all', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-white/20 text-white/60 hover:text-white')}>
                   آجل
                 </button>
-                {items.length > 0 && <button onClick={clear} className="text-white/50 hover:text-white text-xs">مسح</button>}
+                <button onClick={() => setShowHeld(true)} className="text-white/70 hover:text-white text-xs">
+                  معلقة ({suspended.length})
+                </button>
+                {items.length > 0 && (
+                  <button
+                    onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }}
+                    className="text-white/70 hover:text-white text-xs"
+                  >
+                    تعليق
+                  </button>
+                )}
+                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-white/50 hover:text-white text-xs">مسح</button>}
               </div>
             </div>
 
-            {/* Payment method — shown when not credit */}
-            {!isCredit && (
-              <div className="flex gap-2 mb-2 items-center">
-                {/* Cash button */}
-                <button type="button"
-                  onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
-                  className={clsx('px-3 py-2 rounded-lg text-xs font-bold border transition-all flex-shrink-0',
-                    paymentMethod === 'cash'
-                      ? 'bg-blue-500 text-white border-blue-400'
-                      : 'border-white/20 text-white/60 hover:text-white')}>
-                  💵 نقدي
-                </button>
-
-                {/* Wallets dropdown */}
-                {(wallets || []).filter((w: any) => w.type !== 'cash').length > 0 && (
-                  <div className="relative flex-1">
-                    <select
-                      value={paymentMethod === 'wallet' ? paymentWalletId : ''}
-                      onChange={e => {
-                        if (e.target.value) { setPaymentMethod('wallet'); setPaymentWalletId(e.target.value) }
-                        else { setPaymentMethod('cash'); setPaymentWalletId('') }
-                      }}
-                      className={clsx(
-                        'w-full rounded-lg text-xs font-bold border px-3 py-2 appearance-none cursor-pointer transition-all outline-none',
-                        paymentMethod === 'wallet'
-                          ? 'bg-blue-500 text-white border-blue-400'
-                          : 'bg-white/10 border-white/20 text-white/60 hover:text-white'
-                      )}
-                      style={{ background: paymentMethod === 'wallet' ? '#3b82f6' : 'rgba(255,255,255,0.1)' }}>
-                      <option value="" style={{ background: '#1e3a5f', color: '#fff' }}>💳 تحويل إلكتروني...</option>
-                      {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
-                        <option key={w.id} value={w.id} style={{ background: '#1e3a5f', color: '#fff' }}>
-                          {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}{w.phone ? ` — ${w.phone}` : ''}
-                        </option>
-                      ))}
-                    </select>
+            {/* Split payment builder */}
+            <div className="mb-2 space-y-1.5">
+              {splitPayments.length === 0 && !isCredit && (
+                <div className="flex gap-2 items-center">
+                  <button type="button"
+                    onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
+                    className={clsx('px-3 py-2 rounded-lg text-xs font-bold border transition-all flex-shrink-0',
+                      'bg-blue-500 text-white border-blue-400')}>
+                    💵 نقدي
+                  </button>
+                  {(wallets || []).filter((w: any) => w.type !== 'cash').length > 0 && (
+                    <div className="relative flex-1">
+                      <select value={paymentWalletId}
+                        onChange={e => { setPaymentMethod('wallet'); setPaymentWalletId(e.target.value) }}
+                        className="w-full rounded-lg text-xs font-bold border px-3 py-2 bg-white/10 border-white/20 text-white/60 outline-none">
+                        <option value="" style={{ background: '#1e3a5f', color: '#fff' }}>💳 تحويل إلكتروني...</option>
+                        {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                          <option key={w.id} value={w.id} style={{ background: '#1e3a5f', color: '#fff' }}>
+                            {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <button onClick={() => { setSplitPayments([{ method: 'cash', amount: total() }]); setPaymentMethod('cash'); setPaymentWalletId('') }}
+                    className="text-[10px] text-white/40 hover:text-white underline whitespace-nowrap">
+                    تقسيم الدفع
+                  </button>
+                </div>
+              )}
+              {splitPayments.length > 0 && !isCredit && (
+                <div className="space-y-1">
+                  {splitPayments.map((sp, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-xs">
+                      <span className="text-white/70 w-16">
+                        {sp.method === 'cash' ? '💵 نقدي' : sp.method === 'wallet' ? '💳 محفظة' : sp.method === 'credit' ? '📋 آجل' : sp.method}
+                      </span>
+                      <span className="font-bold text-white">{sp.amount.toLocaleString('ar-EG')} ج.م</span>
+                      <button onClick={() => { setSplitPayments(p => p.filter((_, j) => j !== i)); if (splitPayments.length <= 1) { setSplitPayments([]); setPaymentMethod('cash') } }}
+                        className="text-red-300 hover:text-red-200 mr-1">✕</button>
+                    </div>
+                  ))}
+                  <div className="flex gap-1.5 items-center pt-0.5">
+                    <button onClick={() => setShowSplitModal(true)}
+                      className="text-[10px] text-white/40 hover:text-white underline">+ إضافة قسط</button>
+                    <span className="text-[10px] text-white/30">|</span>
+                    <span className="text-[10px] text-white/50">المجموع: {splitPayments.reduce((s, p) => s + p.amount, 0).toLocaleString('ar-EG')} / {total().toLocaleString('ar-EG')} ج.م</span>
+                    {Math.abs(splitPayments.reduce((s, p) => s + p.amount, 0) - total()) > 0.01 && (
+                      <span className="text-[10px] text-red-300">⚠️ غير متطابق</span>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
             {/* Customer smart search */}
             <div className="relative">
               <input
-                value={selectedCustomer ? selectedCustomer.name : customerSearch}
-                onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomer(e.target.value); setShowCustomerDrop(true) }}
+                value={selectedCustomer ? selectedCustomer.name : customerInput}
+                onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomerInput(e.target.value); setShowCustomerDrop(true) }}
                 onFocus={() => setShowCustomerDrop(true)}
                 onBlur={() => setTimeout(() => setShowCustomerDrop(false), 200)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-white/30 outline-none focus:border-yellow-400 focus:bg-white/15 transition-all"
@@ -1074,10 +1198,15 @@ export default function POSPage() {
                 return (
                   <button key={p.id} onClick={() => { handleAddProduct(p); }}
                     className="bg-white rounded-xl border border-slate-100 p-2 text-right active:scale-95 transition-all">
-                    <div className="w-full h-8 rounded-lg mb-1.5 flex items-center justify-center text-sm font-black text-white"
-                      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)' }}>
-                      {p.name[0]}
-                    </div>
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name}
+                        className="w-full h-10 object-contain rounded-lg mb-1.5 bg-white" />
+                    ) : (
+                      <div className="w-full h-8 rounded-lg mb-1.5 flex items-center justify-center text-sm font-black text-white"
+                        style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)' }}>
+                        {p.name[0]}
+                      </div>
+                    )}
                     <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-black" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</p>
@@ -1106,23 +1235,33 @@ export default function POSPage() {
                 <button onClick={() => setIsCredit(v => !v)} className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-white/20 text-white/60'}`}>آجل</button>
               </div>
               <div className="flex gap-1">
-                {/* Payment method */}
-                <button onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'cash' ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>💵</button>
-                {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
-                  <button key={w.id} onClick={() => { setPaymentMethod('wallet'); setPaymentWalletId(w.id) }}
-                    className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>
-                    {w.type === 'vodafone_cash' ? '📱' : '💳'}
-                  </button>
-                ))}
-                {items.length > 0 && <button onClick={clear} className="text-white/50 text-xs px-1">✕</button>}
+                {splitPayments.length === 0 && !isCredit ? (
+                  <>
+                    <button onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'cash' ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>💵</button>
+                    {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                      <button key={w.id} onClick={() => { setPaymentMethod('wallet'); setPaymentWalletId(w.id) }}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>
+                        {w.type === 'vodafone_cash' ? '📱' : '💳'}
+                      </button>
+                    ))}
+                    <button onClick={() => { setSplitPayments([{ method: 'cash', amount: total() }]); setPaymentMethod('cash'); setPaymentWalletId('') }}
+                      className="px-2 py-1 rounded-lg text-xs font-bold text-white/60 border border-white/20">قسط</button>
+                  </>
+                ) : isCredit ? null : (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-white/50">{splitPayments.length} أقساط</span>
+                    <button onClick={() => setSplitPayments([])} className="text-white/50 text-xs px-1">✕</button>
+                  </div>
+                )}
+                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-white/50 text-xs px-1">✕</button>}
               </div>
             </div>
             {/* Customer */}
             <div className="relative">
               <input
-                value={selectedCustomer ? selectedCustomer.name : customerSearch}
-                onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomer(e.target.value); setShowCustomerDrop(true) }}
+                value={selectedCustomer ? selectedCustomer.name : customerInput}
+                onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomerInput(e.target.value); setShowCustomerDrop(true) }}
                 onFocus={() => setShowCustomerDrop(true)}
                 onBlur={() => setTimeout(() => setShowCustomerDrop(false), 200)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-white/30 outline-none focus:border-yellow-400 transition-all"
@@ -1231,6 +1370,68 @@ export default function POSPage() {
     </div>{/* end mobile */}
 
 
+      <Modal open={showHeld} onClose={() => setShowHeld(false)} title="الفواتير المعلقة" size="lg">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="اسم الفاتورة (اختياري)"
+              value={holdLabel}
+              onChange={e => setHoldLabel(e.target.value)}
+            />
+            <button
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+              style={{ background: '#1e3a5f' }}
+              disabled={items.length === 0}
+              onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }}
+            >
+              تعليق الحالية
+            </button>
+          </div>
+
+          {suspended.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">لا توجد فواتير معلقة</div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {suspended.map((b: any) => {
+                const sameWarehouse = !b.warehouse_id || b.warehouse_id === mainWh?.id
+                const sameShift = !b.shift_id || b.shift_id === shift?.id
+                const canResume = sameWarehouse && sameShift
+                return (
+                  <div key={b.id} className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 truncate">{b.label}</p>
+                      <p className="text-xs text-slate-500">{new Date(b.created_at).toLocaleString('ar-EG')} · {b.items.length} بند</p>
+                      {!canResume && (
+                        <p className="text-xs text-amber-700 mt-1">لا يمكن الاستئناف: مختلف مخزن/وردية</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        className="px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                        style={{ background: '#16a34a' }}
+                        disabled={!canResume || items.length > 0}
+                        title={items.length > 0 ? 'امسح السلة الحالية أولاً' : ''}
+                        onClick={() => { resume(b.id); setShowHeld(false) }}
+                      >
+                        استئناف
+                      </button>
+                      <button
+                        className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200"
+                        onClick={() => deleteHeld(b.id)}
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+
       <Modal open={showReturn} onClose={() => setShowReturn(false)} title="اختر فاتورة للمرتجع" size="lg">
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {!allSales?.length && <p className="text-center py-8 text-slate-400">لا توجد فواتير مؤكدة</p>}
@@ -1241,7 +1442,7 @@ export default function POSPage() {
                 <p className="text-xs text-slate-400 font-mono">{s.invoice_number} — {new Date(s.created_at).toLocaleString('ar-EG')} — {s.sale_mode === 'wholesale' ? 'جملة' : 'قطاعي'} — {s.items?.length || 0} صنف</p>
               </div>
               <button
-                onClick={() => { if (confirm(`مرتجع فاتورة ${s.invoice_number}؟`)) { returnMut.mutate(s.id); setShowReturn(false) } }}
+                onClick={() => setConfirmReturn(s.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 transition-colors">
                 <RotateCcw size={12} /> مرتجع
               </button>
@@ -1465,13 +1666,7 @@ export default function POSPage() {
                       <td className="text-xs text-slate-500 flex items-center gap-1">
                         {item.payment_method}
                         <button className="text-red-400 hover:text-red-600 mr-1"
-                          onClick={() => {
-                            if (confirm(`حذف "${item.product_name}" من الفاتورة؟`)) {
-                              api.delete(`/sales/${item.sale_id}/items/${item.item_id}`)
-                                .then(() => { toast.success('✅ تم حذف البند'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
-                                .catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
-                            }
-                          }}>✕</button>
+                          onClick={() => setConfirmDelItem(item)}>✕</button>
                       </td>
                     </tr>
                   ))}
@@ -1490,11 +1685,7 @@ export default function POSPage() {
                       <td className="text-center"><span className="badge-red text-xs">مرتجع</span></td>
                       <td className="text-xs text-slate-500 flex items-center gap-1">—
                         {item.item_id && <button className="text-red-400 hover:text-red-600"
-                          onClick={() => { if (confirm(`حذف مرتجع "${item.product_name}"؟`)) {
-                            api.delete(`/sales/${item.sale_id}/items/${item.item_id}`)
-                              .then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
-                              .catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
-                          }}}>✕</button>}
+                          onClick={() => setConfirmDelReturn(item)}>✕</button>}
                       </td>
                     </tr>
                   ))}
@@ -1515,11 +1706,7 @@ export default function POSPage() {
                       <td className="text-center"><span className={e.entry_type === 'deposit' ? 'badge-green' : 'badge-yellow'}>{e.type_ar}</span></td>
                       <td className="text-xs text-slate-500 flex items-center gap-1">{e.payment_method}
                         {e.tx_id && <button className="text-red-400 hover:text-red-600"
-                          onClick={() => { if (confirm(`حذف "${e.type_ar} — ${e.note || ''}"؟`)) {
-                            api.delete(`/shifts/transactions/${e.tx_id}`)
-                              .then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
-                              .catch((ex: any) => toast.error(ex.response?.data?.detail || 'فشل'))
-                          }}}>✕</button>}
+                          onClick={() => setConfirmDelTx(e)}>✕</button>}
                       </td>
                     </tr>
                   ))}
@@ -1677,6 +1864,46 @@ export default function POSPage() {
       </Modal>
 
       {/* Phone required modal for credit customers */}
+      {/* Split payment modal */}
+      <Modal open={showSplitModal} onClose={() => setShowSplitModal(false)} title="إضافة قسط دفع">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">طريقة الدفع</label>
+              <select className="input" value={splitMethod} onChange={e => { setSplitMethod(e.target.value); setSplitWalletId('') }}>
+                <option value="cash">💵 نقدي</option>
+                {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                  <option key={w.id} value={w.id}>{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</option>
+                ))}
+                <option value="credit">📋 آجل</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ (ج.م)</label>
+              <input type="number" className="input text-lg font-bold" value={splitAmount} onChange={e => setSplitAmount(e.target.value)} autoFocus />
+            </div>
+          </div>
+          <div className="text-xs text-slate-400">
+            المتبقي من الفاتورة: {(total() - splitPayments.reduce((s, p) => s + p.amount, 0)).toLocaleString('ar-EG')} ج.م
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowSplitModal(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => {
+              const amt = Number(splitAmount)
+              const maxRemaining = total() - splitPayments.reduce((s, p) => s + p.amount, 0)
+              if (!amt || amt <= 0) { toast.error('المبلغ يجب أن يكون أكبر من 0'); return }
+              if (amt > maxRemaining + 0.01) { toast.error(`المبلغ يتجاوز المتبقي (${maxRemaining.toLocaleString('ar-EG')})`); return }
+              const isWalletMethod = splitMethod !== 'cash' && splitMethod !== 'credit'
+              setSplitPayments(p => [...p, { method: isWalletMethod ? 'wallet' : splitMethod, amount: amt, walletId: isWalletMethod ? splitMethod : undefined }])
+              setSplitAmount(''); setShowSplitModal(false)
+            }} disabled={!splitAmount || Number(splitAmount) <= 0}
+              className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              إضافة القسط
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={showPhoneModal} onClose={() => setShowPhoneModal(false)} title="بيانات العميل — آجل">
         <div className="space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 font-medium">
@@ -1709,6 +1936,22 @@ export default function POSPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog open={!!confirmReturn} onClose={() => setConfirmReturn(null)}
+        onConfirm={() => { returnMut.mutate(confirmReturn!); setShowReturn(false) }}
+        message={`مرتجع فاتورة ${confirmReturn || ''}؟`} danger confirmText="مرتجع" />
+      <ConfirmDialog open={!!confirmDelItem} onClose={() => setConfirmDelItem(null)}
+        onConfirm={() => { const item = confirmDelItem; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم حذف البند'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
+        message={`حذف "${confirmDelItem?.product_name || ''}" من الفاتورة؟`} danger />
+      <ConfirmDialog open={!!confirmDelReturn} onClose={() => setConfirmDelReturn(null)}
+        onConfirm={() => { const item = confirmDelReturn; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
+        message={`حذف مرتجع "${confirmDelReturn?.product_name || ''}"؟`} danger />
+      <ConfirmDialog open={!!confirmDelTx} onClose={() => setConfirmDelTx(null)}
+        onConfirm={() => { const e = confirmDelTx; api.delete(`/shifts/transactions/${e.tx_id}`).then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((ex: any) => toast.error(ex.response?.data?.detail || 'فشل')) }}
+        message={`حذف "${confirmDelTx?.type_ar || ''} — ${confirmDelTx?.note || ''}"؟`} danger />
+      <ConfirmDialog open={confirmClear} onClose={() => setConfirmClear(false)}
+        onConfirm={() => { clear(); setConfirmClear(false) }}
+        message="مسح جميع الأصناف من السلة؟" danger confirmText="مسح" title="تأكيد المسح" />
     </div>
   )
 }

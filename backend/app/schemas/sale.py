@@ -1,30 +1,60 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
-from pydantic import BaseModel
-from app.models.sale import SaleMode, SaleStatus
+import uuid
 
 
 class SaleItemCreate(BaseModel):
     product_id: uuid.UUID
-    qty: Decimal
+    qty: Decimal = Field(..., gt=0)
+
+    @field_validator('qty')
+    def qty_positive(cls, v):
+        if v <= 0:
+            raise ValueError('qty must be > 0')
+        return v
+
     unit_price: Decimal
-    unit_cost: Decimal = Decimal("0")
     discount: Decimal = Decimal("0")
+
+    @field_validator('discount')
+    def discount_max(cls, v, info):
+        if v < 0:
+            raise ValueError('discount cannot be negative')
+        # Get unit_price from field values
+        values = info.data if hasattr(info, 'data') else {}
+        unit_price = values.get('unit_price')
+        if unit_price and v > unit_price:
+            raise ValueError('discount cannot exceed item total')
+        return v
+
+
+class SaleItemUpdate(BaseModel):
+    qty: Decimal = Field(..., gt=0)
+    expected_qty: Decimal | None = None
+
+
+class SplitPaymentItem(BaseModel):
+    method: str = Field(..., pattern=r"^(cash|wallet|credit|bank|cheque)$")
+    amount: Decimal = Field(..., gt=0)
+    wallet_id: uuid.UUID | None = None
 
 
 class SaleCreate(BaseModel):
-    customer_id: Optional[uuid.UUID] = None
+    customer_id: uuid.UUID | None = None
+    shift_id: uuid.UUID | None = None
     warehouse_id: uuid.UUID
-    shift_id: Optional[uuid.UUID] = None
-    sale_mode: SaleMode = SaleMode.retail
-    discount_amount: Decimal = Decimal("0")
+    sale_mode: str = "normal"
+    items: list[SaleItemCreate]
     is_credit: bool = False
+    discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
     payment_method: str = "cash"
-    wallet_id: Optional[uuid.UUID] = None
-    notes: Optional[str] = None
-    items: List[SaleItemCreate]
+    wallet_id: uuid.UUID | None = None
+    paid_amount: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+    payments: list[SplitPaymentItem] | None = None
 
 
 class SaleItemOut(BaseModel):
@@ -32,23 +62,28 @@ class SaleItemOut(BaseModel):
     product_id: uuid.UUID
     qty: Decimal
     unit_price: Decimal
-    unit_cost: Decimal
-    discount: Decimal
+    unit_cost: Decimal = Decimal("0")
+    discount: Decimal = Decimal("0")
     model_config = {"from_attributes": True}
 
 
 class SaleOut(BaseModel):
     id: uuid.UUID
     invoice_number: str
-    customer_id: Optional[uuid.UUID]
+    customer_id: uuid.UUID | None
     warehouse_id: uuid.UUID
     cashier_id: uuid.UUID
-    shift_id: Optional[uuid.UUID]
-    sale_mode: SaleMode
-    status: SaleStatus
+    shift_id: uuid.UUID | None
+    total: Decimal
     discount_amount: Decimal
-    is_credit: bool = False
-    notes: Optional[str]
+    net_total: Decimal
+    paid_amount: Decimal | None
+    is_credit: bool
+    status: str
+    sale_mode: str
+    payment_method: str
+    wallet_id: uuid.UUID | None
+    notes: str | None
     created_at: datetime
     items: List[SaleItemOut] = []
     model_config = {"from_attributes": True}

@@ -5,7 +5,7 @@ from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
-from datetime import datetime
+from app.schemas.safe import SafeCreate, SafeUpdate, SafeTransferCreate, SafeDepositCreate, SafeWithdrawCreate
 import uuid
 
 router = APIRouter(prefix="/safes", tags=["safes"])
@@ -18,32 +18,32 @@ async def list_safes(db: AsyncSession = Depends(get_db), _=Depends(get_current_u
 
 
 @router.post("", status_code=201)
-async def create_safe(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def create_safe(data: SafeCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     r = await db.execute(text(
         "INSERT INTO safes (name, location) VALUES (:name, :loc) RETURNING *"
-    ), {"name": data["name"], "loc": data.get("location", "")})
+    ), {"name": data.name, "loc": data.location or ""})
     await db.commit()
     return dict(r.fetchone()._mapping)
 
 
 @router.put("/{safe_id}")
-async def update_safe(safe_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def update_safe(safe_id: uuid.UUID, data: SafeUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     await db.execute(text(
         "UPDATE safes SET name=:name, location=:loc WHERE id=:id"
-    ), {"name": data["name"], "loc": data.get("location", ""), "id": safe_id})
+    ), {"name": data.name, "loc": data.location or "", "id": safe_id})
     await db.commit()
     r = await db.execute(text("SELECT * FROM safes WHERE id=:id"), {"id": safe_id})
     return dict(r.fetchone()._mapping)
 
 
 @router.post("/transfer")
-async def transfer_to_safe(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def transfer_to_safe(data: SafeTransferCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("finance"))):
     """Transfer balance from a payment wallet to a permanent safe."""
-    wallet_id = data["from_wallet_id"]
-    safe_id = data["to_safe_id"]
-    amt = float(data["amount"])
+    wallet_id = data.from_wallet_id
+    safe_id = data.to_safe_id
+    amt = float(data.amount)
 
-    wallet = (await db.execute(text("SELECT * FROM payment_wallets WHERE id=:id"), {"id": wallet_id})).mappings().fetchone()
+    wallet = (await db.execute(text("SELECT * FROM payment_wallets WHERE id=:id FOR UPDATE"), {"id": wallet_id})).mappings().fetchone()
     if not wallet:
         raise HTTPException(404, "Wallet not found")
     if float(wallet["balance"]) < amt:
@@ -59,7 +59,7 @@ async def transfer_to_safe(data: dict, db: AsyncSession = Depends(get_db), curre
         INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
         VALUES (:sid, 'deposit', :amt, :bal, :note, :uid)
     """), {"sid": safe_id, "amt": amt, "bal": new_balance,
-           "note": data.get("note") or f"تحويل من {wallet['name']}", "uid": current_user.id})
+           "note": data.note or f"تحويل من {wallet['name']}", "uid": current_user.id})
     await db.commit()
     return {"ok": True}
 
@@ -67,26 +67,19 @@ async def transfer_to_safe(data: dict, db: AsyncSession = Depends(get_db), curre
 @router.post("/{safe_id}/deposit")
 async def deposit_to_safe(
     safe_id: uuid.UUID,
-    data: dict,
+    data: SafeDepositCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_perm("finance"))
 ):
-    """
-    Record a cash deposit to a safe.
-    Body: { amount, shift_id?, warehouse_id?, received_by_id?, notes? }
-    """
-    # Generate doc number
+    """Record a cash deposit to a safe."""
     seq = (await db.execute(text("SELECT nextval('invoice_seq')"))).scalar()
     doc_number = f"DEP-{seq:06d}"
 
-    # Get receiver name
-    received_by_id = data.get("received_by_id")
     received_by_name = ""
-    if received_by_id:
-        row = await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": received_by_id})
+    if data.received_by_id:
+        row = await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": data.received_by_id})
         received_by_name = row.scalar() or ""
 
-    # Insert deposit
     await db.execute(text("""
         INSERT INTO safe_deposits
             (safe_id, shift_id, warehouse_id, amount, received_by, received_by_name,
@@ -94,55 +87,52 @@ async def deposit_to_safe(
         VALUES (:sid, :shift, :wh, :amt, :recv, :recv_name, :dep, :dep_name, :notes, :doc)
     """), {
         "sid": safe_id,
-        "shift": data.get("shift_id"),
-        "wh": data.get("warehouse_id"),
-        "amt": data["amount"],
-        "recv": received_by_id,
+        "shift": data.shift_id,
+        "wh": data.warehouse_id,
+        "amt": float(data.amount),
+        "recv": data.received_by_id,
         "recv_name": received_by_name,
         "dep": current_user.id,
         "dep_name": current_user.full_name,
-        "notes": data.get("notes", ""),
+        "notes": data.notes or "",
         "doc": doc_number,
     })
 
-    # Update safe balance
     await db.execute(text(
         "UPDATE safes SET balance = balance + :amt WHERE id = :id"
-    ), {"amt": data["amount"], "id": safe_id})
+    ), {"amt": float(data.amount), "id": safe_id})
 
-    # Log transaction
     new_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
     await db.execute(text("""
         INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
         VALUES (:sid, 'deposit', :amt, :bal, :note, :uid)
-    """), {"sid": safe_id, "amt": data["amount"], "bal": new_balance, "note": data.get("notes") or data.get("note", ""), "uid": current_user.id})
+    """), {"sid": safe_id, "amt": float(data.amount), "bal": new_balance, "note": data.notes or "", "uid": current_user.id})
 
-    # Archive the deposit document
     safe_name = (await db.execute(text("SELECT name FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
     wh_name = ""
-    if data.get("warehouse_id"):
-        wh_name = (await db.execute(text("SELECT name FROM warehouses WHERE id=:id"), {"id": data["warehouse_id"]})).scalar() or ""
+    if data.warehouse_id:
+        wh_name = (await db.execute(text("SELECT name FROM warehouses WHERE id=:id"), {"id": data.warehouse_id})).scalar() or ""
 
     await db.execute(text("""
         INSERT INTO archived_documents (id, doc_number, doc_type, amount, created_by, metadata)
         VALUES (gen_random_uuid(), :doc, 'safe_deposit', :amt, :uid, cast(:meta as jsonb))
     """), {
         "doc": doc_number,
-        "amt": data["amount"],
+        "amt": float(data.amount),
         "uid": current_user.id,
         "meta": __import__('json').dumps({
             "safe_name": safe_name or "",
             "warehouse": wh_name,
             "received_by": received_by_name,
             "deposited_by": current_user.full_name,
-            "notes": data.get("notes", ""),
+            "notes": data.notes or "",
         })
     })
 
     await db.commit()
     return {
         "doc_number": doc_number,
-        "amount": data["amount"],
+        "amount": float(data.amount),
         "safe": safe_name,
         "received_by": received_by_name,
     }
@@ -151,23 +141,23 @@ async def deposit_to_safe(
 @router.post("/{safe_id}/withdraw")
 async def withdraw_from_safe(
     safe_id: uuid.UUID,
-    data: dict,
+    data: SafeWithdrawCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("admin", "manager"))
 ):
-    safe = (await db.execute(text("SELECT * FROM safes WHERE id=:id"), {"id": safe_id})).mappings().fetchone()
+    safe = (await db.execute(text("SELECT * FROM safes WHERE id=:id FOR UPDATE"), {"id": safe_id})).mappings().fetchone()
     if not safe:
         raise HTTPException(404, "Safe not found")
-    if float(safe["balance"]) < float(data["amount"]):
+    if float(safe["balance"]) < float(data.amount):
         raise HTTPException(400, f"رصيد الخزنة غير كافٍ ({safe['balance']} ج.م)")
 
     await db.execute(text("UPDATE safes SET balance = balance - :amt WHERE id = :id"),
-                     {"amt": data["amount"], "id": safe_id})
+                     {"amt": float(data.amount), "id": safe_id})
     new_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
     await db.execute(text("""
         INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
         VALUES (:sid, 'withdraw', :amt, :bal, :note, :uid)
-    """), {"sid": safe_id, "amt": data["amount"], "bal": new_balance, "note": data.get("note", ""), "uid": current_user.id})
+    """), {"sid": safe_id, "amt": float(data.amount), "bal": new_balance, "note": data.note or "", "uid": current_user.id})
     await db.commit()
     return {"balance": new_balance}
 

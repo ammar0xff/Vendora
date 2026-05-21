@@ -5,6 +5,8 @@ import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { Plus, Eye, Edit2, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
+import ExportButton from '../../components/ui/ExportButton'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 const suppliersApi = {
   list: (type?: string) => api.get('/suppliers', { params: type ? { type } : {} }).then(r => r.data),
@@ -126,6 +128,7 @@ export default function SuppliersPage() {
   const [editItem, setEditItem] = useState<any>(null)
   const [ledgerItem, setLedgerItem] = useState<any>(null)
   const [search, setSearch] = useState('')
+  const [confirmDelSupplier, setConfirmDelSupplier] = useState<any>(null)
   const qc = useQueryClient()
 
   const { data: suppliers, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersApi.list() })
@@ -155,7 +158,7 @@ export default function SuppliersPage() {
         <div className="flex gap-1 justify-end">
           <button onClick={() => setLedgerItem(r)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="كشف الحساب"><Eye size={14} /></button>
           <button onClick={() => setEditItem(r)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
-          <button onClick={() => { if (confirm('حذف؟')) deleteMut.mutate(r.id) }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف"><Trash2 size={14} /></button>
+          <button onClick={() => setConfirmDelSupplier(r.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف"><Trash2 size={14} /></button>
         </div>
       )
     },
@@ -165,9 +168,16 @@ export default function SuppliersPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">🏭 الموردون والتجار</h1>
-        <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
-          <Plus size={15} /> إضافة
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButton data={filtered || []} columns={[
+            { label: 'الاسم', accessor: (r: any) => r.name },
+            { label: 'الهاتف', accessor: (r: any) => r.phone || '' },
+            { label: 'الرصيد', accessor: (r: any) => Number(r.balance) },
+          ]} filename="الموردون" excelEndpoint="/export/suppliers" />
+          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+            <Plus size={15} /> إضافة
+          </button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -175,7 +185,8 @@ export default function SuppliersPage() {
       </div>
 
       <DataTable columns={columns} data={filtered} loading={isLoading} rowKey={(r: any) => r.id}
-        emptyMessage="لا يوجد موردون" emptyIcon="🏭" />
+        emptyMessage="لا يوجد موردون" emptyIcon="🏭"
+        emptyAction={{ label: 'إضافة مورد', onClick: () => setShowAdd(true) }} />
 
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة جديد">
         <SupplierForm onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
@@ -186,6 +197,7 @@ export default function SuppliersPage() {
       <Modal open={!!ledgerItem} onClose={() => setLedgerItem(null)} title={`كشف حساب — ${ledgerItem?.name}`} size="lg">
         {ledgerItem && <LedgerModal supplier={ledgerItem} onClose={() => setLedgerItem(null)} />}
       </Modal>
+      <ConfirmDialog open={!!confirmDelSupplier} onClose={() => setConfirmDelSupplier(null)} onConfirm={() => { deleteMut.mutate(confirmDelSupplier); setConfirmDelSupplier(null) }} message="حذف المورد؟" danger confirmText="حذف" />
     </div>
   )
 }

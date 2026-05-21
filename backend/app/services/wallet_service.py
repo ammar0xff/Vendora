@@ -15,14 +15,21 @@ async def record_wallet_tx(
     created_by: uuid.UUID = None,
 ):
     """Record a wallet transaction and update balance atomically."""
-    try:
-        await db.execute(text("""
-            INSERT INTO wallet_transactions (wallet_id, amount, tx_type, ref_id, note, created_by)
-            VALUES (:wid, :amt, :type, :ref, :note, :uid)
-        """), {"wid": wallet_id, "amt": amount, "type": tx_type,
-               "ref": ref_id, "note": note, "uid": created_by})
-    except Exception:
-        await db.rollback()  # rollback failed insert, keep going
+    if amount < 0:
+        # Lock the wallet row to prevent concurrent overdraft
+        row = await db.execute(text(
+            "SELECT balance FROM payment_wallets WHERE id = :wid FOR UPDATE"
+        ), {"wid": wallet_id})
+        current = row.scalar() or Decimal("0")
+        if current + amount < 0:
+            from app.core.exceptions import BusinessError
+            raise BusinessError(f"Wallet balance insufficient: {current} available, {abs(amount)} requested")
+
+    await db.execute(text("""
+        INSERT INTO wallet_transactions (wallet_id, amount, tx_type, ref_id, note, created_by)
+        VALUES (:wid, :amt, :type, :ref, :note, :uid)
+    """), {"wid": wallet_id, "amt": amount, "type": tx_type,
+           "ref": ref_id, "note": note, "uid": created_by})
     await db.execute(text(
         "UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"
     ), {"amt": amount, "wid": wallet_id})

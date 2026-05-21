@@ -17,6 +17,8 @@ const MOVEMENT_LABELS: Record<string, string> = {
 export default function StocktakingPage() {
   const { activeWarehouseId } = useAppStore()
   const qc = useQueryClient()
+  const [page, setPage] = useState(1)
+  const pageSize = 100
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'untracked' | 'tracked'>('untracked')
   const [entries, setEntries] = useState<Record<string, { qty: string; type: string }>>({})
@@ -27,18 +29,25 @@ export default function StocktakingPage() {
   // Reset entries and refresh balances when warehouse changes
   useEffect(() => {
     setEntries({})
+    setPage(1)
     qc.invalidateQueries({ queryKey: ['balances-stocktaking'] })
     qc.invalidateQueries({ queryKey: ['products-all-stocktaking'] })
   }, [activeWarehouseId])
   const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products-all-stocktaking', activeWarehouseId],
-    queryFn: () => productsApi.list(activeWarehouseId ? { warehouse_id: activeWarehouseId } : {}),
+  const { data: pageData, isLoading } = useQuery({
+    queryKey: ['products-all-stocktaking', activeWarehouseId, page, search],
+    queryFn: () => productsApi.listPage({
+      ...(activeWarehouseId ? { warehouse_id: activeWarehouseId } : {}),
+      ...(search ? { search } : {}),
+      page,
+      page_size: pageSize,
+    }),
     staleTime: 0,
   })
+  const products = pageData?.items || []
 
-  const productIds = (products || []).map((p: any) => p.id)
+  const productIds = products.map((p: any) => p.id)
   const { data: balances } = useQuery({
     queryKey: ['balances-stocktaking', activeWarehouseId],
     queryFn: () => activeWarehouseId
@@ -49,17 +58,15 @@ export default function StocktakingPage() {
   })
 
   const filtered = useMemo(() => {
-    if (!products) return []
     return products.filter((p: any) => {
       if (filter === 'untracked' && p.stock_status !== 'untracked') return false
       if (filter === 'tracked' && p.stock_status !== 'tracked') return false
-      if (search && !p.name.includes(search) && !(p.barcode || '').includes(search)) return false
       return true
     })
-  }, [products, filter, search])
+  }, [products, filter])
 
-  const untrackedCount = products?.filter((p: any) => p.stock_status === 'untracked').length || 0
-  const trackedCount = products?.filter((p: any) => p.stock_status === 'tracked').length || 0
+  const untrackedCount = products.filter((p: any) => p.stock_status === 'untracked').length
+  const trackedCount = products.filter((p: any) => p.stock_status === 'tracked').length
   const pendingCount = Object.values(entries).filter(e => e.qty).length
 
   const setEntry = (id: string, field: string, val: string) =>
@@ -119,8 +126,8 @@ export default function StocktakingPage() {
         {[
           { key: 'untracked', label: '⚠️ غير مجرود', count: untrackedCount, color: '#d97706' },
           { key: 'tracked',   label: '✅ مجرود',      count: trackedCount,   color: '#16a34a' },
-          { key: 'all',       label: '📦 الكل',        count: products?.length || 0, color: '#1e3a5f' },
-        ].map(({ key, label, count, color }) => (
+           { key: 'all',       label: '📦 الكل',        count: products.length, color: '#1e3a5f' },
+         ].map(({ key, label, count, color }) => (
           <div key={key} onClick={() => setFilter(key as any)}
             className="card p-4 text-center cursor-pointer border-2 transition-all"
             style={{ borderColor: filter === key ? color : 'transparent' }}>
@@ -130,10 +137,29 @@ export default function StocktakingPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4 max-w-sm">
-        <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input className="input pr-9 text-sm" placeholder="بحث بالاسم أو الباركود..." value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Search + Pager */}
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <div className="relative max-w-sm flex-1">
+          <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input className="input pr-9 text-sm w-full" placeholder="بحث بالاسم..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+        </div>
+        <div className="flex gap-2 items-center">
+          <span className="text-xs text-slate-400">صفحة {pageData?.page || page} / {pageData?.pages || 1}</span>
+          <button
+            className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 disabled:opacity-50"
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            السابق
+          </button>
+          <button
+            className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 disabled:opacity-50"
+            disabled={!pageData || page >= (pageData.pages || 1)}
+            onClick={() => setPage(p => p + 1)}
+          >
+            التالي
+          </button>
+        </div>
       </div>
 
       {/* Table — desktop */}

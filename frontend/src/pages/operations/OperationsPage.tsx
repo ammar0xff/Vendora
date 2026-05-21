@@ -270,8 +270,12 @@ export default function OperationsPage() {
             <div className="flex gap-3 justify-end pt-2">
               <button onClick={() => setActiveOp(null)} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
               <button
-                onClick={() => submitMut.mutate()}
-                disabled={!items.length || submitMut.isPending || (!fromWh && activeOp !== 'goods_receipt') || !toWh}
+                onClick={() => {
+                  if (!toWh) return toast.error('اختر المخزن المستلم أولاً')
+                  if (!fromWh && activeOp !== 'goods_receipt') return toast.error('اختر المخزن المصدر أولاً')
+                  submitMut.mutate()
+                }}
+                disabled={!items.length || submitMut.isPending}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
                 style={{ background: opConfig[activeOp].color }}
               >

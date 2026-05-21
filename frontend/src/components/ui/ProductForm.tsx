@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { categoriesApi, subcategoriesApi } from '../../api/endpoints'
+import { categoriesApi, subcategoriesApi, productsApi } from '../../api/endpoints'
+import BarcodeManager from './BarcodeManager'
+import toast from 'react-hot-toast'
 
 export default function ProductForm({ product, onSave, onClose }: any) {
   const [form, setForm] = useState(product || {
@@ -19,6 +21,8 @@ export default function ProductForm({ product, onSave, onClose }: any) {
     subcategories?.find((s: any) => s.id === form.subcategory_id)?.category_id || ''
   )
   const filteredSubs = subcategories?.filter((s: any) => s.category_id === effectiveCategoryId) || []
+  const isEditing = !!product?.id
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSave(form) }} className="space-y-4">
@@ -77,11 +81,50 @@ export default function ProductForm({ product, onSave, onClose }: any) {
         </div>
       </div>
 
-      {/* Barcode */}
-      <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">الباركود</label>
-        <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
-      </div>
+      {/* Barcode (for creating new products) */}
+      {!isEditing && (
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">الباركود</label>
+          <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
+        </div>
+      )}
+
+      {/* Barcode Manager (for editing existing products) */}
+      {isEditing && product?.barcodes && (
+        <div className="border-t pt-4">
+          <BarcodeManager productId={product.id} barcodes={product.barcodes} />
+        </div>
+      )}
+
+      {/* Product image (edit only) */}
+      {isEditing && (
+        <div className="border-t pt-4">
+          <label className="block text-sm font-medium text-slate-600 mb-2">صورة المنتج</label>
+          <div className="flex items-center gap-4">
+            {(uploadedImageUrl || product?.image_url) ? (
+              <img src={uploadedImageUrl || product.image_url} alt={product.name}
+                className="w-20 h-20 rounded-xl object-contain border border-slate-200 bg-white" />
+            ) : (
+              <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 text-2xl font-black">
+                {product?.name?.[0] || '?'}
+              </div>
+            )}
+            <label className="cursor-pointer px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+              {product?.image_url ? 'تغيير الصورة' : 'إضافة صورة'}
+              <input type="file" accept="image/*" className="hidden"
+                onChange={async e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    const r = await productsApi.uploadImage(product.id, file)
+                    setUploadedImageUrl(r.image_url)
+                    toast.success('تم رفع الصورة')
+                  } catch { toast.error('فشل رفع الصورة') }
+                }} />
+            </label>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
         <div>

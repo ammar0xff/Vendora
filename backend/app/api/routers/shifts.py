@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from datetime import datetime
@@ -6,7 +6,7 @@ from app.db.base import get_db
 from app.schemas.shift import ShiftOpen, ShiftClose, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary
 from app.models.shift import Shift, DrawerTransaction, ShiftStatus
 from app.services import shift_service
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError
 from pydantic import BaseModel
@@ -24,7 +24,7 @@ class TransferDrawerRequest(BaseModel):
 
 
 @router.post("/open", response_model=ShiftOut)
-async def open_shift(data: ShiftOpen, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def open_shift(data: ShiftOpen, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
     return await shift_service.open_shift(db, current_user.id, data)
 
 
@@ -66,7 +66,7 @@ async def current_shift(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_
     return out
 
 @router.post("/{shift_id}/close", response_model=ShiftOut)
-async def close_shift(shift_id: uuid.UUID, data: ShiftClose, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def close_shift(shift_id: uuid.UUID, data: ShiftClose, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
     return await shift_service.close_shift(db, shift_id, data, current_user.id)
 
 
@@ -79,7 +79,7 @@ class CloseWithManagerRequest(BaseModel):
 
 
 @router.post("/{shift_id}/close-with-manager")
-async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
     from app.core.security import verify_password
     from sqlalchemy import text
 
@@ -107,6 +107,8 @@ async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest,
     expected = summary["expected_balance"]
     variance = float(data.closing_balance) - float(expected)
 
+    deposit = float(data.closing_balance) - float(data.next_day_drawer)
+
     shift.status = ShiftStatus.closed
     shift.closing_balance = data.closing_balance
     shift.next_day_drawer = data.next_day_drawer
@@ -114,6 +116,8 @@ async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest,
     shift.closed_by = current_user.id
     shift.supervisor_id = data.manager_id
     shift.closed_at = datetime.utcnow()
+    await db.execute(text("UPDATE shifts SET deposit_received_by=:mgr, deposit_amount=:dep WHERE id=:id"),
+                     {"mgr": data.manager_id, "dep": deposit, "id": shift_id})
 
     # Apply variance to payroll as deduction/bonus
     if variance != 0 and shift.cashier_id:
@@ -135,7 +139,7 @@ async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest,
 
 
 @router.post("/{shift_id}/transfer", response_model=ShiftOut)
-async def transfer_drawer(shift_id: uuid.UUID, data: TransferDrawerRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def transfer_drawer(shift_id: uuid.UUID, data: TransferDrawerRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
     """Hand over the cash drawer to another user — closes current shift and opens a new one."""
     return await shift_service.transfer_drawer(db, shift_id, data.to_user_id, data.amount, current_user.id, data.notes)
 
@@ -146,7 +150,7 @@ async def shift_summary(shift_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/{shift_id}/transactions", response_model=DrawerTxOut)
-async def add_transaction(shift_id: uuid.UUID, data: DrawerTxCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def add_transaction(shift_id: uuid.UUID, data: DrawerTxCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
     return await shift_service.add_transaction(db, shift_id, data, current_user.id)
 
 
@@ -157,8 +161,18 @@ async def list_transactions(shift_id: uuid.UUID, db: AsyncSession = Depends(get_
 
 
 @router.get("", response_model=list[ShiftOut])
-async def list_shifts(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    result = await db.execute(select(Shift).order_by(Shift.started_at.desc()).limit(100))
+async def list_shifts(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    warehouse_id: uuid.UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    q = select(Shift)
+    if warehouse_id:
+        q = q.where(Shift.warehouse_id == warehouse_id)
+    q = q.order_by(Shift.started_at.desc()).limit(limit).offset(offset)
+    result = await db.execute(q)
     return result.scalars().all()
 
 
@@ -170,6 +184,17 @@ async def delete_drawer_transaction(
 ):
     """Delete a drawer transaction. Reverses wallet balance if applicable."""
     from sqlalchemy import text as sqlt
+
+    # Check shift is not closed
+    shift_row = await db.execute(sqlt("""
+        SELECT sh.status FROM shifts sh
+        JOIN drawer_transactions dt ON dt.shift_id = sh.id
+        WHERE dt.id = :id
+    """), {"id": tx_id})
+    shift_status = shift_row.scalar_one_or_none()
+    if shift_status == "closed":
+        raise HTTPException(400, "لا يمكن حذف معاملة من وردية مغلقة")
+
     row = await db.execute(sqlt("SELECT * FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
     tx = row.fetchone()
     if not tx:

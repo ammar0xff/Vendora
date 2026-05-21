@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsApi, stockApi } from '../../api/endpoints'
-import api from '../../api/client'
 import { useAppStore } from '../../store/app'
-import { PageLoader } from '../../components/ui/Loaders'
 import toast from 'react-hot-toast'
 import { format, subMonths } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
+import { openPrint } from '../../utils/format'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { BarChart3, TrendingUp, Package, Users, Printer } from 'lucide-react'
 
 const COLORS = ['#1e3a5f', '#c8a84b', '#16a34a', '#7c3aed', '#dc2626', '#0891b2']
@@ -16,30 +15,31 @@ export default function ReportsContent() {
   const monthStart = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
   const [from, setFrom] = useState(monthStart)
   const [to, setTo] = useState(today)
+  const [printing, setPrinting] = useState(false)
+  const dateError = from > to
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { activeWarehouseId } = useAppStore()
-  const isCompanyView = !activeWarehouseId
-  // Use active warehouse, fallback to first for valuation/print
   const mainWh = activeWarehouseId || warehouses?.[0]?.id
 
-  const { data: profit, isLoading: loadingProfit } = useQuery({
-    queryKey: ['profit', from, to, activeWarehouseId], queryFn: () => reportsApi.profit(from, to, activeWarehouseId || undefined)
+  const { data: profit } = useQuery({
+    queryKey: ['profit', from, to, activeWarehouseId], queryFn: () => reportsApi.profit(from, to, activeWarehouseId || undefined),
+    enabled: !dateError,
   })
   const { data: topProducts } = useQuery({
-    queryKey: ['top-products', from, to], queryFn: () => reportsApi.topProducts(from, to)
+    queryKey: ['top-products', from, to], queryFn: () => reportsApi.topProducts(from, to),
+    enabled: !dateError,
   })
   const { data: byCashier } = useQuery({
-    queryKey: ['by-cashier', from, to, activeWarehouseId], queryFn: () => reportsApi.byCashier(from, to, activeWarehouseId || undefined)
-  })
-  const { data: valuation } = useQuery({
-    queryKey: ['valuation', mainWh], queryFn: () => stockApi.valuation(mainWh!), enabled: !!mainWh
+    queryKey: ['by-cashier', from, to, activeWarehouseId], queryFn: () => reportsApi.byCashier(from, to, activeWarehouseId || undefined),
+    enabled: !dateError,
   })
 
   const handleInventoryPrint = () => {
     if (!mainWh) return toast.error('اختر فرعاً أولاً')
-    const token = JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-    window.open(`/api/print/inventory/${mainWh}?token=${token}`, '_blank')
+    setPrinting(true)
+    openPrint(`/print/inventory/${mainWh}`)
+    setTimeout(() => setPrinting(false), 3000)
   }
 
   // Monthly trend
@@ -60,18 +60,24 @@ export default function ReportsContent() {
       <div className="page-header">
         <h1 className="page-title">التقارير والإحصائيات</h1>
         <div className="flex gap-3 items-center flex-wrap">
-          <button onClick={handleInventoryPrint} className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200">
-            <Printer size={16} /> طباعة تقرير المخزون
+          <button onClick={handleInventoryPrint} disabled={printing} className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200 disabled:opacity-50">
+            <Printer size={16} /> {printing ? 'جاري التحميل...' : 'طباعة تقرير المخزون'}
           </button>
           <label className="text-sm text-slate-500">من</label>
           <input type="date" className="input w-40" value={from} onChange={e => setFrom(e.target.value)} />
           <label className="text-sm text-slate-500">إلى</label>
           <input type="date" className="input w-40" value={to} onChange={e => setTo(e.target.value)} />
+          {dateError && <span className="text-red-500 text-xs font-semibold">تاريخ البداية بعد تاريخ النهاية</span>}
         </div>
       </div>
 
-      {/* Profit summary */}
-      {profit && (
+      {dateError && (
+        <div className="card p-8 text-center mb-6">
+          <p className="text-slate-400">يرجى تصحيح التواريخ — تاريخ البداية يجب أن يكون قبل تاريخ النهاية</p>
+        </div>
+      )}
+
+      {!dateError && profit && (
         <>
           {/* P&L Summary */}
           <div className="card mb-6">

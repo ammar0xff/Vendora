@@ -4,9 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_role, require_perm
-from app.models.user import User
-from app.core.security import verify_password
-from app.services.shift_service import compute_summary
+from app.schemas.finance import FinancialCategoryCreate, FinancialCategoryUpdate, PermissionsUpdate
 from fastapi import HTTPException
 import uuid
 
@@ -22,28 +20,34 @@ async def list_categories(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/financial-categories")
-async def create_category(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+async def create_category(data: FinancialCategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     r = await db.execute(text("""
         INSERT INTO financial_categories (name, type, color) VALUES (:name, :type, :color) RETURNING *
-    """), {'name': data['name'], 'type': data.get('type','expense'), 'color': data.get('color','#64748b')})
+    """), data.model_dump())
     await db.commit()
     return dict(zip(r.keys(), r.fetchone()))
 
 
 @router.put("/financial-categories/{cat_id}")
-async def update_category(cat_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
-    await db.execute(text("UPDATE financial_categories SET name=:name, color=:color WHERE id=:id"),
-                     {'id': cat_id, 'name': data['name'], 'color': data.get('color','#64748b')})
+async def update_category(cat_id: uuid.UUID, data: FinancialCategoryUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+    updates = data.model_dump(exclude_unset=True)
+    if not updates:
+        return {"detail": "no changes"}
+    updates["id"] = cat_id
+    await db.execute(text(
+        "UPDATE financial_categories SET name=COALESCE(:name, name), color=COALESCE(:color, color) WHERE id=:id"
+    ), updates)
     await db.commit()
     return {"detail": "updated"}
 
 
 @router.delete("/financial-categories/{cat_id}", status_code=204)
 async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+    from sqlalchemy.exc import IntegrityError
     try:
         await db.execute(text("DELETE FROM financial_categories WHERE id=:id"), {'id': cat_id})
         await db.commit()
-    except Exception:
+    except IntegrityError:
         await db.rollback()
         # Has linked transactions — null out the category_id first then delete
         await db.execute(text("UPDATE drawer_transactions SET category_id=NULL WHERE category_id=:id"), {'id': cat_id})
@@ -61,68 +65,15 @@ async def get_permissions(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 
 
 @router.put("/permissions/{user_id}")
-async def update_permissions(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+async def update_permissions(user_id: uuid.UUID, data: PermissionsUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     import json as _json
     await db.execute(
         text("UPDATE users SET permissions=cast(:p as jsonb), is_manager=:m WHERE id=:id"),
-        {'id': user_id, 'p': _json.dumps(data.get('permissions', [])), 'm': data.get('is_manager', False)}
+        {'id': user_id, 'p': _json.dumps(data.permissions), 'm': data.is_manager}
     )
     await db.commit()
     return {"detail": "updated"}
 
-
-# ── Shift close with manager verification ─────────────────────────────────
-@router.post("/shifts/{shift_id}/close-with-manager")
-async def close_with_manager(shift_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db),
-                              current_user: User = Depends(get_current_user)):
-    """Close shift and record deposit received by a manager (requires manager password)."""
-    from app.services.shift_service import close_shift
-    from app.schemas.shift import ShiftClose
-    from sqlalchemy import select
-    from app.models.user import User as UserModel
-
-    # Verify manager credentials
-    manager_id = data.get('manager_id')
-    manager_password = data.get('manager_password')
-    
-    mgr = (await db.execute(select(UserModel).where(UserModel.id == uuid.UUID(manager_id)))).scalar_one_or_none()
-    if not mgr or not mgr.is_manager:
-        raise HTTPException(403, "المستخدم المحدد ليس مديراً")
-    if not verify_password(manager_password, mgr.password_hash):
-        raise HTTPException(401, "كلمة مرور المدير غير صحيحة")
-
-    # Close the shift
-    close_data = ShiftClose(
-        closing_balance=data['closing_balance'],
-        next_day_drawer=data.get('next_day_drawer', 0),
-        notes=data.get('notes')
-    )
-    shift = await close_shift(db, shift_id, close_data, current_user.id)
-    
-    # Record deposit + variance
-    deposit = float(data['closing_balance']) - float(data.get('next_day_drawer', 0))
-    # Get expected balance from summary to compute variance
-    summary_data = await compute_summary(db, shift_id)
-    variance = float(data['closing_balance']) - float(summary_data['expected_balance'])
-
-    await db.execute(text("UPDATE shifts SET deposit_received_by=:mgr, deposit_amount=:dep WHERE id=:id"),
-                     {'mgr': uuid.UUID(manager_id), 'dep': deposit, 'id': shift_id})
-
-    # Apply variance to cashier's payroll if linked to an hr_employee
-    if shift.cashier_id and variance != 0:
-        from datetime import datetime as _dt
-        month = _dt.utcnow().strftime('%Y-%m')
-        await db.execute(text("""
-            UPDATE hr_payroll SET
-                drawer_variance = drawer_variance + :var,
-                net_salary = GREATEST(0, net_salary + :var)
-            WHERE employee_id = (SELECT id FROM hr_employees WHERE user_id=:uid LIMIT 1)
-            AND month=:month
-        """), {'var': variance, 'uid': shift.cashier_id, 'month': month})
-
-    await db.commit()
-    return {"status": "closed", "deposit_amount": deposit, "received_by": mgr.full_name,
-            "variance": round(variance, 2), "variance_note": "عجز" if variance < 0 else "زيادة" if variance > 0 else "مطابق"}
 
 
 # ── Financial Ledger by Category ──────────────────────────────────────────

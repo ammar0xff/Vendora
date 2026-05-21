@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import { productsApi } from '../../api/endpoints'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, Package } from 'lucide-react'
+import { Trash2, Package } from 'lucide-react'
 import Modal from '../ui/Modal'
 
 interface Props {

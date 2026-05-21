@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import require_role
-from datetime import date
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

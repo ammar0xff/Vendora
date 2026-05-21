@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from decimal import Decimal
@@ -6,9 +6,11 @@ from app.db.base import get_db
 from app.models.party import Customer
 from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.customer_payment import CustomerPayment
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError
+from app.services.audit_service import log as audit_log
+from app.schemas.party import CustomerCreate, CustomerUpdate, CustomerPaymentCreate
 import uuid
 
 router = APIRouter(tags=["parties"])
@@ -19,10 +21,11 @@ router = APIRouter(tags=["parties"])
 async def list_customers(search: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     from sqlalchemy import text as sqlt
     params: dict = {}
-    where = "1=1"
+    where_parts = ["1=1"]
     if search:
-        where += " AND c.name ILIKE :search"
+        where_parts.append("c.name ILIKE :search")
         params["search"] = f"%{search}%"
+    where = " AND ".join(where_parts)
     rows = await db.execute(sqlt(f"""
         SELECT c.*,
             COALESCE((
@@ -40,8 +43,8 @@ async def list_customers(search: str | None = None, db: AsyncSession = Depends(g
 
 
 @router.post("/customers")
-async def create_customer(data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    c = Customer(name=data["name"], phone=data.get("phone"), address=data.get("address"), is_cash=data.get("is_cash", False))
+async def create_customer(data: CustomerCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
+    c = Customer(**data.model_dump())
     db.add(c)
     await db.commit()
     await db.refresh(c)
@@ -49,14 +52,15 @@ async def create_customer(data: dict, db: AsyncSession = Depends(get_db), _=Depe
 
 
 @router.put("/customers/{cid}")
-async def update_customer(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def update_customer(cid: uuid.UUID, data: CustomerUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
     result = await db.execute(select(Customer).where(Customer.id == cid))
     c = result.scalar_one_or_none()
     if not c:
         raise NotFoundError()
-    for k, v in data.items():
+    for k, v in data.model_dump(exclude_unset=True).items():
         setattr(c, k, v)
     await db.commit()
+    await db.refresh(c)
     return c
 
 
@@ -104,13 +108,13 @@ async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _
         "total_returned": float(total_returned),
         "total_paid": float(total_paid),
         "balance_due": float(balance_due),
+        "credit_limit": float(c.credit_limit) if c.credit_limit else None,
     }
 
 
 @router.get("/customers/{cid}/ledger")
 async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Full chronological ledger: invoices + returns + payments."""
-    from app.models.product import Product
     from sqlalchemy.orm import selectinload
 
     sales = (await db.execute(
@@ -149,29 +153,19 @@ async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
 
 @router.post("/customers/{cid}/payments")
-async def add_payment(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def add_payment(cid: uuid.UUID, data: CustomerPaymentCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("customers"))):
     """Record a payment received from customer."""
+    if data.amount <= 0:
+        raise HTTPException(400, "المبلغ يجب أن يكون أكبر من 0")
     c = (await db.execute(select(Customer).where(Customer.id == cid))).scalar_one_or_none()
     if not c:
         raise NotFoundError()
-    p = CustomerPayment(customer_id=cid, amount=data["amount"], note=data.get("note"), created_by=current_user.id)
+    p = CustomerPayment(customer_id=cid, amount=data.amount, note=data.note, created_by=current_user.id)
     db.add(p)
+    c.balance = (c.balance or 0) - data.amount
+    await audit_log(db, "customer_payment", "create", current_user.id, current_user.full_name, p.id, {"customer_id": str(cid), "amount": float(data.amount)}, f"دفعة من {c.name}")
     await db.commit()
     await db.refresh(p)
     return {"id": str(p.id), "amount": float(p.amount), "note": p.note, "created_at": p.created_at.isoformat()}
 
 
-# ── Suppliers ────────────────────────────────────────────────────────────────
-@router.get("/suppliers")
-async def list_suppliers(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    return (await db.execute(select(__import__('app.models.party', fromlist=['Supplier']).Supplier))).scalars().all()
-
-
-@router.post("/suppliers")
-async def create_supplier(data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    from app.models.party import Supplier
-    s = Supplier(**{k: v for k, v in data.items() if k in ('name', 'phone', 'address')})
-    db.add(s)
-    await db.commit()
-    await db.refresh(s)
-    return s

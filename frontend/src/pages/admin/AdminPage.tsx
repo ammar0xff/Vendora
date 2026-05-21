@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import api from '../../api/client'
 import { format, subDays, startOfMonth } from 'date-fns'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts'
@@ -48,10 +48,12 @@ export default function AdminPage() {
     const d = subDays(new Date(), 6 - i)
     return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE').replace('Mon','إث').replace('Tue','ثل').replace('Wed','أر').replace('Thu','خم').replace('Fri','جم').replace('Sat','سب').replace('Sun','أح') }
   })
-  const dayQueries = days.map(d => useQuery({
-    queryKey: ['admin-overview-day', d.date],
-    queryFn: () => api.get(`/admin/overview?from_date=${d.date}&to_date=${d.date}`).then(r => r.data),
-  }))
+  const dayQueries = useQueries({
+    queries: days.map(d => ({
+      queryKey: ['admin-overview-day', d.date],
+      queryFn: () => api.get(`/admin/overview?from_date=${d.date}&to_date=${d.date}`).then(r => r.data),
+    })),
+  })
   const chartData = days.map((d, i) => ({
     name: d.label,
     إيرادات: Number(dayQueries[i].data?.summary?.total_revenue || 0),

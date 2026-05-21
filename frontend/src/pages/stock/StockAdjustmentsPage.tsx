@@ -99,14 +99,14 @@ function AdjustmentForm({ onClose }: { onClose: () => void }) {
           <input type="number" className="input" value={qty} onChange={e => setQty(e.target.value)} min="0.001" step="any" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label>
-          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="سبب التسوية..." />
+          <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة {['adjustment_out', 'damage'].includes(movementType) ? '*' : ''}</label>
+          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder={['adjustment_out', 'damage'].includes(movementType) ? 'سبب التسوية مطلوب...' : 'اختياري'} />
         </div>
       </div>
 
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" disabled={!selectedProduct || !warehouseId || !qty || mut.isPending}
+        <button type="submit" disabled={!selectedProduct || !warehouseId || !qty || mut.isPending || (['adjustment_out', 'damage'].includes(movementType) && !note.trim())}
           className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
           تسجيل الحركة
         </button>

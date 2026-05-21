@@ -23,14 +23,11 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const data = await authApi.login(username, password)
-      // Store token first so subsequent requests are authenticated
-      login(data.access_token, { id: data.user_id, username: data.username, full_name: data.full_name || data.username, role: data.role })
-      // Then fetch full profile
+      login(data.access_token, { id: data.user_id, username: data.username, full_name: data.full_name || data.username, role: data.role }, data.csrf_token || undefined)
       try {
         const me = await authApi.me()
-        login(data.access_token, { ...me, permissions: me.permissions || [] })
+        login(data.access_token, { ...me, permissions: me.permissions || [] }, me.csrf_token)
       } catch { /* use basic profile from login response */ }
-      // Redirect based on role
       const roleHome: Record<string, string> = {
         cashier: '/pos', storekeeper: '/inventory', accountant: '/accounting'
       }

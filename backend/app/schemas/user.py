@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserCreate(BaseModel):
@@ -20,6 +20,10 @@ class UserUpdate(BaseModel):
 class UserPasswordUpdate(BaseModel):
     current_password: str
     new_password: str
+
+
+class PasswordReset(BaseModel):
+    password: str = Field(..., min_length=8)
 
 
 class UserOut(BaseModel):

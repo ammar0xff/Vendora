@@ -1,31 +1,18 @@
 """HR / Payroll router"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from datetime import date
-from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, BusinessError
+from app.schemas.hr import EmployeeCreate, EmployeeUpdate, AttendanceCreate, PayrollCalculate, PayrollUpdate, AdvanceCreate
 from sqlalchemy import text
 import uuid
 
 router = APIRouter(prefix="/hr", tags=["hr"])
-
-
-@router.get("/audit-log")
-async def get_audit_log(db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
-    r = await db.execute(text("""
-        SELECT a.id, a.action_type, a.entity_type, a.entity_id, a.reason, a.details, a.created_at,
-               u.full_name as performed_by_name
-        FROM hr_audit_log a LEFT JOIN users u ON a.performed_by=u.id
-        ORDER BY a.created_at DESC LIMIT 500
-    """))
-    cols = ['id','action_type','entity_type','entity_id','reason','details','created_at','performed_by_name']
-    return [dict(zip(cols, row)) for row in r.fetchall()]
 
 
 @router.get("/audit-log")
@@ -87,26 +74,36 @@ async def list_employees(db: AsyncSession = Depends(get_db), _=Depends(get_curre
 
 
 @router.post("/employees")
-async def create_employee(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
     r = await db.execute(text("""
         INSERT INTO hr_employees (emp_code, name, position, monthly_salary, shift_schedule, hire_date)
         VALUES (:code, :name, :pos, :sal, :shift, :hire) RETURNING *
-    """), {'code': data.get('emp_code'), 'name': data['name'], 'pos': data.get('position',''),
-           'sal': data.get('monthly_salary', 0), 'shift': data.get('shift_schedule',''),
-           'hire': data.get('hire_date')})
+    """), {'code': data.emp_code, 'name': data.name, 'pos': data.position or '',
+           'sal': data.monthly_salary, 'shift': data.shift_schedule or '',
+           'hire': data.hire_date})
     await db.commit()
     row = r.fetchone()
     return dict(zip(r.keys(), row))
 
 
 @router.put("/employees/{emp_id}")
-async def update_employee(emp_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
-    await db.execute(text("""
-        UPDATE hr_employees SET name=:name, position=:pos, monthly_salary=:sal,
-        shift_schedule=:shift, hire_date=:hire WHERE id=:id
-    """), {'id': emp_id, 'name': data['name'], 'pos': data.get('position',''),
-           'sal': data.get('monthly_salary',0), 'shift': data.get('shift_schedule',''),
-           'hire': data.get('hire_date')})
+async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    vals = data.model_dump(exclude_unset=True)
+    if not vals:
+        return {"detail": "no changes"}
+    cols = []
+    params: dict = {"id": emp_id}
+    col_map = {"name": "name", "position": "pos", "monthly_salary": "sal",
+               "shift_schedule": "shift", "hire_date": "hire"}
+    for k, v in vals.items():
+        c = col_map.get(k)
+        if c is None:
+            continue
+        cols.append(f"{c}=:{k}")
+        params[k] = v
+    if not cols:
+        return {"detail": "no changes"}
+    await db.execute(text(f"UPDATE hr_employees SET {','.join(cols)} WHERE id=:id"), params)
     await db.commit()
     return {"detail": "updated"}
 
@@ -134,18 +131,131 @@ async def list_attendance(employee_id: Optional[str] = None, month: Optional[str
 
 
 @router.post("/attendance")
-async def add_attendance(data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def add_attendance(data: AttendanceCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     await db.execute(text("""
         INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status, notes)
         VALUES (:eid, :dt, :ci, :co, :st, :notes)
         ON CONFLICT (employee_id, work_date) DO UPDATE
         SET check_in=EXCLUDED.check_in, check_out=EXCLUDED.check_out,
             status=EXCLUDED.status, notes=EXCLUDED.notes
-    """), {'eid': uuid.UUID(data['employee_id']), 'dt': data['work_date'],
-           'ci': data.get('check_in'), 'co': data.get('check_out'),
-           'st': data.get('status','present'), 'notes': data.get('notes','')})
+    """), {'eid': data.employee_id, 'dt': data.work_date,
+           'ci': data.check_in, 'co': data.check_out,
+           'st': data.status, 'notes': data.notes or ''})
     await db.commit()
     return {"detail": "saved"}
+
+
+@router.post("/attendance/import-csv")
+async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
+    import csv, io
+    content = await file.read()
+    text_content = content.decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(text_content))
+
+    if not reader.fieldnames:
+        raise HTTPException(400, "Empty CSV or no headers found")
+
+    col_map = {}
+    for h in reader.fieldnames:
+        hl = h.lower().strip()
+        if hl in ('employee_code', 'emp_code', 'uid', 'employee id', 'employee_id', 'emp id'):
+            col_map[h] = 'emp_code'
+        elif hl in ('date', 'work_date', 'attendance_date', 'day'):
+            col_map[h] = 'date'
+        elif hl in ('check_in', 'clock_in', 'time_in', 'in', 'checkin'):
+            col_map[h] = 'check_in'
+        elif hl in ('check_out', 'clock_out', 'time_out', 'out', 'checkout'):
+            col_map[h] = 'check_out'
+        elif hl in ('status', 'attendance_status'):
+            col_map[h] = 'status'
+
+    if 'emp_code' not in col_map.values() or 'date' not in col_map.values():
+        raise HTTPException(400, f"CSV must have employee_code and date columns. Found: {reader.fieldnames}")
+
+    from datetime import date as _date, datetime as _dt
+    import uuid as _uuid
+
+    added = updated = skipped = 0
+    errors = []
+
+    for row in reader:
+        try:
+            emp_code = str(row.get([k for k, v in col_map.items() if v == 'emp_code'][0], '')).strip()
+            date_str = str(row.get([k for k, v in col_map.items() if v == 'date'][0], '')).strip()
+            check_in_raw = row.get([k for k, v in col_map.items() if v == 'check_in'][0], '').strip() if 'check_in' in col_map.values() else ''
+            check_out_raw = row.get([k for k, v in col_map.items() if v == 'check_out'][0], '').strip() if 'check_out' in col_map.values() else ''
+            status_raw = row.get([k for k, v in col_map.items() if v == 'status'][0], '').strip() if 'status' in col_map.values() else 'present'
+        except (IndexError, KeyError):
+            skipped += 1
+            continue
+
+        if not emp_code or not date_str:
+            skipped += 1
+            continue
+
+        emp = (await db.execute(text("SELECT id FROM hr_employees WHERE emp_code=:code"), {"code": emp_code})).fetchone()
+        if not emp:
+            errors.append(f"رمز '{emp_code}' غير موجود")
+            skipped += 1
+            continue
+
+        try:
+            work_date = _date.fromisoformat(date_str[:10])
+        except ValueError:
+            errors.append(f"تاريخ غير صالح '{date_str}'")
+            skipped += 1
+            continue
+
+        check_in = None
+        if check_in_raw:
+            try:
+                check_in = _dt.fromisoformat(check_in_raw.replace('Z', '+00:00').replace(' ', 'T')).replace(tzinfo=None)
+            except ValueError:
+                try:
+                    check_in = _dt.strptime(check_in_raw.strip(), '%H:%M').time()
+                    check_in = _dt.combine(work_date, check_in)
+                except ValueError:
+                    errors.append(f"وقت غير صالح '{check_in_raw}'")
+
+        check_out = None
+        if check_out_raw:
+            try:
+                check_out = _dt.fromisoformat(check_out_raw.replace('Z', '+00:00').replace(' ', 'T')).replace(tzinfo=None)
+            except ValueError:
+                try:
+                    check_out = _dt.strptime(check_out_raw.strip(), '%H:%M').time()
+                    check_out = _dt.combine(work_date, check_out)
+                except ValueError:
+                    errors.append(f"وقت غير صالح '{check_out_raw}'")
+
+        status = status_raw.lower() if status_raw else 'present'
+
+        existing = (await db.execute(text(
+            "SELECT id, edited FROM hr_attendance WHERE employee_id=:e AND work_date=:d"
+        ), {"e": emp[0], "d": work_date})).fetchone()
+
+        if existing:
+            if existing[1]:
+                skipped += 1
+                continue
+            await db.execute(text(
+                "UPDATE hr_attendance SET check_in=:ci, check_out=:co, status=:st WHERE id=:id"
+            ), {"ci": check_in, "co": check_out, "st": status, "id": existing[0]})
+            updated += 1
+        else:
+            await db.execute(text(
+                "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status, created_by) VALUES (:e,:d,:ci,:co,:st,:by)"
+            ), {"e": emp[0], "d": work_date, "ci": check_in, "co": check_out, "st": status, "by": current_user.id})
+            added += 1
+
+    await db.commit()
+    return {
+        "added": added,
+        "updated": updated,
+        "skipped": skipped,
+        "errors": errors[:20],
+        "total": added + updated + skipped,
+    }
 
 
 # ── Payroll ────────────────────────────────────────────────────────────────
@@ -162,12 +272,19 @@ async def list_payroll(month: Optional[str] = None, db: AsyncSession = Depends(g
 
 
 @router.post("/payroll/calculate")
-async def calculate_payroll(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
+async def calculate_payroll(data: PayrollCalculate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     """Calculate payroll for all (or one) employee using the full engine."""
     from app.services.payroll_engine import calculate_payroll as calc
     import json as _json
 
-    month = data['month']  # YYYY-MM
+    month = data.month  # YYYY-MM
+
+    # Workflow: do not allow recalculation after approval/payment.
+    period = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
+    if period == "paid":
+        raise BusinessError("تم صرف رواتب هذا الشهر بالفعل — لا يمكن إعادة الحساب")
+    if period == "approved":
+        raise BusinessError("تم اعتماد رواتب هذا الشهر — لا يمكن إعادة الحساب إلا بعد إعادة فتح الشهر")
 
     # Load settings
     settings_rows = (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()
@@ -179,9 +296,9 @@ async def calculate_payroll(data: dict, db: AsyncSession = Depends(get_db), curr
 
     # Load employees
     emp_q = "SELECT id, emp_code, name, position, monthly_salary, shift_schedule, shift_id, hire_date, ignore_lateness, max_lateness_before_overtime_cancellation FROM hr_employees WHERE is_active=TRUE"
-    if data.get('emp_code'):
-        emp_q += f" AND emp_code=:ec"
-        emps = (await db.execute(text(emp_q), {'ec': data['emp_code']})).fetchall()
+    if data.employee_id:
+        emp_q += " AND id=:eid"
+        emps = (await db.execute(text(emp_q), {'eid': data.employee_id})).fetchall()
     else:
         emps = (await db.execute(text(emp_q))).fetchall()
     emp_cols = ['id','emp_code','name','position','monthly_salary','shift_schedule','shift_id','hire_date','ignore_lateness','max_lateness_before_overtime_cancellation']
@@ -247,6 +364,98 @@ async def calculate_payroll(data: dict, db: AsyncSession = Depends(get_db), curr
     return {'month': month, 'employees': len(results), 'total': sum(r['net'] for r in results), 'detail': results}
 
 
+@router.get("/payroll/period")
+async def get_payroll_period(month: str, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+    row = (await db.execute(text("SELECT * FROM hr_payroll_periods WHERE month=:m"), {"m": month})).mappings().fetchone()
+    if not row:
+        await db.execute(text("INSERT INTO hr_payroll_periods (month, status) VALUES (:m, 'draft')"), {"m": month})
+        await db.commit()
+        row = (await db.execute(text("SELECT * FROM hr_payroll_periods WHERE month=:m"), {"m": month})).mappings().fetchone()
+    return dict(row)
+
+
+@router.post("/payroll/period/submit")
+async def submit_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
+    status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none() or "draft"
+    if status != "draft":
+        raise BusinessError("لا يمكن إرسال الشهر للمراجعة إلا من حالة مسودة")
+    await db.execute(text("""
+        INSERT INTO hr_payroll_periods (month, status, submitted_by, submitted_at)
+        VALUES (:m, 'review', :by, now())
+        ON CONFLICT (month) DO UPDATE SET status='review', submitted_by=:by, submitted_at=now(), updated_at=now()
+    """), {"m": month, "by": current_user.id})
+    await db.execute(text("UPDATE hr_payroll SET status='draft' WHERE month=:m"), {"m": month})
+    await db.commit()
+    return {"detail": "submitted"}
+
+
+@router.post("/payroll/period/approve")
+async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin", "manager"))):
+    status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none() or "draft"
+    if status != "review":
+        raise BusinessError("لا يمكن اعتماد الشهر إلا بعد المراجعة")
+
+    total = (await db.execute(text("SELECT COALESCE(SUM(net_salary),0) FROM hr_payroll WHERE month=:m"), {"m": month})).scalar() or 0
+    # Ensure expense category exists
+    cat_id = (await db.execute(text("SELECT id FROM financial_categories WHERE name='رواتب' AND type='expense'"))).scalar_one_or_none()
+    if not cat_id:
+        cat_id = (await db.execute(text("""
+            INSERT INTO financial_categories (name, type, color) VALUES ('رواتب','expense','#dc2626') RETURNING id
+        """))).scalar_one()
+
+    # Record monthly payroll as approved expense (idempotent by notes marker).
+    marker = f"HR payroll month {month}"
+    exists = (await db.execute(text("SELECT 1 FROM expenses WHERE notes=:n LIMIT 1"), {"n": marker})).scalar_one_or_none()
+    if not exists and float(total) > 0:
+        await db.execute(text("""
+            INSERT INTO expenses (category_id, amount, description, date, status, created_by, notes)
+            VALUES (:cid, :amt, :desc, :dt, 'approved', :by, :notes)
+        """), {
+            "cid": cat_id,
+            "amt": float(total),
+            "desc": f"رواتب شهر {month}",
+            "dt": f"{month}-01",
+            "by": current_user.id,
+            "notes": marker,
+        })
+
+    await db.execute(text("""
+        INSERT INTO hr_payroll_periods (month, status, approved_by, approved_at)
+        VALUES (:m, 'approved', :by, now())
+        ON CONFLICT (month) DO UPDATE SET status='approved', approved_by=:by, approved_at=now(), updated_at=now()
+    """), {"m": month, "by": current_user.id})
+    await db.execute(text("UPDATE hr_payroll SET status='approved' WHERE month=:m"), {"m": month})
+    await db.commit()
+    return {"detail": "approved", "total": float(total)}
+
+
+@router.post("/payroll/period/pay")
+async def pay_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin", "manager"))):
+    status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none() or "draft"
+    if status != "approved":
+        raise BusinessError("لا يمكن صرف الشهر إلا بعد الاعتماد")
+    await db.execute(text("""
+        UPDATE hr_payroll_periods SET status='paid', paid_by=:by, paid_at=now(), updated_at=now() WHERE month=:m
+    """), {"m": month, "by": current_user.id})
+    await db.execute(text("UPDATE hr_payroll SET status='paid' WHERE month=:m"), {"m": month})
+    await db.commit()
+    return {"detail": "paid"}
+
+
+@router.post("/payroll/period/reopen")
+async def reopen_payroll_period(month: str, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+    status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
+    if status == "paid":
+        raise BusinessError("لا يمكن إعادة فتح شهر تم صرفه")
+    await db.execute(text("""
+        INSERT INTO hr_payroll_periods (month, status) VALUES (:m, 'draft')
+        ON CONFLICT (month) DO UPDATE SET status='draft', updated_at=now()
+    """), {"m": month})
+    await db.execute(text("UPDATE hr_payroll SET status='draft' WHERE month=:m"), {"m": month})
+    await db.commit()
+    return {"detail": "reopened"}
+
+
 @router.get("/payroll/{payroll_id}/breakdown")
 async def get_daily_breakdown(payroll_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Get daily attendance breakdown for a payroll record."""
@@ -257,13 +466,13 @@ async def get_daily_breakdown(payroll_id: uuid.UUID, db: AsyncSession = Depends(
 
 
 @router.put("/payroll/{payroll_id}")
-async def update_payroll(payroll_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+async def update_payroll(payroll_id: uuid.UUID, data: PayrollUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     await db.execute(text("""
         UPDATE hr_payroll SET bonus=:bonus, deductions=:ded, drawer_variance=:var,
         net_salary=base_salary - (absent_days*(base_salary/26.0)) - advances + :bonus - :ded + :var,
         status=:status, notes=:notes WHERE id=:id
-    """), {'id': payroll_id, 'bonus': data.get('bonus',0), 'ded': data.get('deductions',0),
-           'var': data.get('drawer_variance',0), 'status': data.get('status','draft'), 'notes': data.get('notes','')})
+    """), {'id': payroll_id, 'bonus': data.bonus, 'ded': data.deductions,
+           'var': data.drawer_variance, 'status': data.status, 'notes': data.notes or ''})
     await db.commit()
     return {"detail": "updated"}
 
@@ -282,20 +491,20 @@ async def list_advances(employee_id: Optional[str] = None, db: AsyncSession = De
 
 
 @router.post("/advances")
-async def add_advance(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    record_type = data.get('record_type', 'سلفة')  # سلفة | مكافأة | خصم
+async def add_advance(data: AdvanceCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
+    record_type = data.record_type
+    adv_date = data.date or date.today()
     await db.execute(text("""
         INSERT INTO hr_advances (employee_id, amount, date, note, created_by, record_type)
         VALUES (:eid, :amt, :dt, :note, :by, :rt)
-    """), {'eid': uuid.UUID(data['employee_id']), 'amt': data['amount'],
-           'dt': data.get('date', date.today().isoformat()), 'note': data.get('note',''),
+    """), {'eid': data.employee_id, 'amt': data.amount,
+           'dt': adv_date.isoformat(), 'note': data.note or '',
            'by': current_user.id, 'rt': record_type})
-    # Audit log
     await db.execute(text("""
         INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details)
         VALUES ('create', 'advance', :eid, :by, :note, :det::jsonb)
-    """), {'eid': str(data['employee_id']), 'by': current_user.id,
-           'note': data.get('note',''), 'det': f'{{"type":"{record_type}","amount":{data["amount"]}}}'})
+    """), {'eid': str(data.employee_id), 'by': current_user.id,
+           'note': data.note or '', 'det': f'{{"type":"{record_type}","amount":{data.amount}}}'})
     await db.commit()
     return {"detail": "saved"}
 
@@ -320,7 +529,7 @@ async def _report_auth(token: str | None = None, db: AsyncSession = Depends(get_
 @router.get("/payroll/report/monthly")
 async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML payroll report for all employees — matches Qt ReportGenerator.generate_payroll_report()"""
-    import sys, os
+    import sys
     sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
     from app.services.payroll_engine import calculate_payroll
@@ -575,9 +784,11 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
 async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     """Trigger sync from ZK device — only works if backend can reach the device directly."""
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
-    host = settings.get("device_host", "192.168.1.201")
+    host = settings.get("device_host")
     port = int(settings.get("device_port", 4370))
     timeout = int(settings.get("device_timeout", 5))
+    if not host:
+        raise HTTPException(400, "ZK device host not configured — set device_host in hr_settings")
 
     try:
         from zk import ZK

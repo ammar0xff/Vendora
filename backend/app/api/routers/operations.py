@@ -5,21 +5,23 @@ operations.py — مستندات العمليات
 - طلب نواقص (stock_request): طلب توريد من مخزن
 كل عملية تُسجَّل في stock_movements وتُحفَظ في archived_documents تلقائياً.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
 from decimal import Decimal
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from app.db.base import get_db
 from app.models.stock import StockMovement, MovementType
 from app.models.archive import ArchivedDocument, DocType
 from app.models.warehouse import Warehouse
 from app.models.product import Product
 from app.models.settings import StoreSetting
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_perm
 from app.models.user import User
+from app.services.stock_service import get_balance
+from app.services.audit_service import log as audit_log
 import uuid
 
 router = APIRouter(prefix="/operations", tags=["operations"])
@@ -38,6 +40,12 @@ class DispatchRequest(BaseModel):
     items: List[OperationItem]
     notes: str = ""
 
+    @model_validator(mode='after')
+    def check_warehouses(self):
+        if self.from_warehouse_id == self.to_warehouse_id:
+            raise ValueError('لا يمكن أن يكون مخزن المصدر والوجهة نفس المخزن')
+        return self
+
 
 class GoodsReceiptRequest(BaseModel):
     warehouse_id: uuid.UUID
@@ -51,6 +59,12 @@ class StockRequestRequest(BaseModel):
     to_warehouse_id: uuid.UUID
     items: List[OperationItem]
     notes: str = ""
+
+    @model_validator(mode='after')
+    def check_warehouses(self):
+        if self.from_warehouse_id == self.to_warehouse_id:
+            raise ValueError('لا يمكن أن يكون مخزن المصدر والوجهة نفس المخزن')
+        return self
 
 
 async def _get_settings(db: AsyncSession) -> dict:
@@ -74,7 +88,7 @@ async def _archive(db: AsyncSession, doc_type: DocType, doc_number: str,
 
 @router.post("/dispatch")
 async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_db),
-                         current_user: User = Depends(get_current_user)):
+                         current_user: User = Depends(require_perm("operations"))):
     """إذن صرف — نقل بضاعة من مخزن إلى معرض."""
     doc_number = f"DSP-{datetime.utcnow().strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
@@ -86,6 +100,9 @@ async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_d
     items_detail = []
     for item in data.items:
         prod = (await db.execute(select(Product).where(Product.id == item.product_id))).scalar_one_or_none()
+        balance = await get_balance(db, item.product_id, data.from_warehouse_id)
+        if balance < item.qty:
+            raise HTTPException(400, f"رصيد غير كافٍ للمنتج {prod.name if prod else ''} — المتاح {balance}")
         db.add(StockMovement(product_id=item.product_id, warehouse_id=data.from_warehouse_id,
                              movement_type=MovementType.transfer_out, qty=item.qty,
                              ref_id=ref_id, ref_type="dispatch", note=item.note or data.notes,
@@ -101,13 +118,14 @@ async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_d
                    {"from": from_wh.name if from_wh else "", "to": to_wh.name if to_wh else "",
                     "items": items_detail, "notes": data.notes, "employee": current_user.full_name},
                    current_user.id, ref_id)
+    await audit_log(db, "dispatch", "create", current_user.id, current_user.full_name, ref_id, {"from": from_wh.name, "to": to_wh.name, "items_count": len(data.items)}, f"إذن صرف {doc_number}")
     await db.commit()
     return {"doc_number": doc_number, "doc_type": "dispatch_order", "items_count": len(data.items)}
 
 
 @router.post("/goods-receipt")
 async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(get_db),
-                        current_user: User = Depends(get_current_user)):
+                        current_user: User = Depends(require_perm("operations"))):
     """استلام بضاعة من تاجر — يُضاف للمخزن بأسعار التكلفة."""
     doc_number = f"GR-{datetime.utcnow().strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
@@ -134,13 +152,14 @@ async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(ge
                    {"warehouse": wh.name if wh else "", "supplier": data.supplier_name,
                     "items": items_detail, "notes": data.notes, "employee": current_user.full_name},
                    current_user.id, ref_id)
+    await audit_log(db, "goods_receipt", "create", current_user.id, current_user.full_name, ref_id, {"warehouse": wh.name, "items_count": len(data.items)}, f"استلام بضاعة {doc_number}")
     await db.commit()
     return {"doc_number": doc_number, "doc_type": "goods_receipt", "total_cost": float(total_cost)}
 
 
 @router.post("/stock-request")
 async def stock_request(data: StockRequestRequest, db: AsyncSession = Depends(get_db),
-                        current_user: User = Depends(get_current_user)):
+                        current_user: User = Depends(require_perm("operations"))):
     """طلب نواقص — مستند طلب توريد بدون حركة مخزون فورية."""
     doc_number = f"REQ-{datetime.utcnow().strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()

@@ -11,20 +11,21 @@ IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer
 OUT_TYPES = ("sale", "damage", "adjustment_out", "transfer_out")
 
 
-async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID) -> Decimal:
-    result = await db.execute(
-        select(
-            func.sum(
-                case(
-                    (StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty),
-                    else_=-StockMovement.qty,
-                )
+async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID, for_update: bool = False) -> Decimal:
+    q = select(
+        func.sum(
+            case(
+                (StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty),
+                else_=-StockMovement.qty,
             )
-        ).where(
-            StockMovement.product_id == product_id,
-            StockMovement.warehouse_id == warehouse_id,
         )
+    ).where(
+        StockMovement.product_id == product_id,
+        StockMovement.warehouse_id == warehouse_id,
     )
+    if for_update:
+        q = q.with_for_update()
+    result = await db.execute(q)
     return result.scalar_one() or Decimal("0")
 
 
@@ -55,7 +56,7 @@ async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=
 
 
 async def transfer_stock(db: AsyncSession, data, created_by: uuid.UUID):
-    balance = await get_balance(db, data.product_id, data.from_warehouse_id)
+    balance = await get_balance(db, data.product_id, data.from_warehouse_id, for_update=True)
     if balance < data.qty:
         raise BusinessError(f"Insufficient stock: available {balance}")
 

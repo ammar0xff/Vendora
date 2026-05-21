@@ -5,8 +5,11 @@ import api from '../../api/client'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { Search, Printer, RotateCcw, XCircle, Minus, Plus, Filter, FileDown } from 'lucide-react'
+import ExportButton from '../../components/ui/ExportButton'
+import { printUrl, openPrint } from '../../utils/format'
 import { clsx } from 'clsx'
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -27,14 +30,11 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
-const getToken = () => JSON.parse(localStorage.getItem('auth') || '{}')?.state?.token || ''
-const printUrl = (path: string) => `/api${path}?token=${getToken()}`
-const pdfUrl = (path: string, size = 'A4') => `/api${path}?token=${getToken()}&paper_size=${size}`
-
 export default function SalesPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [returnSale, setReturnSale] = useState<any>(null)
+  const [confirmCancel, setConfirmCancel] = useState<any>(null)
   const [returnQtys, setReturnQtys] = useState<Record<string, number>>({})
   const qc = useQueryClient()
 
@@ -60,7 +60,7 @@ export default function SalesPage() {
   })
 
   const handlePrint = (id: string) => {
-    window.open(pdfUrl(`/print/pdf/sale/${id}`), '_blank')
+    openPrint(`/print/pdf/sale/${id}`)
   }
 
   const filtered = sales?.filter((s: any) =>
@@ -111,7 +111,7 @@ export default function SalesPage() {
             className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors">
             <Printer size={14} />
           </button>
-          <a href={pdfUrl(`/print/pdf/sale/${s.id}`)} target="_blank" rel="noreferrer"
+          <a href={printUrl(`/print/pdf/sale/${s.id}`, 'A4')} target="_blank" rel="noreferrer"
             onClick={e => e.stopPropagation()}
             title="تحميل PDF"
             className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors flex items-center">
@@ -124,7 +124,7 @@ export default function SalesPage() {
                 className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-colors">
                 <RotateCcw size={14} />
               </button>
-              <button onClick={e => { e.stopPropagation(); if (confirm('إلغاء الفاتورة؟')) cancelMut.mutate(s.id) }}
+              <button onClick={e => { e.stopPropagation(); setConfirmCancel(s.id) }}
                 title="إلغاء"
                 className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
                 <XCircle size={14} />
@@ -145,8 +145,18 @@ export default function SalesPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">سجل المبيعات والمرتجعات</h1>
-        <div className="text-sm text-slate-500">
-          {sales?.filter((s: any) => s.status !== 'quotation').length || 0} فاتورة
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-slate-500">
+            {sales?.filter((s: any) => s.status !== 'quotation').length || 0} فاتورة
+          </div>
+          <ExportButton data={filtered || []} columns={[
+            { label: 'رقم الفاتورة', accessor: (s: any) => s.invoice_number },
+            { label: 'العميل', accessor: (s: any) => s.customer_name || 'عميل عادي' },
+            { label: 'الإجمالي', accessor: (s: any) => Number(s.total) },
+            { label: 'طريقة الدفع', accessor: (s: any) => s.payment_method },
+            { label: 'التاريخ', accessor: (s: any) => new Date(s.created_at).toLocaleDateString('en-CA') },
+            { label: 'المستخدم', accessor: (s: any) => s.created_by_name || '' },
+          ]} filename="المبيعات" excelEndpoint="/export/sales" />
         </div>
       </div>
 
@@ -228,6 +238,10 @@ export default function SalesPage() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog open={!!confirmCancel} onClose={() => setConfirmCancel(null)}
+        onConfirm={() => cancelMut.mutate(confirmCancel)}
+        message="إلغاء الفاتورة؟" danger confirmText="إلغاء" title="تأكيد الإلغاء" />
     </div>
   )
 }

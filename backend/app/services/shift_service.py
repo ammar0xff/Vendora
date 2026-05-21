@@ -19,6 +19,7 @@ async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, data) -> Shift:
         select(Shift)
         .where(Shift.warehouse_id == data.warehouse_id, Shift.status == ShiftStatus.open)
         .order_by(Shift.started_at.desc())
+        .with_for_update()
     )
     existing = result.scalars().all()
     for old in existing[1:]:
@@ -34,7 +35,7 @@ async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, data) -> Shift:
 
 
 async def close_shift(db: AsyncSession, shift_id: uuid.UUID, data, closed_by: uuid.UUID) -> Shift:
-    result = await db.execute(select(Shift).where(Shift.id == shift_id))
+    result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
     shift = result.scalar_one_or_none()
     if not shift:
         raise NotFoundError("Shift not found")
@@ -135,7 +136,7 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
 
 
 async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uuid.UUID, amount: Decimal, from_user_id: uuid.UUID, notes: str = None) -> Shift:
-    result = await db.execute(select(Shift).where(Shift.id == shift_id))
+    result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
     shift = result.scalar_one_or_none()
     if not shift:
         raise NotFoundError("Shift not found")

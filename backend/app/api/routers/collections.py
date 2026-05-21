@@ -1,10 +1,9 @@
 """Product Collections — packages of multiple products sold as one unit."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
+from app.dependencies import get_current_user, require_perm
 import uuid
 
 router = APIRouter(prefix="/collections", tags=["collections"])
@@ -29,7 +28,7 @@ async def list_collections(db: AsyncSession = Depends(get_db), _=Depends(get_cur
 
 
 @router.post("", status_code=201)
-async def create_collection(data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def create_collection(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     r = await db.execute(text("""
         INSERT INTO product_collections (name, description, retail_price, wholesale_price)
         VALUES (:name, :desc, :retail, :wholesale) RETURNING *
@@ -46,7 +45,7 @@ async def create_collection(data: dict, db: AsyncSession = Depends(get_db), _=De
 
 
 @router.put("/{cid}")
-async def update_collection(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def update_collection(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     await db.execute(text("""
         UPDATE product_collections SET name=:name, description=:desc,
         retail_price=:retail, wholesale_price=:wholesale WHERE id=:id
@@ -64,7 +63,7 @@ async def update_collection(cid: uuid.UUID, data: dict, db: AsyncSession = Depen
 
 
 @router.delete("/{cid}")
-async def delete_collection(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def delete_collection(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     await db.execute(text("UPDATE product_collections SET is_active=false WHERE id=:id"), {"id": cid})
     await db.commit()
     return {"ok": True}
