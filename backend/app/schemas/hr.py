@@ -47,7 +47,7 @@ class PayrollUpdate(BaseModel):
 class AdvanceCreate(BaseModel):
     employee_id: uuid.UUID
     amount: Decimal = Field(..., gt=0)
-    date: date | None = None
+    date: 'date | None' = None
     note: str | None = None
     record_type: str = "سلفة"
 

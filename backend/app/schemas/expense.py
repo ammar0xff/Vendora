@@ -26,7 +26,7 @@ class ExpenseCreate(BaseModel):
     warehouse_id: str | None = None
     amount: Decimal = Field(..., gt=0)
     description: str = Field(..., min_length=1)
-    date: date | None = None
+    date: 'date | None' = None
     payment_method: str | None = None
     wallet_id: str | None = None
     safe_id: str | None = None
@@ -42,7 +42,7 @@ class ExpenseUpdate(BaseModel):
     warehouse_id: str | None = None
     amount: Decimal | None = Field(None, gt=0)
     description: str | None = Field(None, min_length=1)
-    date: date | None = None
+    date: 'date | None' = None
     payment_method: str | None = None
     wallet_id: str | None = None
     safe_id: str | None = None
