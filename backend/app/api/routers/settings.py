@@ -50,8 +50,8 @@ async def pwa_manifest(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("")
-async def get_settings(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    """Returns store settings (name, logo, etc.)."""
+async def get_settings(db: AsyncSession = Depends(get_db)):
+    """Public endpoint — returns store settings for login page and app."""
     import json as _json
     from app.models.settings import StoreSetting
     result = await db.execute(select(StoreSetting))
