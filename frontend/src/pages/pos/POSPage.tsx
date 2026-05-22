@@ -833,45 +833,51 @@ export default function POSPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {products?.map((p: any) => {
-                  const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
-                  const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
-                  return (
-                    <button key={p.id} onClick={() => handleAddProduct(p)}
-                      className="bg-white rounded-xl border border-slate-100 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 group">
-                      {/* Image or initial */}
-                      {p.image_url ? (
-                        <img src={p.image_url} alt={p.name}
-                          className="w-full h-14 object-contain rounded-lg mb-2 bg-white" />
-                      ) : (
-                        <div className="w-full h-10 rounded-lg mb-2 flex items-center justify-center text-base font-black text-white"
-                          style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)' }}>
-                          {p.name[0]}
-                        </div>
-                      )}
-                      {/* Name */}
-                      <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
-                      {p.company && <p className="text-xs text-slate-400 truncate">{p.company}</p>}
-                      {/* Price + stock */}
-                      <div className="flex items-end justify-between mt-1.5">
-                        <div>
-                          <p className="text-sm font-black leading-none" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</p>
-                          <p className="text-xs text-slate-400 leading-none">ج.م</p>
-                        </div>
-                        {qty !== null && (
-                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md leading-none ${
-                            qty <= 0 ? 'bg-red-100 text-red-600' :
-                            qty <= 5 ? 'bg-amber-100 text-amber-700' :
-                            'bg-green-100 text-green-700'
-                          }`}>{qty}</span>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
+              <div className="overflow-y-auto flex-1 border border-slate-200 rounded-xl">
+                <table className="w-full text-right text-xs">
+                  <thead className="sticky top-0 bg-slate-100 z-10">
+                    <tr className="text-slate-500 font-semibold">
+                      <th className="py-2 px-3">المنتج</th>
+                      <th className="py-2 px-3">الشركة</th>
+                      <th className="py-2 px-3">القطاعي</th>
+                      <th className="py-2 px-3">الجملة</th>
+                      <th className="py-2 px-3">المخزون</th>
+                      <th className="py-2 px-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products?.length === 0 && (
+                      <tr><td colSpan={6} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
+                    )}
+                    {products?.map((p: any) => {
+                      const retailPrice = Number(p.retail_price)
+                      const wholesalePrice = Number(p.wholesale_price) || retailPrice
+                      const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                      return (
+                        <tr key={p.id} onClick={() => handleAddProduct(p)}
+                          className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
+                          <td className="py-2 px-3 font-semibold text-slate-800">{p.name}</td>
+                          <td className="py-2 px-3 text-slate-400">{p.company || '—'}</td>
+                          <td className="py-2 px-3 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
+                          <td className="py-2 px-3 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
+                          <td className="py-2 px-3">
+                            {qty !== null ? (
+                              <span className={`font-bold px-1.5 py-0.5 rounded-md ${
+                                qty <= 0 ? 'bg-red-100 text-red-600' :
+                                qty <= 5 ? 'bg-amber-100 text-amber-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>{qty}</span>
+                            ) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="py-2 px-3">
+                            <span className="text-blue-500 font-bold text-sm">+</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
-              {!products?.length && <div className="text-center py-12 text-slate-400"><p className="text-3xl mb-2">🔍</p><p className="text-sm">لا توجد منتجات</p></div>}
             </div>
           )}
 
@@ -1213,36 +1219,42 @@ export default function POSPage() {
               </button>
             ))}
           </div>
-          {/* Product grid */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-3 gap-2">
-              {products?.map((p: any) => {
-                const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
-                const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
-                return (
-                  <button key={p.id} onClick={() => { handleAddProduct(p); }}
-                    className="bg-white rounded-xl border border-slate-100 p-2 text-right active:scale-95 transition-all">
-                    {p.image_url ? (
-                      <img src={p.image_url} alt={p.name}
-                        className="w-full h-10 object-contain rounded-lg mb-1.5 bg-white" />
-                    ) : (
-                      <div className="w-full h-8 rounded-lg mb-1.5 flex items-center justify-center text-sm font-black text-white"
-                        style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)' }}>
-                        {p.name[0]}
-                      </div>
-                    )}
-                    <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-black" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</p>
-                      {qty !== null && (
-                        <span className={`text-xs font-bold px-1 rounded leading-none ${qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600'}`}>{qty}</span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            {!products?.length && <div className="text-center py-12 text-slate-400 text-sm">لا توجد منتجات</div>}
+          {/* Product table */}
+          <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
+            <table className="w-full text-right text-xs">
+              <thead className="sticky top-0 bg-slate-100 z-10">
+                <tr className="text-slate-500 font-semibold">
+                  <th className="py-2 px-2">المنتج</th>
+                  <th className="py-2 px-2">السعر</th>
+                  <th className="py-2 px-2">المخزون</th>
+                  <th className="py-2 px-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {products?.length === 0 && (
+                  <tr><td colSpan={4} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
+                )}
+                {products?.map((p: any) => {
+                  const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
+                  const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                  return (
+                    <tr key={p.id} onClick={() => handleAddProduct(p)}
+                      className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
+                      <td className="py-2 px-2 font-semibold text-slate-800">{p.name}</td>
+                      <td className="py-2 px-2 font-black" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</td>
+                      <td className="py-2 px-2">
+                        {qty !== null ? (
+                          <span className={`font-bold px-1 rounded ${
+                            qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600'
+                          }`}>{qty}</span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-2 px-2 text-blue-500 font-bold text-sm">+</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
