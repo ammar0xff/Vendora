@@ -18,7 +18,7 @@ export default function StocktakingPage() {
   const { activeWarehouseId } = useAppStore()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const pageSize = 100
+  const pageSize = 5000
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'untracked' | 'tracked'>('untracked')
   const [entries, setEntries] = useState<Record<string, { qty: string; type: string }>>({})
@@ -137,29 +137,13 @@ export default function StocktakingPage() {
         ))}
       </div>
 
-      {/* Search + Pager */}
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+      {/* Search */}
+      <div className="flex items-center gap-3 mb-4">
         <div className="relative max-w-sm flex-1">
           <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input className="input pr-9 text-sm w-full" placeholder="بحث بالاسم..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
         </div>
-        <div className="flex gap-2 items-center">
-          <span className="text-xs text-slate-400">صفحة {pageData?.page || page} / {pageData?.pages || 1}</span>
-          <button
-            className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 disabled:opacity-50"
-            disabled={page <= 1}
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-          >
-            السابق
-          </button>
-          <button
-            className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 disabled:opacity-50"
-            disabled={!pageData || page >= (pageData.pages || 1)}
-            onClick={() => setPage(p => p + 1)}
-          >
-            التالي
-          </button>
-        </div>
+        <span className="text-xs text-slate-400">إجمالي: {pageData?.total || 0} منتج</span>
       </div>
 
       {/* Table — desktop */}
