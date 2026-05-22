@@ -178,6 +178,8 @@ export default function POSPage() {
   const [drawerEntryPaymentMethod, setDrawerEntryPaymentMethod] = useState('cash')
   const [drawerEntryWalletId, setDrawerEntryWalletId] = useState('')
   const [drawerEntryCustomer, setDrawerEntryCustomer] = useState<any>(null)
+  const [drawerCustomerSearch, setDrawerCustomerSearch] = useState('')
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
   const [supervisorId, setSupervisorId] = useState('')
   const [managerIdForClose, setManagerIdForClose] = useState('')
   const [managerPasswordForClose, setManagerPasswordForClose] = useState('')
