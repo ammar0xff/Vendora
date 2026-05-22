@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface User { id: string; username: string; full_name: string; role: string; is_manager?: boolean; permissions?: string[] }
 interface AuthState {
@@ -10,13 +11,27 @@ interface AuthState {
   logout: () => void
 }
 
+const PERSIST_KEYS = ['auth', 'app-settings', 'offline-queue', 'pending-sales', 'local-shift', 'pos-cart']
+
+function clearCache() {
+  for (const key of PERSIST_KEYS) localStorage.removeItem(key)
+  import('idb-keyval').then(m => m.clear()).catch(() => {})
+}
+
 export const useAuthStore = create<AuthState>()(
-  (set) => ({
-    token: null,
-    user: null,
-    csrfToken: null,
-    login: (token, user, csrfToken) => set({ token, user, csrfToken }),
-    setCsrf: (csrfToken) => set({ csrfToken }),
-    logout: () => { set({ token: null, user: null, csrfToken: null }); window.location.href = '/login' },
-  })
+  persist(
+    (set) => ({
+      token: null,
+      user: null,
+      csrfToken: null,
+      login: (token, user, csrfToken) => set({ token, user, csrfToken }),
+      setCsrf: (csrfToken) => set({ csrfToken }),
+      logout: () => {
+        set({ token: null, user: null, csrfToken: null })
+        clearCache()
+        window.location.href = '/login'
+      },
+    }),
+    { name: 'auth' }
+  )
 )
