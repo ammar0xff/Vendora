@@ -270,7 +270,7 @@ export default function POSPage() {
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', debouncedSearch, selectedCat, selectedSub],
-    queryFn: () => productsApi.list({ ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
+    queryFn: () => productsApi.list({ page_size: 5000, ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
   })
 
   // Collections — shown in search results

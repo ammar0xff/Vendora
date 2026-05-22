@@ -128,7 +128,7 @@ async def list_products(
     category_id: uuid.UUID | None = None,
     warehouse_id: uuid.UUID | None = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=500),
+    page_size: int = Query(5000, ge=1, le=5000),
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
