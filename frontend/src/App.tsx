@@ -72,7 +72,8 @@ import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from './api/endpoints'
 
 function FaviconUpdater() {
-  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000, retry: false })
+  const { token } = useAuthStore()
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000, retry: false, enabled: !!token })
   useEffect(() => {
     const logo = settings?.logo_url
     const name = settings?.store_name || 'ERP'

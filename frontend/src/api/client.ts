@@ -33,7 +33,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err.response?.status === 401) useAuthStore.getState().logout()
+    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/')) useAuthStore.getState().logout()
     if (!err.response && err.message?.includes('Network Error')) {
       const cfg = err.config
       if (cfg && shouldQueue(cfg.method, cfg.url || '')) {
