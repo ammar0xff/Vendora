@@ -232,6 +232,7 @@ export default function InventoryPage() {
         </div>
 
         {/* Products table */}
+        <p className="text-xs text-slate-400 mb-2">إجمالي: {products?.length || 0} منتج</p>
         <div className="flex-1 overflow-y-auto">
           <DataTable
             columns={[
