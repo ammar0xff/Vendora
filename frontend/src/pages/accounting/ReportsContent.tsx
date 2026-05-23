@@ -195,8 +195,8 @@ export default function ReportsContent() {
             <table>
               <thead><tr><th>الموظف</th><th>الفواتير</th><th>الإجمالي</th></tr></thead>
               <tbody>
-                {byCashier?.map((c: any) => (
-                  <tr key={c.cashier_id}>
+                {byCashier?.map((c: any, idx: number) => (
+                  <tr key={c?.cashier_id ?? idx}>
                     <td className="font-medium">{c.cashier_name}</td>
                     <td>{c.invoice_count}</td>
                     <td className="font-bold text-green-700">{Number(c.total_sales).toLocaleString('ar-EG')} ج.م</td>

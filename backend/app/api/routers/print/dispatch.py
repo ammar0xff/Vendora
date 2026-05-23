@@ -1,4 +1,4 @@
-from fastapi import Depends, Query
+from fastapi import Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -8,7 +8,7 @@ from . import router, get_settings, _make_pdf, wrap, top_band, ar_num, fmt_date
 
 
 @router.get("/dispatch/{doc_number}", response_class=HTMLResponse)
-async def print_dispatch(doc_number: str, token: str = Query(None),
+async def print_dispatch(doc_number: str,
                          db: AsyncSession = Depends(get_db), _=Depends(get_print_user)):
     s = await get_settings(db)
     store = {"name": s.get("store_name",""), "address": s.get("store_address",""),
@@ -75,7 +75,7 @@ async def print_dispatch(doc_number: str, token: str = Query(None),
 
 
 @router.get("/handover/{doc_number}", response_class=HTMLResponse)
-async def print_handover(doc_number: str, token: str = Query(None),
+async def print_handover(doc_number: str,
                          db: AsyncSession = Depends(get_db), _=Depends(get_print_user)):
     s = await get_settings(db)
     store = {"name": s.get("store_name",""), "address": s.get("store_address",""),
@@ -145,14 +145,14 @@ async def print_handover(doc_number: str, token: str = Query(None),
 
 
 @router.get("/pdf/dispatch/{doc_number}")
-async def pdf_dispatch(doc_number: str, paper_size: str = None, token: str = Query(None),
+async def pdf_dispatch(doc_number: str, paper_size: str = None,
                        db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
-    html_resp = await print_dispatch(doc_number, token, db, user)
+    html_resp = await print_dispatch(doc_number, db, user)
     return await _make_pdf(html_resp, "أمر صرف", f"dispatch_{doc_number}.pdf", db, paper_size)
 
 
 @router.get("/pdf/handover/{doc_number}")
-async def pdf_handover(doc_number: str, paper_size: str = None, token: str = Query(None),
+async def pdf_handover(doc_number: str, paper_size: str = None,
                        db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
-    html_resp = await print_handover(doc_number, token, db, user)
+    html_resp = await print_handover(doc_number, db, user)
     return await _make_pdf(html_resp, "تسليم عهدة", f"handover_{doc_number}.pdf", db, paper_size)

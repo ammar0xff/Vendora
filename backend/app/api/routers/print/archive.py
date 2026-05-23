@@ -1,4 +1,4 @@
-from fastapi import Depends, Query
+from fastapi import Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -10,7 +10,7 @@ import uuid
 
 
 @router.get("/archive/{doc_id}", response_class=HTMLResponse)
-async def print_archive_doc(doc_id: uuid.UUID, token: str = Query(None),
+async def print_archive_doc(doc_id: uuid.UUID,
                              db: AsyncSession = Depends(get_db), _=Depends(get_print_user)):
     s = await get_settings(db)
     store = {"name": s.get("store_name",""), "address": s.get("store_address",""),
@@ -30,7 +30,7 @@ async def print_archive_doc(doc_id: uuid.UUID, token: str = Query(None),
         import json as _json
         try:
             meta = _json.loads(_raw_meta)
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             meta = {}
     else:
         meta = _raw_meta or {}
@@ -72,7 +72,7 @@ async def print_archive_doc(doc_id: uuid.UUID, token: str = Query(None),
 
 
 @router.get("/pdf/archive/{doc_id}")
-async def pdf_archive(doc_id: uuid.UUID, paper_size: str = None, token: str = Query(None),
+async def pdf_archive(doc_id: uuid.UUID, paper_size: str = None,
                       db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
-    html_resp = await print_archive_doc(doc_id, token, db, user)
+    html_resp = await print_archive_doc(doc_id, db, user)
     return await _make_pdf(html_resp, "مستند أرشيف", f"archive_{doc_id}.pdf", db, paper_size)

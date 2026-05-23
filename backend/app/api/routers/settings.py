@@ -1,28 +1,34 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-# Store settings are key/value rows in store_settings table
-# We use a simple dict-based approach here
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 
 
 @router.post("/upload-logo")
 async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     import os
-    import shutil
     from app.core.config import settings as cfg
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, "نوع الملف غير مدعوم. الأنواع المسموحة: JPEG, PNG, GIF, WebP")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_SIZE:
+        raise HTTPException(400, "حجم الملف يتجاوز 5 ميجابايت")
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "logo.png")[1] or ".png"
+    safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', file.filename or "logo.png")
+    ext = os.path.splitext(safe_name)[1] or ".png"
     dest = os.path.join(cfg.UPLOAD_DIR, f"logo{ext}")
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(contents)
     url = f"/uploads/logo{ext}"
     await db.execute(text("UPDATE store_settings SET value=:v WHERE key='logo_url'"), {"v": url})
     await db.commit()

@@ -38,8 +38,9 @@ async def list_customers(search: str | None = None, db: AsyncSession = Depends(g
         FROM customers c
         WHERE {where}
         ORDER BY c.name
-    """), params)
+    """    ), params)
     return [dict(r._mapping) for r in rows.fetchall()]
+# TODO: needs pagination — no limit/offset
 
 
 @router.post("/customers")

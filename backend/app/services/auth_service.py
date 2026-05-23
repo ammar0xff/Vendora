@@ -23,6 +23,8 @@ async def create_user(db: AsyncSession, data) -> User:
     from app.core.roles import ROLE_DEFAULT_PERMISSIONS
     from sqlalchemy.exc import IntegrityError
     from fastapi import HTTPException
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 8 أحرف على الأقل")
     user = User(
         username=data.username,
         full_name=data.full_name,
@@ -43,5 +45,7 @@ async def create_user(db: AsyncSession, data) -> User:
 async def change_password(db: AsyncSession, user: User, current_password: str, new_password: str):
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password incorrect")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 8 أحرف على الأقل")
     user.password_hash = hash_password(new_password)
     await db.commit()

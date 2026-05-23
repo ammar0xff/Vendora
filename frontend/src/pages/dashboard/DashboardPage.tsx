@@ -246,8 +246,8 @@ function AccountantDashboard({ whId }: any) {
           <h3 className="font-bold text-slate-700 mb-3 text-sm">مبيعات الكاشيرين — هذا الشهر</h3>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {!byCashier?.length && <p className="text-slate-400 text-xs text-center py-4">لا توجد بيانات</p>}
-            {byCashier?.map((c: any) => (
-              <div key={c.cashier_id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            {byCashier?.map((c: any, idx: number) => (
+              <div key={c?.cashier_id ?? idx} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                 <p className="text-sm font-semibold text-slate-700">{c.cashier_name}</p>
                 <div className="text-left">
                   <p className="text-sm font-black text-slate-800">{Number(c.total_sales).toLocaleString('ar-EG')} ج.م</p>

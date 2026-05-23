@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clear as clearIDB } from 'idb-keyval'
 
 interface User { id: string; username: string; full_name: string; role: string; is_manager?: boolean; permissions?: string[] }
 interface AuthState {
@@ -15,7 +16,7 @@ const PERSIST_KEYS = ['auth', 'app-settings', 'offline-queue', 'pending-sales', 
 
 function clearCache() {
   for (const key of PERSIST_KEYS) localStorage.removeItem(key)
-  import('idb-keyval').then(m => m.clear()).catch(() => {})
+  clearIDB().catch((e) => console.warn('Failed to clear idb-keyval cache', e))
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,7 +30,6 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set({ token: null, user: null, csrfToken: null })
         clearCache()
-        window.location.href = '/login'
       },
     }),
     { name: 'auth' }

@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text, or_
-from datetime import datetime
+from datetime import datetime, timezone
 from app.db.base import get_db
 from app.models.purchase import PurchaseOrder, PurchaseOrderItem, POStatus
 from app.models.supplier_price import SupplierPrice
@@ -18,6 +18,7 @@ from app.dependencies import get_current_user, require_perm, require_open_period
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
 import uuid
+import re
 
 router = APIRouter(prefix="/purchases", tags=["purchases"])
 
@@ -181,7 +182,7 @@ async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseRec
         """), {"pid": item.product_id, "po_id": po_id, "sid": po.supplier_id, "old": old_cost, "new": cost})
 
     po.status = POStatus.received
-    po.received_at = datetime.utcnow()
+    po.received_at = datetime.now(timezone.utc)
 
     # Auto-update supplier balance
     if po.supplier_id:
@@ -250,17 +251,27 @@ async def price_history(product_id: uuid.UUID, db: AsyncSession = Depends(get_db
     return [dict(r._mapping) for r in rows.fetchall()]
 
 
+ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"}
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
+
 @router.post("/{po_id}/upload-invoice")
 async def upload_invoice_image(po_id: uuid.UUID, file: UploadFile = File(...),
                                 db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     import os
     import shutil
     from app.core.config import settings as cfg
+    if file.content_type not in ALLOWED_UPLOAD_TYPES:
+        raise HTTPException(400, "نوع الملف غير مدعوم. الأنواع المسموحة: JPEG, PNG, GIF, WebP, PDF")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_SIZE:
+        raise HTTPException(400, "حجم الملف يتجاوز 10 ميجابايت")
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "invoice.jpg")[1] or ".jpg"
+    safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', file.filename or "invoice.jpg")
+    ext = os.path.splitext(safe_name)[1] or ".jpg"
     dest = os.path.join(cfg.UPLOAD_DIR, f"po_{po_id}{ext}")
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(contents)
     url = f"/uploads/po_{po_id}{ext}"
     await db.execute(text("UPDATE purchase_orders SET invoice_image_url=:url WHERE id=:id"), {"url": url, "id": po_id})
     await db.commit()

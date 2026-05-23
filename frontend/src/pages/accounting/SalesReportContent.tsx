@@ -49,8 +49,8 @@ export default function SalesReportContent() {
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-4 space-y-2">
-                {byCashier.map((c: any) => (
-                  <div key={c.cashier_id} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
+                {byCashier.map((c: any, idx: number) => (
+                  <div key={c?.cashier_id ?? idx} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
                     <span className="font-semibold text-slate-700 text-sm">{c.cashier_name}</span>
                     <div className="text-left">
                       <span className="font-black text-slate-800">{Number(c.total_sales).toLocaleString('ar-EG')} ج.م</span>

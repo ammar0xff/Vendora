@@ -8,7 +8,7 @@ operations.py — مستندات العمليات
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List
 from pydantic import BaseModel, model_validator
@@ -90,7 +90,7 @@ async def _archive(db: AsyncSession, doc_type: DocType, doc_number: str,
 async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_db),
                          current_user: User = Depends(require_perm("operations"))):
     """إذن صرف — نقل بضاعة من مخزن إلى معرض."""
-    doc_number = f"DSP-{datetime.utcnow().strftime('%m%d%H%M%S')}"
+    doc_number = f"DSP-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
     total_qty = Decimal("0")
 
@@ -127,7 +127,7 @@ async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_d
 async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_perm("operations"))):
     """استلام بضاعة من تاجر — يُضاف للمخزن بأسعار التكلفة."""
-    doc_number = f"GR-{datetime.utcnow().strftime('%m%d%H%M%S')}"
+    doc_number = f"GR-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
     total_cost = Decimal("0")
 
@@ -161,7 +161,7 @@ async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(ge
 async def stock_request(data: StockRequestRequest, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_perm("operations"))):
     """طلب نواقص — مستند طلب توريد بدون حركة مخزون فورية."""
-    doc_number = f"REQ-{datetime.utcnow().strftime('%m%d%H%M%S')}"
+    doc_number = f"REQ-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
 
     from_wh = (await db.execute(select(Warehouse).where(Warehouse.id == data.from_warehouse_id))).scalar_one_or_none()
@@ -196,3 +196,4 @@ async def list_operations(db: AsyncSession = Depends(get_db), _=Depends(get_curr
     return [{"id": str(d.id), "doc_number": d.doc_number, "doc_type": d.doc_type,
              "amount": float(d.amount or 0), "metadata": d.metadata_,
              "created_at": d.created_at.isoformat()} for d in docs]
+# TODO: needs pagination — has limit but no offset

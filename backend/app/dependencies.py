@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status, Query, Request
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
@@ -53,8 +53,8 @@ async def get_current_user(
     return user
 
 
-async def get_print_user(request: Request, token: str = Query(None), db: AsyncSession = Depends(get_db)) -> User:
-    t = token or request.cookies.get("access_token")
+async def get_print_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
+    t = request.cookies.get("access_token")
     if not t:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required")
     payload = decode_token(t)

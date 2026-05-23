@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
-from datetime import datetime
+from datetime import datetime, timezone
 from app.db.base import get_db
 from app.schemas.shift import ShiftOpen, ShiftClose, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary
 from app.models.shift import Shift, DrawerTransaction, ShiftStatus
@@ -115,7 +115,7 @@ async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest,
     shift.notes = data.notes
     shift.closed_by = current_user.id
     shift.supervisor_id = data.manager_id
-    shift.closed_at = datetime.utcnow()
+    shift.closed_at = datetime.now(timezone.utc)
     await db.execute(text("UPDATE shifts SET deposit_received_by=:mgr, deposit_amount=:dep WHERE id=:id"),
                      {"mgr": data.manager_id, "dep": deposit, "id": shift_id})
 

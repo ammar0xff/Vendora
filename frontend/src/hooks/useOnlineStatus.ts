@@ -18,6 +18,8 @@ export function useOnlineStatus() {
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
 
+    let removeNetworkListener: (() => void) | undefined
+
     if (isCapacitor) {
       import('@capacitor/network').then(({ Network }) => {
         Network.getStatus().then(s => {
@@ -27,13 +29,14 @@ export function useOnlineStatus() {
         Network.addListener('networkStatusChange', (s) => {
           setOnline(s.connected)
           setNetworkStatus(s.connected ? 'online' : 'offline')
-        })
-      }).catch(() => {})
+        }).then(l => { removeNetworkListener = l.remove })
+      }).catch((e) => console.warn('Capacitor Network plugin not available', e))
     }
 
     return () => {
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
+      removeNetworkListener?.()
     }
   }, [setOnline])
 

@@ -6,7 +6,7 @@ const isNative = typeof window !== 'undefined' &&
   (window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:')
 
 const BASE_URL = isNative
-  ? (import.meta.env.VITE_API_URL || 'http://81.10.109.140') + '/api'
+  ? (import.meta.env.VITE_API_URL || '') + '/api'
   : '/api'
 
 const api = axios.create({ baseURL: BASE_URL })
@@ -41,7 +41,7 @@ api.interceptors.response.use(
         useOfflineStore.getState().enqueue({
           method: cfg.method?.toUpperCase() || 'POST',
           url: cfg.url || '',
-          data: cfg.data ? JSON.parse(cfg.data) : null,
+          data: cfg.data ? (typeof cfg.data === 'string' ? JSON.parse(cfg.data) : cfg.data) : null,
           label,
         })
         return Promise.resolve({ data: { queued: true, label }, status: 202 })

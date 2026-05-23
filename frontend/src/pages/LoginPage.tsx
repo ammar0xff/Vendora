@@ -27,7 +27,7 @@ export default function LoginPage() {
       try {
         const me = await authApi.me()
         login(data.access_token, { ...me, permissions: me.permissions || [] }, me.csrf_token)
-      } catch { /* use basic profile from login response */ }
+      } catch (e) { console.warn('Failed to fetch detailed profile', e) }
       const roleHome: Record<string, string> = {
         cashier: '/pos', storekeeper: '/inventory', accountant: '/accounting'
       }

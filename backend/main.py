@@ -6,6 +6,7 @@ import os
 from app.db.base import engine, Base
 from app.api.router import router
 from app.core.config import settings
+from app.middleware import CSRFSecurityMiddleware
 
 import app.models.user
 import app.models.product
@@ -33,11 +34,13 @@ app = FastAPI(title="Inventory ERP API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(CSRFSecurityMiddleware)
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,6 +15,7 @@ from app.dependencies import get_current_user, require_perm
 from app.core.config import settings
 import uuid
 import os
+import re
 from app.core.exceptions import NotFoundError, BusinessError
 from app.services.audit_service import log as audit_log
 
@@ -262,19 +263,29 @@ async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSe
     return p
 
 
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024
+
+
 @router.post("/products/{product_id}/image")
 async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, "نوع الملف غير مدعوم. الأنواع المسموحة: JPEG, PNG, GIF, WebP")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_SIZE:
+        raise HTTPException(400, "حجم الملف يتجاوز 5 ميجابايت")
     result = await db.execute(select(Product).where(Product.id == product_id))
     p = result.scalar_one_or_none()
     if not p:
         raise NotFoundError()
     upload_dir = os.path.join(settings.UPLOAD_DIR, "products")
     os.makedirs(upload_dir, exist_ok=True)
-    ext = os.path.splitext(file.filename or "img.png")[1]
+    safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', file.filename or "img.png")
+    ext = os.path.splitext(safe_name)[1]
     filename = f"{product_id}{ext}"
     path = os.path.join(upload_dir, filename)
     with open(path, "wb") as f:
-        f.write(await file.read())
+        f.write(contents)
     p.image_url = f"/uploads/products/{filename}"
     await db.commit()
     return {"image_url": p.image_url}

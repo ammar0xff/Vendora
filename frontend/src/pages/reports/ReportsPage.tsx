@@ -218,8 +218,8 @@ export default function ReportsPage() {
                   <thead><tr><th>الكاشير</th><th style={{ textAlign: 'center' }}>الفواتير</th><th style={{ textAlign: 'center' }}>الإجمالي</th></tr></thead>
                   <tbody>
                     {!byCashier?.length && <tr><td colSpan={3} className="text-center py-6 text-slate-400">لا توجد بيانات</td></tr>}
-                    {byCashier?.map((c: any) => (
-                      <tr key={c.cashier_id}>
+                    {byCashier?.map((c: any, idx: number) => (
+                      <tr key={c?.cashier_id ?? idx}>
                         <td className="font-semibold text-slate-800">{c.cashier_name}</td>
                         <td className="text-center text-slate-500">{c.invoice_count}</td>
                         <td className="text-center font-bold text-green-700">{fmt(c.total_sales)} ج.م</td>

@@ -15,6 +15,7 @@ from datetime import timedelta
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 login_limiter = RateLimiter(max_requests=10, window_seconds=60)
+password_limiter = RateLimiter(max_requests=3, window_seconds=300)
 
 
 @router.post("/login")
@@ -36,6 +37,7 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
         key="access_token",
         value=token["access_token"],
         httponly=True,
+        secure=True,
         samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
@@ -51,9 +53,8 @@ async def get_csrf_token(current_user: User = Depends(get_current_user)):
 
 @router.get("/roles")
 async def get_roles(_=Depends(get_current_user)):
-    from app.core.roles import ROLE_LABELS, ROLE_DEFAULT_PERMISSIONS
-    return [{"value": k, "label": v, "permissions": ROLE_DEFAULT_PERMISSIONS.get(k, [])}
-            for k, v in ROLE_LABELS.items()]
+    from app.core.roles import ROLE_LABELS
+    return [{"value": k, "label": v} for k, v in ROLE_LABELS.items()]
 
 
 @router.get("/me")
@@ -74,7 +75,7 @@ async def me(current_user: User = Depends(get_current_user), db: AsyncSession = 
 
 
 @router.put("/me/password")
-async def change_password(data: UserPasswordUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def change_password(data: UserPasswordUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), _=Depends(password_limiter)):
     await auth_service.change_password(db, current_user, data.current_password, data.new_password)
     return {"detail": "Password updated"}
 

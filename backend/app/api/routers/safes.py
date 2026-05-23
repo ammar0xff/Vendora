@@ -1,4 +1,6 @@
 """Safes (خزنات) — treasury management."""
+import json
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -6,7 +8,6 @@ from app.db.base import get_db
 from app.dependencies import get_current_user, require_role, require_perm
 from app.models.user import User
 from app.schemas.safe import SafeCreate, SafeUpdate, SafeTransferCreate, SafeDepositCreate, SafeWithdrawCreate
-import uuid
 
 router = APIRouter(prefix="/safes", tags=["safes"])
 
@@ -120,7 +121,7 @@ async def deposit_to_safe(
         "doc": doc_number,
         "amt": float(data.amount),
         "uid": current_user.id,
-        "meta": __import__('json').dumps({
+        "meta": json.dumps({
             "safe_name": safe_name or "",
             "warehouse": wh_name,
             "received_by": received_by_name,

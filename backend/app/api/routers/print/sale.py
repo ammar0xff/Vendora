@@ -1,4 +1,4 @@
-from fastapi import Depends, Query
+from fastapi import Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -9,7 +9,7 @@ import uuid
 
 
 @router.get("/sale/{sale_id}", response_class=HTMLResponse)
-async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
+async def print_sale(sale_id: uuid.UUID,
                      db: AsyncSession = Depends(get_db), _=Depends(get_print_user)):
     s = await get_settings(db)
     store = {"name": s.get("store_name",""), "address": s.get("store_address",""),
@@ -120,7 +120,7 @@ async def print_sale(sale_id: uuid.UUID, token: str = Query(None),
 
 
 @router.get("/pdf/sale/{sale_id}")
-async def pdf_sale(sale_id: uuid.UUID, paper_size: str = None, token: str = Query(None),
+async def pdf_sale(sale_id: uuid.UUID, paper_size: str = None,
                    db: AsyncSession = Depends(get_db), user=Depends(get_print_user)):
-    html_resp = await print_sale(sale_id, token, db, user)
+    html_resp = await print_sale(sale_id, db, user)
     return await _make_pdf(html_resp, "فاتورة مبيعات", f"sale_{sale_id}.pdf", db, paper_size)

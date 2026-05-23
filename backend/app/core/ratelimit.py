@@ -1,4 +1,7 @@
-"""Simple in-memory rate limiter for brute-force protection."""
+"""Simple in-memory rate limiter for brute-force protection.
+
+⚠️ In-memory only — does NOT work correctly across multiple workers/processes.
+   For multi-worker deployments, replace with Redis-backed rate limiting."""
 from collections import defaultdict
 import time
 from fastapi import HTTPException, Request

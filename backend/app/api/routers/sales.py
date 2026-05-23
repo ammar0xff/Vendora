@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timezone
 from app.db.base import get_db
 from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate
 from app.models.sale import Sale, SaleItem, SaleStatus
@@ -100,6 +100,7 @@ async def list_sales(
         d['created_by_name'] = user_names.get(str(sale.created_by), '')
         result.append(d)
     return result
+# TODO: needs pagination — has limit but no offset/skip
 
 
 @router.post("/quotations", response_model=SaleOut)
@@ -111,7 +112,7 @@ async def create_quotation(data: SaleCreate, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/{sale_id}/confirm-quotation", response_model=SaleOut)
-async def confirm_quotation(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def confirm_quotation(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations", "sales"))):
     """تحويل عرض السعر إلى فاتورة مبيعات مؤكدة."""
     sale = await sale_service.confirm_quotation(db, sale_id, current_user.id)
     await audit_log(db, "quotation", "confirm", current_user.id, current_user.full_name, sale_id, {}, "تأكيد عرض السعر")
@@ -192,7 +193,7 @@ async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
 
 
 @router.put("/{sale_id}")
-async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations"))):
     """Edit a quotation (status=quotation only)."""
     from sqlalchemy import text as sqlt
     sale_row = await db.execute(sqlt("SELECT status FROM sales WHERE id=:id"), {"id": sale_id})
@@ -237,58 +238,9 @@ async def return_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
 
 
 @router.post("/{sale_id}/partial-return")
-async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
     """مرتجع جزئي — body: {items:[{product_id,qty}], shift_id?}"""
-    from sqlalchemy.orm import selectinload as sil
-    from app.models.stock import MovementType
-    from app.schemas.stock import StockMovementCreate
-    from app.services.stock_service import record_movement
-    from app.models.archive import ArchivedDocument, DocType
-    from app.models.shift import DrawerTransaction, DrawerTxType
-
-    orig = (await db.execute(select(Sale).options(sil(Sale.items)).where(Sale.id == sale_id))).scalar_one_or_none()
-    if not orig:
-        raise NotFoundError("Sale not found")
-
-    return_map = {str(i["product_id"]): Decimal(str(i["qty"])) for i in data.get("items", [])}
-    if not return_map:
-        from app.core.exceptions import BusinessError
-        raise BusinessError("No items")
-
-    ret = Sale(invoice_number="RET-" + datetime.utcnow().strftime('%m%d%H%M%S'),
-               customer_id=orig.customer_id, warehouse_id=orig.warehouse_id,
-               cashier_id=current_user.id, shift_id=data.get("shift_id") or orig.shift_id,
-               sale_mode=orig.sale_mode, status=SaleStatus.returned,
-               notes=f"مرتجع جزئي من {orig.invoice_number}")
-    db.add(ret)
-    await db.flush()
-
-    total = Decimal("0")
-    for oi in orig.items:
-        pid = str(oi.product_id)
-        if pid not in return_map:
-            continue
-        qty = return_map[pid]
-        db.add(SaleItem(sale_id=ret.id, product_id=oi.product_id, qty=qty,
-                        unit_price=oi.unit_price, unit_cost=oi.unit_cost, discount=Decimal("0")))
-        total += qty * oi.unit_price
-        await record_movement(db, StockMovementCreate(product_id=oi.product_id, warehouse_id=orig.warehouse_id,
-            movement_type=MovementType.return_in, qty=qty, unit_cost=oi.unit_cost, unit_price=oi.unit_price),
-            current_user.id, ref_id=ret.id, ref_type="partial_return")
-
-    if ret.shift_id:
-        db.add(DrawerTransaction(shift_id=ret.shift_id, type=DrawerTxType.return_,
-                                  amount=total, ref_id=ret.id, created_by=current_user.id))
-    # Reverse wallet balance if original sale was paid by wallet
-    if orig.wallet_id:
-        from app.services.wallet_service import record_wallet_tx
-        await record_wallet_tx(db, orig.wallet_id, -total, "return",
-                               ret.id, f"مرتجع جزئي من {orig.invoice_number}", current_user.id)
-    db.add(ArchivedDocument(doc_number=ret.invoice_number, doc_type=DocType.sale_invoice,
-                             amount=total, ref_id=ret.id, created_by=current_user.id,
-                             metadata_={"original_invoice": orig.invoice_number, "type": "partial_return"}))
-    await db.commit()
-    return {"doc_number": ret.invoice_number, "total": float(total), "original": orig.invoice_number}
+    return await sale_service.partial_return_sale(db, sale_id, data, current_user.id)
 
 
 @router.put("/{sale_id}/items/{item_id}")
@@ -300,72 +252,7 @@ async def update_sale_item_qty(
     current_user: User = Depends(require_role("admin", "manager"))
 ):
     """Adjust qty of a sale item with optimistic locking."""
-    from sqlalchemy import text as sqlt
-    from app.models.shift import DrawerTransaction, DrawerTxType
-
-    new_qty = data.qty
-
-    # Get current item
-    item_row = await db.execute(sqlt(
-        "SELECT si.*, s.warehouse_id, s.shift_id, p.stock_status FROM sale_items si "
-        "JOIN sales s ON s.id = si.sale_id "
-        "JOIN products p ON p.id = si.product_id "
-        "WHERE si.id = :iid AND si.sale_id = :sid"
-    ), {"iid": item_id, "sid": sale_id})
-    item = item_row.fetchone()
-    if not item:
-        raise HTTPException(404, "البند غير موجود")
-
-    old_qty = Decimal(str(item.qty))
-    diff_qty = new_qty - old_qty
-    diff_amount = diff_qty * Decimal(str(item.unit_price))
-
-    # Optimistic lock: ensure qty hasn't changed since client read it
-    if data.expected_qty is not None:
-        result = await db.execute(sqlt(
-            "UPDATE sale_items SET qty=:q WHERE id=:id AND qty=:expected"
-        ), {"q": new_qty, "id": item_id, "expected": data.expected_qty})
-        if result.rowcount == 0:
-            current = (await db.execute(sqlt("SELECT qty FROM sale_items WHERE id=:id"), {"id": item_id})).scalar_one_or_none()
-            if current is None:
-                raise HTTPException(404, "البند غير موجود")
-            raise HTTPException(409, f"تم تعديل الكمية بواسطة مستخدم آخر (الكمية الحالية: {current})")
-    else:
-        # No optimistic lock — last write wins (legacy path)
-        await db.execute(sqlt("UPDATE sale_items SET qty=:q WHERE id=:id"), {"q": new_qty, "id": item_id})
-
-    # Update stock movement if tracked
-    if item.stock_status == "tracked":
-        if diff_qty > 0:
-            # More sold → sale_out more
-            await db.execute(sqlt("""
-                INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-                VALUES (:pid, :wid, 'sale_out', :qty, :cost, :price, :sid, 'sale_adjustment', :uid)
-            """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": diff_qty,
-                   "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user.id})
-        elif diff_qty < 0:
-            # Less sold → return stock
-            await db.execute(sqlt("""
-                INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-                VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_adjustment', :uid)
-            """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": abs(diff_qty),
-                   "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user.id})
-
-    # Update drawer if shift exists
-    if item.shift_id and diff_amount != 0:
-        tx_type = DrawerTxType.sale if diff_amount > 0 else DrawerTxType.return_
-        db.add(DrawerTransaction(
-            shift_id=item.shift_id,
-            type=tx_type,
-            amount=abs(diff_amount),
-            ref_id=sale_id,
-            note=f"تعديل كمية — {item.product_id}",
-            created_by=current_user.id
-        ))
-
-    await audit_log(db, "sale_item", "update", current_user.id, current_user.full_name, item_id, {"qty": float(data.qty), "unit_price": float(item.unit_price)}, "تعديل صنف في الفاتورة")
-    await db.commit()
-    return {"ok": True, "old_qty": float(old_qty), "new_qty": float(new_qty), "diff_amount": float(diff_amount)}
+    return await sale_service.update_sale_item_qty(db, sale_id, item_id, data, current_user.id, current_user.full_name)
 
 
 @router.delete("/{sale_id}/items/{item_id}")
@@ -376,43 +263,4 @@ async def delete_sale_item(
     current_user: User = Depends(require_role("admin", "manager"))
 ):
     """Delete a sale item. Reverses stock movement and drawer balance."""
-    from sqlalchemy import text as sqlt
-    from app.models.shift import DrawerTransaction, DrawerTxType
-
-    item_row = await db.execute(sqlt(
-        "SELECT si.*, s.warehouse_id, s.shift_id, p.stock_status FROM sale_items si "
-        "JOIN sales s ON s.id = si.sale_id "
-        "JOIN products p ON p.id = si.product_id "
-        "WHERE si.id = :iid AND si.sale_id = :sid"
-    ), {"iid": item_id, "sid": sale_id})
-    item = item_row.fetchone()
-    if not item:
-        raise HTTPException(404, "البند غير موجود")
-
-    qty = Decimal(str(item.qty))
-    amount = qty * Decimal(str(item.unit_price))
-
-    # Delete item
-    await db.execute(sqlt("DELETE FROM sale_items WHERE id=:id"), {"id": item_id})
-
-    # Reverse stock
-    if item.stock_status == "tracked":
-        await db.execute(sqlt("""
-            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'item_deleted', :uid)
-        """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": qty,
-               "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user.id})
-
-    # Reverse drawer
-    if item.shift_id:
-        db.add(DrawerTransaction(
-            shift_id=item.shift_id,
-            type=DrawerTxType.return_,
-            amount=amount,
-            ref_id=sale_id,
-            note=f"حذف بند — {item.product_id}",
-            created_by=current_user.id
-        ))
-
-    await db.commit()
-    return {"ok": True, "reversed_amount": float(amount)}
+    return await sale_service.delete_sale_item(db, sale_id, item_id, current_user.id)

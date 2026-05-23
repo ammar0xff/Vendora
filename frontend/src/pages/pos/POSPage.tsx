@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { productsApi, salesApi, stockApi, shiftsApi, customersApi } from '../../api/endpoints'
+import { productsApi, salesApi, stockApi, shiftsApi, customersApi, categoriesApi, subcategoriesApi } from '../../api/endpoints'
 import api from '../../api/client'
 import { usePOSStore } from '../../store/pos'
 import { usePendingSalesStore } from '../../store/pendingSales'
@@ -248,7 +248,7 @@ export default function POSPage() {
     queryKey: ['current-shift', mainWh?.id], queryFn: () => shiftsApi.current(mainWh!.id),
     retry: false, throwOnError: false, refetchInterval: 30_000, enabled: !!mainWh?.id,
   })
-  const shift = serverShift || (localShiftData?.warehouse_id === mainWh?.id
+  const shift = serverShift || (localShiftData && localShiftData?.warehouse_id === mainWh?.id
     ? { ...localShiftData, cashier_id: localShiftData.cashier_id || '', started_at: new Date(localShiftData.opened_at).toISOString(), status: 'open' }
     : null)
 
@@ -289,8 +289,8 @@ export default function POSPage() {
     enabled: !!mainWh?.id && !!products?.length,
     staleTime: 10_000,
   })
-  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: () => import('../../api/endpoints').then(m => m.categoriesApi.list()) })
-  const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: () => import('../../api/endpoints').then(m => m.subcategoriesApi.list()) })
+  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
+  const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: subcategoriesApi.list })
   const getSubsForCat = (catId: string) => (subcategories as any[])?.filter((s: any) => s.category_id === catId) || []
   const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
 
@@ -355,7 +355,7 @@ export default function POSPage() {
     try {
       const p = await productsApi.byBarcode(search.trim())
       handleAddProduct(p); setSearch('')
-    } catch { /* normal search */ }
+    } catch { /* barcode not found, fall through to normal search */ }
   }
 
   const isOnline = useOnlineStatus()
@@ -525,9 +525,7 @@ export default function POSPage() {
   const handoverMut = useMutation({
     mutationFn: async () => {
       // Verify receiving employee credentials first
-      const loginRes = await import('../../api/client').then(m =>
-        m.default.post('/auth/login', { username: handoverUsername, password: handoverPassword })
-      )
+      const loginRes = await api.post('/auth/login', { username: handoverUsername, password: handoverPassword })
       const toUserId = loginRes.data.user_id
       return shiftsApi.transfer(shift!.id, { to_user_id: toUserId, amount: Number(summary?.expected_balance ?? 0) })
     },
@@ -691,6 +689,11 @@ export default function POSPage() {
       </Modal>
     </div>
   )
+
+  // Loading warehouses
+  if (!warehouses) {
+    return <PageLoader />
+  }
 
   // Guard: must select a warehouse first
   if (!mainWh && warehouses) {

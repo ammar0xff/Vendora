@@ -100,7 +100,7 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
     return {
         "store": {"name": settings.get("store_name",""), "address": settings.get("store_address",""), "phone": settings.get("store_phone","")},
         "warehouse": wh.name if wh else warehouse_id,
-        "generated_at": _dt.datetime.utcnow().isoformat(),
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "items": items,
         "summary": {"total_products": len(items), "total_cost_value": total_cost, "total_retail_value": total_retail},
     }

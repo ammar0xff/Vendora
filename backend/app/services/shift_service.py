@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
@@ -24,7 +24,7 @@ async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, data) -> Shift:
     existing = result.scalars().all()
     for old in existing[1:]:
         old.status = ShiftStatus.closed
-        old.closed_at = datetime.utcnow()
+        old.closed_at = datetime.now(timezone.utc)
     if existing:
         raise BusinessError("يوجد وردية مفتوحة بالفعل في هذا الفرع")
     shift = Shift(cashier_id=cashier_id, initial_amount=data.initial_amount,
@@ -48,7 +48,7 @@ async def close_shift(db: AsyncSession, shift_id: uuid.UUID, data, closed_by: uu
     shift.next_day_drawer = data.next_day_drawer
     shift.notes = data.notes
     shift.closed_by = closed_by
-    shift.closed_at = datetime.utcnow()
+    shift.closed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(shift)
     return shift
@@ -149,7 +149,7 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
     shift.closing_balance = amount
     shift.next_day_drawer = amount
     shift.closed_by = from_user_id
-    shift.closed_at = datetime.utcnow()
+    shift.closed_at = datetime.now(timezone.utc)
     shift.notes = f"تسليم عهدة إلى {to_user_id}. {notes or ''}"
 
     new_shift = Shift(cashier_id=to_user_id, initial_amount=amount,
@@ -157,7 +157,7 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
                       notes=f"استلام عهدة من {from_user_id}")
     db.add(new_shift)
     from app.models.archive import ArchivedDocument, DocType
-    doc_number = f"HND-{datetime.utcnow().strftime('%m%d%H%M%S')}"
+    doc_number = f"HND-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
     from sqlalchemy import select as sa_select
     from app.models.user import User
     from_user_row = (await db.execute(sa_select(User.full_name).where(User.id == from_user_id))).scalar()

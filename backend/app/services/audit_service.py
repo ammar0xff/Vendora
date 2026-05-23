@@ -1,4 +1,5 @@
 """Central audit logging service."""
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import uuid
@@ -23,6 +24,6 @@ async def log(
         "action": action,
         "uid": user_id,
         "uname": user_name,
-        "changes": __import__('json').dumps(changes) if changes else None,
+        "changes": json.dumps(changes) if changes else None,
         "note": note,
     })

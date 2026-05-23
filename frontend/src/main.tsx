@@ -15,8 +15,8 @@ async function registerPWA() {
         console.log('التطبيق جاهز للعمل بدون إنترنت')
       },
     })
-  } catch {
-    // vite-plugin-pwa not active (e.g., CI)
+  } catch (e) {
+    console.warn('vite-plugin-pwa not active (e.g., CI)', e)
   }
 }
 registerPWA()

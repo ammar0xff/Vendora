@@ -185,7 +185,7 @@ async def get_paper_size(db, override: str = None) -> str:
     try:
         settings_ = await get_settings(db)
         return settings_.get("paper_size", "A4")
-    except Exception:
+    except (ValueError, AttributeError):
         return "A4"
 
 

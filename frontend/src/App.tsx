@@ -8,6 +8,7 @@ import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import POSPage from './pages/pos/POSPage'
+import ErrorBoundary from './components/ErrorBoundary'
 import InventoryPage from './pages/inventory/InventoryPage'
 import ShiftsPage from './pages/shifts/ShiftsPage'
 import ArchivePage from './pages/archive/ArchivePage'
@@ -54,8 +55,8 @@ function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: 
   const { token, user } = useAuthStore()
   if (!token) return <Navigate to="/login" replace />
   if (perm) {
-    const role = (user as any)?.role
-    const perms: string[] = (user as any)?.permissions || []
+    const role = user?.role
+    const perms: string[] = user?.permissions || []
     if (role !== 'admin' && !perms.includes(perm)) {
       return <Layout><div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
         <div className="text-5xl">🔒</div>
@@ -100,7 +101,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-          <Route path="/pos" element={<ProtectedRoute perm="pos"><POSPage /></ProtectedRoute>} />
+          <Route path="/pos" element={<ProtectedRoute perm="pos"><ErrorBoundary><POSPage /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/sales" element={<ProtectedRoute perm="sales"><SalesPage /></ProtectedRoute>} />
           <Route path="/quotations" element={<ProtectedRoute perm="quotations"><QuotationsPage /></ProtectedRoute>} />
           <Route path="/payroll" element={<ProtectedRoute perm="payroll"><PayrollPage /></ProtectedRoute>} />

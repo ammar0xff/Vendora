@@ -109,11 +109,11 @@ export default function OfflineSync() {
         await shiftsApi.open(shift.initial_amount, shift.warehouse_id, shift.supervisor_id || undefined)
         useLocalShiftStore.getState().closeShift()
         toast.success('✅ تمت مزامنة الوردية المحلية')
-      } catch {
-        // will retry on next online cycle
+      } catch (e) {
+        console.warn('Local shift sync failed, will retry on next online cycle', e)
       }
     }
-  }, [isOnline, queue, queue.length, dequeue, markFailed, markSyncing, qc])
+  }, [isOnline, queue, dequeue, markFailed, markSyncing, qc])
 
   return null
 }
