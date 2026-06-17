@@ -23,7 +23,8 @@ function shouldQueue(method: string, url: string): boolean {
 }
 
 api.interceptors.request.use((config) => {
-  const { csrfToken } = useAuthStore.getState()
+  const { token, csrfToken } = useAuthStore.getState()
+  if (token) config.headers.Authorization = `Bearer ${token}`
   if (csrfToken && config.method && MUTATION_METHODS.includes(config.method)) {
     config.headers['X-CSRF-Token'] = csrfToken
   }
