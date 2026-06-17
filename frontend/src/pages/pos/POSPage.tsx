@@ -855,7 +855,7 @@ export default function POSPage() {
                     {products?.map((p: any) => {
                       const retailPrice = Number(p.retail_price)
                       const wholesalePrice = Number(p.wholesale_price) || retailPrice
-                      const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                      const qty = stockMap?.[p.id] ?? (p.stock_status === 'untracked' ? undefined : 0)
                       return (
                         <tr key={p.id} onClick={() => handleAddProduct(p)}
                           className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
@@ -864,7 +864,7 @@ export default function POSPage() {
                           <td className="py-2 px-3 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
                           <td className="py-2 px-3 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
                           <td className="py-2 px-3">
-                            {qty !== null ? (
+                            {qty !== undefined ? (
                               <span className={`font-bold px-1.5 py-0.5 rounded-md ${
                                 qty <= 0 ? 'bg-red-100 text-red-600' :
                                 qty <= 5 ? 'bg-amber-100 text-amber-700' :

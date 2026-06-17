@@ -23,11 +23,20 @@ async def _quotation_number(db) -> str:
 
 
 
-async def _is_untracked(db, product_id) -> bool:
+async def _is_untracked(db, product_id, warehouse_id=None) -> bool:
     from sqlalchemy import text as sqlt
     row = await db.execute(sqlt("SELECT stock_status FROM products WHERE id=:id"), {"id": product_id})
     status = row.scalar()
-    return status == 'untracked'
+    if status == 'untracked':
+        return True
+    if warehouse_id:
+        wh_row = await db.execute(sqlt(
+            "SELECT status FROM warehouse_product_status WHERE product_id=:pid AND warehouse_id=:wid"
+        ), {"pid": product_id, "wid": warehouse_id})
+        wh_status = wh_row.scalar()
+        if wh_status is None or wh_status == 'untracked':
+            return True
+    return False
 
 async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     """Create a quotation (عرض سعر) — no stock deduction, status=quotation."""
@@ -75,7 +84,7 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
         raise BusinessError("Only quotations can be confirmed this way")
 
     for item in sale.items:
-        if not await _is_untracked(db, item.product_id):
+        if not await _is_untracked(db, item.product_id, sale.warehouse_id):
             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
             if balance < item.qty:
                 raise BusinessError(f"Insufficient stock for product {item.product_id}")
@@ -139,7 +148,7 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
         raise BusinessError("Only draft sales can be confirmed")
 
     for item in sale.items:
-        if not await _is_untracked(db, item.product_id):
+        if not await _is_untracked(db, item.product_id, sale.warehouse_id):
             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
             if balance < item.qty:
                 raise BusinessError(f"Insufficient stock for product {item.product_id}")
