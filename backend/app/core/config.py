@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost",
+        "http://0.0.0.0",
         "http://81.10.109.140",
         "http://192.168.1.50",
     ]
