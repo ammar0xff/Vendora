@@ -249,7 +249,7 @@ export default function POSPage() {
     retry: false, throwOnError: false, refetchInterval: 30_000, enabled: !!mainWh?.id,
   })
   const shift = serverShift || (localShiftData && localShiftData?.warehouse_id === mainWh?.id
-    ? { ...localShiftData, cashier_id: localShiftData.cashier_id || '', started_at: new Date(localShiftData.opened_at).toISOString(), status: 'open' }
+    ? { ...localShiftData, cashier_id: localShiftData.cashier_id || '', started_at: localShiftData.opened_at ? new Date(localShiftData.opened_at).toISOString() : new Date().toISOString(), status: 'open' }
     : null)
 
   // If shift changes (closed/handed over), clear persisted cart state.
@@ -284,7 +284,7 @@ export default function POSPage() {
 
   // Bulk stock balances for displayed products
   const { data: stockMap } = useQuery({
-    queryKey: ['stock-bulk', mainWh?.id, products?.map((p: any) => p.id).join(',')],
+    queryKey: ['stock-bulk', mainWh?.id, products?.map((p: any) => p.id)?.join(',') ?? ''],
     queryFn: () => stockApi.balanceBulk(mainWh!.id, products!.map((p: any) => p.id)),
     enabled: !!mainWh?.id && !!products?.length,
     staleTime: 10_000,
