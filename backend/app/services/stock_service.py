@@ -12,6 +12,11 @@ OUT_TYPES = ("sale", "damage", "adjustment_out", "transfer_out")
 
 
 async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID, for_update: bool = False) -> Decimal:
+    if for_update:
+        # Lock the product row to serialize concurrent stock access
+        # (FOR UPDATE on aggregate SUM is not supported by Postgres)
+        from sqlalchemy import text as sqlt
+        await db.execute(sqlt("SELECT 1 FROM products WHERE id=:pid FOR UPDATE"), {"pid": product_id})
     q = select(
         func.sum(
             case(
@@ -23,8 +28,6 @@ async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uui
         StockMovement.product_id == product_id,
         StockMovement.warehouse_id == warehouse_id,
     )
-    if for_update:
-        q = q.with_for_update()
     result = await db.execute(q)
     return result.scalar_one() or Decimal("0")
 
