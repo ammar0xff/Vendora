@@ -852,10 +852,10 @@ export default function POSPage() {
                     {products?.length === 0 && (
                       <tr><td colSpan={6} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
                     )}
-                    {(products || []).filter((p: any) => {
+                    {products?.filter((p: any) => {
                       const q = stockMap?.[p.id] ?? (p.stock_status === 'untracked' ? undefined : 0)
                       return q === undefined || q > 0
-                    }).map((p: any) => {
+                    })?.map((p: any) => {
                       const retailPrice = Number(p.retail_price)
                       const wholesalePrice = Number(p.wholesale_price) || retailPrice
                       const qty = stockMap?.[p.id] ?? (p.stock_status === 'untracked' ? undefined : 0)
