@@ -199,6 +199,18 @@ MIGRATIONS = [
         ALTER TABLE sales ALTER COLUMN total SET DEFAULT 0;
         ALTER TABLE sales ALTER COLUMN net_total SET DEFAULT 0;
     """),
+
+    # v14 — sale_payments split-payment table
+    ("v14_sale_payments", """
+        CREATE TABLE IF NOT EXISTS sale_payments (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            sale_id uuid NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+            method text NOT NULL,
+            amount numeric(12,2) NOT NULL,
+            wallet_id uuid REFERENCES payment_wallets(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id);
+    """),
 ]
 
 def run():

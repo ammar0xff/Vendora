@@ -47,7 +47,7 @@ class SaleCreate(BaseModel):
     customer_id: uuid.UUID | None = None
     shift_id: uuid.UUID | None = None
     warehouse_id: uuid.UUID
-    sale_mode: str = "normal"
+    sale_mode: str = "retail"
     items: list[SaleItemCreate]
     is_credit: bool = False
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)

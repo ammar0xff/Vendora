@@ -17,7 +17,7 @@ async def log(
 ):
     await db.execute(text("""
         INSERT INTO audit_log (entity_type, entity_id, action, user_id, user_name, changes, note)
-        VALUES (:etype, :eid, :action, :uid, :uname, :changes::jsonb, :note)
+        VALUES (:etype, :eid, :action, :uid, :uname, CAST(:changes AS jsonb), :note)
     """), {
         "etype": entity_type,
         "eid": entity_id,
