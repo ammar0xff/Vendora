@@ -190,6 +190,15 @@ MIGRATIONS = [
         UPDATE suppliers SET is_active = true WHERE is_active IS NULL;
         CREATE INDEX IF NOT EXISTS idx_suppliers_is_active ON suppliers(is_active);
     """),
+
+    # v13 — sales total/net_total/paid_amount columns (added after model refactor)
+    ("v13_sales_amount_columns", """
+        ALTER TABLE sales ADD COLUMN IF NOT EXISTS total numeric(12,2) NOT NULL DEFAULT 0;
+        ALTER TABLE sales ADD COLUMN IF NOT EXISTS net_total numeric(12,2) NOT NULL DEFAULT 0;
+        ALTER TABLE sales ADD COLUMN IF NOT EXISTS paid_amount numeric(12,2) DEFAULT 0;
+        ALTER TABLE sales ALTER COLUMN total SET DEFAULT 0;
+        ALTER TABLE sales ALTER COLUMN net_total SET DEFAULT 0;
+    """),
 ]
 
 def run():
