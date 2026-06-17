@@ -23,10 +23,10 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const data = await authApi.login(username, password)
-      login(data.access_token, { id: data.user_id, username: data.username, full_name: data.full_name || data.username, role: data.role }, data.csrf_token || undefined)
+      login(data.access_token, { id: data.user_id, username: data.username, full_name: data.full_name || data.username, role: data.role })
       try {
         const me = await authApi.me()
-        login(data.access_token, { ...me, permissions: me.permissions || [] }, me.csrf_token)
+        login(data.access_token, { ...me, permissions: me.permissions || [] })
       } catch (e) { console.warn('Failed to fetch detailed profile', e) }
       const roleHome: Record<string, string> = {
         cashier: '/pos', storekeeper: '/inventory', accountant: '/accounting'

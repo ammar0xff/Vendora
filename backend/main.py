@@ -6,8 +6,6 @@ import os
 from app.db.base import engine, Base
 from app.api.router import router
 from app.core.config import settings
-from app.middleware import CSRFSecurityMiddleware
-
 import app.models.user
 import app.models.product
 import app.models.warehouse
@@ -39,8 +37,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(CSRFSecurityMiddleware)
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")

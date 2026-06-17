@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.db.base import get_db
-from app.core.security import decode_token, verify_csrf_token
+from app.core.security import decode_token
 from app.models.user import User
 from datetime import datetime
 from typing import Optional
@@ -108,28 +108,3 @@ async def require_open_period(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"الشهر {month} مغلق — لا يمكن إجراء المعاملات")
 
 
-async def require_csrf(request: Request):
-    """Validate CSRF token for authenticated mutating requests.
-    
-    Skips validation for GET/HEAD/OPTIONS and unauthenticated requests.
-    Safe to apply globally via router-level dependencies.
-    """
-    if request.method in ("GET", "HEAD", "OPTIONS"):
-        return
-    cookie_token = request.cookies.get("access_token")
-    bearer = request.headers.get("Authorization", "").replace("Bearer ", "")
-    token_str = cookie_token or bearer or None
-    if not token_str:
-        return
-    try:
-        payload = decode_token(token_str)
-    except HTTPException:
-        return
-    user_id = payload.get("sub")
-    if not user_id:
-        return
-    csrf_header = request.headers.get("X-CSRF-Token")
-    if not csrf_header:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing CSRF token")
-    if not verify_csrf_token(user_id, csrf_header):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")

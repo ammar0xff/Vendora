@@ -6,9 +6,7 @@ interface User { id: string; username: string; full_name: string; role: string; 
 interface AuthState {
   token: string | null
   user: User | null
-  csrfToken: string | null
-  login: (token: string, user: User, csrfToken?: string) => void
-  setCsrf: (csrf: string) => void
+  login: (token: string, user: User) => void
   logout: () => void
 }
 
@@ -24,11 +22,9 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       token: null,
       user: null,
-      csrfToken: null,
-      login: (token, user, csrfToken) => set({ token, user, csrfToken }),
-      setCsrf: (csrfToken) => set({ csrfToken }),
+      login: (token, user) => set({ token, user }),
       logout: () => {
-        set({ token: null, user: null, csrfToken: null })
+        set({ token: null, user: null })
         clearCache()
       },
     }),

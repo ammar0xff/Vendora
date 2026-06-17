@@ -13,4 +13,3 @@ class TokenResponse(BaseModel):
     username: str
     full_name: str = ""
     role: str
-    csrf_token: str = ""
