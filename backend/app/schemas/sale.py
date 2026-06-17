@@ -17,6 +17,7 @@ class SaleItemCreate(BaseModel):
         return v
 
     unit_price: Decimal
+    unit_cost: Decimal = Decimal("0")
     discount: Decimal = Decimal("0")
 
     @field_validator('discount')
