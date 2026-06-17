@@ -247,8 +247,8 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     payments = getattr(data, 'payments', None)
     if payments:
         pmt_sum = sum(float(p.amount) for p in payments)
-        if abs(pmt_sum - total) > 0.01:
-            raise BusinessError(f"مجموع المدفوعات ({pmt_sum:.2f}) لا يساوي إجمالي الفاتورة ({total:.2f})")
+        if abs(pmt_sum - net_total) > 0.01:
+            raise BusinessError(f"مجموع المدفوعات ({pmt_sum:.2f}) لا يساوي إجمالي الفاتورة ({net_total:.2f})")
         is_credit = any(p.method == 'credit' for p in payments)
         sale.is_credit = is_credit
         sale.payment_method = payments[0].method
@@ -275,21 +275,21 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         if data.shift_id:
             db.add(DrawerTransaction(
                 shift_id=data.shift_id, type=DrawerTxType.sale,
-                amount=total, ref_id=sale.id, created_by=cashier_id,
+                amount=net_total, ref_id=sale.id, created_by=cashier_id,
             ))
         if data.is_credit and data.customer_id:
             await db.execute(sqlt(
                 "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
-            ), {"amt": total, "cid": data.customer_id})
+            ), {"amt": net_total, "cid": data.customer_id})
         if getattr(data, 'wallet_id', None) and not data.is_credit:
             from app.services.wallet_service import record_wallet_tx
-            await record_wallet_tx(db, data.wallet_id, total, "sale", sale.id,
+            await record_wallet_tx(db, data.wallet_id, net_total, "sale", sale.id,
                                    f"بيع {sale.invoice_number}", cashier_id)
 
     # Auto-archive within the same transaction
     from app.models.archive import ArchivedDocument, DocType
     db.add(ArchivedDocument(doc_number=sale.invoice_number, doc_type=DocType.sale_invoice,
-                            amount=Decimal(str(total)), ref_id=sale.id, created_by=cashier_id,
+                            amount=Decimal(str(net_total)), ref_id=sale.id, created_by=cashier_id,
                             metadata_={"items_count": len(data.items), "mode": str(data.sale_mode)}))
 
     await db.commit()
