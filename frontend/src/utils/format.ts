@@ -43,9 +43,13 @@ export const printUrl = (path: string, size?: string): string => {
 
 /** Open a print PDF in a new tab with popup blocker detection */
 export const openPrint = (path: string, size?: string): void => {
-  const url = printUrl(path, size)
-  const win = window.open(url, '_blank')
-  if (!win || win.closed || typeof win.closed === 'undefined') {
-    import('react-hot-toast').then(m => m.default.error('الرجاء السماح للنوافذ المنبثقة لطباعة الفاتورة', { duration: 4000 }))
-  }
+  import('../store/auth').then(({ useAuthStore }) => {
+    const token = useAuthStore.getState().token
+    const sep = path.includes('?') ? '&' : '?'
+    const url = printUrl(token ? `${path}${sep}token=${encodeURIComponent(token)}` : path, size)
+    const win = window.open(url, '_blank')
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      import('react-hot-toast').then(m => m.default.error('الرجاء السماح للنوافذ المنبثقة لطباعة الفاتورة', { duration: 4000 }))
+    }
+  })
 }

@@ -54,7 +54,7 @@ async def get_current_user(
 
 
 async def get_print_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
-    t = request.cookies.get("access_token")
+    t = request.cookies.get("access_token") or request.query_params.get("token")
     if not t:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required")
     payload = decode_token(t)
