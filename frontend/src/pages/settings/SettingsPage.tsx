@@ -142,14 +142,14 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
 
   const deleteCat = useMutation({
     mutationFn: categoriesApi.delete,
-    onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['categories'] }); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
-    onError: () => toast.error('فشل الحذف — قد تكون الفئة مرتبطة بمنتجات'),
+    onSuccess: () => { toast.success('تم الحذف'); setConfirmDelCat(null); qc.invalidateQueries({ queryKey: ['categories'] }); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
+    onError: () => { toast.error('فشل الحذف — قد تكون الفئة مرتبطة بمنتجات'); setConfirmDelCat(null) },
   })
 
   const deleteSub = useMutation({
     mutationFn: subcategoriesApi.delete,
-    onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
-    onError: () => toast.error('فشل الحذف — قد يكون التصنيف مرتبطاً بمنتجات'),
+    onSuccess: () => { toast.success('تم الحذف'); setConfirmDelSub(null); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
+    onError: () => { toast.error('فشل الحذف — قد يكون التصنيف مرتبطاً بمنتجات'); setConfirmDelSub(null) },
   })
 
   const handleSave = () => {
@@ -279,6 +279,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         onConfirm={() => deleteCat.mutate(confirmDelCat!.id)}
         message={`حذف "${confirmDelCat?.name}" وكل تصنيفاتها الفرعية (${confirmDelCat?.subsCount})؟`}
         danger
+        closeOnConfirm={false}
       />
       <ConfirmDialog
         open={!!confirmDelSub}
@@ -286,6 +287,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         onConfirm={() => deleteSub.mutate(confirmDelSub!.id)}
         message={`حذف "${confirmDelSub?.name}"؟`}
         danger
+        closeOnConfirm={false}
       />
     </div>
   )

@@ -9,9 +9,10 @@ interface Props {
   confirmText?: string
   cancelText?: string
   danger?: boolean
+  closeOnConfirm?: boolean
 }
 
-export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmText = 'تأكيد', cancelText = 'إلغاء', danger = false }: Props) {
+export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmText = 'تأكيد', cancelText = 'إلغاء', danger = false, closeOnConfirm = true }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={title || 'تأكيد'} size="sm"
       footer={
@@ -20,7 +21,7 @@ export default function ConfirmDialog({ open, onClose, onConfirm, title, message
             className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
             {cancelText}
           </button>
-          <button onClick={() => { onConfirm(); onClose() }}
+          <button onClick={() => { onConfirm(); if (closeOnConfirm) onClose() }}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
             {confirmText}
           </button>
