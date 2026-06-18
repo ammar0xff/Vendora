@@ -10,27 +10,29 @@ interface Props {
   confirmText?: string
   cancelText?: string
   danger?: boolean
+  loading?: boolean
 }
 
-export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmText = 'تأكيد', cancelText = 'إلغاء', danger = false }: Props) {
+export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmText = 'تأكيد', cancelText = 'إلغاء', danger = false, loading = false }: Props) {
   return (
-    <Modal open={open} onClose={onClose} title={title || 'تأكيد'} size="sm"
+    <Modal open={open} onClose={loading ? () => {} : onClose} title={title || 'تأكيد'} size="sm"
       footer={
         <div className="flex gap-3 pt-4">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+          <button onClick={onClose} disabled={loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
             {cancelText}
           </button>
-          <button onClick={() => { onConfirm(); onClose() }}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-            {confirmText}
+          <button onClick={() => { onConfirm(); if (!loading) onClose() }}
+            disabled={loading}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50 ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+            {loading ? 'جاري...' : confirmText}
           </button>
         </div>
       }>
       {danger && (
-        <div className="flex flex-col items-center gap-3 mb-4">
-          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
-            <AlertTriangle size={28} className="text-red-500" />
+        <div className="flex flex-col items-center gap-2 mb-3">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertTriangle size={20} className="text-red-500" />
           </div>
         </div>
       )}

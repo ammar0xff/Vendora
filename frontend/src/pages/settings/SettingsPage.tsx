@@ -280,6 +280,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         title="حذف الفئة"
         message={`سيتم حذف الفئة "${confirmDelCat?.name}" وكل تصنيفاتها الفرعية (${confirmDelCat?.subsCount}) بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.`}
         danger
+        loading={deleteCat.isPending}
       />
       <ConfirmDialog
         open={!!confirmDelSub}
@@ -288,6 +289,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         title="حذف التصنيف الفرعي"
         message={`سيتم حذف التصنيف "${confirmDelSub?.name}" بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.`}
         danger
+        loading={deleteSub.isPending}
       />
     </div>
   )
