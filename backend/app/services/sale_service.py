@@ -74,20 +74,23 @@ async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sal
 
 
 async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
-    """Convert a quotation to a confirmed sale — deducts stock."""
-    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
-    sale = result.scalar_one_or_none()
-    if not sale:
-        from app.core.exceptions import NotFoundError
-        raise NotFoundError("Quotation not found")
-    if sale.status != SaleStatus.quotation:
-        raise BusinessError("Only quotations can be confirmed this way")
+     """Convert a quotation to a confirmed sale — deducts stock."""
+     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
+     sale = result.scalar_one_or_none()
+     if not sale:
+         from app.core.exceptions import NotFoundError
+         raise NotFoundError("Quotation not found")
+     if sale.status != SaleStatus.quotation:
+         raise BusinessError("Only quotations can be confirmed this way")
 
-    for item in sale.items:
-        if not await _is_untracked(db, item.product_id, sale.warehouse_id):
-            balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
-            if balance < item.qty:
-                raise BusinessError(f"Insufficient stock for product {item.product_id}")
+     for item in sale.items:
+         if not await _is_untracked(db, item.product_id, sale.warehouse_id):
+             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
+             if balance < item.qty:
+                 from sqlalchemy import text as sqlt
+                 prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
+                 prod_name = prod.scalar() or str(item.product_id)
+                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
     for item in sale.items:
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
@@ -137,21 +140,24 @@ async def create_draft_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sa
 
 
 async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
-    """Convert a draft sale to confirmed — assigns real invoice number, deducts stock."""
-    from app.core.exceptions import NotFoundError
-    from app.models.archive import ArchivedDocument, DocType
-    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
-    sale = result.scalar_one_or_none()
-    if not sale:
-        raise NotFoundError("Draft sale not found")
-    if sale.status != SaleStatus.draft:
-        raise BusinessError("Only draft sales can be confirmed")
+     """Convert a draft sale to confirmed — assigns real invoice number, deducts stock."""
+     from app.core.exceptions import NotFoundError
+     from app.models.archive import ArchivedDocument, DocType
+     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
+     sale = result.scalar_one_or_none()
+     if not sale:
+         raise NotFoundError("Draft sale not found")
+     if sale.status != SaleStatus.draft:
+         raise BusinessError("Only draft sales can be confirmed")
 
-    for item in sale.items:
-        if not await _is_untracked(db, item.product_id, sale.warehouse_id):
-            balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
-            if balance < item.qty:
-                raise BusinessError(f"Insufficient stock for product {item.product_id}")
+     for item in sale.items:
+         if not await _is_untracked(db, item.product_id, sale.warehouse_id):
+             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
+             if balance < item.qty:
+                 from sqlalchemy import text as sqlt
+                 prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
+                 prod_name = prod.scalar() or str(item.product_id)
+                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
     for item in sale.items:
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
@@ -171,11 +177,14 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
 
 
 async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
-    for item in data.items:
-        if not await _is_untracked(db, item.product_id):
-            balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
-            if balance < item.qty:
-                raise BusinessError(f"Insufficient stock for product {item.product_id}: available {balance}")
+     for item in data.items:
+         if not await _is_untracked(db, item.product_id):
+             balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
+             if balance < item.qty:
+                 from sqlalchemy import text as sqlt
+                 prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
+                 prod_name = prod.scalar() or str(item.product_id)
+                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
     if data.is_credit and data.customer_id:
         from sqlalchemy import text as sqlt
