@@ -277,19 +277,15 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         open={!!confirmDelCat}
         onClose={() => setConfirmDelCat(null)}
         onConfirm={() => deleteCat.mutate(confirmDelCat!.id)}
-        title="حذف الفئة"
-        message={`سيتم حذف الفئة "${confirmDelCat?.name}" وكل تصنيفاتها الفرعية (${confirmDelCat?.subsCount}) بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.`}
+        message={`حذف "${confirmDelCat?.name}" وكل تصنيفاتها الفرعية (${confirmDelCat?.subsCount})؟`}
         danger
-        loading={deleteCat.isPending}
       />
       <ConfirmDialog
         open={!!confirmDelSub}
         onClose={() => setConfirmDelSub(null)}
         onConfirm={() => deleteSub.mutate(confirmDelSub!.id)}
-        title="حذف التصنيف الفرعي"
-        message={`سيتم حذف التصنيف "${confirmDelSub?.name}" بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.`}
+        message={`حذف "${confirmDelSub?.name}"؟`}
         danger
-        loading={deleteSub.isPending}
       />
     </div>
   )
