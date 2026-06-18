@@ -255,9 +255,9 @@ export default function InventoryPage() {
               { key: 'qty', label: 'المخزون', sortable: true, render: (p: any) => {
                 if (p.stock_status === 'untracked') return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
                 const qty = balances
-                  ? (p.id in balances ? balances[p.id] : 0)
+                  ? (p.id in balances ? balances[p.id] : (p.stock_status === 'tracked' ? null : 0))
                   : null
-                if (qty === null) return <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium whitespace-nowrap">جاري...</span>
+                if (qty === null) return <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium whitespace-nowrap">لم يُجرد هنا</span>
                 const low = qty <= 5
                 return <span className={`font-black text-sm ${low ? 'text-red-600' : 'text-green-700'}`}>{qty} {p.unit}</span>
               }},
