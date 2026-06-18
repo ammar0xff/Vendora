@@ -191,7 +191,7 @@ export default function StocktakingPage() {
                     <td className="text-center">
                       {p.stock_status === 'untracked'
                         ? <span className="text-xs text-slate-400">—</span>
-                        : <span className="font-bold text-sm" style={{ color: '#1e3a5f' }}>{balances?.[p.id] ?? '...'} {p.unit}</span>}
+                        : <span className="font-bold text-sm" style={{ color: '#1e3a5f' }}>{!balances ? '...' : (balances[p.id] ?? 0)} {p.unit}</span>}
                     </td>
                     <td className="text-center">
                       {p.stock_status === 'untracked'
