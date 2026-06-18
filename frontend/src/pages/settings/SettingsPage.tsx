@@ -214,17 +214,17 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                   {subs.length > 0 && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{subs.length}</span>
                   )}
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1">
                     <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
-                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600" title="إضافة تصنيف فرعي">
+                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="إضافة تصنيف فرعي">
                       <Plus size={13} />
                     </button>
                     <button onClick={() => setEditing({ type: 'cat', id: cat.id, name: cat.name })}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل">
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="تعديل">
                       <Pencil size={13} />
                     </button>
                     <button onClick={() => setConfirmDelCat({ id: cat.id, name: cat.name, subsCount: subs.length })}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500" title="حذف">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -244,13 +244,13 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                           <Layers size={11} style={{ color: '#c8a84b' }} />
                         </div>
                         <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1">
                           <button onClick={() => setEditing({ type: 'sub', id: sub.id, catId: sub.category_id, name: sub.name })}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل">
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="تعديل">
                             <Pencil size={12} />
                           </button>
                           <button onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500" title="حذف">
                             <Trash2 size={12} />
                           </button>
                         </div>
