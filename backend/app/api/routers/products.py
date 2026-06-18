@@ -95,7 +95,7 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
     if not cat:
         raise NotFoundError()
     count = await db.scalar(sqlt(
-        "SELECT COUNT(*) FROM products p JOIN subcategories s ON s.id = p.subcategory_id WHERE s.category_id = :id"
+        "SELECT COUNT(*) FROM products p JOIN subcategories s ON s.id = p.subcategory_id WHERE s.category_id = :id AND p.is_active = true"
     ), {"id": cat_id})
     if count and count > 0:
         raise BusinessError(f"لا يمكن حذف التصنيف — يوجد {count} منتج مرتبط به")
@@ -163,7 +163,7 @@ async def list_products(
         ), {"wid": warehouse_id})).fetchall()
         wh_status = {str(r[0]): r[1] for r in rows}
         for po in items_out:
-            po.stock_status = wh_status.get(str(po.id), 'untracked')
+            po.stock_status = wh_status.get(str(po.id), po.stock_status)
 
     return Page(items=items_out, total=total, page=page, size=page_size, pages=pages)
 
@@ -228,9 +228,9 @@ async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_d
     sub = result.scalar_one_or_none()
     if not sub:
         raise NotFoundError()
-    count = await db.scalar(sqlt("SELECT COUNT(*) FROM products WHERE subcategory_id = :id"), {"id": sub_id})
+    count = await db.scalar(sqlt("SELECT COUNT(*) FROM products WHERE subcategory_id = :id AND is_active = true"), {"id": sub_id})
     if count and count > 0:
-        raise BusinessError(f"لا يمكن حذف التصنيف الفرعي — يوجد {count} منتج مرتبط به")
+        raise BusinessError(f"لا يمكن حذف التصنيف الفرعي — يوجد {count} منتج نشط مرتبط به")
     await db.delete(sub)
     await db.commit()
 
