@@ -15,7 +15,10 @@ class Settings(BaseSettings):
         "http://localhost",
         "http://0.0.0.0",
         "http://81.10.109.140",
+        "https://81.10.109.140",
         "http://192.168.1.50",
+        "https://192.168.1.50",
+        "*",
     ]
     # ⚠️ CORS_ORIGINS must NOT contain wildcard ("*") when credentials are enabled
 
