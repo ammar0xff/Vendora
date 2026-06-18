@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from decimal import Decimal
@@ -72,7 +72,7 @@ async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/balance/bulk")
-async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID], db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """POST body: list of product UUIDs. Returns {product_id: qty}."""
     from sqlalchemy import func, case as sa_case
     if not product_ids:
@@ -92,7 +92,7 @@ async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID]
 
 
 @router.post("/balance/total")
-async def get_total_balance_bulk(product_ids: list[uuid.UUID], db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def get_total_balance_bulk(product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Total stock across ALL warehouses. POST body: list of product UUIDs."""
     from sqlalchemy import func, case as sa_case
     if not product_ids:
