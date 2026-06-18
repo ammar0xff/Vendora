@@ -161,117 +161,119 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
   const isSaving = saveCat.isPending || saveSub.isPending
 
   return (
-    <div className="card max-w-2xl">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-bold text-slate-800">الفئات والتصنيفات</h3>
-          <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {subcategories.length} تصنيف فرعي</p>
+    <>
+      <div className="card max-w-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-slate-800">الفئات والتصنيفات</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {subcategories.length} تصنيف فرعي</p>
+          </div>
+          <button onClick={() => setEditing({ type: 'new-cat', name: '' })}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+            style={{ background: '#1e3a5f' }}>
+            <Plus size={13} /> فئة جديدة
+          </button>
         </div>
-        <button onClick={() => setEditing({ type: 'new-cat', name: '' })}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-          style={{ background: '#1e3a5f' }}>
-          <Plus size={13} /> فئة جديدة
-        </button>
-      </div>
 
-      {/* New category input */}
-      {editing?.type === 'new-cat' && (
-        <div className="mb-3">
-          <InlineInput editing={editing} setEditing={setEditing} handleSave={handleSave} isSaving={isSaving} onCancel={() => setEditing(null)} />
-        </div>
-      )}
+        {/* New category input */}
+        {editing?.type === 'new-cat' && (
+          <div className="mb-3">
+            <InlineInput editing={editing} setEditing={setEditing} handleSave={handleSave} isSaving={isSaving} onCancel={() => setEditing(null)} />
+          </div>
+        )}
 
-      {!categories.length && !editing && (
-        <div className="text-center py-10 text-slate-400">
-          <Tag size={28} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">لا توجد فئات — اضغط "فئة جديدة" للبدء</p>
-        </div>
-      )}
+        {!categories.length && !editing && (
+          <div className="text-center py-10 text-slate-400">
+            <Tag size={28} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">لا توجد فئات — اضغط "فئة جديدة" للبدء</p>
+          </div>
+        )}
 
-      <div className="space-y-0.5">
-        {categories.map((cat: any) => {
-          const subs = getSubs(cat.id)
-          const isOpen = expanded.has(cat.id)
-          const isEditingCat = editing?.type === 'cat' && editing?.id === cat.id
+        <div className="space-y-0.5">
+          {categories.map((cat: any) => {
+            const subs = getSubs(cat.id)
+            const isOpen = expanded.has(cat.id)
+            const isEditingCat = editing?.type === 'cat' && editing?.id === cat.id
 
-          return (
-            <div key={cat.id}>
-              {/* Category row */}
-              {isEditingCat ? (
-                <div className="mb-1"><InlineInput onCancel={() => setEditing(null)} /></div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 group transition-colors">
-                  <button onClick={() => toggle(cat.id)}
-                    className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0">
-                    {subs.length > 0
-                      ? (isOpen ? <ChevronDown size={14} /> : <ChevronLeft size={14} />)
-                      : <span className="w-3 h-px bg-slate-200 block" />}
-                  </button>
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#1e3a5f12' }}>
-                    <Tag size={13} style={{ color: '#1e3a5f' }} />
+            return (
+              <div key={cat.id}>
+                {/* Category row */}
+                {isEditingCat ? (
+                  <div className="mb-1"><InlineInput onCancel={() => setEditing(null)} /></div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 group transition-colors">
+                    <button onClick={() => toggle(cat.id)}
+                      className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0">
+                      {subs.length > 0
+                        ? (isOpen ? <ChevronDown size={14} /> : <ChevronLeft size={14} />)
+                        : <span className="w-3 h-px bg-slate-200 block" />}
+                    </button>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#1e3a5f12' }}>
+                      <Tag size={13} style={{ color: '#1e3a5f' }} />
+                    </div>
+                    <span className="flex-1 font-semibold text-sm text-slate-800">{cat.name}</span>
+                    {subs.length > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{subs.length}</span>
+                    )}
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="إضافة تصنيف فرعي">
+                        <Plus size={13} />
+                      </button>
+                      <button onClick={() => setEditing({ type: 'cat', id: cat.id, name: cat.name })}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="تعديل">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => setConfirmDelCat({ id: cat.id, name: cat.name, subsCount: subs.length })}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500" title="حذف">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
-                  <span className="flex-1 font-semibold text-sm text-slate-800">{cat.name}</span>
-                  {subs.length > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{subs.length}</span>
-                  )}
-                  <div className="flex gap-1">
-                    <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
-                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="إضافة تصنيف فرعي">
-                      <Plus size={13} />
-                    </button>
-                    <button onClick={() => setEditing({ type: 'cat', id: cat.id, name: cat.name })}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="تعديل">
-                      <Pencil size={13} />
-                    </button>
-                    <button onClick={() => setConfirmDelCat({ id: cat.id, name: cat.name, subsCount: subs.length })}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500" title="حذف">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {/* Subcategories */}
-              {isOpen && (
-                <div className="mr-10 border-r-2 border-slate-100 pr-3 mb-1 space-y-0.5">
-                  {subs.map((sub: any) => {
-                    const isEditingSub = editing?.type === 'sub' && editing?.id === sub.id
-                    return isEditingSub ? (
-                      <div key={sub.id}><InlineInput onCancel={() => setEditing(null)} /></div>
+                {/* Subcategories */}
+                {isOpen && (
+                  <div className="mr-10 border-r-2 border-slate-100 pr-3 mb-1 space-y-0.5">
+                    {subs.map((sub: any) => {
+                      const isEditingSub = editing?.type === 'sub' && editing?.id === sub.id
+                      return isEditingSub ? (
+                        <div key={sub.id}><InlineInput onCancel={() => setEditing(null)} /></div>
+                      ) : (
+                        <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 group transition-colors">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#c8a84b15' }}>
+                            <Layers size={11} style={{ color: '#c8a84b' }} />
+                          </div>
+                          <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
+                          <div className="flex gap-1">
+                            <button onClick={() => setEditing({ type: 'sub', id: sub.id, catId: sub.category_id, name: sub.name })}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="تعديل">
+                              <Pencil size={12} />
+                            </button>
+                            <button onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500" title="حذف">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* New sub input */}
+                    {editing?.type === 'new-sub' && editing?.catId === cat.id ? (
+                      <InlineInput editing={editing} setEditing={setEditing} handleSave={handleSave} isSaving={isSaving} onCancel={() => setEditing(null)} />
                     ) : (
-                      <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 group transition-colors">
-                        <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#c8a84b15' }}>
-                          <Layers size={11} style={{ color: '#c8a84b' }} />
-                        </div>
-                        <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
-                        <div className="flex gap-1">
-                          <button onClick={() => setEditing({ type: 'sub', id: sub.id, catId: sub.category_id, name: sub.name })}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="تعديل">
-                            <Pencil size={12} />
-                          </button>
-                          <button onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500" title="حذف">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-
-                  {/* New sub input */}
-                  {editing?.type === 'new-sub' && editing?.catId === cat.id ? (
-                    <InlineInput editing={editing} setEditing={setEditing} handleSave={handleSave} isSaving={isSaving} onCancel={() => setEditing(null)} />
-                  ) : (
-                    <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
-                      <Plus size={11} /> تصنيف فرعي جديد
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
+                      <button onClick={() => { setEditing({ type: 'new-sub', catId: cat.id, name: '' }); setExpanded(p => new Set([...p, cat.id])) }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-full">
+                        <Plus size={11} /> تصنيف فرعي جديد
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
       <ConfirmDialog
         open={!!confirmDelCat}
@@ -289,7 +291,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         danger
         closeOnConfirm={false}
       />
-    </div>
+    </>
   )
 }
 
