@@ -8,9 +8,75 @@ from sqlalchemy import text
 from datetime import datetime
 from app.db.base import get_db
 from app.dependencies import require_role
-import uuid
 
 router = APIRouter(prefix="/reports/ledger", tags=["ledger"])
+
+
+def wh_clause(alias: str, warehouse_id: str | None) -> tuple[str, dict]:
+    if warehouse_id:
+        return f"AND {alias}.warehouse_id = :wh_id", {"wh_id": warehouse_id}
+    return "", {}
+
+
+BASE_SELECT = """
+    SELECT
+        si.id,
+        si.sale_id,
+        p.name as product_name,
+        p.unit,
+        si.qty,
+        si.unit_price,
+        (si.qty * si.unit_price - si.discount) as line_total,
+        COALESCE(s.payment_method, 'cash') as payment_method,
+        pw.name as wallet_name,
+        s.invoice_number,
+        s.created_at,
+        c.name as customer_name,
+        'sale' as entry_type
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    JOIN products p ON p.id = si.product_id
+    LEFT JOIN customers c ON c.id = s.customer_id
+    LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
+    WHERE s.status = 'confirmed'
+      AND s.created_at BETWEEN :start AND :end
+      {wh}
+    ORDER BY s.created_at, si.id
+"""
+
+BASE_RETURN = """
+    SELECT
+        si.id,
+        si.sale_id,
+        p.name as product_name,
+        p.unit,
+        si.qty,
+        si.unit_price,
+        (si.qty * si.unit_price) as line_total,
+        s.invoice_number,
+        s.created_at,
+        c.name as customer_name
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    JOIN products p ON p.id = si.product_id
+    LEFT JOIN customers c ON c.id = s.customer_id
+    WHERE s.status = 'returned'
+      AND s.created_at BETWEEN :start AND :end
+      {wh}
+    ORDER BY s.created_at
+"""
+
+BASE_TX = """
+    SELECT dt.id, dt.type, dt.amount, dt.note, dt.created_at,
+           pw.name as wallet_name, dt.payment_method
+    FROM drawer_transactions dt
+    JOIN shifts sh ON sh.id = dt.shift_id
+    LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
+    WHERE dt.type IN ('expense','deposit','withdrawal')
+      AND dt.created_at BETWEEN :start AND :end
+      {wh}
+    ORDER BY dt.created_at
+"""
 
 
 @router.get("")
@@ -24,35 +90,10 @@ async def ledger(
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
     params: dict = {"start": start, "end": end}
-    if warehouse_id:
-        params["wh_id"] = uuid.UUID(warehouse_id)
 
-    # Sale items
-    items_rows = await db.execute(text("""
-        SELECT
-            si.id,
-            si.sale_id,
-            p.name as product_name,
-            p.unit,
-            si.qty,
-            si.unit_price,
-            (si.qty * si.unit_price - si.discount) as line_total,
-            COALESCE(s.payment_method, 'cash') as payment_method,
-            pw.name as wallet_name,
-            s.invoice_number,
-            s.created_at,
-            c.name as customer_name,
-            'sale' as entry_type
-        FROM sale_items si
-        JOIN sales s ON s.id = si.sale_id
-        JOIN products p ON p.id = si.product_id
-        LEFT JOIN customers c ON c.id = s.customer_id
-        LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
-        WHERE s.status = 'confirmed'
-          AND s.created_at BETWEEN :start AND :end
-          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
-        ORDER BY s.created_at, si.id
-    """), params)
+    wh_s, wh_p = wh_clause("s", warehouse_id)
+    params.update(wh_p)
+    items_rows = await db.execute(text(BASE_SELECT.format(wh=wh_s)), params)
 
     sale_items = []
     for r in items_rows.fetchall():
@@ -74,27 +115,8 @@ async def ledger(
         })
 
     # Returns
-    ret_rows = await db.execute(text("""
-        SELECT
-            si.id,
-            si.sale_id,
-            p.name as product_name,
-            p.unit,
-            si.qty,
-            si.unit_price,
-            (si.qty * si.unit_price) as line_total,
-            s.invoice_number,
-            s.created_at,
-            c.name as customer_name
-        FROM sale_items si
-        JOIN sales s ON s.id = si.sale_id
-        JOIN products p ON p.id = si.product_id
-        LEFT JOIN customers c ON c.id = s.customer_id
-        WHERE s.status = 'returned'
-          AND s.created_at BETWEEN :start AND :end
-          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
-        ORDER BY s.created_at
-    """), params)
+    wh_r, wh_rp = wh_clause("s", warehouse_id)
+    ret_rows = await db.execute(text(BASE_RETURN.format(wh=wh_r)), {**params, **wh_rp})
 
     returns = []
     for r in ret_rows.fetchall():
@@ -114,17 +136,8 @@ async def ledger(
         })
 
     # Expenses / deposits / withdrawals
-    tx_rows = await db.execute(text("""
-        SELECT dt.id, dt.type, dt.amount, dt.note, dt.created_at,
-               pw.name as wallet_name, dt.payment_method
-        FROM drawer_transactions dt
-        JOIN shifts sh ON sh.id = dt.shift_id
-        LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
-        WHERE dt.type IN ('expense','deposit','withdrawal')
-          AND dt.created_at BETWEEN :start AND :end
-          AND (:wh_id IS NULL OR sh.warehouse_id = :wh_id)
-        ORDER BY dt.created_at
-    """), params)
+    wh_t, wh_tp = wh_clause("sh", warehouse_id)
+    tx_rows = await db.execute(text(BASE_TX.format(wh=wh_t)), {**params, **wh_tp})
 
     TX_AR = {"expense": "خوارج", "deposit": "دواخل", "withdrawal": "سحب"}
     expenses = []
@@ -146,12 +159,49 @@ async def ledger(
     total_expenses= sum(e["amount"] for e in expenses if e["entry_type"] in ("expense","withdrawal"))
     total_deposits= sum(e["amount"] for e in expenses if e["entry_type"] == "deposit")
 
+    # Payment breakdown (cash / wallet / credit) from sale-level data
+    cls_wh, cls_whp = wh_clause("s", warehouse_id)
+    cls_rows = await db.execute(text(f"""
+        SELECT s.id, s.payment_method, s.wallet_id, s.is_credit,
+               COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) as item_total,
+               COUNT(sp.id) > 0 as has_payments,
+               COALESCE(SUM(sp.amount) FILTER (WHERE sp.method = 'cash'), 0) as cash_pmt,
+               COALESCE(SUM(sp.amount) FILTER (WHERE sp.wallet_id IS NOT NULL), 0) as wallet_pmt,
+               COALESCE(SUM(sp.amount) FILTER (WHERE sp.method = 'credit'), 0) as credit_pmt
+        FROM sales s
+        JOIN sale_items si ON si.sale_id = s.id
+        LEFT JOIN sale_payments sp ON sp.sale_id = s.id
+        WHERE s.status = 'confirmed'
+          AND s.created_at BETWEEN :start AND :end
+          {{wh}}
+        GROUP BY s.id
+    """.format(wh=cls_wh)), {**params, **cls_whp})
+    cash_sales = 0.0
+    wallet_sales = 0.0
+    credit_sales = 0.0
+    for r in cls_rows.fetchall():
+        item_total = float(r.item_total)
+        if r.has_payments:
+            cash_sales += float(r.cash_pmt)
+            wallet_sales += float(r.wallet_pmt)
+            credit_sales += float(r.credit_pmt)
+        elif r.wallet_id:
+            wallet_sales += item_total
+        elif r.is_credit or r.payment_method == 'credit':
+            credit_sales += item_total
+        else:
+            cash_sales += item_total
+
+
     return {
         "sale_items": sale_items,
         "returns": returns,
         "expenses": expenses,
         "summary": {
             "total_sales": total_sales,
+            "cash_sales": cash_sales,
+            "wallet_sales": wallet_sales,
+            "credit_sales": credit_sales,
             "total_returns": total_returns,
             "total_expenses": total_expenses,
             "total_deposits": total_deposits,

@@ -24,10 +24,10 @@ class SaleItemCreate(BaseModel):
     def discount_max(cls, v, info):
         if v < 0:
             raise ValueError('discount cannot be negative')
-        # Get unit_price from field values
         values = info.data if hasattr(info, 'data') else {}
         unit_price = values.get('unit_price')
-        if unit_price and v > unit_price:
+        qty = values.get('qty')
+        if unit_price and qty and v > unit_price * qty:
             raise ValueError('discount cannot exceed item total')
         return v
 
@@ -61,6 +61,7 @@ class SaleCreate(BaseModel):
 class SaleItemOut(BaseModel):
     id: uuid.UUID
     product_id: uuid.UUID
+    product_name: str | None = None
     qty: Decimal
     unit_price: Decimal
     unit_cost: Decimal = Decimal("0")

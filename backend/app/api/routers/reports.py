@@ -114,9 +114,7 @@ async def daily_items(target_date: date = Query(default=date.today()), warehouse
     import uuid as _uuid
     start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
     end   = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
-    params: dict = {"start": start, "end": end}
-    if warehouse_id:
-        params["wh_id"] = _uuid.UUID(warehouse_id)
+    params: dict = {"start": start, "end": end, "wh_id": _uuid.UUID(warehouse_id) if warehouse_id else None}
 
     items = (await db.execute(sqlt("""
         SELECT p.name, p.unit, si.unit_price as price,
@@ -173,9 +171,7 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
         raise HTTPException(status_code=400, detail=f"Invalid period: {period}")
     trunc, label_fmt = VALID_PERIODS[period]
 
-    params: dict = {}
-    if warehouse_id:
-        params["wh_id"] = _uuid.UUID(warehouse_id)
+    params: dict = {"wh_id": _uuid.UUID(warehouse_id) if warehouse_id else None}
 
     rows = (await db.execute(sqlt(f"""
         SELECT TO_CHAR(DATE_TRUNC('{trunc}', s.created_at), '{label_fmt}') as period,

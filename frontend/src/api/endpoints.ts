@@ -134,9 +134,11 @@ export const customersApi = {
   list: (search?: string) => api.get('/customers', { params: search ? { search } : {} }).then(r => r.data),
   create: (data: any) => api.post('/customers', data).then(r => r.data),
   update: (id: string, data: any) => api.put(`/customers/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/customers/${id}`),
   account: (id: string) => api.get(`/customers/${id}/account`).then(r => r.data),
   ledger: (id: string) => api.get(`/customers/${id}/ledger`).then(r => r.data),
   addPayment: (id: string, amount: number, note: string) => api.post(`/customers/${id}/payments`, { amount, note }).then(r => r.data),
+  setBalance: (id: string, balance: number) => api.put(`/customers/${id}/balance`, { balance }).then(r => r.data),
 }
 
 export const supplierPricesApi = {

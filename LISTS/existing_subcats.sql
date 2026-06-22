@@ -1,0 +1,4 @@
+SELECT id, name FROM subcategories WHERE name IN (
+'P3 COMFORTS', 'STARCK 3', 'D-NEO', 'DURASTYLE', 'DARLING', 'HAPPY D.',
+'D-CODE', 'ECHO', 'DURAPLUS', 'EMILIA', 'GOLF', 'VERO', 'DURAVIT NO. 1',
+'SEPARATES', 'OTHERS');

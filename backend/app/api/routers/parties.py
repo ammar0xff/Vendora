@@ -27,14 +27,7 @@ async def list_customers(search: str | None = None, db: AsyncSession = Depends(g
         params["search"] = f"%{search}%"
     where = " AND ".join(where_parts)
     rows = await db.execute(sqlt(f"""
-        SELECT c.*,
-            COALESCE((
-                SELECT SUM(si.qty * si.unit_price - si.discount) - MAX(s.discount_amount)
-                FROM sales s JOIN sale_items si ON si.sale_id = s.id
-                WHERE s.customer_id = c.id AND s.is_credit = true AND s.status = 'confirmed'
-            ), 0) -
-            COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = c.id), 0)
-            AS balance_due
+        SELECT c.*, c.balance AS balance_due
         FROM customers c
         WHERE {where}
         ORDER BY c.name
@@ -68,47 +61,34 @@ async def update_customer(cid: uuid.UUID, data: CustomerUpdate, db: AsyncSession
 @router.get("/customers/{cid}/account")
 async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Customer ledger: total invoiced, total paid, balance due."""
+    from sqlalchemy import text as sqlt
     c = (await db.execute(select(Customer).where(Customer.id == cid))).scalar_one_or_none()
     if not c:
         raise NotFoundError()
 
-    # Total invoiced — only credit (آجل) sales count as debt
-    inv_result = await db.execute(
-        select(func.coalesce(
-            func.sum(SaleItem.qty * SaleItem.unit_price - SaleItem.discount), 0
-        ))
-        .join(Sale, Sale.id == SaleItem.sale_id)
-        .where(Sale.customer_id == cid, Sale.status == SaleStatus.confirmed, Sale.is_credit)
-    )
-    total_invoiced = inv_result.scalar_one() or Decimal("0")
-
-    # Total returned from credit sales
-    ret_result = await db.execute(
-        select(func.coalesce(
-            func.sum(SaleItem.qty * SaleItem.unit_price - SaleItem.discount), 0
-        ))
-        .join(Sale, Sale.id == SaleItem.sale_id)
-        .where(Sale.customer_id == cid, Sale.status == SaleStatus.returned, Sale.is_credit)
-    )
-    total_returned = ret_result.scalar_one() or Decimal("0")
-
-    # Total paid
-    paid_result = await db.execute(
-        select(func.coalesce(func.sum(CustomerPayment.amount), 0))
-        .where(CustomerPayment.customer_id == cid)
-    )
-    total_paid = paid_result.scalar_one() or Decimal("0")
-
-    balance_due = total_invoiced - total_returned - total_paid
+    r = await db.execute(sqlt("""
+        SELECT
+            COALESCE((SELECT SUM(si.qty * si.unit_price - si.discount) - MAX(s.discount_amount)
+                      FROM sales s JOIN sale_items si ON si.sale_id = s.id
+                      WHERE s.customer_id = :cid AND s.is_credit = true AND s.status = 'confirmed'), 0)
+            AS total_invoiced,
+            COALESCE((SELECT SUM(si.qty * si.unit_price - si.discount)
+                      FROM sales s JOIN sale_items si ON si.sale_id = s.id
+                      WHERE s.customer_id = :cid AND s.status = 'returned' AND s.is_credit), 0)
+            AS total_returned,
+            COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = :cid), 0)
+            AS total_paid
+    """), {"cid": cid})
+    agg = dict(r.fetchone()._mapping)
 
     return {
         "customer_id": str(cid),
         "customer_name": c.name,
         "phone": c.phone,
-        "total_invoiced": float(total_invoiced),
-        "total_returned": float(total_returned),
-        "total_paid": float(total_paid),
-        "balance_due": float(balance_due),
+        "total_invoiced": float(agg["total_invoiced"]),
+        "total_returned": float(agg["total_returned"]),
+        "total_paid": float(agg["total_paid"]),
+        "balance_due": float(c.balance),
         "credit_limit": float(c.credit_limit) if c.credit_limit else None,
     }
 
@@ -151,6 +131,29 @@ async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
     entries.sort(key=lambda x: x["date"], reverse=True)
     return entries
+
+
+@router.put("/customers/{cid}/balance")
+async def set_customer_balance(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
+    result = await db.execute(select(Customer).where(Customer.id == cid))
+    c = result.scalar_one_or_none()
+    if not c:
+        raise NotFoundError()
+    balance = Decimal(str(data.get("balance", 0)))
+    c.balance = balance
+    await db.commit()
+    return {"id": str(cid), "balance": float(balance)}
+
+
+@router.delete("/customers/{cid}")
+async def delete_customer(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
+    result = await db.execute(select(Customer).where(Customer.id == cid))
+    c = result.scalar_one_or_none()
+    if not c:
+        raise NotFoundError()
+    await db.delete(c)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/customers/{cid}/payments")

@@ -74,23 +74,23 @@ async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sal
 
 
 async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
-     """Convert a quotation to a confirmed sale — deducts stock."""
-     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
-     sale = result.scalar_one_or_none()
-     if not sale:
-         from app.core.exceptions import NotFoundError
-         raise NotFoundError("Quotation not found")
-     if sale.status != SaleStatus.quotation:
-         raise BusinessError("Only quotations can be confirmed this way")
+    """Convert a quotation to a confirmed sale — deducts stock."""
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
+    sale = result.scalar_one_or_none()
+    if not sale:
+        from app.core.exceptions import NotFoundError
+        raise NotFoundError("Quotation not found")
+    if sale.status != SaleStatus.quotation:
+        raise BusinessError("Only quotations can be confirmed this way")
 
-     for item in sale.items:
-         if not await _is_untracked(db, item.product_id, sale.warehouse_id):
-             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
-             if balance < item.qty:
-                 from sqlalchemy import text as sqlt
-                 prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
-                 prod_name = prod.scalar() or str(item.product_id)
-                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
+    for item in sale.items:
+        if not await _is_untracked(db, item.product_id, sale.warehouse_id):
+            balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
+            if balance < item.qty:
+                from sqlalchemy import text as sqlt
+                prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
+                prod_name = prod.scalar() or str(item.product_id)
+                raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
     for item in sale.items:
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
@@ -140,24 +140,24 @@ async def create_draft_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sa
 
 
 async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
-     """Convert a draft sale to confirmed — assigns real invoice number, deducts stock."""
-     from app.core.exceptions import NotFoundError
-     from app.models.archive import ArchivedDocument, DocType
-     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
-     sale = result.scalar_one_or_none()
-     if not sale:
-         raise NotFoundError("Draft sale not found")
-     if sale.status != SaleStatus.draft:
-         raise BusinessError("Only draft sales can be confirmed")
+    """Convert a draft sale to confirmed — assigns real invoice number, deducts stock."""
+    from app.core.exceptions import NotFoundError
+    from app.models.archive import ArchivedDocument, DocType
+    result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise NotFoundError("Draft sale not found")
+    if sale.status != SaleStatus.draft:
+        raise BusinessError("Only draft sales can be confirmed")
 
-     for item in sale.items:
-         if not await _is_untracked(db, item.product_id, sale.warehouse_id):
-             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
-             if balance < item.qty:
-                 from sqlalchemy import text as sqlt
-                 prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
-                 prod_name = prod.scalar() or str(item.product_id)
-                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
+    for item in sale.items:
+        if not await _is_untracked(db, item.product_id, sale.warehouse_id):
+            balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
+            if balance < item.qty:
+                from sqlalchemy import text as sqlt
+                prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
+                prod_name = prod.scalar() or str(item.product_id)
+                raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
     for item in sale.items:
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
@@ -177,14 +177,14 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
 
 
 async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
-     for item in data.items:
-         if not await _is_untracked(db, item.product_id):
-             balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
-             if balance < item.qty:
-                 from sqlalchemy import text as sqlt
-                 prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
-                 prod_name = prod.scalar() or str(item.product_id)
-                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
+    for item in data.items:
+        if not await _is_untracked(db, item.product_id):
+            balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
+            if balance < item.qty:
+                from sqlalchemy import text as sqlt
+                prod = await db.execute(sqlt("SELECT name FROM products WHERE id=:id"), {"id": item.product_id})
+                prod_name = prod.scalar() or str(item.product_id)
+                raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
     if data.is_credit and data.customer_id:
         from sqlalchemy import text as sqlt
@@ -280,8 +280,8 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
                     "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
                 ), {"amt": float(p.amount), "cid": data.customer_id})
     else:
-        # Legacy single payment
-        if data.shift_id:
+        # Legacy single payment — record drawer only for cash
+        if data.shift_id and not data.is_credit and not getattr(data, 'wallet_id', None):
             db.add(DrawerTransaction(
                 shift_id=data.shift_id, type=DrawerTxType.sale,
                 amount=net_total, ref_id=sale.id, created_by=cashier_id,
@@ -308,6 +308,7 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
 
 async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> dict:
     """Full return: restore stock + record drawer return transaction."""
+    from sqlalchemy import text as sqlt
     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
@@ -332,21 +333,39 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
     total -= float(sale.discount_amount)
     sale.status = SaleStatus.returned
 
-    if sale.shift_id:
-        dt = DrawerTransaction(
+    # Only record cash portion in drawer — other methods reversed separately
+    pmt = await db.execute(sqlt(
+        "SELECT method, COALESCE(SUM(amount),0) as amt FROM sale_payments WHERE sale_id = :sid GROUP BY method"
+    ), {"sid": sale_id})
+    pmt_map = {r.method: float(r.amt) for r in pmt.fetchall()}
+    cash_part = pmt_map.get("cash", 0)
+    credit_part = pmt_map.get("credit", 0)
+
+    if sale.shift_id and cash_part > 0:
+        db.add(DrawerTransaction(
             shift_id=sale.shift_id,
             type=DrawerTxType.return_,
-            amount=total,
+            amount=min(cash_part, total),
             ref_id=sale.id,
             created_by=user_id,
-        )
-        db.add(dt)
+        ))
 
-    # Reverse wallet balance if paid by wallet
-    if sale.wallet_id:
+    # Reverse wallet balance
+    wallet_part = pmt_map.get("wallet", 0)
+    if wallet_part > 0:
         from app.services.wallet_service import record_wallet_tx
-        await record_wallet_tx(db, sale.wallet_id, -Decimal(str(total)), "return",
-                               sale.id, f"مرتجع {sale.invoice_number}", user_id)
+        w_amt = min(wallet_part, total - cash_part - credit_part)
+        if w_amt > 0 and sale.wallet_id:
+            await record_wallet_tx(db, sale.wallet_id, -Decimal(str(w_amt)), "return",
+                                   sale.id, f"مرتجع {sale.invoice_number}", user_id)
+
+    # Reverse customer credit balance
+    if credit_part > 0 and sale.customer_id:
+        credit_amt = min(credit_part, total - cash_part - wallet_part)
+        if credit_amt > 0:
+            await db.execute(sqlt(
+                "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
+            ), {"amt": Decimal(str(credit_amt)), "cid": sale.customer_id})
 
     await db.commit()
     return {"detail": "Returned", "invoice_number": sale.invoice_number, "amount": total}
@@ -405,18 +424,38 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
             movement_type=MovementType.return_in, qty=qty, unit_cost=oi.unit_cost, unit_price=oi.unit_price),
             current_user_id, ref_id=ret.id, ref_type="partial_return")
 
-    if ret.shift_id:
+    from sqlalchemy import text as sqlt
+    pmt = await db.execute(sqlt(
+        "SELECT method, COALESCE(SUM(amount),0) as amt FROM sale_payments WHERE sale_id = :sid GROUP BY method"
+    ), {"sid": sale_id})
+    pmt_map = {r.method: float(r.amt) for r in pmt.fetchall()}
+    cash_part = pmt_map.get("cash", 0)
+    credit_part = pmt_map.get("credit", 0)
+    wallet_part = pmt_map.get("wallet", 0)
+    ratio = float(total) / float(orig.total) if orig.total else 0
+
+    drawer_amt = round(cash_part * ratio, 2)
+    if ret.shift_id and drawer_amt > 0:
         db.add(DrawerTransaction(shift_id=ret.shift_id, type=DrawerTxType.return_,
-                                  amount=total, ref_id=ret.id, created_by=current_user_id))
-    if orig.wallet_id:
-        from app.services.wallet_service import record_wallet_tx
-        await record_wallet_tx(db, orig.wallet_id, -total, "return",
-                               ret.id, f"مرتجع جزئي من {orig.invoice_number}", current_user_id)
+                                  amount=drawer_amt, ref_id=ret.id, created_by=current_user_id))
+    if wallet_part > 0:
+        w_amt = round(wallet_part * ratio, 2)
+        if w_amt > 0:
+            from app.services.wallet_service import record_wallet_tx
+            await record_wallet_tx(db, orig.wallet_id, -Decimal(str(w_amt)), "return",
+                                   ret.id, f"مرتجع جزئي من {orig.invoice_number}", current_user_id)
+    if credit_part > 0 and orig.customer_id:
+        c_amt = round(credit_part * ratio, 2)
+        if c_amt > 0:
+            await db.execute(sqlt(
+                "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
+            ), {"amt": Decimal(str(c_amt)), "cid": orig.customer_id})
+
     db.add(ArchivedDocument(doc_number=ret.invoice_number, doc_type=DocType.sale_invoice,
                              amount=total, ref_id=ret.id, created_by=current_user_id,
                              metadata_={"original_invoice": orig.invoice_number, "type": "partial_return"}))
     await db.commit()
-    return {"doc_number": ret.invoice_number, "total": float(total), "original": orig.invoice_number}
+    return {"doc_number": ret.invoice_number, "sale_id": str(ret.id), "total": float(total), "original": orig.invoice_number}
 
 
 async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.UUID, data, current_user_id: uuid.UUID, current_user_full_name: str) -> dict:

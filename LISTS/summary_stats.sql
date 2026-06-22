@@ -1,0 +1,27 @@
+SELECT 
+  COUNT(*) AS total,
+  SUM(CASE WHEN name LIKE 'قطعة %' THEN 1 ELSE 0 END) AS generic,
+  SUM(CASE WHEN name ~ '\[[A-Z0-9]+\]' THEN 1 ELSE 0 END) AS has_code,
+  SUM(CASE WHEN name LIKE 'خلاط%' THEN 1 ELSE 0 END) AS mixers,
+  SUM(CASE WHEN name LIKE 'مرحاض%' THEN 1 ELSE 0 END) AS toilets,
+  SUM(CASE WHEN name LIKE 'حوض%' THEN 1 ELSE 0 END) AS basins,
+  SUM(CASE WHEN name LIKE 'بانيو%' THEN 1 ELSE 0 END) AS bathtubs,
+  SUM(CASE WHEN name LIKE 'سيديلي%' THEN 1 ELSE 0 END) AS seats,
+  SUM(CASE WHEN name LIKE 'خزان%' THEN 1 ELSE 0 END) AS tanks,
+  SUM(CASE WHEN name LIKE 'كابينة%' OR name LIKE 'صينية%' THEN 1 ELSE 0 END) AS shower,
+  SUM(CASE WHEN name LIKE 'بانيلي%' THEN 1 ELSE 0 END) AS panels,
+  SUM(CASE WHEN name LIKE 'عامود%' THEN 1 ELSE 0 END) AS pedestals,
+  SUM(CASE WHEN name LIKE 'بيديه%' THEN 1 ELSE 0 END) AS bidets,
+  SUM(CASE WHEN name LIKE 'موبيليا%' THEN 1 ELSE 0 END) AS furniture,
+  SUM(CASE WHEN name LIKE 'وحدة%' THEN 1 ELSE 0 END) AS units,
+  SUM(CASE WHEN name LIKE 'نظام%' THEN 1 ELSE 0 END) AS systems,
+  SUM(CASE WHEN name LIKE 'عمود دش%' THEN 1 ELSE 0 END) AS shower_columns,
+  SUM(CASE WHEN name LIKE 'مجموعة%' THEN 1 ELSE 0 END) AS sets,
+  SUM(CASE WHEN name = 'قطعة ايديال' THEN 1 ELSE 0 END) AS piece_ideal,
+  SUM(CASE WHEN name = 'قطعة دروفيت' THEN 1 ELSE 0 END) AS piece_drovit,
+  SUM(CASE WHEN name LIKE 'إل كيوب %' THEN 1 ELSE 0 END) AS lcube,
+  SUM(CASE WHEN name LIKE 'دي كود %' THEN 1 ELSE 0 END) AS dcode,
+  SUM(CASE WHEN name LIKE 'هابي دي %' THEN 1 ELSE 0 END) AS happy_d,
+  SUM(CASE WHEN name LIKE 'شتارك%' THEN 1 ELSE 0 END) AS starck
+FROM products
+WHERE company IN ('ايديال', 'دروفيت');

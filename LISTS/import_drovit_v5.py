@@ -1,0 +1,161 @@
+import openpyxl, subprocess, json, uuid
+
+DROVIT_CATEGORY_ID = '6d3ebf46-0d63-45a7-b271-74ce542d732b'
+
+wb = openpyxl.load_workbook(r'C:\eg-co-erp\LISTS\قائمة_اسعار_دورافيت_2026_عربي.xlsx', data_only=True)
+ws = wb.active
+
+rows = []
+for i, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True)):
+    vals = [str(v).strip() if v is not None else '' for v in row]
+    if vals[2] and vals[3]:
+        rows.append(vals)
+
+print(f"Excel rows: {len(rows)}")
+
+SERIES_MAP = {
+    'بي 3 كومفورتس': 'P3 COMFORTS',
+    'ستارك 3': 'STARCK 3',
+    'دي نيو': 'D-NEO',
+    'دورا ستايل': 'DURASTYLE',
+    'دارلينج نيو': 'DARLING',
+    'دارلينج': 'DARLING',
+    'هابي دي': 'HAPPY D.',
+    'هابي دي 2': 'HAPPY D.',
+    'دورافيت نمبر 1': 'DURAVIT NO. 1',
+    'دي كود': 'D-CODE',
+    'إيكو': 'ECHO',
+    'دورابلاس': 'DURAPLUS',
+    'إميليا': 'EMILIA',
+    'جولف': 'GOLF',
+    'ديون': 'DUNE',
+    'متنوعة': 'OTHERS',
+    'إكسسوارات سيراميك': 'ACCESSORIES CERAMIC',
+    'إكسسوارات إيزي': 'ACCESSORIES EASY',
+    'إكسسوارات كروم': 'ACCESSORIES CHROME',
+    'إكس لارج': 'X-LARGE',
+    'فوستر': 'FOSTER',
+    'كيثو': 'KETHO',
+    'كارو': 'CARO',
+    'إل كيوب': 'L-CUBE',
+    'فيتريوم': 'VITRIUM',
+    'بيورا فيدا': 'PURAVIDA',
+    'ستارك 1': 'STARCK 1',
+    'فيرو': 'VERO',
+    'الطابق الثاني': 'SECOND FLOOR',
+    'عمود الطابق الثاني': 'SECOND FLOOR COLUMN',
+    'مجموعة تثبيت': 'MOUNTING SET',
+}
+
+# Get existing subcategories
+r = subprocess.run(
+    ['docker', 'exec', 'eg-co-erp-db-1', 'psql', '-U', 'postgres', '-d', 'inventory_db',
+     '-t', '-A', '-F', '\t',
+     '-c', "SELECT row_to_json(t)::text FROM (SELECT id, name FROM subcategories WHERE category_id = '" + DROVIT_CATEGORY_ID + "') t"],
+    capture_output=True, text=True, encoding='utf-8', errors='replace'
+)
+existing_subcats = {}
+for line in r.stdout.strip().split('\n'):
+    line = line.strip()
+    if line.startswith('{'):
+        try:
+            sc = json.loads(line)
+            existing_subcats[sc['name']] = sc['id']
+        except:
+            pass
+print(f"Existing دروفيت subcats: {len(existing_subcats)}")
+
+now = "NOW()"
+sql_parts = []
+sql_parts.append("DELETE FROM products WHERE company = 'دروفيت';")
+
+# Create missing subcategories
+cat_map = {}
+for arabic, eng in SERIES_MAP.items():
+    if eng in existing_subcats:
+        cat_map[arabic] = existing_subcats[eng]
+    else:
+        new_id = str(uuid.uuid4())
+        safe = eng.replace("'", "''")
+        sql_parts.append(
+            f"INSERT INTO subcategories (id, category_id, name, created_at) "
+            f"VALUES ('{new_id}', '{DROVIT_CATEGORY_ID}', E'{safe}', {now});"
+        )
+        cat_map[arabic] = new_id
+        existing_subcats[eng] = new_id
+
+print(f"Subcategories to create: {len([s for s in cat_map.values() if s not in existing_subcats.values()])}")
+
+# Insert products
+unit = 'قطعة'
+insert_count = 0
+for vals in rows:
+    series_ar = vals[1]
+    name = vals[2]
+    code = vals[3]
+    size = vals[4]
+    color = vals[5]
+    price_str = vals[6]
+    
+    subcat_id = cat_map.get(series_ar)
+    if not subcat_id:
+        subcat_id = existing_subcats.get('OTHERS')
+    if not subcat_id:
+        print(f"NO SUBCAT for: {series_ar}")
+        continue
+    
+    price_val = 0
+    try:
+        price_val = float(price_str.replace(',', ''))
+    except:
+        pass
+    
+    prod_id = str(uuid.uuid4())
+    safe_name = name.replace("'", "''")
+    safe_size = size.replace("'", "''") if size else ''
+    
+    sql_parts.append(
+        f"INSERT INTO products (id, subcategory_id, name, barcode, unit, "
+        f"retail_price, wholesale_price, cost_price, company, size, type, material, "
+        f"is_active, created_at, updated_at, stock_status) VALUES ("
+        f"'{prod_id}', '{subcat_id}', E'{safe_name}', '{code}', '{unit}', "
+        f"{price_val}, {price_val}, {price_val}, 'دروفيت', E'{safe_size}', '', '', "
+        f"true, {now}, {now}, 'untracked');"
+    )
+    insert_count += 1
+
+print(f"Products to insert: {insert_count}")
+
+sql_path = r'C:\eg-co-erp\reimport_drovit_v5.sql'
+with open(sql_path, 'w', encoding='utf-8') as f:
+    f.write('\n'.join(sql_parts))
+
+subprocess.run(['docker', 'cp', sql_path, 'eg-co-erp-db-1:/tmp/reimport_drovit_v5.sql'], capture_output=True)
+r2 = subprocess.run(
+    ['docker', 'exec', 'eg-co-erp-db-1', 'psql', '-U', 'postgres', '-d', 'inventory_db', '-f', '/tmp/reimport_drovit_v5.sql'],
+    capture_output=True, text=True, encoding='utf-8', errors='replace'
+)
+errors = r2.stderr.count('ERROR') if r2.stderr else 0
+print(f"Errors: {errors}")
+if r2.stderr and errors > 0:
+    for l in r2.stderr.split('\n')[:5]:
+        if 'ERROR' in l:
+            print(f"  {l[:150]}")
+
+r3 = subprocess.run(
+    ['docker', 'exec', 'eg-co-erp-db-1', 'psql', '-U', 'postgres', '-d', 'inventory_db',
+     '-t', '-A',
+     '-c', "SELECT count(*) FROM products WHERE company = 'دروفيت'"],
+    capture_output=True, text=True, encoding='utf-8', errors='replace'
+)
+count = r3.stdout.strip()
+print(f"دروفيت in DB: {count}")
+
+# Show some samples
+r4 = subprocess.run(
+    ['docker', 'exec', 'eg-co-erp-db-1', 'psql', '-U', 'postgres', '-d', 'inventory_db',
+     '-c', "SELECT name, barcode FROM products WHERE company = 'دروفيت' ORDER BY random() LIMIT 5"],
+    capture_output=True, text=True, encoding='utf-8', errors='replace'
+)
+print("Samples:")
+print(r4.stdout)

@@ -55,6 +55,7 @@ export default function SalesPage() {
       toast.success(`✅ مرتجع ${data.doc_number}`)
       setReturnSale(null); setReturnQtys({})
       qc.invalidateQueries({ queryKey: ['sales'] })
+      openPrint(`/print/pdf/sale/${data.sale_id}`)
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل'),
   })

@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 from app.db.base import engine, Base
@@ -29,6 +32,23 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Inventory ERP API", version="1.0.0", lifespan=lifespan)
+
+logger = logging.getLogger("validation")
+
+
+@app.exception_handler(RequestValidationError)
+async def log_validation_error(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    logger.error("Validation error on %s %s: %s", request.method, request.url.path, errors)
+    safe_errors = []
+    for e in errors:
+        ctx = e.get("ctx", {})
+        clean_ctx = {}
+        for k, v in ctx.items():
+            clean_ctx[k] = str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+        safe_errors.append({**e, "ctx": clean_ctx})
+    return JSONResponse(status_code=422, content={"detail": safe_errors})
+
 
 app.add_middleware(
     CORSMiddleware,

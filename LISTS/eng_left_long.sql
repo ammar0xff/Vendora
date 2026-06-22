@@ -1,0 +1,5 @@
+SELECT name FROM products
+WHERE company IN ('ايديال', 'دروفيت')
+AND name ~ '[A-Za-z]{3,}'
+ORDER BY length(name) DESC
+LIMIT 50;

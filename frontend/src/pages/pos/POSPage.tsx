@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi, salesApi, stockApi, shiftsApi, customersApi, categoriesApi, subcategoriesApi } from '../../api/endpoints'
 import api from '../../api/client'
@@ -15,11 +15,13 @@ import { openPrint } from '../../utils/format'
 import {
   Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle,
   X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw, AlertCircle,
-  ChevronDown, ChevronLeft, Tag, Layers, DollarSign, BookOpen
+  ChevronDown, ChevronLeft, Tag, Layers, DollarSign, BookOpen,
+  LayoutGrid, List
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
+import CategoryCardBrowser from './CategoryCardBrowser'
 
 // ── Drawer Balance Badge ──────────────────────────────────────────────────
 function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseName, supervisorName, wallets, currentUserId }: any) {
@@ -271,6 +273,7 @@ export default function POSPage() {
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', debouncedSearch, selectedCat, selectedSub],
     queryFn: () => productsApi.list({ page_size: 5000, ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
+    staleTime: 30_000,
   })
 
   // Collections — shown in search results
@@ -326,7 +329,32 @@ export default function POSPage() {
   })
 
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products')
-  const [confirmReturn, setConfirmReturn] = useState<number | null>(null)
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
+  const [cartWidth, setCartWidth] = useState(320)
+  const cartElRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null)
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const el = cartElRef.current
+    if (!el) return
+    const startW = el.getBoundingClientRect().width
+    dragRef.current = { startX: e.clientX, startW }
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return
+      const w = Math.max(280, Math.min(560, dragRef.current.startW + (ev.clientX - dragRef.current.startX)))
+      el.style.width = w + 'px'
+    }
+    const onUp = () => {
+      if (cartElRef.current) setCartWidth(cartElRef.current.getBoundingClientRect().width)
+      dragRef.current = null
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [])
+  const [returnSaleDetails, setReturnSaleDetails] = useState<any>(null)
+  const [returnQtys, setReturnQtys] = useState<Record<string, number>>({})
   const [confirmDelItem, setConfirmDelItem] = useState<any>(null)
   const [confirmDelReturn, setConfirmDelReturn] = useState<any>(null)
   const [confirmDelTx, setConfirmDelTx] = useState<any>(null)
@@ -430,8 +458,29 @@ export default function POSPage() {
   })
 
   const returnMut = useMutation({
-    mutationFn: salesApi.return,
-    onSuccess: () => { toast.success('تم تسجيل المرتجع'); qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] }); qc.invalidateQueries({ queryKey: ['recent-sales'] }) },
+    mutationFn: async () => {
+      if (!returnSaleDetails) return
+      const allFull = returnSaleDetails.items?.every(
+        (i: any) => (returnQtys[i.product_id] || 0) >= Number(i.qty)
+      )
+      if (allFull) {
+        return salesApi.return(returnSaleDetails.id)
+      }
+      const { data } = await api.post(`/sales/${returnSaleDetails.id}/partial-return`, {
+        items: Object.entries(returnQtys).filter(([, qty]) => Number(qty) > 0).map(([product_id, qty]) => ({ product_id, qty }))
+      })
+      return data
+    },
+    onSuccess: (data: any) => {
+      toast.success('تم تسجيل المرتجع')
+      const printId = data?.sale_id || (returnSaleDetails?.id)
+      if (printId) openPrint(`/print/pdf/sale/${printId}`)
+      setReturnSaleDetails(null)
+      setReturnQtys({})
+      setShowReturn(false)
+      qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
+      qc.invalidateQueries({ queryKey: ['recent-sales'] })
+    },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل'),
   })
 
@@ -735,6 +784,7 @@ export default function POSPage() {
       </div>
 
       <div className="flex gap-5 flex-1 min-h-0">
+        {viewMode === 'table' && (<>
         {/* ── Category Tree Sidebar ── */}
         <aside className="w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-3 py-2.5 border-b border-slate-100 flex-shrink-0">
@@ -792,18 +842,32 @@ export default function POSPage() {
             })}
           </div>
         </aside>
+        </>)}
 
         {/* ── Products + Cart ── */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Search */}
-          <div className="relative mb-3 flex-shrink-0">
-            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input ref={searchRef} value={search}
-              onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
-              onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-              className="input pr-10" placeholder="ابحث بالاسم أو امسح الباركود..." />
+          {/* Search + view toggle */}
+          <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input ref={searchRef} value={search}
+                onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
+                onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
+                className="input pr-10" placeholder="ابحث بالاسم أو امسح الباركود..." />
+            </div>
+            <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0"
+              title={viewMode === 'table' ? 'عرض البطاقات' : 'عرض الجدول'}>
+              {viewMode === 'table' ? <LayoutGrid size={16} /> : <List size={16} />}
+            </button>
           </div>
 
+          {viewMode === 'cards' ? (
+            <div className="flex-1 min-h-0">
+              <CategoryCardBrowser warehouseId={mainWh?.id} mode={mode} onAddProduct={(p) => { handleAddProduct(p); }} />
+            </div>
+          ) : (
+          <>
           {isLoading ? <PageLoader /> : (
             <div className="flex-1 overflow-y-auto relative">
 
@@ -853,12 +917,12 @@ export default function POSPage() {
                       <tr><td colSpan={6} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
                     )}
                     {products?.filter((p: any) => {
-                      const q = stockMap?.[p.id] ?? (p.stock_status === 'untracked' ? undefined : 0)
-                      return q === undefined || q > 0
+                      const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                      return q === null || q > 0
                     })?.map((p: any) => {
                       const retailPrice = Number(p.retail_price)
                       const wholesalePrice = Number(p.wholesale_price) || retailPrice
-                      const qty = stockMap?.[p.id] ?? (p.stock_status === 'untracked' ? undefined : 0)
+                      const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                       return (
                         <tr key={p.id} onClick={() => handleAddProduct(p)}
                           className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
@@ -867,7 +931,7 @@ export default function POSPage() {
                           <td className="py-2 px-3 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
                           <td className="py-2 px-3 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
                           <td className="py-2 px-3">
-                            {qty !== undefined ? (
+                            {qty != null ? (
                               <span className={`font-bold px-1.5 py-0.5 rounded-md ${
                                 qty <= 0 ? 'bg-red-100 text-red-600' :
                                 qty <= 5 ? 'bg-amber-100 text-amber-700' :
@@ -906,10 +970,17 @@ export default function POSPage() {
               <DollarSign size={13} /> دفع عميل آجل
             </button>
           </div>
+          </>
+          )}
         </div>
 
         {/* Cart panel */}
-        <div className="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div ref={cartElRef} className="flex-shrink-0 flex relative" style={{ width: cartWidth }}>
+          <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group flex items-center justify-center"
+            onMouseDown={handleDragStart}>
+            <div className="w-0.5 h-8 rounded-full bg-slate-200 group-hover:bg-blue-400 transition-colors" />
+          </div>
+          <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
 
           {/* Cart header — customer + mode */}
           <div className="p-4 border-b border-slate-100 flex-shrink-0" style={{ background: '#1e3a5f' }}>
@@ -1035,7 +1106,7 @@ export default function POSPage() {
           </div>
 
           {/* Cart items */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[55vh]">
             {!items.length && (
               <div className="text-center py-10 text-slate-400">
                 <ShoppingCart size={36} className="mx-auto mb-2 opacity-30" />
@@ -1173,8 +1244,9 @@ export default function POSPage() {
               {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? '⚠️ حدد عميل للآجل' : isCredit ? '✓ تأكيد — آجل' : 'تأكيد الدفع'}
             </button>
           </div>
-        </div>
-      </div>
+        </div>{/* end cart inner */}
+      </div>{/* end cart wrapper */}
+      </div>{/* end main-row */}
 
     </div>{/* end desktop */}
 
@@ -1202,14 +1274,28 @@ export default function POSPage() {
       {/* Products tab */}
       {mobileTab === 'products' && (
         <div className="flex-1 flex flex-col min-h-0 p-3">
-          {/* Search */}
-          <div className="relative mb-3 flex-shrink-0">
-            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input ref={searchRef} value={search}
-              onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
-              onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-              className="input pr-10" placeholder="ابحث أو امسح الباركود..." autoFocus />
+          {/* Search + view toggle */}
+          <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input ref={searchRef} value={search}
+                onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
+                onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
+                className="input pr-10" placeholder="ابحث أو امسح الباركود..." autoFocus />
+            </div>
+            <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0"
+              title={viewMode === 'table' ? 'عرض البطاقات' : 'عرض الجدول'}>
+              {viewMode === 'table' ? <LayoutGrid size={16} /> : <List size={16} />}
+            </button>
           </div>
+
+          {viewMode === 'cards' ? (
+            <div className="flex-1 min-h-0">
+              <CategoryCardBrowser warehouseId={mainWh?.id} mode={mode} onAddProduct={(p) => { handleAddProduct(p); }} />
+            </div>
+          ) : (
+          <>
           {/* Category pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button onClick={() => { setSelectedCat(null); setSelectedSub(null) }}
@@ -1265,6 +1351,8 @@ export default function POSPage() {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </div>
       )}
 
@@ -1487,13 +1575,57 @@ export default function POSPage() {
                 <p className="text-xs text-slate-400 font-mono">{s.invoice_number} — {new Date(s.created_at).toLocaleString('ar-EG')} — {s.sale_mode === 'wholesale' ? 'جملة' : 'قطاعي'} — {s.items?.length || 0} صنف</p>
               </div>
               <button
-                onClick={() => setConfirmReturn(s.id)}
+                onClick={() => { setShowReturn(false); setReturnSaleDetails(s); const init: Record<string,number> = {}; s.items?.forEach((i: any) => { init[i.product_id] = Number(i.qty) }); setReturnQtys(init) }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 transition-colors">
                 <RotateCcw size={12} /> مرتجع
               </button>
             </div>
           ))}
         </div>
+      </Modal>
+
+      {/* Partial Return Item Selection Modal */}
+      <Modal open={!!returnSaleDetails} onClose={() => { setReturnSaleDetails(null); setReturnQtys({}) }} title={returnSaleDetails ? `مرتجع من ${returnSaleDetails.invoice_number}` : ''} size="lg">
+        {returnSaleDetails && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">اختر الكميات المراد إرجاعها</p>
+              <p className="text-xs text-slate-400 font-mono">{returnSaleDetails.customer_name || 'عميل عادي'} — {new Date(returnSaleDetails.created_at).toLocaleString('ar-EG')}</p>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {returnSaleDetails.items?.map((item: any) => (
+                <div key={item.product_id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">{item.product_name || item.product_id.slice(0, 8)}</p>
+                    <p className="text-xs text-slate-400">الكمية الأصلية: {item.qty} — {Number(item.unit_price).toLocaleString('ar-EG')} ج.م</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.max(0, (q[item.product_id] || 0) - 1) }))}
+                      className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={12} /></button>
+                    <input type="number" min="0" max={item.qty} value={returnQtys[item.product_id] || 0}
+                      onChange={e => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min(Number(e.target.value), item.qty) }))}
+                      className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-blue-300" />
+                    <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min((q[item.product_id] || 0) + 1, item.qty) }))}
+                      className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
+              إجمالي المرتجع: <span className="font-black">
+                {returnSaleDetails.items?.reduce((s: number, i: any) => s + (returnQtys[i.product_id] || 0) * Number(i.unit_price), 0).toLocaleString('ar-EG')} ج.م
+              </span>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => { setReturnSaleDetails(null); setReturnQtys({}) }} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+              <button onClick={() => returnMut.mutate()}
+                disabled={Object.values(returnQtys).every(v => v === 0) || returnMut.isPending}
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
+                <RotateCcw size={14} /> تأكيد المرتجع
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Drawer Entry Modal (خوارج / دواخل) */}
@@ -1655,9 +1787,10 @@ export default function POSPage() {
         {todayLedger ? (
           <div className="space-y-3">
             {/* Summary */}
-            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+            <div className="grid grid-cols-5 gap-2 text-center text-xs">
               {[
-                { label: 'المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
+                { label: 'إجمالي المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
+                { label: 'نقدي', val: todayLedger.summary.cash_sales, color: '#15803d' },
                 { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
                 { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
                 { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
@@ -1982,9 +2115,7 @@ export default function POSPage() {
         </div>
       </Modal>
 
-      <ConfirmDialog open={!!confirmReturn} onClose={() => setConfirmReturn(null)}
-        onConfirm={() => { returnMut.mutate(confirmReturn!); setShowReturn(false) }}
-        message={`مرتجع فاتورة ${confirmReturn || ''}؟`} danger confirmText="مرتجع" />
+
       <ConfirmDialog open={!!confirmDelItem} onClose={() => setConfirmDelItem(null)}
         onConfirm={() => { const item = confirmDelItem; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم حذف البند'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
         message={`حذف "${confirmDelItem?.product_name || ''}" من الفاتورة؟`} danger />

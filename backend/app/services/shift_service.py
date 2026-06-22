@@ -89,21 +89,8 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     """), {"sid": shift_id})
     payment_breakdown = [dict(r._mapping) for r in pay_rows.fetchall()]
 
-    # Cash-only total (what's actually in the drawer — excludes wallets)
-    cash_sales = sum(float(p["total"]) for p in payment_breakdown if p["method"] == "cash")
+    # Wallet sales total
     wallet_sales = sum(float(p["total"]) for p in payment_breakdown if p["method"] != "cash")
-
-    # Cash deposits/expenses only (wallet transactions don't affect the drawer)
-    cash_tx_rows = await db.execute(sqlt("""
-        SELECT type, SUM(amount) as total FROM drawer_transactions
-        WHERE shift_id = :sid AND (payment_method IS NULL OR payment_method = 'cash')
-        AND type IN ('deposit','expense','withdrawal')
-        GROUP BY type
-    """), {"sid": shift_id})
-    cash_tx = {r.type: float(r.total) for r in cash_tx_rows.fetchall()}
-    cash_deposits    = cash_tx.get("deposit", 0)
-    cash_expenses    = cash_tx.get("expense", 0) + cash_tx.get("withdrawal", 0)
-    cash_returns     = float(returns)  # returns always go back to drawer
 
     # Wallet deposits/expenses breakdown
     wallet_tx_rows = await db.execute(sqlt("""
@@ -126,7 +113,7 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "deposits_total": deposits,
         "withdrawals_total": withdrawals,
         "expected_balance": expected,
-        "cash_in_drawer": float(shift.initial_amount) + cash_sales + cash_deposits - cash_returns - cash_expenses,
+        "cash_in_drawer": expected,
         "wallet_total": wallet_sales,
         "closing_balance": shift.closing_balance,
         "variance": variance,

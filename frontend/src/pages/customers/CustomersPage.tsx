@@ -4,17 +4,21 @@ import { customersApi } from '../../api/endpoints'
 import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Search, Plus, ChevronLeft, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import { Search, Plus, ChevronLeft, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Wallet } from 'lucide-react'
 import ExportButton from '../../components/ui/ExportButton'
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<any>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
+  const [showBalance, setShowBalance] = useState(false)
+  const [balanceAmount, setBalanceAmount] = useState('')
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newCreditLimit, setNewCreditLimit] = useState('')
+  const [newAddress, setNewAddress] = useState('')
   const [payAmount, setPayAmount] = useState('')
   const [payNote, setPayNote] = useState('')
   const qc = useQueryClient()
@@ -30,9 +34,27 @@ export default function CustomersPage() {
   })
 
   const createMut = useMutation({
-    mutationFn: () => customersApi.create({ name: newName, phone: newPhone, credit_limit: newCreditLimit ? Number(newCreditLimit) : null }),
-    onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); setNewName(''); setNewPhone(''); setNewCreditLimit(''); qc.invalidateQueries({ queryKey: ['customers'] }) },
+    mutationFn: () => customersApi.create({ name: newName, phone: newPhone, credit_limit: newCreditLimit ? Number(newCreditLimit) : null, address: newAddress || undefined }),
+    onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); resetForm(); qc.invalidateQueries({ queryKey: ['customers'] }) },
   })
+  const editMut = useMutation({
+    mutationFn: () => customersApi.update(selected.id, { name: newName, phone: newPhone, credit_limit: newCreditLimit ? Number(newCreditLimit) : null, address: newAddress || undefined }),
+    onSuccess: () => { toast.success('تم التعديل'); setShowEdit(false); qc.invalidateQueries({ queryKey: ['customers'] }); qc.invalidateQueries({ queryKey: ['customer-account', selected?.id] }); setSelected({ ...selected, name: newName, phone: newPhone, credit_limit: newCreditLimit ? Number(newCreditLimit) : null }) },
+  })
+  const deleteMut = useMutation({
+    mutationFn: () => customersApi.delete(selected.id),
+    onSuccess: () => { toast.success('تم الحذف'); setSelected(null); qc.invalidateQueries({ queryKey: ['customers'] }) },
+  })
+  const balanceMut = useMutation({
+    mutationFn: () => customersApi.setBalance(selected.id, Number(balanceAmount)),
+    onSuccess: () => {
+      toast.success('تم تعديل المديونية')
+      setShowBalance(false)
+      qc.invalidateQueries({ queryKey: ['customer-account', selected?.id] })
+      qc.invalidateQueries({ queryKey: ['customers'] })
+    },
+  })
+
   const paymentMut = useMutation({
     mutationFn: () => customersApi.addPayment(selected.id, Number(payAmount), payNote),
     onSuccess: () => {
@@ -42,6 +64,10 @@ export default function CustomersPage() {
       qc.invalidateQueries({ queryKey: ['customer-ledger', selected?.id] })
     },
   })
+
+  function resetForm() { setNewName(''); setNewPhone(''); setNewCreditLimit(''); setNewAddress('') }
+  function openEdit(c: any) { setNewName(c.name); setNewPhone(c.phone || ''); setNewCreditLimit(c.credit_limit || ''); setNewAddress(c.address || ''); setShowEdit(true) }
+  function openDelete(c: any) { if (confirm(`حذف العميل "${c.name}"؟`)) { setSelected(c); deleteMut.mutate() } }
 
   const typeLabel: Record<string, string> = { invoice: 'فاتورة', return: 'مرتجع', payment: 'دفعة' }
   const typeBadge: Record<string, string> = { invoice: 'badge-blue', return: 'badge-red', payment: 'badge-green' }
@@ -110,9 +136,20 @@ export default function CustomersPage() {
                 <h2 className="text-xl font-black text-slate-800">{selected.name}</h2>
                 {selected.phone && <p className="text-slate-500 text-sm">{selected.phone}</p>}
               </div>
-              <button onClick={() => setShowPayment(true)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#16a34a' }}>
-                <DollarSign size={15} /> تسجيل دفعة
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => openEdit(selected)} className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-slate-600 bg-slate-100 hover:bg-slate-200">
+                  <Pencil size={14} /> تعديل
+                </button>
+                <button onClick={() => openDelete(selected)} className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100">
+                  <Trash2 size={14} /> حذف
+                </button>
+                <button onClick={() => { setBalanceAmount(String(account?.balance_due || 0)); setShowBalance(true) }} className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-amber-700 bg-amber-50 hover:bg-amber-100">
+                  <Wallet size={14} /> تعديل المديونية
+                </button>
+                <button onClick={() => setShowPayment(true)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#16a34a' }}>
+                  <DollarSign size={15} /> تسجيل دفعة
+                </button>
+              </div>
             </div>
 
             {account && (
@@ -182,18 +219,50 @@ export default function CustomersPage() {
         )}
       </div>
 
+      {/* Add modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة عميل جديد">
         <div className="space-y-4">
           <div><label className="block text-sm font-medium text-slate-600 mb-1">الاسم *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
           <div><label className="block text-sm font-medium text-slate-600 mb-1">رقم الهاتف</label><input className="input" value={newPhone} onChange={e => setNewPhone(e.target.value)} /></div>
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">العنوان</label><input className="input" value={newAddress} onChange={e => setNewAddress(e.target.value)} /></div>
           <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م) — اختياري</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => { setShowAdd(false); resetForm() }} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
             <button onClick={() => createMut.mutate()} disabled={!newName} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
           </div>
         </div>
       </Modal>
 
+      {/* Edit modal */}
+      <Modal open={showEdit} onClose={() => setShowEdit(false)} title={`تعديل العميل — ${selected?.name}`}>
+        <div className="space-y-4">
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">الاسم *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">رقم الهاتف</label><input className="input" value={newPhone} onChange={e => setNewPhone(e.target.value)} /></div>
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">العنوان</label><input className="input" value={newAddress} onChange={e => setNewAddress(e.target.value)} /></div>
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م)</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowEdit(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => editMut.mutate()} disabled={!newName || editMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>حفظ التعديلات</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Balance modal */}
+      <Modal open={showBalance} onClose={() => setShowBalance(false)} title={`تعديل المديونية — ${selected?.name}`}>
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm">
+            المديونية الحالية: <span className="font-black text-blue-700">{Number(account?.balance_due || 0).toLocaleString('ar-EG')} ج.م</span>
+          </div>
+          <div><label className="block text-sm font-medium text-slate-600 mb-1">المديونية الجديدة (ج.م) *</label><input type="number" className="input text-lg font-bold" value={balanceAmount} onChange={e => setBalanceAmount(e.target.value)} autoFocus /></div>
+          <div className="text-xs text-slate-500">سيتم تحديث رصيد العميل مباشرة بهذه القيمة.</div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowBalance(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => balanceMut.mutate()} disabled={balanceAmount === '' || balanceMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#d97706' }}>حفظ المديونية</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Payment modal */}
       <Modal open={showPayment} onClose={() => setShowPayment(false)} title={`تسجيل دفعة — ${selected?.name}`}>
         <div className="space-y-4">
           {account && (

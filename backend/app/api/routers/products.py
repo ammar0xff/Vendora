@@ -255,9 +255,10 @@ async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSe
     p = result.scalar_one_or_none()
     if not p:
         raise NotFoundError()
-    for k, v in data.model_dump(exclude_none=True).items():
+    payload = data.model_dump(exclude_none=True)
+    for k, v in payload.items():
         setattr(p, k, v)
-    await audit_log(db, "product", "update", current_user.id, current_user.full_name, product_id, data.model_dump(exclude_none=True), "تعديل المنتج")
+    await audit_log(db, "product", "update", current_user.id, current_user.full_name, product_id, data.model_dump(mode="json", exclude_none=True), "تعديل المنتج")
     await db.commit()
     await db.refresh(p)
     return p

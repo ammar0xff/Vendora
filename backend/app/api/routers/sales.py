@@ -93,11 +93,20 @@ async def list_sales(
     if user_ids:
         urows = await db.execute(sqlt("SELECT id, full_name FROM users WHERE id = ANY(:ids)"), {"ids": user_ids})
         user_names = {str(r.id): r.full_name for r in urows.fetchall()}
+    # Get product names for items
+    items_list = [i for s, _ in rows for i in (s.items or [])]
+    all_pids = list({i.product_id for i in items_list})
+    pnames = {}
+    if all_pids:
+        prod_rows = await db.execute(sqlt("SELECT id, name FROM products WHERE id = ANY(:ids)"), {"ids": [str(p) for p in all_pids]})
+        pnames = {str(r.id): r.name for r in prod_rows.fetchall()}
     result = []
     for sale, cname in rows:
         d = SaleOut.model_validate(sale).model_dump()
         d['customer_name'] = cname
         d['created_by_name'] = user_names.get(str(sale.created_by), '')
+        for item in d.get('items') or []:
+            item['product_name'] = pnames.get(str(item['product_id']), '')
         result.append(d)
     return result
 # TODO: needs pagination — has limit but no offset/skip
@@ -233,7 +242,7 @@ async def cancel_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
 async def return_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
     """Full return of a confirmed sale."""
     sale = await sale_service.return_sale(db, sale_id, current_user.id)
-    await audit_log(db, "sale", "return", current_user.id, current_user.full_name, sale_id, {}, f"إرجاع فاتورة {sale.invoice_number}")
+    await audit_log(db, "sale", "return", current_user.id, current_user.full_name, sale_id, {}, f"إرجاع فاتورة {sale['invoice_number']}")
     return sale
 
 
