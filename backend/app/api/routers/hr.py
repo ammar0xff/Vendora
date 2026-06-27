@@ -5,7 +5,7 @@ from sqlalchemy import select
 from datetime import date
 from typing import Optional
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role, require_perm
+from app.dependencies import get_current_user, require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
 from app.schemas.hr import EmployeeCreate, EmployeeUpdate, AttendanceCreate, PayrollCalculate, PayrollUpdate, AdvanceCreate
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/hr", tags=["hr"])
 
 
 @router.get("/audit-log")
-async def get_audit_log(db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def get_audit_log(db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     r = await db.execute(text("""
         SELECT a.id, a.action_type, a.entity_type, a.entity_id, a.reason, a.details, a.created_at,
                u.full_name as performed_by_name
@@ -41,9 +41,8 @@ async def list_shifts(db: AsyncSession = Depends(get_db), _=Depends(get_current_
 
 
 @router.post("/shifts")
-async def create_shift(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
-    import uuid as _uuid
-    sid = str(int(_uuid.uuid4().int % 10**10))
+async def create_shift(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+    sid = str(int(uuid.uuid4().int % 10**10))
     await db.execute(text("INSERT INTO hr_shifts (id, name, start_time, end_time, description) VALUES (:id,:name,:st,:et,:desc)"),
                      {'id': sid, 'name': data['name'], 'st': data['start_time'], 'et': data['end_time'], 'desc': data.get('description','')})
     await db.commit()
@@ -51,13 +50,13 @@ async def create_shift(data: dict, db: AsyncSession = Depends(get_db), _=Depends
 
 
 @router.get("/settings")
-async def get_hr_settings(db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def get_hr_settings(db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     r = await db.execute(text("SELECT key, value FROM hr_settings"))
     return {row[0]: row[1] for row in r.fetchall()}
 
 
 @router.put("/settings")
-async def update_hr_settings(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_hr_settings(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     for k, v in data.items():
         await db.execute(text("INSERT INTO hr_settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value"),
                          {'k': k, 'v': str(v)})
@@ -74,7 +73,7 @@ async def list_employees(db: AsyncSession = Depends(get_db), _=Depends(get_curre
 
 
 @router.post("/employees")
-async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     r = await db.execute(text("""
         INSERT INTO hr_employees (emp_code, name, position, monthly_salary, shift_schedule, hire_date)
         VALUES (:code, :name, :pos, :sal, :shift, :hire) RETURNING *
@@ -87,7 +86,7 @@ async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_d
 
 
 @router.put("/employees/{emp_id}")
-async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     vals = data.model_dump(exclude_unset=True)
     if not vals:
         return {"detail": "no changes"}
@@ -109,7 +108,7 @@ async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSess
 
 
 @router.delete("/employees/{emp_id}", status_code=204)
-async def delete_employee(emp_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_employee(emp_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     await db.execute(text("UPDATE hr_employees SET is_active=FALSE WHERE id=:id"), {'id': emp_id})
     await db.commit()
 
@@ -393,7 +392,7 @@ async def submit_payroll_period(month: str, db: AsyncSession = Depends(get_db), 
 
 
 @router.post("/payroll/period/approve")
-async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin", "manager"))):
+async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none() or "draft"
     if status != "review":
         raise BusinessError("لا يمكن اعتماد الشهر إلا بعد المراجعة")
@@ -433,7 +432,7 @@ async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/payroll/period/pay")
-async def pay_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin", "manager"))):
+async def pay_payroll_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none() or "draft"
     if status != "approved":
         raise BusinessError("لا يمكن صرف الشهر إلا بعد الاعتماد")
@@ -446,7 +445,7 @@ async def pay_payroll_period(month: str, db: AsyncSession = Depends(get_db), cur
 
 
 @router.post("/payroll/period/reopen")
-async def reopen_payroll_period(month: str, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def reopen_payroll_period(month: str, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     status = (await db.execute(text("SELECT status FROM hr_payroll_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
     if status == "paid":
         raise BusinessError("لا يمكن إعادة فتح شهر تم صرفه")
@@ -739,7 +738,7 @@ async def attendance_report(month: str, db: AsyncSession = Depends(get_db), _=De
 # ── ZK Device Sync ────────────────────────────────────────────────────────────
 
 @router.get("/sync-log")
-async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     rows = (await db.execute(text(
         "SELECT id, synced_at, status, fetched, added, updated, message FROM hr_sync_log ORDER BY synced_at DESC LIMIT 50"
     ))).fetchall()
@@ -748,7 +747,7 @@ async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_rol
 
 
 @router.post("/attendance/from-device")
-async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     """Accept a single attendance record from the host-side zk_sync.py script."""
     uid = str(data.get('emp_id', ''))
     from datetime import date as _date, datetime as _dt
@@ -789,7 +788,7 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/sync-device")
-async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     """Trigger sync from ZK device — only works if backend can reach the device directly."""
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
     host = settings.get("device_host")

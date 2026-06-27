@@ -11,7 +11,7 @@ from app.schemas.product import (
 )
 from app.models.product import Category, Subcategory, Product, ProductBarcode
 from app.models.user import User
-from app.dependencies import get_current_user, require_perm
+from app.dependencies import get_current_user, require_perm, verify_warehouse_access
 from app.core.config import settings
 import uuid
 import os
@@ -131,9 +131,11 @@ async def list_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(5000, ge=1, le=5000),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     from sqlalchemy import func, text as sqlt
+    from app.models.user import User
+    await verify_warehouse_access(db, current_user, warehouse_id)
     base_q = select(Product).where(Product.is_active)
     count_q = select(func.count(Product.id)).where(Product.is_active)
     if search:

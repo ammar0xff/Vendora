@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import require_role
+from app.dependencies import require_perm
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -13,7 +13,7 @@ async def company_overview(
     from_date: str = Query(default=None),
     to_date: str = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin", "manager"))
+    _=Depends(require_perm("admin"))
 ):
     from datetime import date as _date
     today = _date.today().isoformat()

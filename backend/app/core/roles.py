@@ -30,11 +30,4 @@ ROLE_DEFAULT_PERMISSIONS = {
     ],
 }
 
-# Home page redirect per role
-ROLE_HOME = {
-    "admin":       "/",
-    "manager":     "/",
-    "cashier":     "/pos",
-    "storekeeper": "/inventory",
-    "accountant":  "/reports",
-}
+

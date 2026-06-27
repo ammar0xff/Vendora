@@ -6,8 +6,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from datetime import datetime
+from decimal import Decimal
 from app.db.base import get_db
-from app.dependencies import require_role
+from app.dependencies import get_current_user, verify_warehouse_access
+from app.models.user import User
+import uuid
 
 router = APIRouter(prefix="/reports/ledger", tags=["ledger"])
 
@@ -85,8 +88,9 @@ async def ledger(
     to_date: str,
     warehouse_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin", "cashier", "manager", "accountant")),
+    current_user: User = Depends(get_current_user),
 ):
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
     params: dict = {"start": start, "end": end}
@@ -193,11 +197,27 @@ async def ledger(
             cash_sales += item_total
 
 
+    # Opening balance: initial_amount of the first shift opened that day
+    opening = Decimal("0")
+    if warehouse_id:
+        shift_row = await db.execute(text(f"""
+            SELECT initial_amount FROM shifts
+            WHERE warehouse_id = :wh_id
+              AND started_at BETWEEN :start AND :end
+            ORDER BY started_at ASC
+            LIMIT 1
+        """), {"wh_id": warehouse_id, "start": start, "end": end})
+        s = shift_row.fetchone()
+        if s:
+            opening = Decimal(str(s.initial_amount))
+    net = total_sales - total_returns + total_deposits - total_expenses
+
     return {
         "sale_items": sale_items,
         "returns": returns,
         "expenses": expenses,
         "summary": {
+            "opening_balance": float(opening),
             "total_sales": total_sales,
             "cash_sales": cash_sales,
             "wallet_sales": wallet_sales,
@@ -205,7 +225,8 @@ async def ledger(
             "total_returns": total_returns,
             "total_expenses": total_expenses,
             "total_deposits": total_deposits,
-            "net": total_sales - total_returns + total_deposits - total_expenses,
+            "net": net,
+            "closing": float(opening) + net,
         },
         "from_date": from_date,
         "to_date": to_date,

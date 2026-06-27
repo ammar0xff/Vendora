@@ -8,7 +8,7 @@ from app.schemas.warehouse import WarehouseCreate, WarehouseUpdate
 from app.models.stock import StockMovement
 from app.models.warehouse import Warehouse
 from app.services import stock_service
-from app.dependencies import get_current_user, require_role, require_perm, require_open_period
+from app.dependencies import get_current_user, require_perm, require_open_period, verify_warehouse_access
 from app.models.user import User
 from app.services.audit_service import log as audit_log
 import uuid
@@ -23,7 +23,7 @@ async def list_warehouses(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/warehouses")
-async def create_warehouse(data: WarehouseCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_warehouse(data: WarehouseCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     w = Warehouse(code=data.code, name=data.name, warehouse_type=data.warehouse_type)
     db.add(w)
     await db.commit()
@@ -32,7 +32,7 @@ async def create_warehouse(data: WarehouseCreate, db: AsyncSession = Depends(get
 
 
 @router.put("/warehouses/{wh_id}")
-async def update_warehouse(wh_id: uuid.UUID, data: WarehouseUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_warehouse(wh_id: uuid.UUID, data: WarehouseUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     result = await db.execute(select(Warehouse).where(Warehouse.id == wh_id))
     w = result.scalar_one_or_none()
     if not w:
@@ -46,7 +46,7 @@ async def update_warehouse(wh_id: uuid.UUID, data: WarehouseUpdate, db: AsyncSes
 
 
 @router.delete("/warehouses/{wh_id}", status_code=204)
-async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     from sqlalchemy import text as sqlt
     from app.core.exceptions import BusinessError
     
@@ -72,9 +72,10 @@ async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/balance/bulk")
-async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """POST body: list of product UUIDs. Returns {product_id: qty}."""
     from sqlalchemy import func, case as sa_case
+    await verify_warehouse_access(db, current_user, warehouse_id)
     if not product_ids:
         return {}
     IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
@@ -139,7 +140,7 @@ async def add_movement(data: StockMovementCreate, db: AsyncSession = Depends(get
 async def reset_warehouse_stock(
     warehouse_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin")),
+    _=Depends(require_perm("settings")),
 ):
     """Delete all stock movements for a warehouse (reset inventory)."""
     from sqlalchemy import text as sqlt
@@ -160,8 +161,9 @@ async def list_movements(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    await verify_warehouse_access(db, current_user, warehouse_id)
     from sqlalchemy import text as sqlt
     from math import ceil
     conditions = ["1=1"]
@@ -212,12 +214,14 @@ async def transfer(data: TransferRequest, db: AsyncSession = Depends(get_db), cu
 
 
 @router.get("/low-stock")
-async def low_stock(warehouse_id: uuid.UUID, threshold: Decimal = Decimal("5"), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def low_stock(warehouse_id: uuid.UUID, threshold: Decimal = Decimal("5"), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    await verify_warehouse_access(db, current_user, warehouse_id)
     rows = await stock_service.get_low_stock(db, warehouse_id, threshold)
     return [{"product_id": str(p.id), "product_name": p.name, "current_qty": qty, "unit": p.unit} for p, qty in rows]
 
 
 @router.get("/valuation")
-async def valuation(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def valuation(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    await verify_warehouse_access(db, current_user, warehouse_id)
     row = await stock_service.get_valuation(db, warehouse_id)
     return {"total_cost_value": row.cost_value or 0, "total_retail_value": row.retail_value or 0, "product_count": row.product_count or 0}

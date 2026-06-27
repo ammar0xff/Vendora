@@ -19,6 +19,7 @@ class DocType(str, enum.Enum):
     shift_report    = "shift_report"
     shift_handover  = "shift_handover"
     inventory_report = "inventory_report"
+    safe_deposit    = "safe_deposit"
     other           = "other"
 
 

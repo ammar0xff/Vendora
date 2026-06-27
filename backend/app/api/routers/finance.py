@@ -3,9 +3,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role, require_perm
+from app.dependencies import get_current_user, require_perm, verify_warehouse_access
+from app.models.user import User
 from app.schemas.finance import FinancialCategoryCreate, FinancialCategoryUpdate, PermissionsUpdate
 from fastapi import HTTPException
+from datetime import datetime
 import uuid
 
 router = APIRouter(tags=["finance"])
@@ -83,15 +85,15 @@ async def financial_ledger(
     from_date: str, to_date: str,
     warehouse_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Returns all drawer transactions grouped by financial category.
     Shows total per category + individual entries — like customer accounts but for expenses/income.
     """
-    from datetime import datetime as _dt
-    start = _dt.fromisoformat(from_date)
-    end   = _dt.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
+    start = datetime.fromisoformat(from_date)
+    end   = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
 
     q = """
         SELECT dt.id, dt.type, dt.amount, dt.note, dt.created_at,
@@ -165,7 +167,7 @@ async def get_audit_log(
     entity_id: str | None = None,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin", "manager"))
+    _=Depends(require_perm("admin"))
 ):
     conditions = ["1=1"]
     params: dict = {"limit": limit}

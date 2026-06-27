@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_perm
+from app.dependencies import get_current_user, require_perm, verify_warehouse_access
+from app.models.user import User
 from app.schemas.wallet import WalletCreate, WalletUpdate
 import uuid
 
@@ -50,9 +51,10 @@ async def wallets_summary(
     to_date: str | None = None,
     warehouse_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Summary of sales per payment method."""
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     conditions = ["s.status = 'confirmed'"]
     params: dict = {}  # NOSONAR: values are parameterized
     if from_date:

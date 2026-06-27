@@ -42,6 +42,8 @@ class Sale(Base):
     payment_method: Mapped[str] = mapped_column(String(32), default="cash")
     wallet_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("payment_wallets.id", ondelete="SET NULL"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    returns_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True, default=0)
+    last_paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     items: Mapped[list["SaleItem"]] = relationship(back_populates="sale", cascade="all, delete-orphan")

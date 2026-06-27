@@ -15,9 +15,9 @@ export default defineConfig({
     tailwindcss(),
     ...(process.env.CI ? [] : [VitePWA({
       registerType: 'autoUpdate',
-      manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: '/index.html',
         runtimeCaching: [
           {
             urlPattern: /^\/api\/(?:products|categories|subcategories|stock\/warehouses|wallets|safes|settings|customers|users|collections|financial-categories|shifts\/current|reports)(?:\?.*)?$/,
@@ -53,6 +53,7 @@ export default defineConfig({
           },
         ],
       },
+
     })]),
   ],
   server: {

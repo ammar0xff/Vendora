@@ -23,17 +23,33 @@ const ALL_PAGES = [
   { id: 'users',      label: 'المستخدمون',        icon: '👥' },
   { id: 'settings',   label: 'الإعدادات',         icon: '⚙️' },
   { id: 'admin',      label: 'الإدارة الشاملة',   icon: '🏢' },
+  { id: 'shifts',     label: 'الورديات',          icon: '🕐' },
 ]
 
 function UserForm({ user, onSave, onClose }: any) {
   const [form, setForm] = useState(user || { username: '', full_name: '', role: 'cashier', password: '', default_warehouse_id: '' })
+  const [warehouseIds, setWarehouseIds] = useState<string[]>([])
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
+  const { data: userWarehouses } = useQuery({
+    queryKey: ['user-warehouses', user?.id],
+    queryFn: () => api.get(`/users/${user.id}/warehouses`).then(r => r.data),
+    enabled: !!user?.id,
+  })
+  useEffect(() => { if (userWarehouses) setWarehouseIds(userWarehouses) }, [userWarehouses])
+
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
+  const handleSave = (e: any) => {
+    e.preventDefault()
+    if (user?.id) {
+      api.put(`/users/${user.id}/warehouses`, { warehouse_ids: warehouseIds.filter(Boolean) }).catch(() => {})
+    }
+    onSave(form)
+  }
   return (
-    <form onSubmit={e => { e.preventDefault(); onSave(form) }} className="space-y-4">
+    <form onSubmit={handleSave} className="space-y-4">
       <div><label className="block text-sm font-medium text-slate-600 mb-1">اسم المستخدم *</label><input className="input" value={form.username} onChange={e => set('username', e.target.value)} required disabled={!!user} /></div>
       <div><label className="block text-sm font-medium text-slate-600 mb-1">الاسم الكامل *</label><input className="input" value={form.full_name} onChange={e => set('full_name', e.target.value)} required /></div>
-      <div><label className="block text-sm font-medium text-slate-600 mb-1">الصلاحية</label>
+      <div><label className="block text-sm font-medium text-slate-600 mb-1">المسمى الوظيفي</label>
         <select className="input" value={form.role} onChange={e => set('role', e.target.value)}>
           <option value="admin">مدير عام</option>
           <option value="manager">مشرف</option>
@@ -50,6 +66,20 @@ function UserForm({ user, onSave, onClose }: any) {
         </select>
         <p className="text-xs text-slate-400 mt-1">الموظفون غير المديرين سيُقيَّدون بهذا الفرع تلقائياً</p>
       </div>
+      {user && (
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-2">الفروع المسموح الدخول إليها</label>
+          <div className="grid grid-cols-2 gap-2">
+            {warehouses?.map((w: any) => (
+              <label key={w.id} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" checked={warehouseIds.includes(w.id)}
+                  onChange={e => setWarehouseIds(prev => e.target.checked ? [...prev, w.id] : prev.filter(id => id !== w.id))} />
+                <span className="text-sm">{w.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
         <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
@@ -79,7 +109,8 @@ function PermissionsPanel({ users }: { users: any[] | undefined }) {
 
   const saveMut = useMutation({
     mutationFn: () => api.put(`/permissions/${selectedUser.id}`, { permissions: perms, is_manager: isManager }),
-    onSuccess: () => toast.success('تم حفظ الصلاحيات'),
+    onSuccess: () => { toast.success('تم حفظ الصلاحيات'); qc.invalidateQueries({ queryKey: ['user-perms'] }) },
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل حفظ الصلاحيات'),
   })
 
   const selectUser = (u: any) => { setSelectedUser(u); setPerms([]); setIsManager(false) }
@@ -163,7 +194,7 @@ export default function UsersPage() {
 
   const createMut = useMutation({ mutationFn: usersApi.create, onSuccess: () => { toast.success('تمت الإضافة'); setShowAdd(false); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل إضافة المستخدم') })
   const updateMut = useMutation({ mutationFn: ({ id, data }: any) => usersApi.update(id, data), onSuccess: () => { toast.success('تم التحديث'); setEditUser(null); qc.invalidateQueries({ queryKey: ['users'] }) } })
-  const resetMut = useMutation({ mutationFn: ({ id, password }: any) => api.post(`/users/${id}/reset-password`, { password }), onSuccess: () => toast.success('تم تغيير كلمة المرور') })
+  const resetMut = useMutation({ mutationFn: ({ id, password }: any) => api.post(`/users/${id}/reset-password`, { password }), onSuccess: () => toast.success('تم تغيير كلمة المرور'), onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل تغيير كلمة المرور') })
   const deleteMut = useMutation({ mutationFn: usersApi.delete, onSuccess: () => { toast.success('تم التعطيل'); qc.invalidateQueries({ queryKey: ['users'] }) } })
 
   const roleLabel: Record<string, string> = { admin: 'مدير عام', cashier: 'كاشير', manager: 'مشرف', storekeeper: 'أمين مخازن', accountant: 'محاسب' }
@@ -198,7 +229,7 @@ export default function UsersPage() {
                 <div><p className="font-bold text-slate-800">{u.full_name}</p><p className="text-xs text-slate-400">@{u.username}</p></div>
               </div>
             )},
-            { key: 'role', label: 'الصلاحية', sortable: true, render: (u: any) => <span className={roleBadge[u.role] || 'badge-gray'}>{roleLabel[u.role] || u.role}</span> },
+            { key: 'role', label: 'المسمى الوظيفي', sortable: true, render: (u: any) => <span className={roleBadge[u.role] || 'badge-gray'}>{roleLabel[u.role] || u.role}</span> },
             { key: 'default_warehouse_name', label: 'الفرع', render: (u: any) => <span className="text-slate-500 text-sm">{u.default_warehouse_name || '—'}</span> },
             { key: 'is_manager', label: 'مدير', render: (u: any) => u.is_manager ? <span className="badge-green">مدير</span> : <span className="text-slate-300 text-sm">—</span> },
             { key: 'actions', label: '', render: (u: any) => (

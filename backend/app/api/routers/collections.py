@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_perm
+from app.dependencies import get_current_user, require_perm, verify_warehouse_access
+from app.models.user import User
 import uuid
 
 router = APIRouter(prefix="/collections", tags=["collections"])
@@ -70,8 +71,9 @@ async def delete_collection(cid: uuid.UUID, db: AsyncSession = Depends(get_db), 
 
 
 @router.get("/{cid}/availability")
-async def collection_availability(cid: uuid.UUID, warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def collection_availability(cid: uuid.UUID, warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """How many of this collection can be assembled from current stock in warehouse."""
+    await verify_warehouse_access(db, current_user, warehouse_id)
     items = await db.execute(text("""
         SELECT ci.product_id, ci.qty as needed, p.name, p.stock_status,
                COALESCE((

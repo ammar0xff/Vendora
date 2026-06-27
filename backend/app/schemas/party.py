@@ -22,6 +22,7 @@ class CustomerUpdate(BaseModel):
 class CustomerPaymentCreate(BaseModel):
     amount: Decimal = Field(..., gt=0)
     note: str | None = None
+    sale_id: str | None = None
 
 
 class SupplierCreate(BaseModel):

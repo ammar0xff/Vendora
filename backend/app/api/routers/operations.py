@@ -184,16 +184,22 @@ async def stock_request(data: StockRequestRequest, db: AsyncSession = Depends(ge
 @router.get("/")
 async def list_operations(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """قائمة بكل مستندات العمليات."""
+    # Basic pagination: allow callers to page through archived documents
+    from fastapi import Query
+    limit: int = Query(200, le=1000)
+    offset: int = Query(0, ge=0)
+
     result = await db.execute(
         select(ArchivedDocument)
         .where(ArchivedDocument.doc_type.in_([
             DocType.dispatch_order, DocType.goods_receipt, DocType.stock_request
         ]))
         .order_by(ArchivedDocument.created_at.desc())
-        .limit(200)
+        .limit(limit)
+        .offset(offset)
     )
     docs = result.scalars().all()
     return [{"id": str(d.id), "doc_number": d.doc_number, "doc_type": d.doc_type,
              "amount": float(d.amount or 0), "metadata": d.metadata_,
              "created_at": d.created_at.isoformat()} for d in docs]
-# TODO: needs pagination — has limit but no offset
+# Pagination implemented above

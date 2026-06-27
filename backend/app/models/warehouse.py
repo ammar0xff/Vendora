@@ -1,9 +1,14 @@
 import uuid
 from datetime import datetime
+from typing import List, TYPE_CHECKING
 from sqlalchemy import String, Boolean, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
+from app.models.user import user_warehouses
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Warehouse(Base):
@@ -15,3 +20,5 @@ class Warehouse(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     warehouse_type: Mapped[str] = mapped_column(String(20), nullable=False, default="warehouse")  # 'showroom' | 'warehouse'
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    users: Mapped[List["User"]] = relationship(secondary=user_warehouses, back_populates="warehouses")

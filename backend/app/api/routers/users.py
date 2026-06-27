@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select, text, delete as sqldelete
 from app.db.base import get_db
 from app.schemas.user import UserCreate, UserOut, PasswordReset
 from app.services import auth_service
-from app.dependencies import require_role, get_current_user
-from app.models.user import User
+from app.dependencies import require_perm, get_current_user
+from app.models.user import User, user_warehouses
 from app.core.exceptions import NotFoundError
 import uuid
 
@@ -22,12 +22,12 @@ async def list_managers(db: AsyncSession = Depends(get_db), _=Depends(get_curren
 @router.get("/staff")
 async def list_staff(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Any authenticated user can get basic staff list (id + name) for display purposes."""
-    rows = await db.execute(text("SELECT id, full_name, role FROM users WHERE is_active = true ORDER BY full_name"))
-    return [{"id": str(r.id), "full_name": r.full_name, "role": r.role} for r in rows.fetchall()]
+    rows = await db.execute(text("SELECT id, full_name, role, is_manager FROM users WHERE is_active = true ORDER BY full_name"))
+    return [{"id": str(r.id), "full_name": r.full_name, "role": r.role, "is_manager": r.is_manager} for r in rows.fetchall()]
 
 
 @router.get("")
-async def list_users(db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def list_users(db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     rows = await db.execute(text("""
         SELECT u.*, w.name as default_warehouse_name
         FROM users u
@@ -38,12 +38,12 @@ async def list_users(db: AsyncSession = Depends(get_db), _=Depends(require_role(
 
 
 @router.post("", response_model=UserOut)
-async def create_user(data: UserCreate, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def create_user(data: UserCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     return await auth_service.create_user(db, data)
 
 
 @router.get("/{user_id}", response_model=UserOut)
-async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -52,7 +52,7 @@ async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
 
 
 @router.put("/{user_id}")
-async def update_user(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin"))):
+async def update_user(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -79,7 +79,7 @@ async def update_user(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends
 
 
 @router.post("/{user_id}/reset-password", status_code=204)
-async def reset_password(user_id: uuid.UUID, data: PasswordReset, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+async def reset_password(user_id: uuid.UUID, data: PasswordReset, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("users"))):
     from app.core.security import hash_password
     from sqlalchemy import text as sqlt
     result = await db.execute(select(User).where(User.id == user_id))
@@ -88,13 +88,13 @@ async def reset_password(user_id: uuid.UUID, data: PasswordReset, db: AsyncSessi
         raise NotFoundError()
     user.password_hash = hash_password(data.password)
     await db.execute(sqlt(
-        "INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details) VALUES ('update', 'user', :eid, :by, 'إعادة تعيين كلمة المرور', :det::jsonb)"
+        "INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details) VALUES ('update', 'user', :eid, :by, 'إعادة تعيين كلمة المرور', CAST(:det AS jsonb))"
     ), {"eid": str(user_id), "by": current_user.id, "det": '{"action":"password_reset"}'})
     await db.commit()
 
 
 @router.delete("/{user_id}", status_code=204)
-async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user=Depends(require_role("admin"))):
+async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user=Depends(require_perm("users"))):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -104,3 +104,25 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
         raise BusinessError("Cannot delete your own account")
     user.is_active = False
     await db.commit()
+
+
+@router.put("/{user_id}/warehouses", status_code=200)
+async def set_user_warehouses(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+    """Set which warehouses a user can access. data = { warehouse_ids: [uuid, ...] } """
+    warehouse_ids = data.get("warehouse_ids", [])
+    await db.execute(sqldelete(user_warehouses).where(user_warehouses.c.user_id == user_id))
+    for wid in warehouse_ids:
+        await db.execute(
+            user_warehouses.insert().values(user_id=user_id, warehouse_id=uuid.UUID(wid) if isinstance(wid, str) else wid)
+        )
+    await db.commit()
+    return {"ok": True}
+
+
+@router.get("/{user_id}/warehouses")
+async def get_user_warehouses(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+    """Get warehouse IDs assigned to a user."""
+    result = await db.execute(
+        select(user_warehouses.c.warehouse_id).where(user_warehouses.c.user_id == user_id)
+    )
+    return [str(r[0]) for r in result.fetchall()]

@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 from app.db.base import get_db
 from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate
 from app.models.sale import Sale, SaleItem, SaleStatus
+from app.models.product import Product
 from app.services import sale_service
-from app.dependencies import get_current_user, require_role, require_perm, require_open_period
+from app.dependencies import get_current_user, require_perm, require_is_manager, require_open_period
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
 from app.services.audit_service import log as audit_log
@@ -70,14 +71,16 @@ async def list_sales(
     to_date: str | None = None,
     cashier_id: uuid.UUID | None = None,
     status: str | None = None,
+    product_search: str | None = None,
     limit: int = Query(50, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
     from app.models.party import Customer
     from sqlalchemy import text as sqlt
     q = select(Sale, Customer.name.label("customer_name")).outerjoin(Customer, Sale.customer_id == Customer.id)
-    q = q.options(selectinload(Sale.items)).order_by(Sale.created_at.desc()).limit(limit)
+    q = q.options(selectinload(Sale.items)).order_by(Sale.created_at.desc()).limit(limit).offset(offset)
     if from_date:
         q = q.where(Sale.created_at >= from_date)
     if to_date:
@@ -86,6 +89,13 @@ async def list_sales(
         q = q.where(Sale.cashier_id == cashier_id)
     if status:
         q = q.where(Sale.status == status)
+    if product_search:
+        term = f"%{product_search}%"
+        subq = select(SaleItem.sale_id).join(Product, Product.id == SaleItem.product_id).where(Product.name.ilike(term))
+        matching = [r[0] for r in (await db.execute(subq)).fetchall()]
+        if not matching:
+            return []
+        q = q.where(Sale.id.in_(matching))
     rows = (await db.execute(q)).all()
     # Get user names in one query
     user_ids = list({str(sale.created_by) for sale, _ in rows if sale.created_by})
@@ -109,7 +119,7 @@ async def list_sales(
             item['product_name'] = pnames.get(str(item['product_id']), '')
         result.append(d)
     return result
-# TODO: needs pagination — has limit but no offset/skip
+
 
 
 @router.post("/quotations", response_model=SaleOut)
@@ -182,6 +192,7 @@ async def print_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=D
 @router.get("/{sale_id}")
 async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     from sqlalchemy import text as sqlt
+    from app.models.customer_payment import CustomerPayment
     row = await db.execute(sqlt("""
         SELECT s.*, c.name as customer_name,
                json_agg(json_build_object(
@@ -198,7 +209,32 @@ async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
     sale = row.fetchone()
     if not sale:
         raise NotFoundError("Sale not found")
-    return dict(sale._mapping)
+    result = dict(sale._mapping)
+    # Get payments linked to this sale
+    payments = (await db.execute(
+        select(CustomerPayment).where(CustomerPayment.sale_id == sale_id).order_by(CustomerPayment.created_at.desc())
+    )).scalars().all()
+    result["payment_history"] = [{
+        "id": str(p.id),
+        "amount": float(p.amount),
+        "note": p.note,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    } for p in payments]
+    # Get returns linked to this sale (from stock_movements)
+    ret_rows = await db.execute(sqlt("""
+        SELECT COALESCE(SUM(qty * unit_price), 0) as returns_value
+        FROM stock_movements
+        WHERE ref_id = :sid AND movement_type = 'return_in'
+    """), {"sid": sale_id})
+    ret_val = float(ret_rows.scalar() or 0)
+    net_total = float(result.get("net_total", 0))
+    paid = float(result.get("paid_amount", 0) or 0)
+    returns_total = float(result.get("returns_total", 0) or 0)
+    # returns_total from stock_movements (more accurate)
+    returns_total = max(returns_total, ret_val)
+    result["returns_total"] = returns_total
+    result["remaining"] = round(net_total - returns_total - paid, 2)
+    return result
 
 
 @router.put("/{sale_id}")
@@ -258,7 +294,7 @@ async def update_sale_item_qty(
     item_id: uuid.UUID,
     data: SaleItemUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager"))
+    current_user: User = Depends(require_is_manager)
 ):
     """Adjust qty of a sale item with optimistic locking."""
     return await sale_service.update_sale_item_qty(db, sale_id, item_id, data, current_user.id, current_user.full_name)
@@ -269,7 +305,7 @@ async def delete_sale_item(
     sale_id: uuid.UUID,
     item_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager"))
+    current_user: User = Depends(require_is_manager)
 ):
     """Delete a sale item. Reverses stock movement and drawer balance."""
     return await sale_service.delete_sale_item(db, sale_id, item_id, current_user.id)

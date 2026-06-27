@@ -16,19 +16,34 @@ MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 
 @router.post("/upload-logo")
 async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
-    import os
+    import os, io
     from app.core.config import settings as cfg
+    from PIL import Image
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(400, "نوع الملف غير مدعوم. الأنواع المسموحة: JPEG, PNG, GIF, WebP")
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_SIZE:
         raise HTTPException(400, "حجم الملف يتجاوز 5 ميجابايت")
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
+    # Clean old generated PWA icons
+    for f in os.listdir(cfg.UPLOAD_DIR):
+        if f.startswith("logo-") and f.endswith(".png"):
+            os.remove(os.path.join(cfg.UPLOAD_DIR, f))
     safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', file.filename or "logo.png")
     ext = os.path.splitext(safe_name)[1] or ".png"
     dest = os.path.join(cfg.UPLOAD_DIR, f"logo{ext}")
     with open(dest, "wb") as f:
         f.write(contents)
+    # Generate square PWA icons from uploaded image
+    img = Image.open(io.BytesIO(contents))
+    w, h = img.size
+    size = min(w, h)
+    left = (w - size) // 2
+    top = (h - size) // 2
+    cropped = img.crop((left, top, left + size, top + size))
+    for icon_size in (192, 512):
+        resized = cropped.resize((icon_size, icon_size), Image.LANCZOS)
+        resized.save(os.path.join(cfg.UPLOAD_DIR, f"logo-{icon_size}x{icon_size}.png"), "PNG")
     url = f"/uploads/logo{ext}"
     await db.execute(text("UPDATE store_settings SET value=:v WHERE key='logo_url'"), {"v": url})
     await db.commit()
@@ -38,17 +53,19 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
 @router.get("/manifest.json", include_in_schema=False)
 async def pwa_manifest(db: AsyncSession = Depends(get_db)):
     """Dynamic PWA manifest using logo from settings."""
+    import os
     rows = (await db.execute(text("SELECT key, value FROM store_settings WHERE key IN ('store_name','logo_url')"))).fetchall()
     s = {r.key: r.value for r in rows}
     name = s.get("store_name") or "نظام إدارة الأعمال"
     logo = s.get("logo_url") or ""
     icons = []
     if logo:
-        icons.append({"src": logo, "sizes": "any", "type": "image/png", "purpose": "any maskable"})
-    icons += [
-        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
-    ]
+        if logo.startswith("/"):
+            base = os.path.splitext(logo)[0]
+            icons.append({"src": f"{base}-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"})
+            icons.append({"src": f"{base}-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"})
+        else:
+            icons.append({"src": logo, "sizes": "any", "type": "image/png", "purpose": "any maskable"})
     from fastapi.responses import JSONResponse
     return JSONResponse({"name": name, "short_name": name[:12], "theme_color": "#1e3a5f",
                          "background_color": "#1e3a5f", "display": "standalone",

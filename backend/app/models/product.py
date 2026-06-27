@@ -48,6 +48,7 @@ class Product(Base):
     size: Mapped[str | None] = mapped_column(String(64), nullable=True)
     product_type: Mapped[str | None] = mapped_column("type", String(64), nullable=True)
     material: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    shelf_number: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
     image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

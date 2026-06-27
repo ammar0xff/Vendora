@@ -40,6 +40,7 @@ class ProductCreate(BaseModel):
     product_type: Optional[str] = None
     material: Optional[str] = None
     image_url: Optional[str] = None
+    shelf_number: Optional[str] = None
     reorder_point: Decimal = Field(default=Decimal("0"), ge=0)
     reorder_qty: Decimal = Field(default=Decimal("0"), ge=0)
 
@@ -56,6 +57,7 @@ class ProductUpdate(BaseModel):
     size: Optional[str] = None
     product_type: Optional[str] = None
     material: Optional[str] = None
+    shelf_number: Optional[str] = None
     is_active: Optional[bool] = None
     reorder_point: Optional[Decimal] = None
     reorder_qty: Optional[Decimal] = None
@@ -82,6 +84,7 @@ class ProductOut(BaseModel):
     size: Optional[str]
     product_type: Optional[str]
     material: Optional[str]
+    shelf_number: Optional[str]
     is_active: bool
     reorder_point: Decimal
     reorder_qty: Decimal

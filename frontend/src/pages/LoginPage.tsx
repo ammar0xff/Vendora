@@ -28,10 +28,7 @@ export default function LoginPage() {
         const me = await authApi.me()
         login(data.access_token, { ...me, permissions: me.permissions || [] })
       } catch (e) { console.warn('Failed to fetch detailed profile', e) }
-      const roleHome: Record<string, string> = {
-        cashier: '/pos', storekeeper: '/inventory', accountant: '/accounting'
-      }
-      navigate(roleHome[data.role] || '/')
+      navigate('/')
     } catch {
       toast.error('اسم المستخدم أو كلمة المرور غير صحيحة')
     } finally {

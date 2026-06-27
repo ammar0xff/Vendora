@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.sale import Sale, SaleItem, SaleStatus
-from app.models.shift import DrawerTransaction, DrawerTxType
+from app.models.shift import Shift, DrawerTransaction, DrawerTxType
 from app.models.stock import MovementType
 from app.schemas.stock import StockMovementCreate
 from app.services.stock_service import record_movement, get_balance
@@ -107,6 +107,10 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
 
 async def create_draft_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     """Create a draft sale — no stock deduction, status=draft, no archive."""
+    if data.shift_id:
+        shift = await db.get(Shift, data.shift_id)
+        if not shift or shift.cashier_id != cashier_id:
+            raise BusinessError("هذه الوردية لا تخصك")
     gross_total = sum(float(i.qty) * float(i.unit_price) for i in data.items)
     total_discount = sum(float(i.discount) for i in data.items)
     net_total = gross_total - total_discount - float(data.discount_amount)
@@ -177,6 +181,11 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
 
 
 async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
+    # Verify shift ownership
+    if data.shift_id:
+        shift = await db.get(Shift, data.shift_id)
+        if not shift or shift.cashier_id != cashier_id:
+            raise BusinessError("هذه الوردية لا تخصك")
     for item in data.items:
         if not await _is_untracked(db, item.product_id):
             balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
@@ -359,6 +368,11 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
             await record_wallet_tx(db, sale.wallet_id, -Decimal(str(w_amt)), "return",
                                    sale.id, f"مرتجع {sale.invoice_number}", user_id)
 
+    # Track returns_total on the original sale
+    await db.execute(sqlt(
+        "UPDATE sales SET returns_total = COALESCE(returns_total,0) + :amt WHERE id = :sid"
+    ), {"amt": total, "sid": sale_id})
+
     # Reverse customer credit balance
     if credit_part > 0 and sale.customer_id:
         credit_amt = min(credit_part, total - cash_part - wallet_part)
@@ -450,6 +464,11 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
             await db.execute(sqlt(
                 "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
             ), {"amt": Decimal(str(c_amt)), "cid": orig.customer_id})
+
+    # Track returns_total on the original sale
+    await db.execute(sqlt(
+        "UPDATE sales SET returns_total = COALESCE(returns_total,0) + :amt WHERE id = :sid"
+    ), {"amt": total, "sid": sale_id})
 
     db.add(ArchivedDocument(doc_number=ret.invoice_number, doc_type=DocType.sale_invoice,
                              amount=total, ref_id=ret.id, created_by=current_user_id,
@@ -544,8 +563,8 @@ async def delete_sale_item(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.U
 
     if item.stock_status == "tracked":
         await db.execute(sqlt("""
-            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'item_deleted', :uid)
+            INSERT INTO stock_movements (id, product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
+            VALUES (gen_random_uuid(), :pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'item_deleted', :uid)
         """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": qty,
                "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user_id})
 

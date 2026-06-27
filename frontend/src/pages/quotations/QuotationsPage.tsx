@@ -5,7 +5,7 @@ import api from '../../api/client'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, TrendingUp, Edit2 } from 'lucide-react'
+import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, TrendingUp, Edit2, Trash2 } from 'lucide-react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { openPrint } from '../../utils/format'
 
@@ -260,6 +260,7 @@ export default function QuotationsPage() {
   const [editItem, setEditItem] = useState<any>(null)
   const [search, setSearch] = useState('')
   const [confirmQuote, setConfirmQuote] = useState<any>(null)
+  const [confirmDelete, setConfirmDelete] = useState<any>(null)
   const qc = useQueryClient()
 
   const { data: quotations, isLoading } = useQuery({
@@ -278,6 +279,15 @@ export default function QuotationsPage() {
       const detail = e.response?.data?.detail || 'فشل'
       toast.error(detail.includes('Insufficient') ? '⚠️ كمية غير كافية في المخزن' : detail, { duration: 4000 })
     },
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/sales/${id}`),
+    onSuccess: () => {
+      toast.success('✅ تم حذف عرض السعر')
+      qc.invalidateQueries({ queryKey: ['quotations'] })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل الحذف'),
   })
 
   const precheckAndConfirm = async (id: string) => {
@@ -344,6 +354,10 @@ export default function QuotationsPage() {
         <div className="flex gap-1.5 justify-end">
           <button onClick={() => handlePrint(r.id)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="طباعة"><Printer size={14} /></button>
           <button onClick={() => handleEdit(r)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
+          <button onClick={() => setConfirmDelete(r.id)}
+            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600" title="حذف">
+            <Trash2 size={14} />
+          </button>
           <button onClick={() => setConfirmQuote(r.id)}
             className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: '#16a34a' }}>
             <CheckCircle size={12} /> تأكيد
@@ -385,6 +399,14 @@ export default function QuotationsPage() {
         onConfirm={() => { if (confirmQuote) precheckAndConfirm(confirmQuote); setConfirmQuote(null) }}
         message="تحويل إلى فاتورة مؤكدة؟ سيتم خصم الكميات."
         confirmText="تحويل"
+      />
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { if (confirmDelete) { deleteMut.mutate(confirmDelete); setConfirmDelete(null) } }}
+        message="حذف عرض السعر؟"
+        confirmText="حذف"
+        variant="danger"
       />
     </div>
   )

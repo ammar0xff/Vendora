@@ -16,7 +16,7 @@ import {
   Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle,
   X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw, AlertCircle,
   ChevronDown, ChevronLeft, Tag, Layers, DollarSign, BookOpen,
-  LayoutGrid, List
+  LayoutGrid, List, Landmark
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../../store/auth'
@@ -24,7 +24,7 @@ import { useAppStore } from '../../store/app'
 import CategoryCardBrowser from './CategoryCardBrowser'
 
 // ── Drawer Balance Badge ──────────────────────────────────────────────────
-function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseName, supervisorName, wallets, currentUserId }: any) {
+function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDelivery, warehouseName, supervisorName, wallets, currentUserId }: any) {
   if (!shift) return (
     <div className="flex items-center gap-2">
       <button onClick={onOpen} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#16a34a' }}>
@@ -32,10 +32,18 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
       </button>
     </div>
   )
-  const balance = Number(summary?.expected_balance ?? shift.initial_amount)
-  const cashInDrawer = Number(summary?.cash_in_drawer ?? balance)
-  const breakdown = summary?.payment_breakdown || []
-  const walletTxBreakdown = summary?.wallet_tx_breakdown || []
+  if (!summary) return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold" style={{ background: '#1e3a5f', opacity: 0.6 }}>
+        <Wallet size={15} />
+        <span>جاري تحميل الدرج...</span>
+      </div>
+    </div>
+  )
+  const balance = Number(summary.expected_balance ?? shift.initial_amount)
+  const cashInDrawer = Number(summary.cash_in_drawer ?? balance)
+  const breakdown = summary.payment_breakdown || []
+  const walletTxBreakdown = summary.wallet_tx_breakdown || []
 
   // Merge wallet sales + wallet deposits per wallet
   const walletMap: Record<string, { name: string; type: string; total: number }> = {}
@@ -89,6 +97,24 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
               <span className="font-bold text-slate-700">إجمالي الوردية</span>
               <span className="font-black" style={{color:'#1e3a5f'}}>{Number(summary?.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
             </div>
+            <div className="border-t border-slate-200 mt-1.5 pt-1 text-[10px] text-slate-400 space-y-0.5">
+              <div className="flex justify-between">
+                <span>🟢 الافتتاحي:</span>
+                <span>{Number(shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
+              </div>
+              <div className="flex justify-between">
+                <span>📊 المبيعات:</span>
+                <span>{Number(summary.sales_total ?? 0).toLocaleString('ar-EG')} ج.م</span>
+              </div>
+              <div className="flex justify-between">
+                <span>🧾 حركات:</span>
+                <span>{summary.transaction_count ?? '...'}</span>
+              </div>
+              <div className="border-t border-slate-200/50 mt-0.5 pt-0.5 flex justify-between font-medium text-slate-500">
+                <span>📋 المتوقع:</span>
+                <span>{Number(summary.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -97,6 +123,9 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, warehouseNam
       </button>
       <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
         <Lock size={14} /> إغلاق
+      </button>
+      <button onClick={onRevenueDelivery} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+        <Landmark size={14} /> توريد إيرادات
       </button>
     </div>
   )
@@ -163,6 +192,7 @@ export default function POSPage() {
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showHandover, setShowHandover] = useState(false)
   const [showReturn, setShowReturn] = useState(false)
+  const [returnSearch, setReturnSearch] = useState('')
   const [showDrawerEntry, setShowDrawerEntry] = useState(false)
   const [showLedger, setShowLedger] = useState(false)
   const [showExpense, setShowExpense] = useState(false)
@@ -187,6 +217,13 @@ export default function POSPage() {
   const [managerPasswordForClose, setManagerPasswordForClose] = useState('')
   const [closeSafeId, setCloseSafeId] = useState('')
   const [isCredit, setIsCredit] = useState(false)
+  // Revenue delivery state
+  const [showRevenueDelivery, setShowRevenueDelivery] = useState(false)
+  const [revenueAmount, setRevenueAmount] = useState('')
+  const [revenueSafeId, setRevenueSafeId] = useState('')
+  const [revenueManagerId, setRevenueManagerId] = useState('')
+  const [revenueManagerPassword, setRevenueManagerPassword] = useState('')
+  const [revenueNotes, setRevenueNotes] = useState('')
 
   const [paymentMethod, setPaymentMethod] = useState('cash')
 
@@ -245,12 +282,17 @@ export default function POSPage() {
     prevWarehouseRef.current = wh
   }, [mainWh?.id])
 
+  const isOnline = useOnlineStatus()
   const localShiftData = useLocalShiftStore(s => s.shift)
-  const { data: serverShift } = useQuery({
+  const { data: serverShift, isError: shiftError } = useQuery({
     queryKey: ['current-shift', mainWh?.id], queryFn: () => shiftsApi.current(mainWh!.id),
     retry: false, throwOnError: false, refetchInterval: 30_000, enabled: !!mainWh?.id,
   })
-  const shift = serverShift || (localShiftData && localShiftData?.warehouse_id === mainWh?.id
+  // Clear stale local shift when online and server has no open shift
+  useEffect(() => {
+    if (isOnline && shiftError && localShiftData) useLocalShiftStore.getState().closeShift()
+  }, [isOnline, shiftError])
+  const shift = serverShift || (!isOnline && localShiftData?.warehouse_id === mainWh?.id
     ? { ...localShiftData, cashier_id: localShiftData.cashier_id || '', started_at: localShiftData.opened_at ? new Date(localShiftData.opened_at).toISOString() : new Date().toISOString(), status: 'open' }
     : null)
 
@@ -299,7 +341,7 @@ export default function POSPage() {
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
   const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data), staleTime: 10_000, refetchInterval: 30_000 })
-  const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data), enabled: showClose })
+  const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data), enabled: showClose || showRevenueDelivery })
   const { data: finCategories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/financial-categories').then(r => r.data) })
 
   const { data: customerResults } = useQuery({
@@ -323,8 +365,8 @@ export default function POSPage() {
   })
 
   const { data: allSales } = useQuery({
-    queryKey: ['sales-for-return'],
-    queryFn: () => salesApi.list({ status: 'confirmed', limit: 100 }),
+    queryKey: ['sales-for-return', returnSearch],
+    queryFn: () => salesApi.list({ status: 'confirmed', limit: 100, ...(returnSearch.trim() ? { product_search: returnSearch.trim() } : {}) }),
     enabled: showReturn,
   })
 
@@ -385,8 +427,6 @@ export default function POSPage() {
       handleAddProduct(p); setSearch('')
     } catch { /* barcode not found, fall through to normal search */ }
   }
-
-  const isOnline = useOnlineStatus()
 
   const checkoutMut = useMutation({
     mutationFn: async () => {
@@ -614,7 +654,8 @@ export default function POSPage() {
       return res.data
     },
     onSuccess: (d: any) => {
-      toast.success('✅ تم إغلاق الوردية وتسليم الدرج')
+      const closBal = Number(d.closing_balance || 0)
+      toast.success(`✅ إغلاق الوردية — الدرج: ${closBal.toLocaleString('ar-EG')} ج.م`)
       if (shift?.id) openPrint(`/print/pdf/shift/${shift.id}`)
       setShowClose(false)
       setClosingBalance('')
@@ -628,14 +669,52 @@ export default function POSPage() {
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل'),
   })
+  const revenueMut = useMutation({
+    mutationFn: () => shiftsApi.revenueDelivery(shift!.id, {
+      amount: Number(revenueAmount),
+      safe_id: revenueSafeId,
+      manager_id: revenueManagerId,
+      manager_password: revenueManagerPassword,
+      notes: revenueNotes || undefined,
+    }),
+    onSuccess: (d: any) => {
+      toast.success(`✅ تم تسليم ${Number(d.amount).toLocaleString('ar-EG')} ج.م إلى ${d.safe} — مستند: ${d.doc_number}`)
+      setShowRevenueDelivery(false); setRevenueAmount(''); setRevenueSafeId('')
+      setRevenueManagerId(''); setRevenueManagerPassword(''); setRevenueNotes('')
+      qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
+      qc.invalidateQueries({ queryKey: ['safes'] })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل تسليم الإيرادات'),
+  })
+
+  const convertToQuotationMut = useMutation({
+    mutationFn: async (bill: any) => {
+      const items = bill.items.map((i: any) => {
+        const lineTotal = i.qty * i.unit_price
+        const discount = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : (i.item_discount || 0)
+        return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost || 0, discount }
+      })
+      return api.post('/sales/quotations', {
+        warehouse_id: mainWh?.id,
+        sale_mode: 'retail',
+        items,
+        notes: `مأخوذة من فاتورة معلقة: ${bill.label}`,
+      }).then(r => r.data)
+    },
+    onSuccess: (_data: any, bill: any) => {
+      deleteHeld(bill.id)
+      toast.success(`✅ تم تحويل "${bill.label}" إلى عرض سعر`)
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل تحويل عرض السعر'),
+  })
 
   useEffect(() => { searchRef.current?.focus() }, [])
 
 
 
   // ── Shift open but belongs to another cashier (non-admins only) ──────
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.is_manager === true || user?.permissions?.includes('manage_shifts')
-  const shiftOwner = shift && shift.cashier_id !== user?.id && !isAdmin
+  const canUseAnyShift = user?.is_manager === true
+  const shiftOwner = shift && shift.cashier_id !== user?.id && !canUseAnyShift
     ? (shift.cashier_name || (allUsers as any[])?.find((u: any) => u.id === shift.cashier_id)?.full_name || 'موظف آخر')
     : null
 
@@ -776,7 +855,7 @@ export default function POSPage() {
           <button onClick={() => setShowLedger(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
             <BookOpen size={14} /> سجل اليوم
           </button>
-          <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} warehouseName={mainWh?.name}
+          <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} onRevenueDelivery={() => setShowRevenueDelivery(true)} warehouseName={mainWh?.name}
             supervisorName={shift?.supervisor_id ? (allUsers as any[])?.find((u: any) => u.id === shift.supervisor_id)?.full_name : null}
             wallets={wallets} currentUserId={user?.id} />
 
@@ -906,6 +985,7 @@ export default function POSPage() {
                     <tr className="text-slate-500 font-semibold">
                       <th className="py-2 px-3">المنتج</th>
                       <th className="py-2 px-3">الشركة</th>
+                      <th className="py-2 px-3">الرف</th>
                       <th className="py-2 px-3">القطاعي</th>
                       <th className="py-2 px-3">الجملة</th>
                       <th className="py-2 px-3">المخزون</th>
@@ -914,7 +994,7 @@ export default function POSPage() {
                   </thead>
                   <tbody>
                     {products?.length === 0 && (
-                      <tr><td colSpan={6} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
+                      <tr><td colSpan={7} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
                     )}
                     {products?.filter((p: any) => {
                       const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
@@ -928,6 +1008,7 @@ export default function POSPage() {
                           className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
                           <td className="py-2 px-3 font-semibold text-slate-800">{p.name}</td>
                           <td className="py-2 px-3 text-slate-400">{p.company || '—'}</td>
+                          <td className="py-2 px-3">{p.shelf_number ? <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
                           <td className="py-2 px-3 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
                           <td className="py-2 px-3 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
                           <td className="py-2 px-3">
@@ -1260,8 +1341,9 @@ export default function POSPage() {
           {shift ? (
             <>
               <span className="text-white/80 text-xs font-semibold">
-                💵 {Number(summary?.cash_in_drawer ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م
+                💵 {summary ? Number(summary.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG') : '...'} ج.م
               </span>
+              <button onClick={() => setShowRevenueDelivery(true)} className="px-2 py-1 rounded-lg text-xs font-bold bg-blue-500 text-white">💰 توريد</button>
               <button onClick={() => setShowHandover(true)} className="px-2 py-1 rounded-lg text-xs font-bold bg-amber-400 text-slate-900">تسليم</button>
               <button onClick={() => setShowClose(true)} className="px-2 py-1 rounded-lg text-xs font-bold bg-red-500 text-white">إغلاق</button>
             </>
@@ -1317,6 +1399,7 @@ export default function POSPage() {
               <thead className="sticky top-0 bg-slate-100 z-10">
                 <tr className="text-slate-500 font-semibold">
                   <th className="py-2 px-2">المنتج</th>
+                  <th className="py-2 px-2">الرف</th>
                   <th className="py-2 px-2">السعر</th>
                   <th className="py-2 px-2">المخزون</th>
                   <th className="py-2 px-2"></th>
@@ -1324,7 +1407,7 @@ export default function POSPage() {
               </thead>
               <tbody>
                 {products?.length === 0 && (
-                  <tr><td colSpan={4} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
+                  <tr><td colSpan={5} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
                 )}
                 {(products || []).filter((p: any) => {
                   const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
@@ -1336,6 +1419,7 @@ export default function POSPage() {
                     <tr key={p.id} onClick={() => handleAddProduct(p)}
                       className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
                       <td className="py-2 px-2 font-semibold text-slate-800">{p.name}</td>
+                      <td className="py-2 px-2">{p.shelf_number ? <span className="text-xs px-1 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
                       <td className="py-2 px-2 font-black" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</td>
                       <td className="py-2 px-2">
                         {qty !== null ? (
@@ -1374,8 +1458,8 @@ export default function POSPage() {
                       className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'cash' ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>💵</button>
                     {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
                       <button key={w.id} onClick={() => { setPaymentMethod('wallet'); setPaymentWalletId(w.id) }}
-                        className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>
-                        {w.type === 'vodafone_cash' ? '📱' : '💳'}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>
+                        {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
                       </button>
                     ))}
                     <button onClick={() => { setSplitPayments([{ method: 'cash', amount: total() }]); setPaymentMethod('cash'); setPaymentWalletId('') }}
@@ -1399,7 +1483,7 @@ export default function POSPage() {
                 onBlur={() => setTimeout(() => setShowCustomerDrop(false), 200)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-white/30 outline-none focus:border-yellow-400 transition-all"
                 placeholder="اسم العميل (اختياري)" />
-              {showCustomerDrop && customerResults?.length > 0 && (
+              {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
                 <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-40 overflow-y-auto">
                   {customerResults?.map((c: any) => (
                     <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
@@ -1407,6 +1491,16 @@ export default function POSPage() {
                       <p className="font-semibold text-slate-800">{c.name}</p>
                     </button>
                   ))}
+                  {customerSearch.length > 1 && (
+                    <button onMouseDown={() => {
+                      if (isCredit) { setPendingCustomerName(customerSearch); setShowPendingCustomer(true); setShowCustomerDrop(false); return }
+                      customersApi.create({ name: customerSearch }).then(c => {
+                        setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false)
+                      })
+                    }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm border-t border-slate-100 flex items-center gap-2 text-blue-600">
+                      <span>+</span> إضافة "{customerSearch}" كعميل جديد{isCredit ? ' (آجل — يلزم تليفون)' : ''}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1550,6 +1644,14 @@ export default function POSPage() {
                         استئناف
                       </button>
                       <button
+                        className="px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+                        style={{ background: '#7c3aed20', color: '#7c3aed' }}
+                        disabled={convertToQuotationMut.isPending}
+                        onClick={() => convertToQuotationMut.mutate(b)}
+                      >
+                        {convertToQuotationMut.isPending ? 'جاري...' : 'عرض سعر'}
+                      </button>
+                      <button
                         className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200"
                         onClick={() => deleteHeld(b.id)}
                       >
@@ -1566,8 +1668,11 @@ export default function POSPage() {
 
 
       <Modal open={showReturn} onClose={() => setShowReturn(false)} title="اختر فاتورة للمرتجع" size="lg">
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {!allSales?.length && <p className="text-center py-8 text-slate-400">لا توجد فواتير مؤكدة</p>}
+        <div className="space-y-3">
+          <input type="text" placeholder="ابحث باسم المنتج..." value={returnSearch} onChange={e => setReturnSearch(e.target.value)} autoFocus
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-300" />
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+          {!allSales?.length && <p className="text-center py-8 text-slate-400">{returnSearch.trim() ? 'لا توجد فواتير بهذا المنتج' : 'لا توجد فواتير مؤكدة'}</p>}
           {allSales?.map((s: any) => (
             <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50">
               <div>
@@ -1581,6 +1686,7 @@ export default function POSPage() {
               </button>
             </div>
           ))}
+        </div>
         </div>
       </Modal>
 
@@ -1787,13 +1893,15 @@ export default function POSPage() {
         {todayLedger ? (
           <div className="space-y-3">
             {/* Summary */}
-            <div className="grid grid-cols-5 gap-2 text-center text-xs">
+            <div className="grid grid-cols-7 gap-2 text-center text-xs">
               {[
+                { label: 'الرصيد الافتتاحي', val: todayLedger.summary.opening_balance, color: '#6b7280' },
                 { label: 'إجمالي المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
                 { label: 'نقدي', val: todayLedger.summary.cash_sales, color: '#15803d' },
                 { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
                 { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
                 { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
+                { label: 'الدرج', val: todayLedger.summary.closing, color: '#7c3aed' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="bg-slate-50 rounded-lg p-2">
                   <p className="text-slate-400 mb-0.5">{label}</p>
@@ -2020,7 +2128,7 @@ export default function POSPage() {
               <label className="block text-xs font-medium text-amber-700 mb-1">المدير المستلم</label>
               <select className="input text-sm" value={managerIdForClose} onChange={e => setManagerIdForClose(e.target.value)}>
                 <option value="">اختر المدير...</option>
-                {(allUsers as any[])?.filter((u: any) => u.is_manager || u.role === 'admin').map((u: any) => (
+                {(allUsers as any[])?.filter((u: any) => u.is_manager).map((u: any) => (
                   <option key={u.id} value={u.id}>{u.full_name}</option>
                 ))}
               </select>
@@ -2033,7 +2141,7 @@ export default function POSPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowClose(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => closeMut.mutate()} disabled={!closingBalance || !managerIdForClose || !managerPasswordForClose || !closeSafeId || closeMut.isPending}
+            <button onClick={() => closeMut.mutate()} disabled={!closingBalance || Number(closingBalance) <= 0 || !managerIdForClose || !managerPasswordForClose || !closeSafeId || closeMut.isPending}
               className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 flex items-center gap-2">
               <Lock size={15} /> إغلاق الوردية
             </button>
@@ -2042,6 +2150,52 @@ export default function POSPage() {
       </Modal>
 
       {/* Phone required modal for credit customers */}
+      {/* Revenue delivery modal */}
+      <Modal open={showRevenueDelivery} onClose={() => { setShowRevenueDelivery(false); setRevenueAmount(''); setRevenueSafeId(''); setRevenueManagerId(''); setRevenueManagerPassword(''); setRevenueNotes('') }} title="توريد إيرادات إلى الخزنة">
+        <div className="space-y-4">
+          <div className="rounded-xl p-4 text-center" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <p className="text-xs font-medium mb-1" style={{ color: '#2563eb' }}>الرصيد النقدي المتوقع في الدرج</p>
+            <p className="text-3xl font-black" style={{ color: '#2563eb' }}>{Number(summary?.cash_in_drawer ?? 0).toLocaleString('ar-EG')} ج.م</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ المسلَّم *</label>
+            <input type="number" className="input" value={revenueAmount} onChange={e => setRevenueAmount(e.target.value)} placeholder="0.00" autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">الخزنة المستقبِلة *</label>
+            <select className="input" value={revenueSafeId} onChange={e => setRevenueSafeId(e.target.value)}>
+              <option value="">اختر الخزنة...</option>
+              {(safes as any[])?.map((s: any) => <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>)}
+            </select>
+          </div>
+          <input className="input" value={revenueNotes} onChange={e => setRevenueNotes(e.target.value)} placeholder="ملاحظات (اختياري)" />
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-xs font-bold text-slate-500 mb-3">توقيع المدير</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">المدير *</label>
+                <select className="input" value={revenueManagerId} onChange={e => setRevenueManagerId(e.target.value)}>
+                  <option value="">اختر مديراً...</option>
+                  {(allUsers as any[])?.filter((u: any) => u.is_manager).map((u: any) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">كلمة مرور المدير *</label>
+                <input type="password" className="input" value={revenueManagerPassword} onChange={e => setRevenueManagerPassword(e.target.value)} placeholder="••••••" />
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowRevenueDelivery(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => revenueMut.mutate()} disabled={revenueMut.isPending || !revenueAmount || !revenueSafeId || !revenueManagerId || !revenueManagerPassword}
+              className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
+              style={{ background: '#2563eb' }}>
+              <Landmark size={15} /> تأكيد التوريد
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Split payment modal */}
       <Modal open={showSplitModal} onClose={() => setShowSplitModal(false)} title="إضافة قسط دفع">
         <div className="space-y-4">

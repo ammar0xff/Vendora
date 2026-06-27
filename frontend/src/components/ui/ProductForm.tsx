@@ -8,7 +8,7 @@ export default function ProductForm({ product, onSave, onClose }: any) {
   const [form, setForm] = useState(product || {
     name: '', unit: 'عدد', retail_price: 0, wholesale_price: 0,
     cost_price: 0, barcode: '', subcategory_id: '', company: '',
-    stock_status: 'untracked',
+    shelf_number: '', stock_status: 'untracked',
   })
   const [categoryId, setCategoryId] = useState('')
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
@@ -63,6 +63,12 @@ export default function ProductForm({ product, onSave, onClose }: any) {
           <label className="block text-sm font-medium text-slate-600 mb-1">الشركة</label>
           <input className="input" value={form.company || ''} onChange={e => set('company', e.target.value)} />
         </div>
+      </div>
+
+      {/* Rack / Shelf */}
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-1">الرف</label>
+        <input className="input" value={form.shelf_number || ''} onChange={e => set('shelf_number', e.target.value)} placeholder="مثال: 5/1" />
       </div>
 
       {/* Prices */}

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_role, require_perm
+from app.dependencies import get_current_user, require_perm, require_is_manager
 from app.models.user import User
 from app.schemas.safe import SafeCreate, SafeUpdate, SafeTransferCreate, SafeDepositCreate, SafeWithdrawCreate
 
@@ -144,7 +144,7 @@ async def withdraw_from_safe(
     safe_id: uuid.UUID,
     data: SafeWithdrawCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager"))
+    current_user: User = Depends(require_is_manager)
 ):
     safe = (await db.execute(text("SELECT * FROM safes WHERE id=:id FOR UPDATE"), {"id": safe_id})).mappings().fetchone()
     if not safe:

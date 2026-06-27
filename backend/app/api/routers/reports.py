@@ -1,35 +1,39 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.base import get_db
 from app.models.sale import Sale, SaleItem
 from app.services import report_service
-from app.dependencies import require_role
+from app.dependencies import get_current_user, verify_warehouse_access
+from app.models.user import User
+import uuid
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
 @router.get("/sales/daily")
-async def daily_sales(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "cashier", "manager", "accountant"))):
+async def daily_sales(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     return await report_service.daily_sales(db, target_date, warehouse_id=warehouse_id)
 
 
 @router.get("/sales/monthly")
-async def monthly_sales(year: int, month: int, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "cashier", "manager", "accountant"))):
+async def monthly_sales(year: int, month: int, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     return await report_service.monthly_sales(db, year, month, warehouse_id=warehouse_id)
 
 
 @router.get("/sales/top-products")
-async def top_products(from_date: str, to_date: str, limit: int = 10, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "manager", "accountant"))):
+async def top_products(from_date: str, to_date: str, limit: int = 10, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     return await report_service.top_products(db, from_date, to_date, limit)
 
 
 @router.get("/sales/by-cashier")
-async def sales_by_cashier(from_date: str, to_date: str, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "cashier", "manager", "accountant"))):
+async def sales_by_cashier(from_date: str, to_date: str, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     from datetime import datetime
     from app.models.user import User as UserModel
-    import uuid as _uuid
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date)
     q = (
@@ -46,28 +50,28 @@ async def sales_by_cashier(from_date: str, to_date: str, warehouse_id: str | Non
         .order_by(func.sum(SaleItem.qty * SaleItem.unit_price).desc())
     )
     if warehouse_id:
-        q = q.where(Sale.warehouse_id == _uuid.UUID(warehouse_id))
+        q = q.where(Sale.warehouse_id == uuid.UUID(warehouse_id))
     result = await db.execute(q)
     return [{"cashier_id": str(r.id), "cashier_name": r.full_name, "invoice_count": r.invoice_count, "total_sales": r.total_sales} for r in result.all()]
 
 
 @router.get("/profit")
-async def profit(from_date: str, to_date: str, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "manager", "accountant"))):
+async def profit(from_date: str, to_date: str, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     return await report_service.profit_report(db, from_date, to_date, warehouse_id=warehouse_id)
 
 
 @router.get("/inventory/print")
-async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "cashier", "manager", "accountant"))):
+async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """تقرير المخزون الكامل للطباعة."""
     from app.models.product import Product, Subcategory, Category
     from app.models.stock import StockMovement
     from app.models.warehouse import Warehouse
     from app.models.settings import StoreSetting
     from sqlalchemy import case as sa_case
-    import uuid as _uuid
-    import datetime as _dt
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id))
 
-    wh_id = _uuid.UUID(warehouse_id)
+    wh_id = uuid.UUID(warehouse_id)
     wh = (await db.execute(select(Warehouse).where(Warehouse.id == wh_id))).scalar_one_or_none()
 
     IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
@@ -100,23 +104,28 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
     return {
         "store": {"name": settings.get("store_name",""), "address": settings.get("store_address",""), "phone": settings.get("store_phone","")},
         "warehouse": wh.name if wh else warehouse_id,
-        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "items": items,
         "summary": {"total_products": len(items), "total_cost_value": total_cost, "total_retail_value": total_retail},
     }
 
 
 @router.get("/ledger/daily-items")
-async def daily_items(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "cashier", "manager", "accountant"))):
+async def daily_items(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Daily ledger: each product sold with qty, price, total, returns, expenses."""
     from datetime import datetime
     from sqlalchemy import text as sqlt
-    import uuid as _uuid
+    wh_uuid = uuid.UUID(warehouse_id) if warehouse_id else None
+    await verify_warehouse_access(db, current_user, wh_uuid)
     start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
     end   = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
-    params: dict = {"start": start, "end": end, "wh_id": _uuid.UUID(warehouse_id) if warehouse_id else None}
+    params: dict = {"start": start, "end": end}
+    wh_sql = ""
+    if wh_uuid:
+        wh_sql = "AND s.warehouse_id = :wh_id"
+        params["wh_id"] = wh_uuid
 
-    items = (await db.execute(sqlt("""
+    items = (await db.execute(sqlt(f"""
         SELECT p.name, p.unit, si.unit_price as price,
                SUM(si.qty) as qty,
                SUM(si.qty * si.unit_price - si.discount) as total
@@ -124,27 +133,33 @@ async def daily_items(target_date: date = Query(default=date.today()), warehouse
         JOIN sales s ON s.id = si.sale_id
         JOIN products p ON p.id = si.product_id
         WHERE s.status = 'confirmed' AND s.created_at BETWEEN :start AND :end
-          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
+          {wh_sql}
         GROUP BY p.name, p.unit, si.unit_price
         ORDER BY total DESC
     """), params)).fetchall()
 
-    returns = (await db.execute(sqlt("""
+    ret_sql = ""
+    if wh_uuid:
+        ret_sql = "AND s.warehouse_id = :wh_id"
+    returns = (await db.execute(sqlt(f"""
         SELECT p.name, SUM(si.qty * si.unit_price - si.discount) as total
         FROM sale_items si
         JOIN sales s ON s.id = si.sale_id
         JOIN products p ON p.id = si.product_id
         WHERE s.status = 'returned' AND s.created_at BETWEEN :start AND :end
-          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
+          {ret_sql}
         GROUP BY p.name
     """), params)).fetchall()
     returns_map = {r.name: float(r.total) for r in returns}
 
-    expenses = (await db.execute(sqlt("""
+    exp_sql = ""
+    if wh_uuid:
+        exp_sql = "AND sh.warehouse_id = :wh_id"
+    expenses = (await db.execute(sqlt(f"""
         SELECT dt.note, SUM(dt.amount) as total
         FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
         WHERE dt.type = 'expense' AND dt.created_at BETWEEN :start AND :end
-          AND (:wh_id IS NULL OR sh.warehouse_id = :wh_id)
+          {exp_sql}
         GROUP BY dt.note
     """), params)).fetchall()
 
@@ -156,10 +171,11 @@ async def daily_items(target_date: date = Query(default=date.today()), warehouse
 
 
 @router.get("/ledger/periodic")
-async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_role("admin", "manager", "accountant"))):
+async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Weekly / monthly / yearly summary: income, expenses, net."""
     from sqlalchemy import text as sqlt
-    import uuid as _uuid
+    wh_uuid = uuid.UUID(warehouse_id) if warehouse_id else None
+    await verify_warehouse_access(db, current_user, wh_uuid)
 
     VALID_PERIODS = {
         "weekly": ("week", "YYYY-\"W\"IW"),
@@ -171,7 +187,11 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
         raise HTTPException(status_code=400, detail=f"Invalid period: {period}")
     trunc, label_fmt = VALID_PERIODS[period]
 
-    params: dict = {"wh_id": _uuid.UUID(warehouse_id) if warehouse_id else None}
+    params: dict = {}
+    wh_sql = ""
+    if wh_uuid:
+        wh_sql = "AND s.warehouse_id = :wh_id"
+        params["wh_id"] = wh_uuid
 
     rows = (await db.execute(sqlt(f"""
         SELECT TO_CHAR(DATE_TRUNC('{trunc}', s.created_at), '{label_fmt}') as period,
@@ -179,18 +199,21 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
                COALESCE(SUM(CASE WHEN s.status='returned' THEN si.qty * si.unit_price - si.discount ELSE 0 END), 0) as returns
         FROM sale_items si JOIN sales s ON s.id = si.sale_id
         WHERE s.status IN ('confirmed','returned')
-          AND (:wh_id IS NULL OR s.warehouse_id = :wh_id)
+          {wh_sql}
         GROUP BY DATE_TRUNC('{trunc}', s.created_at)
         ORDER BY DATE_TRUNC('{trunc}', s.created_at) DESC
         LIMIT 52
     """), params)).fetchall()
 
+    exp_sql = ""
+    if wh_uuid:
+        exp_sql = "AND sh.warehouse_id = :wh_id"
     exp_rows = (await db.execute(sqlt(f"""
         SELECT TO_CHAR(DATE_TRUNC('{trunc}', dt.created_at), '{label_fmt}') as period,
                COALESCE(SUM(dt.amount), 0) as expenses
         FROM drawer_transactions dt JOIN shifts sh ON sh.id = dt.shift_id
         WHERE dt.type = 'expense'
-          AND (:wh_id IS NULL OR sh.warehouse_id = :wh_id)
+          {exp_sql}
         GROUP BY DATE_TRUNC('{trunc}', dt.created_at)
     """), params)).fetchall()
     exp_map = {r.period: float(r.expenses) for r in exp_rows}
@@ -206,18 +229,18 @@ async def cash_flow(
     to_date: str = Query(...),
     warehouse_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin", "manager", "accountant")),
+    current_user: User = Depends(get_current_user),
 ):
     """Formal cash flow: incoming (sales, collections) vs outgoing (purchases, expenses, payroll)."""
     from sqlalchemy import text as sqlt
     from datetime import datetime
-    import uuid as _uuid
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
 
     start = datetime.fromisoformat(from_date)
     end = datetime.fromisoformat(to_date)
     params: dict = {"start": start, "end": end}
     if warehouse_id:
-        params["wh_id"] = _uuid.UUID(warehouse_id)
+        params["wh_id"] = uuid.UUID(warehouse_id)
 
     wh_filter_sales = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
     wh_filter_sh = "AND sh.warehouse_id = :wh_id" if warehouse_id else ""
@@ -341,7 +364,7 @@ async def cash_flow(
 async def aging_report(
     as_of: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("admin", "manager", "accountant")),
+    _=Depends(get_current_user),
 ):
     """Aging report: customer and supplier debts split into 0-30 / 30-60 / 60-90 / 90+ day buckets."""
     from sqlalchemy import text as sqlt

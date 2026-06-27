@@ -3,16 +3,17 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import NativeShell from './components/NativeShell.tsx'
+import toast from 'react-hot-toast'
 
 async function registerPWA() {
   try {
-    const { registerSW } = await import(/* @vite-ignore */ 'virtual:pwa-register')
+    const { registerSW } = await import('virtual:pwa-register')
     const updateSW = registerSW({
       onNeedRefresh() {
-        updateSW()
+        toast.success('تم تحديث التطبيق')
       },
       onOfflineReady() {
-        console.log('التطبيق جاهز للعمل بدون إنترنت')
+        toast.success('التطبيق جاهز للعمل بدون إنترنت')
       },
     })
   } catch (e) {

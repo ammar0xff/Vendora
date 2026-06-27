@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
+from sqlalchemy import text
 from app.db.base import engine, Base
 from app.api.router import router
 from app.core.config import settings
@@ -28,6 +29,8 @@ import app.models.customer_payment
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure safe_deposit exists in the doc_type_enum (added after initial creation)
+        await conn.execute(text("ALTER TYPE doc_type_enum ADD VALUE IF NOT EXISTS 'safe_deposit'"))
     yield
 
 

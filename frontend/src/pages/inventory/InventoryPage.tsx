@@ -55,7 +55,7 @@ export default function InventoryPage() {
   const [openingCost, setOpeningCost] = useState('')
   const { activeWarehouseId } = useAppStore()
   const { user } = useAuthStore()
-  const isAdmin = (user as any)?.role === 'admin'
+  const isManager = (user as any)?.is_manager
   const isCompanyView = !activeWarehouseId
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
@@ -264,13 +264,14 @@ export default function InventoryPage() {
               { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold" style={{ color: '#c8a84b' }}>{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'wholesale_price', label: 'سعر الجملة', sortable: true, render: (p: any) => <span className="text-slate-600">{Number(p.wholesale_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'cost_price', label: 'التكلفة', sortable: true, render: (p: any) => <span className="text-slate-500 text-sm">{Number(p.cost_price).toLocaleString('ar-EG')} ج.م</span> },
+              { key: 'shelf_number', label: 'الرف', sortable: true, render: (p: any) => p.shelf_number ? <span className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 font-bold whitespace-nowrap">{p.shelf_number}</span> : <span className="text-xs text-slate-300">—</span> },
               { key: 'actions', label: '', render: (p: any) => (
                 <div className="flex gap-1 justify-end">
                   {p.stock_status === 'untracked' && (
                     <button onClick={() => { setOpeningStockProduct(p); setOpeningQty(''); setOpeningCost(String(p.cost_price || 0)) }}
                       className="px-2 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200" title="إدخال رصيد افتتاحي">رصيد</button>
                   )}
-                  {isAdmin && isCompanyView && (
+                  {isManager && isCompanyView && (
                     <button onClick={() => setBreakdownProduct(p)} className="p-1.5 rounded-lg hover:bg-purple-50 text-slate-300 hover:text-purple-500" title="توزيع المخازن"><BarChart2 size={14} /></button>
                   )}
                   <button onClick={() => setViewMovements(p)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-500" title="الحركات"><TrendingUp size={14} /></button>

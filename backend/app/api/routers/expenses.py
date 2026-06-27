@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text as sqlt
 from app.db.base import get_db
-from app.dependencies import require_role, get_current_user, require_open_period
+from app.dependencies import get_current_user, require_perm, require_open_period, verify_warehouse_access
+from app.models.user import User
 from app.core.exceptions import NotFoundError
 from app.schemas.expense import ExpenseVendorCreate, ExpenseVendorUpdate, ExpenseCreate, ExpenseUpdate, ExpenseApprove
 import uuid
@@ -25,7 +26,7 @@ async def list_vendors(search: str | None = None, db: AsyncSession = Depends(get
 
 @router.post("/expense-vendors", status_code=201)
 async def create_vendor(data: ExpenseVendorCreate, db: AsyncSession = Depends(get_db),
-                        current_user=Depends(require_role("admin", "manager"))):
+                        current_user=Depends(require_perm("finance"))):
     r = await db.execute(sqlt("""
         INSERT INTO expense_vendors (name, phone, address, tax_id, notes, created_by)
         VALUES (:name, :phone, :address, :tax_id, :notes, :by)
@@ -38,7 +39,7 @@ async def create_vendor(data: ExpenseVendorCreate, db: AsyncSession = Depends(ge
 
 @router.put("/expense-vendors/{vid}")
 async def update_vendor(vid: uuid.UUID, data: ExpenseVendorUpdate, db: AsyncSession = Depends(get_db),
-                        _=Depends(require_role("admin", "manager"))):
+                        _=Depends(require_perm("finance"))):
     ALLOWED_VENDOR_FIELDS = {"name", "phone", "address", "tax_id", "notes"}
     updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if k in ALLOWED_VENDOR_FIELDS}
     if not updates:
@@ -68,8 +69,9 @@ async def list_expenses(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     params: dict = {}
     where_parts = ["1=1"]
     if search:
@@ -117,7 +119,7 @@ async def list_expenses(
 
 @router.post("/expenses", status_code=201)
 async def create_expense(data: ExpenseCreate, db: AsyncSession = Depends(get_db),
-                         current_user=Depends(require_role("admin", "manager")), _=Depends(require_open_period)):
+                         current_user=Depends(require_perm("finance")), _=Depends(require_open_period)):
     r = await db.execute(sqlt("""
         INSERT INTO expenses (vendor_id, category_id, warehouse_id, amount, description, date,
             payment_method, wallet_id, safe_id, is_recurring, recurring_interval, recurring_end_date,
@@ -142,7 +144,7 @@ async def create_expense(data: ExpenseCreate, db: AsyncSession = Depends(get_db)
 
 @router.put("/expenses/{eid}")
 async def update_expense(eid: uuid.UUID, data: ExpenseUpdate, db: AsyncSession = Depends(get_db),
-                         _=Depends(require_role("admin", "manager"))):
+                         _=Depends(require_perm("finance"))):
     existing = await db.execute(sqlt("SELECT * FROM expenses WHERE id = :id"), {"id": eid})
     if not existing.mappings().first():
         raise NotFoundError()
@@ -160,7 +162,7 @@ async def update_expense(eid: uuid.UUID, data: ExpenseUpdate, db: AsyncSession =
 
 @router.post("/expenses/{eid}/approve")
 async def approve_expense(eid: uuid.UUID, data: ExpenseApprove, db: AsyncSession = Depends(get_db),
-                          current_user=Depends(require_role("admin"))):
+                          current_user=Depends(require_perm("finance"))):
     status = "approved" if data.approved else "rejected"
     r = await db.execute(sqlt("""
         UPDATE expenses SET status = :st, approved_by = :by, approved_at = now(), notes = COALESCE(:notes, notes)
@@ -175,7 +177,7 @@ async def approve_expense(eid: uuid.UUID, data: ExpenseApprove, db: AsyncSession
 
 @router.delete("/expenses/{eid}", status_code=204)
 async def delete_expense(eid: uuid.UUID, db: AsyncSession = Depends(get_db),
-                         _=Depends(require_role("admin"))):
+                         _=Depends(require_perm("finance"))):
     r = await db.execute(sqlt("DELETE FROM expenses WHERE id = :id"), {"id": eid})
     await db.commit()
     if r.rowcount == 0:
@@ -190,8 +192,9 @@ async def expense_summary(
     date_to: str | None = None,
     warehouse_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     params: dict = {}
     where_parts = ["e.status = 'approved'"]
     if date_from:

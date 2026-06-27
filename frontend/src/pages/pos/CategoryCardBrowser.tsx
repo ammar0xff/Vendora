@@ -99,6 +99,7 @@ export default function CategoryCardBrowser({
                     </div>
                     <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
                     {p.company && <p className="text-[10px] text-slate-400 mb-1.5">{p.company}</p>}
+                    {p.shelf_number && <p className="text-[10px] font-bold text-indigo-500 mb-1.5">الرف: {p.shelf_number}</p>}
                     <div className="mt-auto">
                       <p className="text-sm font-black leading-none" style={{ color: '#c8a84b' }}>
                         {price.toLocaleString('ar-EG')} <span className="text-[10px] font-normal">ج.م</span>

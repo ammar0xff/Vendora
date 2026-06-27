@@ -49,6 +49,7 @@ const NAV_GROUPS = [
       { to: '/cashflow',   icon: BarChart3, label: 'التدفق النقدي',perm: 'finance',  warehouseTypes: ['all'] },
       { to: '/safes',      icon: Vault,     label: 'الخزن المالية',perm: 'finance',  warehouseTypes: ['all'] },
       { to: '/expenses',   icon: DollarSign,label: 'المصروفات',    perm: 'finance',  warehouseTypes: ['all'] },
+      { to: '/shifts',     icon: Clock,     label: 'الورديات',     perm: 'shifts',   warehouseTypes: ['all'] },
       { to: '/archive',    icon: Archive,   label: 'الأرشيف',      perm: 'archive',  warehouseTypes: ['all'] },
     ]
   },
@@ -78,34 +79,32 @@ export default function Layout({ children }: { children: ReactNode }) {
   const logoUrl = settings?.logo_url || ''
   const [collapsed, setCollapsed] = useState(false)
 
-  const isAdmin = (user as any)?.role === 'admin'
+  const isManager = (user as any)?.is_manager
   const defaultWhId = (user as any)?.default_warehouse_id
 
   useEffect(() => {
-    if (!isAdmin && defaultWhId && warehouses?.length) {
+    if (defaultWhId && warehouses?.length && !activeWarehouseId) {
       const wh = warehouses.find((w: any) => w.id === defaultWhId)
       if (wh) setActiveWarehouse(wh.id, wh.name)
     }
-  }, [defaultWhId, warehouses, warehouses?.length, isAdmin, setActiveWarehouse])
+  }, [defaultWhId, warehouses, warehouses?.length, activeWarehouseId, setActiveWarehouse])
 
   const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
   const defaultWh = warehouses?.find((w: any) => w.id === defaultWhId)
-  // Use active warehouse type, or default warehouse type for non-admins (before useEffect fires)
+  // Use active warehouse type, or default warehouse type for non-managers (before useEffect fires)
   const whType = activeWh?.warehouse_type || defaultWh?.warehouse_type || 'all'
-  // Non-admins with a default warehouse are never in company view
-  const isCompanyView = !activeWarehouseId && (isAdmin || !defaultWhId)
+  const isCompanyView = !activeWarehouseId
 
   const userPerms: string[] = (user as any)?.permissions || []
   const hasPermission = (perm: string | null) => {
     if (!perm) return true
-    if ((user as any)?.role === 'admin') return true
     return userPerms.includes(perm)
   }
   const isVisible = (item: any) => {
     if (!hasPermission(item.perm)) return false
-    // Admin in company view sees everything
-    if (isAdmin && isCompanyView) return true
-    // Non-admin: use their warehouse type, or show 'all' items while loading
+    // Manager in company view sees everything
+    if (isManager && isCompanyView) return true
+    // Non-manager: use their warehouse type, or show 'all' items while loading
     const effectiveType = whType === 'all' ? 'showroom' : whType  // default to showroom while loading
     if (item.warehouseTypes.includes('all')) return true
     return item.warehouseTypes.includes(effectiveType)
@@ -160,8 +159,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        {/* Branch selector */}
-        {!collapsed && isAdmin && (
+        {/* Branch selector — all users can switch warehouses */}
+        {!collapsed && (
           <div className="px-3 py-2.5 border-b border-white/10 flex-shrink-0">
             <select value={activeWarehouseId || ''}
               onChange={e => {
@@ -182,14 +181,6 @@ export default function Layout({ children }: { children: ReactNode }) {
                 ))}
               </optgroup>
             </select>
-          </div>
-        )}
-        {!collapsed && !isAdmin && activeWh && (
-          <div className="px-3 py-2 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-2.5 py-1.5">
-              <span className="text-sm">{activeWh.warehouse_type === 'showroom' ? '🏪' : '🏭'}</span>
-              <span className="text-white text-xs font-semibold truncate">{activeWh.name}</span>
-            </div>
           </div>
         )}
 
@@ -230,7 +221,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-xs font-semibold truncate">{user?.full_name}</p>
-                <p className="text-white/40 text-xs">{(user as any)?.role === 'admin' ? 'مدير عام' : (user as any)?.role === 'manager' ? 'مشرف' : (user as any)?.role === 'cashier' ? 'كاشير' : (user as any)?.role === 'accountant' ? 'محاسب' : (user as any)?.role === 'storekeeper' ? 'أمين مخازن' : (user as any)?.role || 'موظف'}</p>
+                <p className="text-white/40 text-xs">{isManager ? '🔑 مدير' : 'موظف'}</p>
               </div>
             </div>
           )}
@@ -255,7 +246,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               {activeWh.warehouse_type === 'showroom' ? '🏪' : '🏭'} {activeWh.name}
             </span>
           )}
-          {isCompanyView && isAdmin && (
+          {isCompanyView && (
             <span className="mr-auto text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">🏢 إدارة شاملة</span>
           )}
           <SyncIndicator />

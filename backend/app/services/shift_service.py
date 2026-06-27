@@ -1,5 +1,6 @@
 import uuid
 from decimal import Decimal
+import logging
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -17,16 +18,14 @@ def _assert_owner(shift: Shift, user_id: uuid.UUID):
 async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, data) -> Shift:
     result = await db.execute(
         select(Shift)
-        .where(Shift.warehouse_id == data.warehouse_id, Shift.status == ShiftStatus.open)
-        .order_by(Shift.started_at.desc())
+        .where(Shift.warehouse_id == data.warehouse_id,
+               Shift.cashier_id == cashier_id,
+               Shift.status == ShiftStatus.open)
         .with_for_update()
     )
-    existing = result.scalars().all()
-    for old in existing[1:]:
-        old.status = ShiftStatus.closed
-        old.closed_at = datetime.now(timezone.utc)
+    existing = result.scalar_one_or_none()
     if existing:
-        raise BusinessError("يوجد وردية مفتوحة بالفعل في هذا الفرع")
+        raise BusinessError("لديك وردية مفتوحة بالفعل في هذا الفرع")
     shift = Shift(cashier_id=cashier_id, initial_amount=data.initial_amount,
                   warehouse_id=data.warehouse_id, supervisor_id=getattr(data, 'supervisor_id', None))
     db.add(shift)
@@ -59,17 +58,26 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     shift = result.scalar_one_or_none()
     if not shift:
         raise NotFoundError("Shift not found")
+    # Aggregate totals by transaction type
     rows = await db.execute(
         select(DrawerTransaction.type, func.sum(DrawerTransaction.amount).label("total"))
         .where(DrawerTransaction.shift_id == shift_id)
         .group_by(DrawerTransaction.type)
     )
-    totals = {row.type: row.total for row in rows}
-    sales      = totals.get(DrawerTxType.sale,       Decimal("0")) or Decimal("0")
-    returns    = totals.get(DrawerTxType.return_,     Decimal("0")) or Decimal("0")
-    expenses   = totals.get(DrawerTxType.expense,     Decimal("0")) or Decimal("0")
-    deposits   = totals.get(DrawerTxType.deposit,     Decimal("0")) or Decimal("0")
-    withdrawals= totals.get(DrawerTxType.withdrawal,  Decimal("0")) or Decimal("0")
+    # Normalize keys to the underlying value (robust to enum or string being returned)
+    def _key_of(t):
+        # If SQLAlchemy returns an Enum object, use its .value; if it's already a string, use it.
+        try:
+            return t.value  # Enum with .value (also works for str-subclass enums)
+        except Exception:
+            return str(t)
+
+    totals = {_key_of(row.type): row.total for row in rows}
+    sales      = totals.get(DrawerTxType.sale.value,       Decimal("0")) or Decimal("0")
+    returns    = totals.get(DrawerTxType.return_.value,    Decimal("0")) or Decimal("0")
+    expenses   = totals.get(DrawerTxType.expense.value,    Decimal("0")) or Decimal("0")
+    deposits   = totals.get(DrawerTxType.deposit.value,    Decimal("0")) or Decimal("0")
+    withdrawals= totals.get(DrawerTxType.withdrawal.value, Decimal("0")) or Decimal("0")
     expected = shift.initial_amount + sales + deposits - returns - expenses - withdrawals
     variance = (shift.closing_balance - expected) if shift.closing_balance is not None else None
     tx_count = await db.execute(select(func.count()).where(DrawerTransaction.shift_id == shift_id))
@@ -104,6 +112,41 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     """), {"sid": shift_id})
     wallet_tx_breakdown = [dict(r._mapping) for r in wallet_tx_rows.fetchall()]
 
+    # --- Defensive cash computation & debug logging ---
+    # Fetch raw drawer transaction rows to compute cash-only sums (some wallets/sales mix can confuse grouped totals)
+    raw_res = await db.execute(
+        select(DrawerTransaction.type, DrawerTransaction.amount, DrawerTransaction.payment_method)
+        .where(DrawerTransaction.shift_id == shift_id)
+    )
+    raw_rows = raw_res.fetchall()
+    # cash if payment_method is null/"cash" (tolerant to None)
+    cash_sums: dict[str, Decimal] = {}
+    for r in raw_rows:
+        t = _key_of(r.type)
+        amt = Decimal(r.amount or 0)
+        pm = (r.payment_method or 'cash')
+        if pm == 'wallet':
+            # skip wallet transactions for cash sums
+            continue
+        cash_sums[t] = cash_sums.get(t, Decimal('0')) + amt
+
+    # Compute cash_in_drawer explicitly from cash-only transactions
+    cash_in_drawer = (shift.initial_amount
+                      + cash_sums.get(DrawerTxType.sale.value, Decimal('0'))
+                      + cash_sums.get(DrawerTxType.deposit.value, Decimal('0'))
+                      - cash_sums.get(DrawerTxType.return_.value, Decimal('0'))
+                      - cash_sums.get(DrawerTxType.expense.value, Decimal('0'))
+                      - cash_sums.get(DrawerTxType.withdrawal.value, Decimal('0')))
+
+    logger = logging.getLogger(__name__)
+    try:
+        logger.debug("shift_summary debug shift=%s totals=%s cash_sums=%s payment_breakdown=%s wallet_tx_breakdown=%s",
+                     str(shift_id), {k: float(v) for k, v in totals.items()}, {k: float(v) for k, v in cash_sums.items()},
+                     payment_breakdown, wallet_tx_breakdown)
+    except Exception:
+        # Don't let logging break the summary calculation
+        logger.debug("shift_summary computed for %s", str(shift_id))
+
     return {
         "shift_id": shift_id,
         "initial_amount": shift.initial_amount,
@@ -113,7 +156,8 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "deposits_total": deposits,
         "withdrawals_total": withdrawals,
         "expected_balance": expected,
-        "cash_in_drawer": expected,
+        # cash_in_drawer: explicit cash-only computation to avoid mixing wallet txns
+        "cash_in_drawer": cash_in_drawer,
         "wallet_total": wallet_sales,
         "closing_balance": shift.closing_balance,
         "variance": variance,
@@ -143,6 +187,21 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
                       warehouse_id=shift.warehouse_id, supervisor_id=shift.supervisor_id,
                       notes=f"استلام عهدة من {from_user_id}")
     db.add(new_shift)
+
+    # Auto-grant warehouse access to the receiving user
+    if shift.warehouse_id:
+        from app.models.user import user_warehouses
+        existing = await db.execute(
+            select(user_warehouses.c.warehouse_id).where(
+                user_warehouses.c.user_id == to_user_id,
+                user_warehouses.c.warehouse_id == shift.warehouse_id,
+            )
+        )
+        if not existing.scalar_one_or_none():
+            await db.execute(
+                user_warehouses.insert().values(user_id=to_user_id, warehouse_id=shift.warehouse_id)
+            )
+
     from app.models.archive import ArchivedDocument, DocType
     doc_number = f"HND-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
     from sqlalchemy import select as sa_select

@@ -79,6 +79,7 @@ export const shiftsApi = {
   transactions: (id: string) => api.get(`/shifts/${id}/transactions`).then(r => r.data),
   addTransaction: (id: string, data: any) => api.post(`/shifts/${id}/transactions`, data).then(r => r.data),
   transfer: (id: string, data: any) => api.post(`/shifts/${id}/transfer`, data).then(r => r.data),
+  revenueDelivery: (id: string, data: any) => api.post(`/shifts/${id}/revenue-delivery`, data).then(r => r.data),
 }
 
 export const reportsApi = {
@@ -137,7 +138,7 @@ export const customersApi = {
   delete: (id: string) => api.delete(`/customers/${id}`),
   account: (id: string) => api.get(`/customers/${id}/account`).then(r => r.data),
   ledger: (id: string) => api.get(`/customers/${id}/ledger`).then(r => r.data),
-  addPayment: (id: string, amount: number, note: string) => api.post(`/customers/${id}/payments`, { amount, note }).then(r => r.data),
+  addPayment: (id: string, amount: number, note: string, sale_id?: string) => api.post(`/customers/${id}/payments`, { amount, note, sale_id }).then(r => r.data),
   setBalance: (id: string, balance: number) => api.put(`/customers/${id}/balance`, { balance }).then(r => r.data),
 }
 

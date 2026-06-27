@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/endpoints'
+import { customersApi } from '../../api/endpoints'
 import api from '../../api/client'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
-import { Search, Printer, RotateCcw, XCircle, Minus, Plus, Filter, FileDown } from 'lucide-react'
+import { Search, Printer, RotateCcw, XCircle, Minus, Plus, Filter, FileDown, DollarSign, Eye } from 'lucide-react'
 import ExportButton from '../../components/ui/ExportButton'
 import { printUrl, openPrint } from '../../utils/format'
 import { clsx } from 'clsx'
@@ -36,11 +37,21 @@ export default function SalesPage() {
   const [returnSale, setReturnSale] = useState<any>(null)
   const [confirmCancel, setConfirmCancel] = useState<any>(null)
   const [returnQtys, setReturnQtys] = useState<Record<string, number>>({})
+  // Sale detail modal
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
+  const [salePayAmount, setSalePayAmount] = useState('')
+  const [salePayNote, setSalePayNote] = useState('')
   const qc = useQueryClient()
 
   const { data: sales, isLoading } = useQuery({
     queryKey: ['sales', statusFilter],
     queryFn: () => salesApi.list({ limit: 200, ...(statusFilter ? { status: statusFilter } : {}) }),
+  })
+
+  const { data: saleDetail, refetch: refetchDetail } = useQuery({
+    queryKey: ['sale-detail', selectedSaleId],
+    queryFn: () => salesApi.get(selectedSaleId!),
+    enabled: !!selectedSaleId,
   })
 
   const cancelMut = useMutation({
@@ -60,6 +71,21 @@ export default function SalesPage() {
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل'),
   })
 
+  const paySaleMut = useMutation({
+    mutationFn: () => {
+      const sale = saleDetail
+      if (!sale?.customer_id) throw new Error('لا يوجد عميل')
+      return customersApi.addPayment(sale.customer_id, Number(salePayAmount), salePayNote, sale.id)
+    },
+    onSuccess: () => {
+      toast.success('✅ تم تسجيل الدفعة')
+      setSalePayAmount(''); setSalePayNote('')
+      refetchDetail()
+      qc.invalidateQueries({ queryKey: ['sales'] })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل في تسجيل الدفعة'),
+  })
+
   const handlePrint = (id: string) => {
     openPrint(`/print/pdf/sale/${id}`)
   }
@@ -69,7 +95,6 @@ export default function SalesPage() {
     (!search || s.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
      (s.customer_name || '').toLowerCase().includes(search.toLowerCase()))
   )
-
 
   const columns = [
     {
@@ -97,6 +122,12 @@ export default function SalesPage() {
           <p className="text-sm text-slate-700">{new Date(s.created_at).toLocaleDateString('ar-EG')}</p>
           <p className="text-xs text-slate-400">{new Date(s.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
+      )
+    },
+    {
+      key: 'net_total', label: 'الإجمالي', width: '100px',
+      render: (s: any) => (
+        <span className="font-bold text-slate-800">{Number(s.net_total).toLocaleString('ar-EG')}</span>
       )
     },
     {
@@ -193,11 +224,123 @@ export default function SalesPage() {
           data={filtered}
           loading={isLoading}
           rowKey={(s: any) => s.id}
+          onRowClick={(s: any) => setSelectedSaleId(s.id)}
           emptyMessage="لا توجد مبيعات"
           emptyIcon="🧾"
           maxHeight="calc(100vh - 280px)"
         />
       </div>
+
+      {/* Sale Detail Modal */}
+      <Modal open={!!selectedSaleId} onClose={() => { setSelectedSaleId(null); setSalePayAmount(''); setSalePayNote('') }}
+        title={saleDetail ? `فاتورة ${saleDetail.invoice_number}` : 'جاري التحميل...'} size="xl">
+        {saleDetail && (
+          <div className="space-y-5">
+            {/* Invoice header */}
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-slate-500">العميل: <span className="font-bold text-slate-800">{saleDetail.customer_name || 'عميل عادي'}</span></p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {new Date(saleDetail.created_at).toLocaleString('ar-EG')}
+                </p>
+              </div>
+              <StatusPill status={saleDetail.status} />
+            </div>
+
+            {/* Items table */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 mb-2">الأصناف</p>
+              <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="text-right px-3 py-2 text-slate-500">الصنف</th>
+                      <th className="text-right px-3 py-2 text-slate-500">الكمية</th>
+                      <th className="text-right px-3 py-2 text-slate-500">السعر</th>
+                      <th className="text-right px-3 py-2 text-slate-500">الإجمالي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(saleDetail.items || []).map((item: any) => (
+                      <tr key={item.id} className="border-t border-slate-100">
+                        <td className="px-3 py-2 font-semibold text-slate-700">{item.product_name || item.product_id?.slice(0, 8)}</td>
+                        <td className="px-3 py-2 text-slate-600">{Number(item.qty).toLocaleString('ar-EG')}</td>
+                        <td className="px-3 py-2 text-slate-600">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
+                        <td className="px-3 py-2 font-bold text-slate-800">{(Number(item.qty) * Number(item.unit_price)).toLocaleString('ar-EG')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Financial summary */}
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: 'الإجمالي', val: Number(saleDetail.net_total).toLocaleString('ar-EG'), color: '#1e3a5f' },
+                { label: 'المدفوع', val: Number(saleDetail.paid_amount || 0).toLocaleString('ar-EG'), color: '#16a34a' },
+                { label: 'المرتجعات', val: Number(saleDetail.returns_total || 0).toLocaleString('ar-EG'), color: '#dc2626' },
+                { label: 'المتبقي', val: Number(saleDetail.remaining || 0).toLocaleString('ar-EG'), color: '#d97706' },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
+                  <p className="text-xs text-slate-400 mb-1">{label}</p>
+                  <p className="text-lg font-black" style={{ color }}>{val} ج.م</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Payment history */}
+            {(saleDetail.payment_history?.length > 0 || Number(saleDetail.returns_total) > 0) && (
+              <div>
+                <p className="text-xs font-bold text-slate-400 mb-2">سجل الدفعات والمرتجعات</p>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {/* Payment entries */}
+                  {(saleDetail.payment_history || []).map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 text-sm border border-green-100">
+                      <div className="flex items-center gap-2">
+                        <DollarSign size={14} className="text-green-600" />
+                        <span className="font-bold text-green-700">دفعة</span>
+                        <span className="text-xs text-slate-400">{p.note}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400">{p.created_at ? new Date(p.created_at).toLocaleString('ar-EG') : ''}</span>
+                        <span className="font-bold text-green-700">{Number(p.amount).toLocaleString('ar-EG')} ج.م</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pay action — only for confirmed credit invoices with remaining > 0 */}
+            {saleDetail.status === 'confirmed' && saleDetail.customer_id && Number(saleDetail.remaining) > 0 && (
+              <div className="border-t border-slate-200 pt-4">
+                <p className="text-sm font-bold text-slate-700 mb-3">تسديد جزء من الفاتورة</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ *</label>
+                    <input type="number" className="input text-lg font-black" value={salePayAmount}
+                      onChange={e => setSalePayAmount(e.target.value)} placeholder="0.00" max={saleDetail.remaining} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label>
+                    <input className="input" value={salePayNote} onChange={e => setSalePayNote(e.target.value)} placeholder="رقم إيصال..." />
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-end mt-3">
+                  <button onClick={() => { setSalePayAmount(''); setSalePayNote('') }}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+                  <button onClick={() => paySaleMut.mutate()}
+                    disabled={!salePayAmount || Number(salePayAmount) <= 0 || paySaleMut.isPending}
+                    className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                    <DollarSign size={14} /> تسجيل الدفعة
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Partial Return Modal */}
       <Modal open={!!returnSale} onClose={() => setReturnSale(null)} title={`مرتجع من ${returnSale?.invoice_number}`} size="lg">

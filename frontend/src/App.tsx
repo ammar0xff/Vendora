@@ -55,9 +55,8 @@ function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: 
   const { token, user } = useAuthStore()
   if (!token) return <Navigate to="/login" replace />
   if (perm) {
-    const role = user?.role
     const perms: string[] = user?.permissions || []
-    if (role !== 'admin' && !perms.includes(perm)) {
+    if (!perms.includes(perm)) {
       return <Layout><div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
         <div className="text-5xl">🔒</div>
         <h2 className="text-xl font-black text-slate-800">غير مصرح</h2>
@@ -73,20 +72,19 @@ import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from './api/endpoints'
 
 function FaviconUpdater() {
-  const { token } = useAuthStore()
-  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000, retry: false, enabled: !!token })
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000, retry: false })
   useEffect(() => {
     const logo = settings?.logo_url
     const name = settings?.store_name || 'ERP'
     document.title = name
-    const link = document.querySelector<HTMLLinkElement>("link[rel='icon']") || (() => {
-      const el = document.createElement('link'); el.rel = 'icon'; document.head.appendChild(el); return el
-    })()
-    if (logo) {
-      link.href = logo + '?v=' + Date.now()
-    } else {
-      link.href = '/favicon.svg'
-    }
+    const href = logo ? logo + '?v=' + Date.now() : '/favicon.svg'
+    const appleHref = logo ? logo + '?v=' + Date.now() : '/icon-192.png'
+    const favicon = document.querySelector<HTMLLinkElement>("link[rel='icon']")
+    if (favicon) favicon.href = href
+    const svgFavicon = document.querySelector<HTMLLinkElement>("link[rel='icon'][type='image/svg+xml']")
+    if (svgFavicon) svgFavicon.href = href
+    const apple = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']")
+    if (apple) apple.href = appleHref
   }, [settings?.logo_url, settings?.store_name])
   return null
 }

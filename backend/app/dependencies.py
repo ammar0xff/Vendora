@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.db.base import get_db
 from app.core.security import decode_token
-from app.models.user import User
+from app.models.user import User, user_warehouses
 from datetime import datetime
 from typing import Optional
 import uuid
@@ -69,28 +69,19 @@ async def get_print_user(request: Request, db: AsyncSession = Depends(get_db)) -
     return user
 
 
-def require_role(*roles: str):
-    async def checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role == 'admin':
-            return current_user
-        if current_user.role in roles:
-            return current_user
-        user_perms = current_user.permissions or []
-        if any(r in user_perms for r in roles):
-            return current_user
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-    return checker
-
-
 def require_perm(*perms: str):
     async def checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role == 'admin':
-            return current_user
         user_perms = current_user.permissions or []
         if any(p in user_perms for p in perms):
             return current_user
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return checker
+
+
+async def require_is_manager(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_manager:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="مدير فقط")
+    return current_user
 
 
 async def require_open_period(db: AsyncSession = Depends(get_db)):
@@ -106,5 +97,26 @@ async def require_open_period(db: AsyncSession = Depends(get_db)):
     status_row = (await db.execute(text("SELECT status FROM accounting_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
     if status_row == "closed":
         raise HTTPException(status_code=400, detail=f"الشهر {month} مغلق — لا يمكن إجراء المعاملات")
+
+
+async def verify_warehouse_access(
+    db: AsyncSession,
+    current_user: User,
+    warehouse_id: uuid.UUID | None,
+) -> uuid.UUID | None:
+    """Check if user has access to a warehouse. Returns warehouse_id if valid."""
+    if warehouse_id is None:
+        return None
+    if current_user.is_manager:
+        return warehouse_id
+    result = await db.execute(
+        select(user_warehouses.c.warehouse_id).where(
+            user_warehouses.c.user_id == current_user.id,
+            user_warehouses.c.warehouse_id == warehouse_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ليس لديك صلاحية الوصول إلى هذا الفرع")
+    return warehouse_id
 
 

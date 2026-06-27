@@ -6,7 +6,7 @@ import { useAppStore } from '../../store/app'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Wallet, Plus, Lock, TrendingUp, TrendingDown, DollarSign, Vault, Smartphone, Banknote } from 'lucide-react'
+import { Wallet, Plus, Lock, TrendingUp, TrendingDown, DollarSign, Vault, Smartphone, Banknote, Landmark } from 'lucide-react'
 
 export default function ShiftsPage() {
   const [page, setPage] = useState(0)
@@ -26,6 +26,12 @@ export default function ShiftsPage() {
   const [managerPassword, setManagerPassword] = useState('')
   const [expenseAmount, setExpenseAmount] = useState('')
   const [expenseNote, setExpenseNote] = useState('')
+  const [showRevenueDelivery, setShowRevenueDelivery] = useState(false)
+  const [revenueAmount, setRevenueAmount] = useState('')
+  const [revenueSafeId, setRevenueSafeId] = useState('')
+  const [revenueManagerId, setRevenueManagerId] = useState('')
+  const [revenueManagerPassword, setRevenueManagerPassword] = useState('')
+  const [revenueNotes, setRevenueNotes] = useState('')
   const qc = useQueryClient()
 
   const { activeWarehouseId } = useAppStore()
@@ -56,7 +62,7 @@ export default function ShiftsPage() {
   const { data: managers } = useQuery({
     queryKey: ['managers'],
     queryFn: () => api.get('/users/managers').then(r => r.data),
-    enabled: showClose || showDeposit,
+    enabled: showClose || showDeposit || showRevenueDelivery,
   })
 
   const openMut = useMutation({
@@ -74,21 +80,25 @@ export default function ShiftsPage() {
       })
       // Auto-deposit cash to selected safe
       if (closeSafeId) {
-        await api.post(`/safes/${closeSafeId}/deposit`, {
-          amount: cashInDrawer,
-          shift_id: shift!.id,
-          warehouse_id: activeWarehouseId,
-          received_by_id: managerId,
-          notes: 'تسليم الدرج عند إغلاق الوردية',
-        })
+        const cashAmt = Number(closingBalance) - Number(nextDayDrawer || 0)
+        if (cashAmt > 0) {
+          await api.post(`/safes/${closeSafeId}/deposit`, {
+            amount: cashAmt,
+            shift_id: shift!.id,
+            warehouse_id: activeWarehouseId,
+            received_by_id: managerId,
+            notes: 'تسليم الدرج عند إغلاق الوردية',
+          })
+        }
       }
       return res.data
     },
     onSuccess: (d) => {
+      const closBal = Number(d.closing_balance || 0)
       const variance = Number(d.variance || 0)
-      if (variance !== 0) toast.success(`تم الإغلاق — فرق الدرج: ${variance > 0 ? '+' : ''}${variance.toLocaleString('ar-EG')} ج.م`, { duration: 5000 })
-      else toast.success('✅ تم إغلاق الوردية وتسليم الدرج')
-      setShowClose(false); setManagerPassword(''); setManagerId(''); setCloseSafeId('')
+      if (variance !== 0) toast.success(`تم الإغلاق — الدرج: ${closBal.toLocaleString('ar-EG')} ج.م / فرق: ${variance > 0 ? '+' : ''}${variance.toLocaleString('ar-EG')} ج.م`, { duration: 5000 })
+      else toast.success(`✅ تم الإغلاق — الدرج: ${closBal.toLocaleString('ar-EG')} ج.م`)
+      setShowClose(false); setClosingBalance(''); setNextDayDrawer(''); setManagerPassword(''); setManagerId(''); setCloseSafeId('')
       qc.invalidateQueries({ queryKey: ['current-shift'] }); qc.invalidateQueries({ queryKey: ['shifts'] }); qc.invalidateQueries({ queryKey: ['safes'] })
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل إغلاق الوردية'),
@@ -115,6 +125,24 @@ export default function ShiftsPage() {
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل التوريد'),
   })
+  const revenueMut = useMutation({
+    mutationFn: () => shiftsApi.revenueDelivery(shift!.id, {
+      amount: Number(revenueAmount),
+      safe_id: revenueSafeId,
+      manager_id: revenueManagerId,
+      manager_password: revenueManagerPassword,
+      notes: revenueNotes || undefined,
+    }),
+    onSuccess: (d: any) => {
+      toast.success(`✅ تم تسليم ${Number(d.amount).toLocaleString('ar-EG')} ج.م إلى ${d.safe} — مستند: ${d.doc_number}`)
+      setShowRevenueDelivery(false); setRevenueAmount(''); setRevenueSafeId(''); setRevenueManagerId('')
+      setRevenueManagerPassword(''); setRevenueNotes('')
+      qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] })
+      qc.invalidateQueries({ queryKey: ['shift-txns', shift?.id] })
+      qc.invalidateQueries({ queryKey: ['safes'] })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail || 'فشل تسليم الإيرادات'),
+  })
 
   const cashInDrawer = Number(summary?.cash_in_drawer || 0)
   const walletTotal = Number(summary?.wallet_total || 0)
@@ -130,6 +158,11 @@ export default function ShiftsPage() {
         {shift && (
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => setShowExpense(true)} className="btn-ghost"><TrendingDown size={16} /> مصروف</button>
+            <button onClick={() => setShowRevenueDelivery(true)}
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-2"
+              style={{ background: '#2563eb' }}>
+              <Landmark size={16} /> تسليم إيرادات
+            </button>
             <button onClick={() => setShowDeposit(true)}
               className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-2"
               style={{ background: '#16a34a' }}>
@@ -257,7 +290,7 @@ export default function ShiftsPage() {
                       <td className="text-sm">{new Date(s.started_at).toLocaleString('ar-EG')}</td>
                       <td className="text-sm text-slate-500">{s.closed_at ? new Date(s.closed_at).toLocaleString('ar-EG') : '—'}</td>
                       <td className="font-semibold">{Number(s.initial_amount).toLocaleString('ar-EG')} ج.م</td>
-                      <td className="font-semibold">{s.closing_balance ? `${Number(s.closing_balance).toLocaleString('ar-EG')} ج.م` : '—'}</td>
+                      <td className="font-semibold">{s.closing_balance != null ? `${Number(s.closing_balance).toLocaleString('ar-EG')} ج.م` : '—'}</td>
                       <td><span className={s.status === 'open' ? 'badge-green' : 'badge-gray'}>{s.status === 'open' ? 'مفتوحة' : 'مغلقة'}</span></td>
                     </tr>
                   ))}
@@ -327,7 +360,7 @@ export default function ShiftsPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowClose(false)} className="btn-ghost">إلغاء</button>
-            <button onClick={() => closeMut.mutate()} disabled={closeMut.isPending || !managerId || !managerPassword || !closingBalance || !closeSafeId}
+            <button onClick={() => closeMut.mutate()} disabled={closeMut.isPending || !managerId || !managerPassword || !closingBalance || Number(closingBalance) <= 0 || !closeSafeId}
               className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#dc2626' }}>
               {closeMut.isPending ? 'جاري الإغلاق...' : 'إغلاق الوردية'}
             </button>
@@ -343,6 +376,51 @@ export default function ShiftsPage() {
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowExpense(false)} className="btn-ghost">إلغاء</button>
             <button onClick={() => expenseMut.mutate()} disabled={expenseMut.isPending} className="btn-primary">تسجيل</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Revenue delivery */}
+      <Modal open={showRevenueDelivery} onClose={() => { setShowRevenueDelivery(false); setRevenueAmount(''); setRevenueSafeId(''); setRevenueManagerId(''); setRevenueManagerPassword(''); setRevenueNotes('') }} title="تسليم إيرادات إلى الخزنة">
+        <div className="space-y-4">
+          <div className="rounded-xl p-4 text-center" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <p className="text-xs font-medium mb-1" style={{ color: '#2563eb' }}>الرصيد النقدي المتوقع في الدرج</p>
+            <p className="text-3xl font-black" style={{ color: '#2563eb' }}>{cashInDrawer.toLocaleString('ar-EG')} ج.م</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ المسلَّم *</label>
+            <input type="number" className="input" value={revenueAmount} onChange={e => setRevenueAmount(e.target.value)} placeholder="0.00" autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">الخزنة المستقبِلة *</label>
+            <select className="input" value={revenueSafeId} onChange={e => setRevenueSafeId(e.target.value)}>
+              <option value="">اختر الخزنة...</option>
+              {safes?.map((s: any) => <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>)}
+            </select>
+          </div>
+          <input className="input" value={revenueNotes} onChange={e => setRevenueNotes(e.target.value)} placeholder="ملاحظات (اختياري)" />
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-xs font-bold text-slate-500 mb-3">توقيع المدير</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">المدير *</label>
+                <select className="input" value={revenueManagerId} onChange={e => setRevenueManagerId(e.target.value)}>
+                  <option value="">اختر مديراً...</option>
+                  {managers?.map((m: any) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">كلمة مرور المدير *</label>
+                <input type="password" className="input" value={revenueManagerPassword} onChange={e => setRevenueManagerPassword(e.target.value)} placeholder="••••••" />
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowRevenueDelivery(false)} className="btn-ghost">إلغاء</button>
+            <button onClick={() => revenueMut.mutate()} disabled={revenueMut.isPending || !revenueAmount || !revenueSafeId || !revenueManagerId || !revenueManagerPassword}
+              className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#2563eb' }}>
+              {revenueMut.isPending ? 'جاري...' : 'تأكيد التسليم'}
+            </button>
           </div>
         </div>
       </Modal>

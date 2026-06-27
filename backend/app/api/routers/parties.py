@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from decimal import Decimal
@@ -18,7 +18,7 @@ router = APIRouter(tags=["parties"])
 
 # ── Customers ────────────────────────────────────────────────────────────────
 @router.get("/customers")
-async def list_customers(search: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_customers(search: str | None = None, limit: int = Query(200, le=1000), offset: int = Query(0, ge=0), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     from sqlalchemy import text as sqlt
     params: dict = {}
     where_parts = ["1=1"]
@@ -26,14 +26,16 @@ async def list_customers(search: str | None = None, db: AsyncSession = Depends(g
         where_parts.append("c.name ILIKE :search")
         params["search"] = f"%{search}%"
     where = " AND ".join(where_parts)
+    # Add basic pagination to avoid returning an unbounded result set
+    params.update({"limit": limit, "offset": offset})
     rows = await db.execute(sqlt(f"""
         SELECT c.*, c.balance AS balance_due
         FROM customers c
         WHERE {where}
         ORDER BY c.name
+        LIMIT :limit OFFSET :offset
     """    ), params)
     return [dict(r._mapping) for r in rows.fetchall()]
-# TODO: needs pagination — no limit/offset
 
 
 @router.post("/customers")
@@ -158,18 +160,45 @@ async def delete_customer(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
 @router.post("/customers/{cid}/payments")
 async def add_payment(cid: uuid.UUID, data: CustomerPaymentCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("customers"))):
-    """Record a payment received from customer."""
+    """Record a payment received from customer.  If sale_id is provided, the payment is attributed to that invoice."""
     if data.amount <= 0:
         raise HTTPException(400, "المبلغ يجب أن يكون أكبر من 0")
     c = (await db.execute(select(Customer).where(Customer.id == cid))).scalar_one_or_none()
     if not c:
         raise NotFoundError()
-    p = CustomerPayment(customer_id=cid, amount=data.amount, note=data.note, created_by=current_user.id)
+    sale_id: uuid.UUID | None = None
+    if data.sale_id:
+        sale_id = uuid.UUID(data.sale_id)
+        # Verify the sale exists and belongs to this customer
+        s = (await db.execute(select(Sale).where(Sale.id == sale_id))).scalar_one_or_none()
+        if not s:
+            raise HTTPException(404, "الفاتورة غير موجودة")
+        if str(s.customer_id) != str(cid):
+            raise HTTPException(400, "الفاتورة لا تخص هذا العميل")
+    p = CustomerPayment(customer_id=cid, sale_id=sale_id, amount=data.amount, note=data.note, created_by=current_user.id)
     db.add(p)
     c.balance = (c.balance or 0) - data.amount
-    await audit_log(db, "customer_payment", "create", current_user.id, current_user.full_name, p.id, {"customer_id": str(cid), "amount": float(data.amount)}, f"دفعة من {c.name}")
+    if sale_id:
+        from sqlalchemy import text as sqlt
+        await db.execute(sqlt(
+            "UPDATE sales SET paid_amount = COALESCE(paid_amount,0) + :amt, last_paid_at = NOW() WHERE id = :sid"
+        ), {"amt": float(data.amount), "sid": sale_id})
+    await audit_log(db, "customer_payment", "create", current_user.id, current_user.full_name, p.id, {"customer_id": str(cid), "amount": float(data.amount), "sale_id": str(sale_id) if sale_id else None}, f"دفعة من {c.name}")
+
+    # Also record in the cash drawer if the user has an open shift
+    from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
+    shift_row = await db.execute(
+        select(Shift).where(Shift.cashier_id == current_user.id, Shift.status == ShiftStatus.open).limit(1)
+    )
+    shift = shift_row.scalar_one_or_none()
+    if shift:
+        dt = DrawerTransaction(shift_id=shift.id, type=DrawerTxType.deposit, amount=data.amount,
+                               note=f"دفعة من {c.name}" + (f" — {data.note}" if data.note else ""),
+                               created_by=current_user.id)
+        db.add(dt)
+
     await db.commit()
     await db.refresh(p)
-    return {"id": str(p.id), "amount": float(p.amount), "note": p.note, "created_at": p.created_at.isoformat()}
+    return {"id": str(p.id), "amount": float(p.amount), "note": p.note, "sale_id": str(p.sale_id) if p.sale_id else None, "created_at": p.created_at.isoformat()}
 
 
