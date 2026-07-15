@@ -70,14 +70,28 @@ async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _
 
     r = await db.execute(sqlt("""
         SELECT
-            COALESCE((SELECT SUM(si.qty * si.unit_price - si.discount) - MAX(s.discount_amount)
-                      FROM sales s JOIN sale_items si ON si.sale_id = s.id
-                      WHERE s.customer_id = :cid AND s.is_credit = true AND s.status = 'confirmed'), 0)
-            AS total_invoiced,
-            COALESCE((SELECT SUM(si.qty * si.unit_price - si.discount)
-                      FROM sales s JOIN sale_items si ON si.sale_id = s.id
-                      WHERE s.customer_id = :cid AND s.status = 'returned' AND s.is_credit), 0)
-            AS total_returned,
+            COALESCE((
+                SELECT SUM(invoice_net)
+                FROM (
+                    SELECT s.id,
+                           SUM(si.qty * si.unit_price - si.discount) - COALESCE(s.discount_amount, 0) AS invoice_net
+                    FROM sales s
+                    JOIN sale_items si ON si.sale_id = s.id
+                    WHERE s.customer_id = :cid AND s.is_credit = true AND s.status = 'confirmed'
+                    GROUP BY s.id, s.discount_amount
+                ) inv
+            ), 0) AS total_invoiced,
+            COALESCE((
+                SELECT SUM(invoice_net)
+                FROM (
+                    SELECT s.id,
+                           SUM(si.qty * si.unit_price - si.discount) AS invoice_net
+                    FROM sales s
+                    JOIN sale_items si ON si.sale_id = s.id
+                    WHERE s.customer_id = :cid AND s.status = 'returned' AND s.is_credit = true
+                    GROUP BY s.id
+                ) ret
+            ), 0) AS total_returned,
             COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = :cid), 0)
             AS total_paid
     """), {"cid": cid})
@@ -186,11 +200,21 @@ async def add_payment(cid: uuid.UUID, data: CustomerPaymentCreate, db: AsyncSess
     await audit_log(db, "customer_payment", "create", current_user.id, current_user.full_name, p.id, {"customer_id": str(cid), "amount": float(data.amount), "sale_id": str(sale_id) if sale_id else None}, f"دفعة من {c.name}")
 
     # Also record in the cash drawer if the user has an open shift
+    # Use the sale's warehouse to pick the correct shift when sale_id is provided
     from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
-    shift_row = await db.execute(
-        select(Shift).where(Shift.cashier_id == current_user.id, Shift.status == ShiftStatus.open).limit(1)
+    shift_query = select(Shift).where(
+        Shift.cashier_id == current_user.id,
+        Shift.status == ShiftStatus.open,
     )
-    shift = shift_row.scalar_one_or_none()
+    if sale_id:
+        # Prefer the shift that belongs to the same warehouse as the invoice
+        sale_wh = (await db.execute(
+            select(Sale.warehouse_id).where(Sale.id == sale_id)
+        )).scalar_one_or_none()
+        if sale_wh:
+            shift_query = shift_query.where(Shift.warehouse_id == sale_wh)
+    shift_query = shift_query.limit(1)
+    shift = (await db.execute(shift_query)).scalar_one_or_none()
     if shift:
         dt = DrawerTransaction(shift_id=shift.id, type=DrawerTxType.deposit, amount=data.amount,
                                note=f"دفعة من {c.name}" + (f" — {data.note}" if data.note else ""),

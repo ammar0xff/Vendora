@@ -138,6 +138,7 @@ async def list_products(
     await verify_warehouse_access(db, current_user, warehouse_id)
     base_q = select(Product).where(Product.is_active)
     count_q = select(func.count(Product.id)).where(Product.is_active)
+
     if search:
         like = f"%{search}%"
         base_q = base_q.where(Product.name.ilike(like))
@@ -166,7 +167,6 @@ async def list_products(
         wh_status = {str(r[0]): r[1] for r in rows}
         for po in items_out:
             po.stock_status = wh_status.get(str(po.id), po.stock_status)
-
     return Page(items=items_out, total=total, page=page, size=page_size, pages=pages)
 
 

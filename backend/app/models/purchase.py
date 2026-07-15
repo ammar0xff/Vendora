@@ -24,6 +24,8 @@ class PurchaseOrder(Base):
     warehouse_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id"), nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     status: Mapped[POStatus] = mapped_column(SAEnum(POStatus, name="po_status_enum"), default=POStatus.draft)
+    amount_paid: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    received_by_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

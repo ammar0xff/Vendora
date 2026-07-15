@@ -1,39 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
-from datetime import datetime, timezone
 from app.db.base import get_db
-from app.schemas.shift import ShiftOpen, ShiftClose, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary
-from app.models.shift import Shift, DrawerTransaction, ShiftStatus, DrawerTxType
+from app.schemas.shift import (
+    ShiftOpen, ShiftClose, CloseWithManagerRequest, TransferDrawerRequest,
+    RevenueDeliveryRequest, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary,
+)
+from app.models.shift import Shift, DrawerTransaction, ShiftStatus
 from app.services import shift_service
 from app.dependencies import get_current_user, require_perm, require_is_manager, verify_warehouse_access
 from app.models.user import User
 from app.core.exceptions import NotFoundError
-from pydantic import BaseModel
-from decimal import Decimal
-from typing import Optional
-import uuid, json
+import uuid
 
 router = APIRouter(prefix="/shifts", tags=["shifts"])
 
 
-class TransferDrawerRequest(BaseModel):
-    to_user_id: uuid.UUID
-    amount: Decimal
-    notes: Optional[str] = None
-
+# ── Open ──────────────────────────────────────────────────────────────────────
 
 @router.post("/open", response_model=ShiftOut)
 async def open_shift(data: ShiftOpen, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
-    return await shift_service.open_shift(db, current_user.id, data)
+    shift = await shift_service.open_shift(db, current_user.id, data.warehouse_id, data.initial_amount, data.supervisor_id)
+    out = ShiftOut.model_validate(shift)
+    out.cashier_name = current_user.full_name
+    return out
 
+
+# ── Last drawer amount ─────────────────────────────────────────────────────────
 
 @router.get("/last-drawer")
 async def last_drawer_amount(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     await verify_warehouse_access(db, current_user, warehouse_id)
     result = await db.execute(
         select(Shift.next_day_drawer)
-        .where(Shift.status == ShiftStatus.closed, Shift.next_day_drawer is not None,
+        .where(Shift.status == ShiftStatus.closed, Shift.next_day_drawer.isnot(None),
                Shift.warehouse_id == warehouse_id)
         .order_by(Shift.closed_at.desc()).limit(1)
     )
@@ -41,17 +41,10 @@ async def last_drawer_amount(warehouse_id: uuid.UUID, db: AsyncSession = Depends
     return {"amount": float(val) if val is not None else 0.0}
 
 
-async def _current_shift_for_user(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Shift).where(Shift.cashier_id == current_user.id, Shift.status == ShiftStatus.open))
-    shift = result.scalar_one_or_none()
-    if not shift:
-        raise NotFoundError("No open shift")
-    return shift
-
+# ── Current shift ──────────────────────────────────────────────────────────────
 
 @router.get("/current", response_model=ShiftOut)
 async def get_current_shift(warehouse_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Get the current user's open shift for a specific warehouse."""
     await verify_warehouse_access(db, current_user, warehouse_id)
     result = await db.execute(
         select(Shift)
@@ -62,205 +55,93 @@ async def get_current_shift(warehouse_id: uuid.UUID, db: AsyncSession = Depends(
     )
     shift = result.scalar_one_or_none()
     if not shift:
-        raise NotFoundError("No open shift")
+        raise NotFoundError("لا توجد وردية مفتوحة")
     out = ShiftOut.model_validate(shift)
-    if shift.cashier_id:
-        name = (await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": shift.cashier_id})).scalar()
-        out.cashier_name = name
+    name = (await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": shift.cashier_id})).scalar()
+    out.cashier_name = name
     return out
 
-@router.post("/{shift_id}/close", response_model=ShiftOut)
+
+# ── Close ──────────────────────────────────────────────────────────────────────
+
+@router.post("/{shift_id}/close")
 async def close_shift(shift_id: uuid.UUID, data: ShiftClose, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
-    return await shift_service.close_shift(db, shift_id, data, current_user.id)
-
-
-class CloseWithManagerRequest(BaseModel):
-    closing_balance: Decimal
-    next_day_drawer: Decimal
-    notes: Optional[str] = None
-    manager_id: uuid.UUID
-    manager_password: str
+    shift = await db.get(Shift, shift_id)
+    if shift:
+        await verify_warehouse_access(db, current_user, shift.warehouse_id)
+    return await shift_service.close_shift(db, shift_id, data.closing_balance, data.next_day_drawer, data.notes, current_user.id)
 
 
 @router.post("/{shift_id}/close-with-manager")
 async def close_with_manager(shift_id: uuid.UUID, data: CloseWithManagerRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
-    from app.core.security import verify_password
-    from sqlalchemy import text
-
-    # Verify manager
-    mgr_row = await db.execute(select(User).where(User.id == data.manager_id, User.is_manager))
-    manager = mgr_row.scalar_one_or_none()
-    if not manager:
-        from app.core.exceptions import BusinessError
-        raise BusinessError("المدير غير موجود أو ليس لديه صلاحية المدير")
-    if not verify_password(data.manager_password, manager.password_hash):
-        from app.core.exceptions import ForbiddenError
-        raise ForbiddenError("كلمة مرور المدير غير صحيحة")
-
-    # Close shift
-    shift_row = await db.execute(select(Shift).where(Shift.id == shift_id))
-    shift = shift_row.scalar_one_or_none()
-    if not shift:
-        raise NotFoundError()
-    if shift.status != ShiftStatus.open:
-        from app.core.exceptions import BusinessError
-        raise BusinessError("الوردية مغلقة بالفعل")
-
-    # Compute variance
-    summary = await shift_service.compute_summary(db, shift_id)
-    expected = summary["expected_balance"]
-    variance = float(data.closing_balance) - float(expected)
-
-    deposit = float(data.closing_balance) - float(data.next_day_drawer)
-
-    shift.status = ShiftStatus.closed
-    shift.closing_balance = data.closing_balance
-    shift.next_day_drawer = data.next_day_drawer
-    shift.notes = data.notes
-    shift.closed_by = current_user.id
-    shift.supervisor_id = data.manager_id
-    shift.closed_at = datetime.now(timezone.utc)
-    await db.execute(text("UPDATE shifts SET deposit_received_by=:mgr, deposit_amount=:dep WHERE id=:id"),
-                     {"mgr": data.manager_id, "dep": deposit, "id": shift_id})
-
-    # Apply variance to payroll as deduction/bonus
-    if variance != 0 and shift.cashier_id:
-        note = f"فرق عجز الدرج — وردية {shift_id}"
-        record_type = "خصم" if variance < 0 else "مكافأة"
-        await db.execute(text("""
-            INSERT INTO hr_advances (employee_id, amount, note, record_type, date)
-            SELECT e.id, :amount, :note, :rtype, NOW()
-            FROM hr_employees e
-            JOIN users u ON u.full_name = e.name
-            WHERE u.id = :uid
-            LIMIT 1
-        """), {"amount": abs(variance), "note": note, "rtype": record_type, "uid": shift.cashier_id})
-
-    await db.commit()
-    await db.refresh(shift)
-    return {**{c.name: getattr(shift, c.name) for c in shift.__table__.columns},
-            "variance": variance, "expected_balance": float(expected)}
+    shift = await db.get(Shift, shift_id)
+    if shift:
+        await verify_warehouse_access(db, current_user, shift.warehouse_id)
+    return await shift_service.close_shift_with_manager(db, shift_id, data, current_user.id)
 
 
-class RevenueDeliveryRequest(BaseModel):
-    amount: Decimal
-    safe_id: uuid.UUID
-    manager_id: uuid.UUID
-    manager_password: str
-    notes: Optional[str] = None
-
+# ── Revenue delivery ───────────────────────────────────────────────────────────
 
 @router.post("/{shift_id}/revenue-delivery")
-async def revenue_delivery(
-    shift_id: uuid.UUID,
-    data: RevenueDeliveryRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_perm("shifts")),
-):
-    """Mid-shift revenue delivery to safe — manager-authorised withdrawal from drawer to safe."""
-    from app.core.security import verify_password
-    from app.core.exceptions import BusinessError, ForbiddenError
+async def revenue_delivery(shift_id: uuid.UUID, data: RevenueDeliveryRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
+    return await shift_service.revenue_delivery(db, shift_id, data, current_user)
 
-    # Verify manager
-    mgr_row = await db.execute(select(User).where(User.id == data.manager_id, User.is_manager))
-    manager = mgr_row.scalar_one_or_none()
-    if not manager:
-        raise BusinessError("المدير غير موجود أو ليس لديه صلاحية المدير")
-    if not verify_password(data.manager_password, manager.password_hash):
-        raise ForbiddenError("كلمة مرور المدير غير صحيحة")
 
-    # Get shift
-    result = await db.execute(select(Shift).where(Shift.id == shift_id))
-    shift = result.scalar_one_or_none()
-    if not shift:
-        raise NotFoundError("Shift not found")
-    if shift.status != ShiftStatus.open:
-        raise BusinessError("الوردية مغلقة بالفعل")
-
-    # Record drawer transaction (withdrawal = cash leaving drawer to safe)
-    dt = DrawerTransaction(
-        shift_id=shift_id,
-        type=DrawerTxType.withdrawal,
-        amount=data.amount,
-        note=f"تسليم إيرادات إلى الخزنة. {data.notes or ''}",
-        created_by=current_user.id,
-    )
-    db.add(dt)
-
-    # Get safe name
-    safe_name = (await db.execute(text("SELECT name FROM safes WHERE id=:id"), {"id": data.safe_id})).scalar() or ""
-
-    # Deposit to safe
-    await db.execute(text("UPDATE safes SET balance = balance + :amt WHERE id = :id"),
-                     {"amt": float(data.amount), "id": data.safe_id})
-    new_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": data.safe_id})).scalar()
-    await db.execute(text("""
-        INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
-        VALUES (:sid, 'deposit', :amt, :bal, :note, :uid)
-    """), {"sid": data.safe_id, "amt": float(data.amount), "bal": new_balance,
-           "note": f"إيرادات من وردية — {data.notes or ''}", "uid": current_user.id})
-
-    # Warehouse name for archive metadata
-    wh_name = ""
-    if shift.warehouse_id:
-        wh_name = (await db.execute(text("SELECT name FROM warehouses WHERE id=:id"), {"id": shift.warehouse_id})).scalar() or ""
-
-    # Generate doc number and archive
-    seq = (await db.execute(text("SELECT nextval('invoice_seq')"))).scalar()
-    doc_number = f"DEP-{seq:06d}"
-    await db.execute(text("""
-        INSERT INTO archived_documents (id, doc_number, doc_type, amount, created_by, metadata)
-        VALUES (gen_random_uuid(), :doc, 'safe_deposit', :amt, :uid, cast(:meta as jsonb))
-    """), {
-        "doc": doc_number,
-        "amt": float(data.amount),
-        "uid": current_user.id,
-        "meta": json.dumps({
-            "safe_name": safe_name,
-            "warehouse": wh_name,
-            "received_by": manager.full_name,
-            "deposited_by": current_user.full_name,
-            "notes": data.notes or "",
-            "type": "revenue_delivery",
-        })
-    })
-
-    await db.commit()
-    return {
-        "doc_number": doc_number,
-        "amount": float(data.amount),
-        "safe": safe_name,
-        "received_by": manager.full_name,
-    }
-
+# ── Transfer ───────────────────────────────────────────────────────────────────
 
 @router.post("/{shift_id}/transfer", response_model=ShiftOut)
 async def transfer_drawer(shift_id: uuid.UUID, data: TransferDrawerRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
-    """Hand over the cash drawer to another user — closes current shift and opens a new one."""
-    return await shift_service.transfer_drawer(db, shift_id, data.to_user_id, data.amount, current_user.id, data.notes)
+    shift = await db.get(Shift, shift_id)
+    if shift:
+        await verify_warehouse_access(db, current_user, shift.warehouse_id)
+    is_privileged = current_user.is_manager or current_user.role in ('admin', 'manager')
+    # Pass None as from_user_id so service skips ownership check for privileged users
+    ownership_id = None if is_privileged else current_user.id
+    new_shift = await shift_service.transfer_drawer(db, shift_id, data.to_user_id, data.amount, ownership_id, data.notes, closed_by=current_user.id)
+    out = ShiftOut.model_validate(new_shift)
+    name = (await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": new_shift.cashier_id})).scalar()
+    out.cashier_name = name
+    return out
 
+
+# ── Summary ────────────────────────────────────────────────────────────────────
 
 @router.get("/{shift_id}/summary", response_model=ShiftSummary)
 async def shift_summary(shift_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     shift = await db.get(Shift, shift_id)
-    if shift and shift.cashier_id != current_user.id and not current_user.is_manager:
+    is_own = shift and shift.cashier_id == current_user.id
+    is_privileged = current_user.is_manager or current_user.role in ('admin', 'manager')
+    if shift and not is_own and not is_privileged:
         raise HTTPException(status_code=403, detail="لا يمكنك الاطلاع على وردية موظف آخر")
     return await shift_service.compute_summary(db, shift_id)
 
 
+# ── Transactions ───────────────────────────────────────────────────────────────
+
 @router.post("/{shift_id}/transactions", response_model=DrawerTxOut)
 async def add_transaction(shift_id: uuid.UUID, data: DrawerTxCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("shifts"))):
-    return await shift_service.add_transaction(db, shift_id, data, current_user.id)
+    return await shift_service.add_transaction(
+        db, shift_id, data.type, data.amount, current_user.id,
+        note=data.note, category_id=data.category_id,
+        payment_method=data.payment_method, wallet_id=data.wallet_id,
+        customer_id=data.customer_id,
+    )
 
 
 @router.get("/{shift_id}/transactions", response_model=list[DrawerTxOut])
 async def list_transactions(shift_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     shift = await db.get(Shift, shift_id)
-    if shift and shift.cashier_id != current_user.id and not current_user.is_manager:
+    is_own = shift and shift.cashier_id == current_user.id
+    is_privileged = current_user.is_manager or current_user.role in ('admin', 'manager')
+    if shift and not is_own and not is_privileged:
         raise HTTPException(status_code=403, detail="لا يمكنك الاطلاع على وردية موظف آخر")
-    result = await db.execute(select(DrawerTransaction).where(DrawerTransaction.shift_id == shift_id).order_by(DrawerTransaction.created_at))
+    result = await db.execute(
+        select(DrawerTransaction).where(DrawerTransaction.shift_id == shift_id).order_by(DrawerTransaction.created_at)
+    )
     return result.scalars().all()
 
+
+# ── List shifts ────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=list[ShiftOut])
 async def list_shifts(
@@ -268,7 +149,7 @@ async def list_shifts(
     offset: int = Query(default=0, ge=0),
     warehouse_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_perm("shifts")),
 ):
     await verify_warehouse_access(db, current_user, warehouse_id)
     q = select(Shift)
@@ -276,44 +157,19 @@ async def list_shifts(
         q = q.where(Shift.warehouse_id == warehouse_id)
     q = q.order_by(Shift.started_at.desc()).limit(limit).offset(offset)
     result = await db.execute(q)
-    return result.scalars().all()
+    shifts = result.scalars().all()
+    out = []
+    for s in shifts:
+        o = ShiftOut.model_validate(s)
+        if s.cashier_id:
+            name = (await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": s.cashier_id})).scalar()
+            o.cashier_name = name
+        out.append(o)
+    return out
 
+
+# ── Delete transaction ─────────────────────────────────────────────────────────
 
 @router.delete("/transactions/{tx_id}", status_code=204)
-async def delete_drawer_transaction(
-    tx_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_is_manager)
-):
-    """Delete a drawer transaction. Reverses wallet balance if applicable."""
-    from sqlalchemy import text as sqlt
-
-    # Check shift is not closed
-    shift_row = await db.execute(sqlt("""
-        SELECT sh.status FROM shifts sh
-        JOIN drawer_transactions dt ON dt.shift_id = sh.id
-        WHERE dt.id = :id
-    """), {"id": tx_id})
-    shift_status = shift_row.scalar_one_or_none()
-    if shift_status == "closed":
-        raise HTTPException(400, "لا يمكن حذف معاملة من وردية مغلقة")
-
-    row = await db.execute(sqlt("SELECT * FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
-    tx = row.fetchone()
-    if not tx:
-        raise HTTPException(404, "العملية غير موجودة")
-    tx = dict(tx._mapping)
-
-    # Reverse wallet balance
-    if tx.get("wallet_id") and tx.get("payment_method") == "wallet":
-        from app.services.wallet_service import record_wallet_tx
-        from decimal import Decimal as D
-        if tx["type"] == "deposit":
-            await record_wallet_tx(db, tx["wallet_id"], -D(str(tx["amount"])), "deposit_reversed",
-                                   tx_id, "حذف دواخل", current_user.id)
-        elif tx["type"] in ("expense", "withdrawal"):
-            await record_wallet_tx(db, tx["wallet_id"], D(str(tx["amount"])), "expense_reversed",
-                                   tx_id, "حذف خوارج", current_user.id)
-
-    await db.execute(sqlt("DELETE FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
-    await db.commit()
+async def delete_drawer_transaction(tx_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_is_manager)):
+    await shift_service.delete_drawer_transaction(db, tx_id, current_user.id)

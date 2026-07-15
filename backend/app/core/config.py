@@ -20,6 +20,7 @@ class Settings(BaseSettings):
         "https://192.168.1.50",
         "*",
     ]
+    IS_PRODUCTION: bool = False
     # ⚠️ CORS_ORIGINS must NOT contain wildcard ("*") when credentials are enabled
 
     def model_post_init(self, __context):

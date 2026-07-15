@@ -27,7 +27,7 @@ async def company_overview(
     branches = await db.execute(text("""
         SELECT w.id, w.name, w.warehouse_type,
             COUNT(DISTINCT s.id) as invoice_count,
-            COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) - COALESCE(MAX(s.discount_amount),0) as revenue,
+            COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) - COALESCE(SUM(s.discount_amount),0) as revenue,
             COALESCE(SUM(si.qty * si.unit_price - si.discount) - SUM(si.qty * si.unit_cost), 0) as gross_profit,
             COALESCE(SUM(CASE WHEN s.is_credit THEN si.qty*si.unit_price-si.discount ELSE 0 END), 0) as credit_sales,
             COALESCE(SUM(CASE WHEN NOT s.is_credit THEN si.qty*si.unit_price-si.discount ELSE 0 END), 0) as cash_sales
@@ -78,17 +78,26 @@ async def company_overview(
     """))
     low_stock_data = [dict(r._mapping) for r in low_stock.fetchall()]
 
-    # 4. Customer debts (top 10)
+    # 4. Customer debts (top 10) — using per-invoice paid_amount and returns_total
     customer_debts = await db.execute(text("""
         SELECT c.id, c.name, c.phone,
-            COALESCE(SUM(si.qty*si.unit_price - si.discount), 0) -
-            COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = c.id), 0) as balance_due
+            SUM(
+                (SELECT COALESCE(SUM(si.qty*si.unit_price - si.discount), 0)
+                 FROM sale_items si WHERE si.sale_id = s.id)
+                - COALESCE(s.discount_amount, 0)
+                - COALESCE(s.paid_amount, 0)
+                - COALESCE(s.returns_total, 0)
+            ) as balance_due
         FROM customers c
         JOIN sales s ON s.customer_id = c.id AND s.is_credit = true AND s.status = 'confirmed'
-        JOIN sale_items si ON si.sale_id = s.id
         GROUP BY c.id, c.name, c.phone
-        HAVING COALESCE(SUM(si.qty*si.unit_price - si.discount), 0) -
-               COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = c.id), 0) > 0
+        HAVING SUM(
+            (SELECT COALESCE(SUM(si.qty*si.unit_price - si.discount), 0)
+             FROM sale_items si WHERE si.sale_id = s.id)
+            - COALESCE(s.discount_amount, 0)
+            - COALESCE(s.paid_amount, 0)
+            - COALESCE(s.returns_total, 0)
+        ) > 0.01
         ORDER BY balance_due DESC LIMIT 10
     """))
     customer_debts_data = [dict(r._mapping) for r in customer_debts.fetchall()]
@@ -104,9 +113,9 @@ async def company_overview(
     # 6. Cash in drawers (open shifts)
     cash_drawers = await db.execute(text("""
         SELECT w.name, s.initial_amount,
-            COALESCE((SELECT SUM(CASE WHEN dt.type='sale' THEN dt.amount
-                                      WHEN dt.type IN ('expense','withdrawal') THEN -dt.amount
-                                      WHEN dt.type='deposit' THEN dt.amount ELSE 0 END)
+            COALESCE((SELECT SUM(CASE WHEN dt.type='sale' OR dt.type='deposit' THEN dt.amount
+                                      WHEN dt.type IN ('expense','withdrawal','return_','revenue_delivery') THEN -dt.amount
+                                      ELSE 0 END)
                       FROM drawer_transactions dt WHERE dt.shift_id = s.id), 0) as net_movement
         FROM shifts s JOIN warehouses w ON w.id = s.warehouse_id
         WHERE s.status = 'open'
@@ -140,7 +149,7 @@ async def company_overview(
             "total_cash_in_drawers": total_cash,
             "total_safes_balance": total_safes,
             # Capital = stock + cash - supplier debts
-            "net_capital": total_stock_cost + total_cash + total_safes - total_supplier_debt,
+            "net_capital": total_stock_cost + total_cash + total_safes + total_customer_debt - total_supplier_debt,
         },
         "branches": branches_data,
         "stock_per_warehouse": [s for s in stock_data if float(s['stock_cost_value'] or 0) > 0],

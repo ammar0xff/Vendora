@@ -146,9 +146,13 @@ export default function ShiftsPage() {
 
   const cashInDrawer = Number(summary?.cash_in_drawer || 0)
   const walletTotal = Number(summary?.wallet_total || 0)
+  // Sales-only drawer = initial + cash sales - cash returns - cash expenses - withdrawals - revenue_delivery
+  // (excludes deposits which are pass-through funds not belonging to this cashier)
+  const depositTotal = Number(summary?.deposits_total || 0)
+  const salesOnlyDrawer = cashInDrawer - depositTotal
 
-  const txTypeLabel: Record<string, string> = { sale: 'مبيعات', return: 'مرتجع', expense: 'مصروف', deposit: 'إيداع', withdrawal: 'سحب' }
-  const txColor: Record<string, string> = { sale: 'badge-green', return: 'badge-red', expense: 'badge-yellow', deposit: 'badge-blue', withdrawal: 'badge-gray' }
+  const txTypeLabel: Record<string, string> = { sale: 'مبيعات', return_: 'مرتجع', expense: 'مصروف', deposit: 'إيداع', withdrawal: 'سحب', revenue_delivery: 'توريد خزنة' }
+  const txColor: Record<string, string> = { sale: 'badge-green', return_: 'badge-red', expense: 'badge-yellow', deposit: 'badge-blue', withdrawal: 'badge-gray', revenue_delivery: 'badge-purple' }
 
   return (
     <div>
@@ -209,7 +213,18 @@ export default function ShiftsPage() {
                     </div>
                   </div>
                   <p className="text-3xl font-black" style={{ color: '#16a34a' }}>{cashInDrawer.toLocaleString('ar-EG')} ج.م</p>
-                  <p className="text-xs text-slate-400 mt-1">رصيد افتتاحي + مبيعات نقدي − مصروفات − مرتجعات</p>
+                  <div className="mt-3 space-y-1 text-xs text-slate-500 border-t border-slate-100 pt-2">
+                    <div className="flex justify-between">
+                      <span>من مبيعات + عهدة:</span>
+                      <span className="font-bold text-slate-700">{salesOnlyDrawer.toLocaleString('ar-EG')} ج.م</span>
+                    </div>
+                    {depositTotal > 0 && (
+                      <div className="flex justify-between">
+                        <span>إيداعات خارجية (عابرة):</span>
+                        <span className="font-bold text-blue-600">{depositTotal.toLocaleString('ar-EG')} ج.م</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Wallets — already with owners */}
@@ -320,7 +335,11 @@ export default function ShiftsPage() {
         <div className="space-y-4">
           {summary && (
             <div className="bg-slate-50 rounded-xl p-4 text-sm space-y-2">
-              <div className="flex justify-between"><span className="text-slate-500">محتوى الدرج المتوقع:</span><span className="font-black text-green-700">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">من مبيعات + عهدة:</span><span className="font-black text-green-700">{salesOnlyDrawer.toLocaleString('ar-EG')} ج.م</span></div>
+              {depositTotal > 0 && (
+                <div className="flex justify-between"><span className="text-slate-500">إيداعات خارجية (عابرة):</span><span className="font-bold text-blue-600">{depositTotal.toLocaleString('ar-EG')} ج.م</span></div>
+              )}
+              <div className="flex justify-between border-t pt-2"><span className="text-slate-500">إجمالي الدرج المتوقع:</span><span className="font-black text-green-700">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span></div>
               <div className="flex justify-between"><span className="text-slate-500">محافظ إلكترونية (مع الملاك):</span><span className="font-bold text-amber-600">{walletTotal.toLocaleString('ar-EG')} ج.م</span></div>
               <div className="flex justify-between border-t pt-2"><span className="text-slate-500">إجمالي المبيعات:</span><span className="font-bold">{Number(summary.sales_total).toLocaleString('ar-EG')} ج.م</span></div>
             </div>

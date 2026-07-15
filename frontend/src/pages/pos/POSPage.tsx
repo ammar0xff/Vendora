@@ -695,9 +695,11 @@ export default function POSPage() {
         return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost || 0, discount }
       })
       return api.post('/sales/quotations', {
-        warehouse_id: mainWh?.id,
-        sale_mode: 'retail',
+        warehouse_id: bill.warehouse_id || mainWh?.id,
+        shift_id: bill.shift_id,
+        sale_mode: mode,
         items,
+        discount_amount: bill.invoice_discount || 0,
         notes: `مأخوذة من فاتورة معلقة: ${bill.label}`,
       }).then(r => r.data)
     },
@@ -935,9 +937,11 @@ export default function POSPage() {
                 className="input pr-10" placeholder="ابحث بالاسم أو امسح الباركود..." />
             </div>
             <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0"
-              title={viewMode === 'table' ? 'عرض البطاقات' : 'عرض الجدول'}>
-              {viewMode === 'table' ? <LayoutGrid size={16} /> : <List size={16} />}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0">
+              {viewMode === 'table'
+                ? <><LayoutGrid size={14} /> عرض الفئات</>
+                : <><List size={14} /> عرض الجدول</>
+              }
             </button>
           </div>
 
@@ -1366,9 +1370,11 @@ export default function POSPage() {
                 className="input pr-10" placeholder="ابحث أو امسح الباركود..." autoFocus />
             </div>
             <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-              className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0"
-              title={viewMode === 'table' ? 'عرض البطاقات' : 'عرض الجدول'}>
-              {viewMode === 'table' ? <LayoutGrid size={16} /> : <List size={16} />}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0">
+              {viewMode === 'table'
+                ? <><LayoutGrid size={14} /> عرض الفئات</>
+                : <><List size={14} /> عرض الجدول</>
+              }
             </button>
           </div>
 
@@ -1493,7 +1499,7 @@ export default function POSPage() {
                   ))}
                   {customerSearch.length > 1 && (
                     <button onMouseDown={() => {
-                      if (isCredit) { setPendingCustomerName(customerSearch); setShowPendingCustomer(true); setShowCustomerDrop(false); return }
+                      if (isCredit) { setPendingCustomerName(customerSearch); setNewCustomerPhone(''); setShowPhoneModal(true); setShowCustomerDrop(false); return }
                       customersApi.create({ name: customerSearch }).then(c => {
                         setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false)
                       })
@@ -1893,19 +1899,20 @@ export default function POSPage() {
         {todayLedger ? (
           <div className="space-y-3">
             {/* Summary */}
-            <div className="grid grid-cols-7 gap-2 text-center text-xs">
+            <div className="grid grid-cols-8 gap-2 text-center text-xs">
               {[
                 { label: 'الرصيد الافتتاحي', val: todayLedger.summary.opening_balance, color: '#6b7280' },
                 { label: 'إجمالي المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
                 { label: 'نقدي', val: todayLedger.summary.cash_sales, color: '#15803d' },
                 { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
                 { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
+                { label: 'الدواخل', val: todayLedger.summary.total_deposits, color: '#2563eb' },
                 { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
                 { label: 'الدرج', val: todayLedger.summary.closing, color: '#7c3aed' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="bg-slate-50 rounded-lg p-2">
                   <p className="text-slate-400 mb-0.5">{label}</p>
-                  <p className="font-black text-sm" style={{ color }}>{Number(val).toLocaleString('ar-EG')} ج.م</p>
+                  <p className="font-black text-sm" style={{ color }}>{Number(val ?? 0).toLocaleString('ar-EG')} ج.م</p>
                 </div>
               ))}
             </div>
@@ -1939,7 +1946,7 @@ export default function POSPage() {
                             const newQty = prompt(`كمية جديدة لـ ${item.product_name} (الحالية: ${item.qty}):`, String(item.qty))
                             if (newQty && Number(newQty) > 0 && Number(newQty) !== item.qty) {
                               api.put(`/sales/${item.sale_id}/items/${item.item_id}`, { qty: Number(newQty) })
-                                .then(() => { toast.success('✅ تم تعديل الكمية'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) })
+                                .then(() => { toast.success('✅ تم تعديل الكمية'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] }) })
                                 .catch((e: any) => toast.error(e.response?.data?.detail || 'فشل'))
                             }
                           }}>
@@ -2271,13 +2278,13 @@ export default function POSPage() {
 
 
       <ConfirmDialog open={!!confirmDelItem} onClose={() => setConfirmDelItem(null)}
-        onConfirm={() => { const item = confirmDelItem; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم حذف البند'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
+        onConfirm={() => { const item = confirmDelItem; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم حذف البند'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
         message={`حذف "${confirmDelItem?.product_name || ''}" من الفاتورة؟`} danger />
       <ConfirmDialog open={!!confirmDelReturn} onClose={() => setConfirmDelReturn(null)}
-        onConfirm={() => { const item = confirmDelReturn; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
+        onConfirm={() => { const item = confirmDelReturn; api.delete(`/sales/${item.sale_id}/items/${item.item_id}`).then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')) }}
         message={`حذف مرتجع "${confirmDelReturn?.product_name || ''}"؟`} danger />
       <ConfirmDialog open={!!confirmDelTx} onClose={() => setConfirmDelTx(null)}
-        onConfirm={() => { const e = confirmDelTx; api.delete(`/shifts/transactions/${e.tx_id}`).then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary'] }) }).catch((ex: any) => toast.error(ex.response?.data?.detail || 'فشل')) }}
+        onConfirm={() => { const e = confirmDelTx; api.delete(`/shifts/transactions/${e.tx_id}`).then(() => { toast.success('✅ تم الحذف'); qc.invalidateQueries({ queryKey: ['pos-ledger'] }); qc.invalidateQueries({ queryKey: ['shift-summary', shift?.id] }) }).catch((ex: any) => toast.error(ex.response?.data?.detail || 'فشل')) }}
         message={`حذف "${confirmDelTx?.type_ar || ''} — ${confirmDelTx?.note || ''}"؟`} danger />
       <ConfirmDialog open={confirmClear} onClose={() => setConfirmClear(false)}
         onConfirm={() => { clear(); setConfirmClear(false) }}

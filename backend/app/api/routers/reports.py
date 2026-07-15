@@ -47,7 +47,7 @@ async def sales_by_cashier(from_date: str, to_date: str, warehouse_id: str | Non
         .where(Sale.created_at.between(start, end))
         .where(Sale.status == "confirmed")
         .group_by(UserModel.id, UserModel.full_name)
-        .order_by(func.sum(SaleItem.qty * SaleItem.unit_price).desc())
+        .order_by(func.sum(SaleItem.qty * SaleItem.unit_price - SaleItem.discount).desc())
     )
     if warehouse_id:
         q = q.where(Sale.warehouse_id == uuid.UUID(warehouse_id))
@@ -195,8 +195,8 @@ async def periodic_ledger(period: str = "weekly", warehouse_id: str | None = Non
 
     rows = (await db.execute(sqlt(f"""
         SELECT TO_CHAR(DATE_TRUNC('{trunc}', s.created_at), '{label_fmt}') as period,
-               COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) as income,
-               COALESCE(SUM(CASE WHEN s.status='returned' THEN si.qty * si.unit_price - si.discount ELSE 0 END), 0) as returns
+               COALESCE(SUM(CASE WHEN s.status='confirmed' THEN si.qty * si.unit_price - si.discount ELSE 0 END), 0) as income,
+               COALESCE(SUM(CASE WHEN s.status='returned'  THEN si.qty * si.unit_price - si.discount ELSE 0 END), 0) as returns
         FROM sale_items si JOIN sales s ON s.id = si.sale_id
         WHERE s.status IN ('confirmed','returned')
           {wh_sql}
@@ -285,7 +285,7 @@ async def cash_flow(
         SELECT COALESCE(SUM(e.amount), 0)
         FROM expenses e
         WHERE e.status = 'approved'
-          AND e.date >= :start::date AND e.date <= :end::date {wh_filter_ex}
+          AND e.date >= CAST(:start AS date) AND e.date <= CAST(:end AS date) {wh_filter_ex}
     """), params)).scalar()
 
     drawer_expenses = (await db.execute(sqlt(f"""
@@ -317,10 +317,11 @@ async def cash_flow(
 
     incoming = {
         "cash_sales": float(cash_sales),
-        "credit_sales": float(credit_sales),
-        "customer_payments": float(customer_payments),
+        "credit_sales": float(credit_sales),          # مبيعات آجلة (مديونيات جديدة — ليست نقدية)
+        "customer_payments": float(customer_payments), # تحصيل نقدي على المديونيات
         "returns_from_suppliers": float(returns_from_suppliers),
-        "total_incoming": float(cash_sales) + float(credit_sales) + float(customer_payments) + float(returns_from_suppliers),
+        # total_incoming = نقدي فعلي فقط (مبيعات كاش + تحصيلات + استردادات موردين)
+        "total_incoming": float(cash_sales) + float(customer_payments) + float(returns_from_suppliers),
     }
     outgoing = {
         "purchases": float(purchases),
@@ -335,7 +336,7 @@ async def cash_flow(
     cat_rows = (await db.execute(sqlt(f"""
         SELECT fc.name, fc.color, COALESCE(SUM(e.amount), 0) as total
         FROM expenses e JOIN financial_categories fc ON fc.id = e.category_id
-        WHERE e.status = 'approved' AND e.date >= :start::date AND e.date <= :end::date {wh_filter_ex}
+        WHERE e.status = 'approved' AND e.date >= CAST(:start AS date) AND e.date <= CAST(:end AS date) {wh_filter_ex}
         GROUP BY fc.name, fc.color ORDER BY total DESC
     """), params)).fetchall()
 
@@ -375,8 +376,16 @@ async def aging_report(
     d60 = as_of_date - timedelta(days=60)
     d90 = as_of_date - timedelta(days=90)
 
-    def bucket(created: datetime | dt_date) -> str:
-        d = created if isinstance(created, dt_date) else created.date()
+    def bucket(created) -> str:
+        if isinstance(created, datetime):
+            d = created.date()
+        elif isinstance(created, dt_date):
+            d = created
+        else:
+            try:
+                d = datetime.fromisoformat(str(created)).date()
+            except Exception:
+                return "90+"
         if d > d30:
             return "0-30"
         if d > d60:
@@ -386,12 +395,14 @@ async def aging_report(
         return "90+"
 
     # ── Customer Aging ──
-    # Get each credit sale invoice, compute remaining balance, bucket by date
+    # For each credit invoice, compute remaining = net_total - paid_amount (per-invoice tracking)
     customer_rows = (await db.execute(sqlt("""
         SELECT c.id, c.name, s.id as sale_id, s.invoice_number, s.created_at,
             (SELECT COALESCE(SUM(si.qty * si.unit_price - si.discount), 0)
-             FROM sale_items si WHERE si.sale_id = s.id) - COALESCE(s.discount_amount, 0) as invoice_total,
-            COALESCE((SELECT SUM(amount) FROM customer_payments WHERE customer_id = c.id), 0) as total_paid
+             FROM sale_items si WHERE si.sale_id = s.id)
+            - COALESCE(s.discount_amount, 0) as invoice_total,
+            COALESCE(s.paid_amount, 0) as paid_amount,
+            COALESCE(s.returns_total, 0) as returns_total
         FROM sales s
         JOIN customers c ON c.id = s.customer_id
         WHERE s.is_credit = true AND s.status = 'confirmed'
@@ -403,8 +414,8 @@ async def aging_report(
         cid = str(r.id)
         if cid not in customer_map:
             customer_map[cid] = {"id": cid, "name": r.name, "total_debt": 0, "buckets": {"0-30": 0, "30-60": 0, "60-90": 0, "90+": 0}, "invoices": []}
-        remaining = float(r.invoice_total) - float(r.total_paid)
-        if remaining <= 0:
+        remaining = float(r.invoice_total) - float(r.paid_amount) - float(r.returns_total)
+        if remaining <= 0.01:
             continue
         b = bucket(r.created_at)
         customer_map[cid]["buckets"][b] += remaining
@@ -421,7 +432,7 @@ async def aging_report(
         FROM supplier_transactions st
         JOIN suppliers s ON s.id = st.supplier_id
         ORDER BY s.name, st.created_at
-    """)).fetchall())
+    """))).fetchall()
 
     supplier_map: dict = {}
     for r in supplier_rows:

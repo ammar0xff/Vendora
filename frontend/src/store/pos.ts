@@ -19,6 +19,9 @@ export interface HeldBill {
   created_at: number
   warehouse_id?: string
   shift_id?: string
+  customer?: string
+  invoice_discount?: number
+  invoice_discount_pct?: number
 }
 
 interface POSState {
@@ -95,6 +98,9 @@ export const usePOSStore = create<POSState>()(
           created_at: Date.now(),
           warehouse_id: opts?.warehouse_id,
           shift_id: opts?.shift_id,
+          customer: state.customer || undefined,
+          invoice_discount: state.invoice_discount,
+          invoice_discount_pct: state.invoice_discount_pct,
         }
         set({ suspended: [...state.suspended, bill], items: [], customer: '', invoice_discount: 0, invoice_discount_pct: 0 })
       },
@@ -106,9 +112,9 @@ export const usePOSStore = create<POSState>()(
         set({
           items: bill.items,
           suspended: state.suspended.filter(b => b.id !== id),
-          customer: '',
-          invoice_discount: 0,
-          invoice_discount_pct: 0,
+          customer: bill.customer || '',
+          invoice_discount: bill.invoice_discount || 0,
+          invoice_discount_pct: bill.invoice_discount_pct || 0,
         })
       },
 

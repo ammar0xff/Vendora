@@ -2,6 +2,7 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 from pydantic import BaseModel, Field
+from uuid import UUID
 
 
 class ExpenseVendorCreate(BaseModel):
@@ -22,15 +23,15 @@ class ExpenseVendorUpdate(BaseModel):
 
 
 class ExpenseCreate(BaseModel):
-    vendor_id: Optional[str] = None
-    category_id: Optional[str] = None
-    warehouse_id: Optional[str] = None
+    vendor_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    warehouse_id: Optional[UUID] = None
     amount: Decimal = Field(..., gt=0)
     description: str = Field(..., min_length=1)
     date: Optional[date] = None
     payment_method: Optional[str] = None
-    wallet_id: Optional[str] = None
-    safe_id: Optional[str] = None
+    wallet_id: Optional[UUID] = None
+    safe_id: Optional[UUID] = None
     is_recurring: bool = False
     recurring_interval: Optional[str] = None
     recurring_end_date: Optional[date] = None
@@ -38,15 +39,15 @@ class ExpenseCreate(BaseModel):
 
 
 class ExpenseUpdate(BaseModel):
-    vendor_id: Optional[str] = None
-    category_id: Optional[str] = None
-    warehouse_id: Optional[str] = None
+    vendor_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    warehouse_id: Optional[UUID] = None
     amount: Optional[Decimal] = Field(None, gt=0)
     description: Optional[str] = Field(None, min_length=1)
     date: Optional[date] = None
     payment_method: Optional[str] = None
-    wallet_id: Optional[str] = None
-    safe_id: Optional[str] = None
+    wallet_id: Optional[UUID] = None
+    safe_id: Optional[UUID] = None
     status: Optional[str] = None
     notes: Optional[str] = None
 

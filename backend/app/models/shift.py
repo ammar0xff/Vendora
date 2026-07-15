@@ -19,6 +19,7 @@ class DrawerTxType(str, enum.Enum):
     expense = "expense"
     deposit = "deposit"
     withdrawal = "withdrawal"
+    revenue_delivery = "revenue_delivery"
 
 
 class Shift(Base):
@@ -31,7 +32,11 @@ class Shift(Base):
     status: Mapped[ShiftStatus] = mapped_column(SAEnum(ShiftStatus, name="shift_status_enum"), default=ShiftStatus.open)
     initial_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     closing_balance: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    expected_balance: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    difference: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     next_day_drawer: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    deposit_received_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    deposit_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     closed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

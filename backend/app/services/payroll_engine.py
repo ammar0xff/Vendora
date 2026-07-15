@@ -327,8 +327,10 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
     single = (total_early_min / 60) + (total_missing_min / 60)
     lateness_deduction = (doubled + single) * hourly_rate if hourly_rate > 0 else 0
     overtime_payment = overtime_hours * hourly_rate if hourly_rate > 0 else 0
+    # Use the employee's standard shift length (not the last day's, which may be overridden)
+    std_shift_length = (end_h - start_h) if end_h > start_h else (24 - start_h + end_h)
     bonus_days = max(0, working_days - days_in_month)
-    bonus_payment = bonus_days * s_len * hourly_rate if hourly_rate > 0 else 0
+    bonus_payment = bonus_days * std_shift_length * hourly_rate if hourly_rate > 0 else 0
     normal_hours = max(0.0, total_hours - overtime_hours)
     base_pay = monthly_salary if normal_hours >= scheduled_hours else (monthly_salary * normal_hours / scheduled_hours if scheduled_hours > 0 else 0)
     final_salary = base_pay - lateness_deduction - deduction - advance + overtime_payment + bonus_payment + bonus

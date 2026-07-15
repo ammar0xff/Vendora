@@ -7,8 +7,11 @@ import uuid
 
 
 class EmployeeCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=128)
+    """Schema for creating an HR employee (hr_employees table).
+    Fields match the SQL INSERT in hr.py router.
+    """
     emp_code: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=128)
     position: Optional[str] = None
     monthly_salary: Decimal = Field(default=Decimal("0"), ge=0)
     shift_schedule: Optional[str] = None
@@ -17,11 +20,11 @@ class EmployeeCreate(BaseModel):
 
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=128)
-    emp_code: Optional[str] = None
     position: Optional[str] = None
     monthly_salary: Optional[Decimal] = Field(default=None, ge=0)
     shift_schedule: Optional[str] = None
     hire_date: Optional[date] = None
+    is_active: Optional[bool] = None
 
 
 class AttendanceCreate(BaseModel):

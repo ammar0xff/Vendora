@@ -67,7 +67,7 @@ async def export_sales(from_date: str = Query(None), to_date: str = Query(None),
         whr.append("DATE(s.created_at) <= :td")
         params["td"] = to_date
     rows = (await db.execute(text(f"""
-        SELECT s.invoice_number, s.created_at::date as date, c.name as customer,
+        SELECT s.invoice_number, CAST(s.created_at AS date) as date, c.name as customer,
                s.total, s.discount_amount, s.net_total, s.paid_amount, s.is_credit,
                s.payment_method, u.full_name as cashier, s.status, w.name as warehouse
         FROM sales s
@@ -108,7 +108,7 @@ async def export_stock(db: AsyncSession = Depends(get_db), _=Depends(get_current
 @router.get("/customers")
 async def export_customers(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     rows = (await db.execute(text("""
-        SELECT c.name, c.phone, c.balance_due, c.credit_limit
+        SELECT c.name, c.phone, c.balance, c.credit_limit
         FROM customers c
         ORDER BY c.name
     """))).mappings().fetchall()
@@ -166,9 +166,10 @@ async def export_purchases(from_date: str = Query(None), to_date: str = Query(No
         whr.append("DATE(p.created_at) <= :td")
         params["td"] = to_date
     rows = (await db.execute(text(f"""
-        SELECT p.po_number, p.created_at::date as date, s.name as supplier,
-               p.total_cost, p.status, w.name as warehouse
-        FROM purchases p
+        SELECT p.po_number, CAST(p.created_at AS date) as date, s.name as supplier,
+               COALESCE((SELECT SUM(qty_ordered * unit_cost) FROM purchase_order_items WHERE po_id = p.id), 0) as total_cost,
+               p.status, w.name as warehouse
+        FROM purchase_orders p
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN warehouses w ON w.id = p.warehouse_id
         WHERE {' AND '.join(whr)}

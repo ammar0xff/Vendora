@@ -52,87 +52,89 @@ def css():
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{background:#e8e8e8;font-family:'Cairo',sans-serif;direction:rtl;color:#111;font-size:10px}
+html,body{background:#e8e8e8;font-family:'Cairo',sans-serif;direction:rtl;color:#111;font-size:13px}
 
 .sheet{width:210mm;min-height:297mm;margin:6mm auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);display:flex;flex-direction:column}
 
-.top-band{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #111}
-.brand{display:flex;align-items:center;gap:8px}
-.brand-logo{width:36px;height:36px;object-fit:contain;flex-shrink:0}
-.brand-initials{width:36px;height:36px;background:#111;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0}
-.brand-text .co-name{font-size:13px;font-weight:900;color:#111;line-height:1.2}
-.brand-text .co-sub{font-size:9px;color:#666;margin-top:1px}
+.top-band{padding:12px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #111}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:44px;height:44px;object-fit:contain;flex-shrink:0}
+.brand-initials{width:44px;height:44px;background:#111;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0}
+.brand-text .co-name{font-size:16px;font-weight:900;color:#111;line-height:1.2}
+.brand-text .co-sub{font-size:11px;color:#666;margin-top:1px}
 .doc-id{text-align:left}
-.doc-id .doc-type{font-size:8px;font-weight:700;color:#666;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
-.doc-id .doc-num{font-size:16px;font-weight:900;color:#111}
-.doc-id .doc-date{font-size:9px;color:#666;margin-top:1px}
+.doc-id .doc-type{font-size:10px;font-weight:700;color:#666;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
+.doc-id .doc-num{font-size:20px;font-weight:900;color:#111}
+.doc-id .doc-date{font-size:11px;color:#666;margin-top:1px}
 .ribbon{height:2px;background:#111}
 
-.body{padding:12px 16px;flex:1;display:flex;flex-direction:column}
+.body{padding:14px 18px;flex:1;display:flex;flex-direction:column}
 
-.parties{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.party-card{padding:7px 10px;border:1px solid #ccc}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.party-card{padding:8px 12px;border:1px solid #ccc}
 .party-card.buyer{border-right:2px solid #111}
-.party-label{font-size:7px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
-.party-name{font-size:11px;font-weight:800;color:#111}
-.party-detail{font-size:9px;color:#555;margin-top:2px;line-height:1.4}
+.party-label{font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.party-name{font-size:13px;font-weight:800;color:#111}
+.party-detail{font-size:11px;color:#555;margin-top:2px;line-height:1.4}
 
-.meta-row{display:flex;gap:0;margin-bottom:10px;border:1px solid #ccc}
-.meta-cell{flex:1;padding:5px 8px;border-left:1px solid #ccc}
+.meta-row{display:flex;gap:0;margin-bottom:12px;border:1px solid #ccc}
+.meta-cell{flex:1;padding:6px 10px;border-left:1px solid #ccc}
 .meta-cell:last-child{border-left:none}
-.meta-cell .m-lbl{font-size:7px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
-.meta-cell .m-val{font-size:10px;font-weight:700;color:#111}
+.meta-cell .m-lbl{font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+.meta-cell .m-val{font-size:12px;font-weight:700;color:#111}
 
-.badge{display:inline-block;padding:1px 5px;font-size:8px;font-weight:700;border:1px solid currentColor}
+.badge{display:inline-block;padding:2px 6px;font-size:10px;font-weight:700;border:1px solid currentColor}
 .b-green{color:#166534;border-color:#166534}
 .b-yellow{color:#854d0e;border-color:#854d0e}
 .b-red{color:#991b1b;border-color:#991b1b}
 .b-blue{color:#1e40af;border-color:#1e40af}
 
-.tbl-label{font-size:8px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.tbl-label{font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
 table{width:100%;border-collapse:collapse;border:1px solid #ccc;table-layout:auto}
 thead tr{background:#111}
-thead th{padding:5px 7px;color:#fff;font-size:9px;font-weight:700;text-align:right;white-space:nowrap}
+thead th{padding:7px 9px;color:#fff;font-size:11px;font-weight:700;text-align:right;white-space:nowrap}
 thead th:last-child{text-align:left}
 tbody tr{border-bottom:1px solid #e8e8e8}
 tbody tr:last-child{border-bottom:none}
 tbody tr:nth-child(even){background:#f9f9f9}
-tbody td{padding:5px 7px;font-size:10px;vertical-align:middle}
+tbody td{padding:7px 9px;font-size:12px;vertical-align:middle}
 tbody td:last-child{text-align:left;font-weight:700;white-space:nowrap}
 .td-name{font-weight:600;color:#111;word-break:break-word}
-.td-sub{font-size:8px;color:#999;margin-top:1px}
-.col-num{width:24px;text-align:center!important;color:#999;font-size:9px}
+.td-sub{font-size:10px;color:#999;margin-top:1px}
+.col-num{width:24px;text-align:center!important;color:#999;font-size:11px}
 .col-price,.col-qty,.col-unit,.col-total{white-space:nowrap;width:1%}
 
-.totals-section{display:flex;justify-content:flex-end;margin-top:10px}
-.totals-box{min-width:200px;border:1px solid #ccc}
-.t-line{display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #e8e8e8;font-size:10px}
+.totals-section{display:flex;justify-content:flex-end;margin-top:12px}
+.totals-box{min-width:220px;border:1px solid #ccc}
+.t-line{display:flex;justify-content:space-between;padding:5px 12px;border-bottom:1px solid #e8e8e8;font-size:12px}
 .t-line:last-child{border-bottom:none}
 .t-lbl{color:#555}
 .t-val{font-weight:700;color:#111;white-space:nowrap}
 .t-val.neg{color:#991b1b}
-.t-grand{padding:8px 12px;background:#111;display:flex;justify-content:space-between;align-items:center}
-.t-grand .t-lbl{color:rgba(255,255,255,.7);font-size:10px;font-weight:600}
-.t-grand .t-val{color:#fff;font-size:15px;font-weight:900}
+.t-grand{padding:10px 14px;background:#111;display:flex;justify-content:space-between;align-items:center}
+.t-grand .t-lbl{color:rgba(255,255,255,.7);font-size:12px;font-weight:600}
+.t-grand .t-val{color:#fff;font-size:17px;font-weight:900}
 
-.notes-box{margin-top:10px;padding:7px 10px;border-right:2px solid #111;background:#f9f9f9}
-.notes-box .n-lbl{font-size:8px;font-weight:700;color:#111;margin-bottom:3px}
-.notes-box .n-txt{font-size:10px;color:#333;line-height:1.5}
-.note-section{font-size:9px;color:#555;margin-bottom:8px;line-height:1.6}
+.notes-box{margin-top:12px;padding:8px 12px;border-right:2px solid #111;background:#f9f9f9}
+.notes-box .n-lbl{font-size:10px;font-weight:700;color:#111;margin-bottom:3px}
+.notes-box .n-txt{font-size:12px;color:#333;line-height:1.5}
+.note-section{font-size:11px;color:#555;margin-bottom:8px;line-height:1.6}
 
-.doc-footer{border-top:2px solid #111;padding:10px 16px;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:12px;background:#f9f9f9}
+.doc-footer{border-top:2px solid #111;padding:12px 18px;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:12px;background:#f9f9f9}
 .sig{text-align:center}
-.sig .sig-name{font-size:9px;font-weight:700;color:#333;margin-bottom:22px}
-.sig .sig-line{border-top:1px solid #999;padding-top:5px;font-size:8px;color:#999}
+.sig .sig-name{font-size:11px;font-weight:700;color:#333;margin-bottom:26px}
+.sig .sig-line{border-top:1px solid #999;padding-top:5px;font-size:10px;color:#999}
 .footer-mid{text-align:center}
-.stamp-circle{width:50px;height:50px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:8px;color:#ccc}
-.footer-meta{font-size:8px;color:#999;line-height:1.7;margin-top:2px}
+.stamp-circle{width:56px;height:56px;border-radius:50%;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:9px;color:#ccc}
+.footer-meta{font-size:10px;color:#999;line-height:1.7;margin-top:2px}
 
-.signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:auto;padding-top:10px;border-top:1px solid #ccc}
+.signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:auto;padding-top:12px;border-top:1px solid #ccc}
 .signature-item{text-align:center}
-.signature-item .label{font-size:7px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.signature-line{height:32px;border-bottom:1px solid #111;margin-bottom:4px}
-.signature-item .name{font-size:9px;font-weight:700}
+.signature-item .label{font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.signature-line{height:36px;border-bottom:1px solid #111;margin-bottom:4px}
+.signature-item .name{font-size:11px;font-weight:700}
+
+.sale-footer-info{font-size:11px;color:#888;margin-top:10px;line-height:1.8}
 
 @media print{
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -155,7 +157,7 @@ def pdf_css(paper_size="A4"):
     if not is_a4:
         css_ = css_.replace(".sheet{", ".sheet{margin:0 auto;padding:0;min-height:auto;box-shadow:none;")
         css_ = css_.replace(
-            "html,body{background:#e8e8e8;font-family:'Cairo',sans-serif;direction:rtl;color:#111;font-size:10px}",
+            "html,body{background:#e8e8e8;font-family:'Cairo',sans-serif;direction:rtl;color:#111;font-size:11px}",
             "html,body{background:#fff;font-family:'Cairo',sans-serif;direction:rtl;color:#111;font-size:10px}"
         )
     return css_

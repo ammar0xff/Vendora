@@ -32,8 +32,7 @@ import ExpensesPage from './pages/expenses/ExpensesPage'
 import CashFlowPage from './pages/cashflow/CashFlowPage'
 import AgingPage from './pages/aging/AgingPage'
 import AuditLogPage from './pages/audit/AuditLogPage'
-import OfflineSync from './components/OfflineSync'
-import OfflineBanner from './components/OfflineBanner'
+import PurchaseBillPage from './pages/purchases/PurchaseBillPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -68,6 +67,20 @@ function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: 
 }
 
 import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
+
+/** Redirect /print/* → /api/print/* so nginx proxies it to the backend */
+function PrintRedirect() {
+  const location = useLocation()
+  const { token } = useAuthStore()
+  useEffect(() => {
+    const sep = location.search ? '&' : '?'
+    const url = `/api${location.pathname}${location.search}${sep}token=${encodeURIComponent(token || '')}`
+    window.location.replace(url)
+  }, [])
+  return <div style={{ fontFamily: 'Cairo, sans-serif', padding: 32, direction: 'rtl', fontSize: 16 }}>جارٍ فتح الفاتورة…</div>
+}
+
 import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from './api/endpoints'
 
@@ -92,8 +105,6 @@ function FaviconUpdater() {
 export default function App() {
   return (
     <QueryClientProvider client={qc}>
-      <OfflineBanner />
-      <OfflineSync />
       <FaviconUpdater />
       <BrowserRouter>
         <Routes>
@@ -120,10 +131,13 @@ export default function App() {
           <Route path="/purchase-orders" element={<ProtectedRoute perm="inventory"><PurchaseOrdersPage /></ProtectedRoute>} />
           <Route path="/stock-adjustments" element={<ProtectedRoute perm="inventory"><StockAdjustmentsPage /></ProtectedRoute>} />
           <Route path="/stocktaking" element={<ProtectedRoute perm="inventory"><StocktakingPage /></ProtectedRoute>} />
+          <Route path="/purchase-bill" element={<ProtectedRoute perm="inventory"><ErrorBoundary><PurchaseBillPage /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/safes" element={<ProtectedRoute perm="finance"><SafesPage /></ProtectedRoute>} />
           <Route path="/accounting" element={<ProtectedRoute perm="reports"><AccountingPage /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute perm="users"><UsersPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute perm="settings"><SettingsPage /></ProtectedRoute>} />
+          {/* Print routes — redirect to backend with auth token */}
+          <Route path="/print/*" element={<PrintRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

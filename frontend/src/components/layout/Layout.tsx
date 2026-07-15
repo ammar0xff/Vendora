@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
-import { useOfflineStore } from '../../store/offline'
+
 import { useQuery } from '@tanstack/react-query'
 import { stockApi, settingsApi } from '../../api/endpoints'
 import { fixUploadUrl } from '../../utils/format'
@@ -39,6 +39,7 @@ const NAV_GROUPS = [
       { to: '/supplier-prices', icon: TrendingDown, label: 'مقارنة أسعار الموردين', perm: 'operations', warehouseTypes: ['all'] },
       { to: '/operations',        icon: Truck,       label: 'المشتريات والعمليات', perm: 'operations', warehouseTypes: ['all'] },
       { to: '/stocktaking',      icon: ClipboardList, label: 'الجرد',           perm: 'inventory',  warehouseTypes: ['all'] },
+      { to: '/purchase-bill',    icon: ShoppingCart,  label: 'فاتورة مشتريات',    perm: 'inventory',  warehouseTypes: ['all'] },
     ]
   },
   {
@@ -249,56 +250,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           {isCompanyView && (
             <span className="mr-auto text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">🏢 إدارة شاملة</span>
           )}
-          <SyncIndicator />
         </div>
         <div className="flex-1 p-4 lg:p-6 pt-14 lg:pt-6">{children}</div>
       </main>
     </div>
   )
-}
-
-function SyncIndicator() {
-  const isOnline = useOfflineStore(s => s.isOnline)
-  const queue = useOfflineStore(s => s.queue)
-  const pending = queue.filter(q => q.status === 'pending').length
-  const failed = queue.filter(q => q.status === 'failed').length
-  const syncing = queue.filter(q => q.status === 'syncing').length
-
-  if (!isOnline) {
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium whitespace-nowrap flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse" />
-        غير متصل
-      </span>
-    )
-  }
-
-  if (syncing > 0) {
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium whitespace-nowrap flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-        مزامنة...
-      </span>
-    )
-  }
-
-  if (pending > 0) {
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium whitespace-nowrap flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-        {pending} في الانتظار
-      </span>
-    )
-  }
-
-  if (failed > 0) {
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium whitespace-nowrap flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
-        {failed} فشلت المزامنة
-      </span>
-    )
-  }
-
-  return null
 }

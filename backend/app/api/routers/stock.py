@@ -146,10 +146,11 @@ async def reset_warehouse_stock(
     from sqlalchemy import text as sqlt
     await db.execute(sqlt("DELETE FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})
     await db.execute(sqlt("DELETE FROM warehouse_product_status WHERE warehouse_id = :wid"), {"wid": warehouse_id})
-    # Reset products that now have no movements anywhere back to untracked
+    # Reset products that now have no movements and no status records back to untracked
     await db.execute(sqlt("""
         UPDATE products SET stock_status = 'untracked'
         WHERE id NOT IN (SELECT DISTINCT product_id FROM stock_movements)
+        AND id NOT IN (SELECT DISTINCT product_id FROM warehouse_product_status)
     """))
     await db.commit()
 

@@ -1,31 +1,52 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.models.shift import ShiftStatus, DrawerTxType
 
 
 class ShiftOpen(BaseModel):
-    initial_amount: Decimal
+    initial_amount: Decimal = Field(..., ge=0, description="عهدة الدرج الافتتاحية")
     warehouse_id: uuid.UUID
-    supervisor_id: Optional[uuid.UUID] = None
+    supervisor_id: uuid.UUID | None = None
 
 
 class ShiftClose(BaseModel):
-    closing_balance: Decimal
-    next_day_drawer: Optional[Decimal] = None
-    notes: Optional[str] = None
+    closing_balance: Decimal = Field(..., ge=0, description="الرصيد الفعلي في الدرج")
+    next_day_drawer: Decimal | None = None
+    notes: str | None = None
+
+
+class CloseWithManagerRequest(BaseModel):
+    closing_balance: Decimal = Field(..., ge=0)
+    next_day_drawer: Decimal | None = None
+    notes: str | None = None
+    manager_id: uuid.UUID
+    manager_password: str
+
+
+class TransferDrawerRequest(BaseModel):
+    to_user_id: uuid.UUID
+    amount: Decimal = Field(..., ge=0, description="المبلغ المسلَّم")
+    notes: str | None = None
+
+
+class RevenueDeliveryRequest(BaseModel):
+    amount: Decimal = Field(..., gt=0)
+    safe_id: uuid.UUID
+    manager_id: uuid.UUID
+    manager_password: str
+    notes: str | None = None
 
 
 class DrawerTxCreate(BaseModel):
     type: DrawerTxType
-    amount: Decimal
-    note: Optional[str] = None
-    customer_id: Optional[uuid.UUID] = None
-    category_id: Optional[uuid.UUID] = None
-    payment_method: Optional[str] = "cash"
-    wallet_id: Optional[uuid.UUID] = None
+    amount: Decimal = Field(..., gt=0)
+    note: str | None = None
+    customer_id: uuid.UUID | None = None
+    category_id: uuid.UUID | None = None
+    payment_method: str = "cash"
+    wallet_id: uuid.UUID | None = None
 
 
 class DrawerTxOut(BaseModel):
@@ -33,7 +54,7 @@ class DrawerTxOut(BaseModel):
     shift_id: uuid.UUID
     type: DrawerTxType
     amount: Decimal
-    note: Optional[str]
+    note: str | None = None
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -44,28 +65,32 @@ class ShiftSummary(BaseModel):
     sales_total: Decimal
     returns_total: Decimal
     expenses_total: Decimal
-    deposits_total: Optional[Decimal] = Decimal("0")
-    withdrawals_total: Optional[Decimal] = Decimal("0")
+    deposits_total: Decimal = Decimal("0")
+    withdrawals_total: Decimal = Decimal("0")
+    revenue_delivery_total: Decimal = Decimal("0")
     expected_balance: Decimal
-    cash_in_drawer: Optional[Decimal] = None
-    wallet_total: Optional[Decimal] = None
-    closing_balance: Optional[Decimal]
-    variance: Optional[Decimal]
+    cash_in_drawer: Decimal | None = None
+    wallet_total: Decimal | None = None
+    closing_balance: Decimal | None = None
+    variance: Decimal | None = None
     transaction_count: int
-    payment_breakdown: Optional[list] = []
-    wallet_tx_breakdown: Optional[list] = []
+    payment_breakdown: list = []
+    wallet_tx_breakdown: list = []
 
 
 class ShiftOut(BaseModel):
     id: uuid.UUID
-    cashier_id: Optional[uuid.UUID]
-    cashier_name: Optional[str] = None
-    warehouse_id: Optional[uuid.UUID]
-    supervisor_id: Optional[uuid.UUID]
+    cashier_id: uuid.UUID | None = None
+    cashier_name: str | None = None
+    warehouse_id: uuid.UUID | None = None
+    supervisor_id: uuid.UUID | None = None
     status: ShiftStatus
     initial_amount: Decimal
-    closing_balance: Optional[Decimal]
-    next_day_drawer: Optional[Decimal]
+    closing_balance: Decimal | None = None
+    expected_balance: Decimal | None = None
+    difference: Decimal | None = None
+    next_day_drawer: Decimal | None = None
     started_at: datetime
-    closed_at: Optional[datetime]
+    closed_at: datetime | None = None
+    notes: str | None = None
     model_config = {"from_attributes": True}

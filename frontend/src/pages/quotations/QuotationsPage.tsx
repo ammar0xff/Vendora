@@ -7,7 +7,7 @@ import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
 import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, TrendingUp, Edit2, Trash2 } from 'lucide-react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { openPrint } from '../../utils/format'
+import { useAuthStore } from '../../store/auth'
 
 // ── Profit helpers ────────────────────────────────────────────────────────────
 function profitColor(margin: number) {
@@ -19,9 +19,13 @@ function profitColor(margin: number) {
 // ── Cart item row with profit display ────────────────────────────────────────
 function CartRow({ item, index, onChange, onRemove }: any) {
   const cost = Number(item.product.cost_price) || 0
-  const profit = (item.unit_price - cost) * item.qty
-  const margin = cost > 0 ? ((item.unit_price - cost) / cost) * 100 : 0
-  const belowCost = item.unit_price < cost
+  const lineTotal = item.qty * item.unit_price
+  const discountAmt = item.discount_pct > 0 ? lineTotal * (item.discount_pct / 100) : (item.discount || 0)
+  const netLine = lineTotal - discountAmt
+  const profit = netLine - cost * item.qty
+  const margin = cost > 0 ? ((netLine / item.qty - cost) / cost) * 100 : 0
+  const belowCost = netLine / item.qty < cost
+
   return (
     <tr className={belowCost ? 'bg-red-50' : ''}>
       <td className="px-3 py-2">
@@ -32,21 +36,32 @@ function CartRow({ item, index, onChange, onRemove }: any) {
       <td className="px-3 py-2">
         <div className="flex items-center justify-center gap-1">
           <button type="button" onClick={() => onChange(index, 'qty', Math.max(0.001, item.qty - 1))} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Minus size={10} /></button>
-          <input type="number" className="w-16 text-center border border-slate-200 rounded-lg px-1 py-1 text-sm font-bold" value={item.qty} min="0.001" step="any" onChange={e => onChange(index, 'qty', Number(e.target.value))} />
-          <button type="button" onClick={() => onChange(index, 'qty', item.qty + 1)} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Plus size={10} /></button>
+          <input type="number" className="w-16 text-center border border-slate-200 rounded-lg px-1 py-1 text-sm font-bold" value={item.qty} min="0.001" step="any" onChange={e => { onChange(index, 'qty', Number(e.target.value)); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} />
+          <button type="button" onClick={() => { onChange(index, 'qty', item.qty + 1); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Plus size={10} /></button>
         </div>
       </td>
       <td className="px-3 py-2">
         <input type="number" className={`w-24 text-center border rounded-lg px-2 py-1 text-sm ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
-          value={item.unit_price} min="0" step="0.01" onChange={e => onChange(index, 'unit_price', Number(e.target.value))} />
-        {cost > 0 && <button type="button" onClick={() => onChange(index, 'unit_price', cost)} className="block text-xs text-blue-500 hover:underline mt-0.5 mx-auto">= التكلفة</button>}
+          value={item.unit_price} min="0" step="0.01" onChange={e => { onChange(index, 'unit_price', Number(e.target.value)); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} />
+        {cost > 0 && <button type="button" onClick={() => { onChange(index, 'unit_price', cost); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="block text-xs text-blue-500 hover:underline mt-0.5 mx-auto">= التكلفة</button>}
       </td>
       <td className="px-3 py-2 text-center">
-        <p className="font-bold text-slate-800">{(item.qty * item.unit_price).toLocaleString('ar-EG')}</p>
+        {discountAmt > 0 && <p className="text-xs text-slate-400 line-through">{lineTotal.toLocaleString('ar-EG')}</p>}
+        <p className="font-bold text-slate-800">{netLine.toLocaleString('ar-EG')}</p>
         <p className={`text-xs font-semibold ${profitColor(margin)}`}>{profit >= 0 ? '+' : ''}{profit.toLocaleString('ar-EG')} ({margin.toFixed(0)}%)</p>
       </td>
-      <td className="px-3 py-2">
-        <button type="button" onClick={() => onRemove(index)} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
+      <td className="px-3 py-2 align-middle">
+        <div className="flex flex-col gap-1 items-center">
+          <button type="button" onClick={() => onRemove(index)} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
+          <div className="flex items-center gap-1">
+            <input type="number" min="0" value={item.discount_pct || ''} onChange={e => onChange(index, 'discount_pct', Number(e.target.value))}
+              className="w-12 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-300" placeholder="%" />
+            <span className="text-xs text-slate-400">%</span>
+            <span className="text-xs text-slate-300">/</span>
+            <input type="number" min="0" value={item.discount || ''} onChange={e => onChange(index, 'discount', Number(e.target.value))}
+              className="w-14 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-300" placeholder="ج.م" />
+          </div>
+        </div>
       </td>
     </tr>
   )
@@ -59,8 +74,10 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
   const [selectedCustomer, setSelectedCustomer] = useState(initial?.customer_id || '')
   const [notes, setNotes] = useState(initial?.notes || '')
   const [confirmBelowCost, setConfirmBelowCost] = useState(false)
+  const [invoiceDiscount, setInvoiceDiscount] = useState<number>(Number(initial?.discount_amount || 0))
+  const [invoiceDiscountPct, setInvoiceDiscountPct] = useState<number>(0)
   const [cart, setCart] = useState<any[]>(
-    initial?.items?.map((it: any) => ({ product: { id: it.product_id, name: it.product_name, cost_price: it.unit_cost }, qty: it.qty, unit_price: it.unit_price })) || []
+    initial?.items?.map((it: any) => ({ product: { id: it.product_id, name: it.product_name, cost_price: it.unit_cost }, qty: it.qty, unit_price: it.unit_price, discount: Number(it.discount || 0), discount_pct: 0 })) || []
   )
   // Extra financial lines (fees, discounts, shipping, etc.)
   const [extraLines, setExtraLines] = useState<{label: string; amount: number; type: 'add'|'deduct'}[]>([])
@@ -80,17 +97,26 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
   const addToCart = (p: any) => {
     const existing = cart.findIndex(i => i.product.id === p.id)
     if (existing >= 0) { changeItem(existing, 'qty', cart[existing].qty + 1) }
-    else setCart(prev => [...prev, { product: p, qty: 1, unit_price: Number(p.wholesale_price) || Number(p.retail_price) || 0 }])
+    else setCart(prev => [...prev, { product: p, qty: 1, unit_price: Number(p.wholesale_price) || Number(p.retail_price) || 0, discount: 0, discount_pct: 0 }])
     setSearch('')
   }
 
-  const totalRevenue = cart.reduce((s, i) => s + i.qty * i.unit_price, 0)
+  const totalRevenue = cart.reduce((s, i) => {
+    const line = i.qty * i.unit_price
+    const disc = i.discount_pct > 0 ? line * (i.discount_pct / 100) : (i.discount || 0)
+    return s + line - disc
+  }, 0)
   const totalCost = cart.reduce((s, i) => s + i.qty * (Number(i.product.cost_price) || 0), 0)
   const extraTotal = extraLines.reduce((s, l) => s + (l.type === 'add' ? l.amount : -l.amount), 0)
-  const grandTotal = totalRevenue + extraTotal
+  const grandTotal = totalRevenue + extraTotal - invoiceDiscount
   const totalProfit = grandTotal - totalCost
   const totalMargin = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0
-  const hasBelowCost = cart.some(i => i.unit_price < (Number(i.product.cost_price) || 0))
+  const hasBelowCost = cart.some(i => {
+    const line = i.qty * i.unit_price
+    const disc = i.discount_pct > 0 ? line * (i.discount_pct / 100) : (i.discount || 0)
+    const netUnit = (line - disc) / i.qty
+    return netUnit < (Number(i.product.cost_price) || 0)
+  })
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -106,8 +132,13 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
         warehouse_id: mainWh,
         sale_mode: 'wholesale',
         customer_id: customerId,
+        discount_amount: invoiceDiscount,
         notes: fullNotes,
-        items: cart.map(i => ({ product_id: i.product.id, qty: i.qty, unit_price: i.unit_price, unit_cost: Number(i.product.cost_price) || 0 })),
+        items: cart.map(i => {
+          const line = i.qty * i.unit_price
+          const discount = i.discount_pct > 0 ? line * (i.discount_pct / 100) : (i.discount || 0)
+          return { product_id: i.product.id, qty: i.qty, unit_price: i.unit_price, unit_cost: Number(i.product.cost_price) || 0, discount }
+        }),
       }
       const sale = isEdit
         ? await api.put(`/sales/${initial.id}`, payload).then(r => r.data)
@@ -175,7 +206,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
                 <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">الكمية</th>
                 <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">السعر</th>
                 <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">الإجمالي / الربح</th>
-                <th></th>
+                <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">خصم</th>
               </tr>
             </thead>
             <tbody>
@@ -186,25 +217,66 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
           </table>
 
           {/* Summary bar */}
-          <div className="bg-slate-50 px-4 py-3 grid grid-cols-4 gap-4 border-t border-slate-200">
-            <div className="text-center">
-              <p className="text-xs text-slate-500">إجمالي الأصناف</p>
-              <p className="font-black text-slate-800">{totalRevenue.toLocaleString('ar-EG')} ج.م</p>
+          <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
+            <div className="grid grid-cols-4 gap-4 mb-3">
+              <div className="text-center">
+                <p className="text-xs text-slate-500">إجمالي الأصناف</p>
+                <p className="font-black text-slate-800">{totalRevenue.toLocaleString('ar-EG')} ج.م</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500">بنود إضافية</p>
+                <p className={`font-black ${extraTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{extraTotal >= 0 ? '+' : ''}{extraTotal.toLocaleString('ar-EG')} ج.م</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500">الإجمالي الكلي</p>
+                <p className="font-black" style={{ color: '#1e3a5f' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500">صافي الربح</p>
+                <p className={`font-black ${profitColor(totalMargin)}`}>
+                  {totalProfit.toLocaleString('ar-EG')} ج.م
+                  <span className="text-xs mr-1">({totalMargin.toFixed(0)}%)</span>
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-500">بنود إضافية</p>
-              <p className={`font-black ${extraTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{extraTotal >= 0 ? '+' : ''}{extraTotal.toLocaleString('ar-EG')} ج.م</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-500">الإجمالي الكلي</p>
-              <p className="font-black text-slate-800" style={{ color: '#1e3a5f' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-500">صافي الربح</p>
-              <p className={`font-black ${profitColor(totalMargin)}`}>
-                {totalProfit.toLocaleString('ar-EG')} ج.م
-                <span className="text-xs mr-1">({totalMargin.toFixed(0)}%)</span>
-              </p>
+            {/* Invoice-level discount */}
+            <div className="flex items-center gap-3 pt-2 border-t border-slate-200 flex-wrap">
+              <label className="text-sm font-bold text-slate-600 whitespace-nowrap">خصم على الإجمالي:</label>
+              <div className="flex items-center gap-2">
+                {/* Amount input */}
+                <input
+                  type="number" min="0" max={totalRevenue + extraTotal} step="0.01"
+                  className="w-28 text-center border border-orange-300 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:border-orange-500 bg-orange-50"
+                  value={invoiceDiscount || ''}
+                  onChange={e => {
+                    const amt = Math.max(0, Number(e.target.value))
+                    setInvoiceDiscount(amt)
+                    const base = totalRevenue + extraTotal
+                    setInvoiceDiscountPct(base > 0 ? Math.round((amt / base) * 10000) / 100 : 0)
+                  }}
+                  placeholder="0.00"
+                />
+                <span className="text-sm text-slate-400">ج.م</span>
+                <span className="text-slate-300">أو</span>
+                {/* Percentage input */}
+                <input
+                  type="number" min="0" max="100" step="0.1"
+                  className="w-20 text-center border border-orange-300 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:border-orange-500 bg-orange-50"
+                  value={invoiceDiscountPct || ''}
+                  onChange={e => {
+                    const pct = Math.min(100, Math.max(0, Number(e.target.value)))
+                    setInvoiceDiscountPct(pct)
+                    const base = totalRevenue + extraTotal
+                    setInvoiceDiscount(Math.round(base * pct / 100 * 100) / 100)
+                  }}
+                  placeholder="0"
+                />
+                <span className="text-sm text-slate-400">%</span>
+              </div>
+              <div className="mr-auto flex items-center gap-2">
+                <span className="text-sm text-slate-500">الصافي بعد الخصم:</span>
+                <span className="text-lg font-black" style={{ color: '#1e3a5f' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</span>
+              </div>
             </div>
           </div>
         </div>
@@ -319,7 +391,12 @@ export default function QuotationsPage() {
     }
   }
 
-  const handlePrint = (id: string) => openPrint(`/print/sale/${id}`)
+  const handlePrint = (id: string) => {
+    const token = useAuthStore.getState().token
+    const url = `/api/print/sale/${id}?token=${encodeURIComponent(token || '')}`
+    const win = window.open(url, '_blank')
+    if (!win) window.location.href = url
+  }
 
   const handleEdit = async (q: any) => {
     try {
@@ -345,7 +422,7 @@ export default function QuotationsPage() {
     { key: 'customer', label: 'العميل', render: (r: any) => <span className="text-slate-600">{r.customer_name || 'عميل عادي'}</span> },
     {
       key: 'total', label: 'الإجمالي', render: (r: any) => (
-        <span className="font-bold text-slate-800">{Number(r.total_amount).toLocaleString('ar-EG')} ج.م</span>
+        <span className="font-bold text-slate-800">{Number(r.net_total || r.total || 0).toLocaleString('ar-EG')} ج.م</span>
       )
     },
     { key: 'status', label: 'الحالة', render: () => <span className="badge-yellow">عرض سعر</span> },
@@ -387,11 +464,29 @@ export default function QuotationsPage() {
         rowKey={(r: any) => r.id} emptyMessage="لا توجد عروض أسعار" emptyIcon="📋" />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="إنشاء عرض سعر جديد" size="xl">
-        <QuotationModal onClose={() => setShowCreate(false)} onCreated={(data) => { setShowCreate(false); if(data?.id) openPrint(`/print/sale/${data.id}`); qc.invalidateQueries({ queryKey: ['quotations'] }) }} />
+        <QuotationModal onClose={() => setShowCreate(false)} onCreated={(data) => {
+          setShowCreate(false)
+          qc.invalidateQueries({ queryKey: ['quotations'] })
+          if (data?.id) {
+            const token = useAuthStore.getState().token
+            const url = `/api/print/sale/${data.id}?token=${encodeURIComponent(token || '')}`
+            const win = window.open(url, '_blank')
+            if (!win) window.location.href = url
+          }
+        }} />
       </Modal>
 
       <Modal open={!!editItem} onClose={() => setEditItem(null)} title="تعديل عرض السعر" size="xl">
-        {editItem && <QuotationModal initial={editItem} onClose={() => setEditItem(null)} onCreated={(data) => { setEditItem(null); if(data?.id) openPrint(`/print/sale/${data.id}`); qc.invalidateQueries({ queryKey: ['quotations'] }) }} />}
+        {editItem && <QuotationModal initial={editItem} onClose={() => setEditItem(null)} onCreated={(data) => {
+          setEditItem(null)
+          qc.invalidateQueries({ queryKey: ['quotations'] })
+          if (data?.id) {
+            const token = useAuthStore.getState().token
+            const url = `/api/print/sale/${data.id}?token=${encodeURIComponent(token || '')}`
+            const win = window.open(url, '_blank')
+            if (!win) window.location.href = url
+          }
+        }} />}
       </Modal>
       <ConfirmDialog
         open={!!confirmQuote}

@@ -148,3 +148,14 @@ export const supplierPricesApi = {
   update: (id: string, data: any) => api.put(`/purchases/supplier-prices/${id}`, data).then(r => r.data),
   delete: (id: string) => api.delete(`/purchases/supplier-prices/${id}`),
 }
+
+export const purchasesApi = {
+  create: (data: any) => api.post('/purchases', data).then(r => r.data),
+  receive: (id: string, data: any) => api.post(`/purchases/${id}/receive`, data).then(r => r.data),
+  list: () => api.get('/purchases').then(r => r.data),
+  get: (id: string) => api.get(`/purchases/${id}`).then(r => r.data),
+}
+
+export const suppliersApi = {
+  list: (type?: string) => api.get('/suppliers', { params: type ? { type } : {} }).then(r => r.data),
+}

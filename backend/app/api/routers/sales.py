@@ -61,6 +61,7 @@ async def delete_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
     if sale.status not in (SaleStatus.draft, SaleStatus.quotation):
         raise BusinessError("Only drafts and quotations can be deleted")
     await db.execute(text("DELETE FROM sale_items WHERE sale_id=:id"), {"id": sale_id})
+    await db.execute(text("DELETE FROM archived_documents WHERE ref_id=:id AND doc_type IN ('sale_invoice','quotation')"), {"id": sale_id})
     await db.execute(text("DELETE FROM sales WHERE id=:id"), {"id": sale_id})
     await db.commit()
 
@@ -195,10 +196,11 @@ async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
     from app.models.customer_payment import CustomerPayment
     row = await db.execute(sqlt("""
         SELECT s.*, c.name as customer_name,
-               json_agg(json_build_object(
+                json_agg(json_build_object(
                  'id', si.id, 'product_id', si.product_id, 'product_name', p.name,
-                 'qty', si.qty, 'unit_price', si.unit_price, 'unit_cost', si.unit_cost
-               )) as items
+                 'qty', si.qty, 'unit_price', si.unit_price, 'unit_cost', si.unit_cost,
+                 'discount', si.discount
+                )) as items
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN sale_items si ON si.sale_id = s.id
@@ -220,20 +222,13 @@ async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
         "note": p.note,
         "created_at": p.created_at.isoformat() if p.created_at else None,
     } for p in payments]
-    # Get returns linked to this sale (from stock_movements)
-    ret_rows = await db.execute(sqlt("""
-        SELECT COALESCE(SUM(qty * unit_price), 0) as returns_value
-        FROM stock_movements
-        WHERE ref_id = :sid AND movement_type = 'return_in'
-    """), {"sid": sale_id})
-    ret_val = float(ret_rows.scalar() or 0)
+    # Use returns_total stored on the sale (updated by return_sale / partial_return_sale)
+    # which correctly accounts for item discounts.  Fall back to 0 if not set.
     net_total = float(result.get("net_total", 0))
     paid = float(result.get("paid_amount", 0) or 0)
     returns_total = float(result.get("returns_total", 0) or 0)
-    # returns_total from stock_movements (more accurate)
-    returns_total = max(returns_total, ret_val)
     result["returns_total"] = returns_total
-    result["remaining"] = round(net_total - returns_total - paid, 2)
+    result["remaining"] = round(max(0.0, net_total - returns_total - paid), 2)
     return result
 
 
@@ -252,14 +247,18 @@ async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends
     total = 0.0
     for item in data.get("items", []):
         line = float(item["qty"]) * float(item["unit_price"])
-        total += line
+        disc = item.get("discount", 0) or 0
+        total += line - disc
         await db.execute(sqlt("""
             INSERT INTO sale_items (sale_id, product_id, qty, unit_price, unit_cost, discount)
-            VALUES (:sid, :pid, :qty, :price, :cost, 0)
+            VALUES (:sid, :pid, :qty, :price, :cost, :disc)
         """), {"sid": sale_id, "pid": item["product_id"], "qty": item["qty"],
-               "price": item["unit_price"], "cost": item.get("unit_cost", 0)})
-    updates = {"total": total, "id": sale_id}
-    await db.execute(sqlt("UPDATE sales SET total_amount=:total WHERE id=:id"), updates)
+               "price": item["unit_price"], "cost": item.get("unit_cost", 0),
+               "disc": disc})
+    invoice_disc = float(data.get("discount_amount", 0) or 0)
+    net_total = total - invoice_disc
+    await db.execute(sqlt("UPDATE sales SET total=:total, net_total=:net, discount_amount=:disc WHERE id=:id"),
+                     {"total": total, "net": net_total, "disc": invoice_disc, "id": sale_id})
     if "notes" in data:
         await db.execute(sqlt("UPDATE sales SET notes=:notes WHERE id=:id"), {"notes": data["notes"], "id": sale_id})
     if "customer_id" in data:

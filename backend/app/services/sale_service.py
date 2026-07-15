@@ -100,6 +100,16 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
 
     sale.status = SaleStatus.confirmed
     sale.invoice_number = await _invoice_number(db)
+    # Create archived document
+    from app.models.archive import ArchivedDocument, DocType
+    doc = ArchivedDocument(
+        doc_type=DocType.sale_invoice,
+        doc_number=sale.invoice_number,
+        amount=sale.net_total,
+        ref_id=sale.id,
+        created_by=user_id,
+    )
+    db.add(doc)
     await db.commit()
     await db.refresh(sale)
     return sale
@@ -187,7 +197,7 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         if not shift or shift.cashier_id != cashier_id:
             raise BusinessError("هذه الوردية لا تخصك")
     for item in data.items:
-        if not await _is_untracked(db, item.product_id):
+        if not await _is_untracked(db, item.product_id, data.warehouse_id):
             balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
             if balance < item.qty:
                 from sqlalchemy import text as sqlt
@@ -364,9 +374,14 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
     if wallet_part > 0:
         from app.services.wallet_service import record_wallet_tx
         w_amt = min(wallet_part, total - cash_part - credit_part)
-        if w_amt > 0 and sale.wallet_id:
-            await record_wallet_tx(db, sale.wallet_id, -Decimal(str(w_amt)), "return",
-                                   sale.id, f"مرتجع {sale.invoice_number}", user_id)
+        if w_amt > 0:
+            wallet_row = await db.execute(sqlt(
+                "SELECT wallet_id FROM sale_payments WHERE sale_id=:sid AND method='wallet' LIMIT 1"
+            ), {"sid": sale.id})
+            wallet_id = wallet_row.scalar()
+            if wallet_id:
+                await record_wallet_tx(db, wallet_id, -Decimal(str(w_amt)), "return",
+                                       sale.id, f"مرتجع {sale.invoice_number}", user_id)
 
     # Track returns_total on the original sale
     await db.execute(sqlt(
@@ -386,6 +401,7 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
 
 async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
+    from sqlalchemy import text as sqlt
     result = await db.execute(select(Sale).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
@@ -394,6 +410,16 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
     if sale.status != SaleStatus.confirmed:
         raise BusinessError("Only confirmed sales can be cancelled")
     sale.status = SaleStatus.cancelled
+    # Restore stock for all sale items
+    items = (await db.execute(
+        select(SaleItem).where(SaleItem.sale_id == sale_id)
+    )).scalars().all()
+    for item in items:
+        await db.execute(sqlt("""
+            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
+            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_cancel', :uid)
+        """), {"pid": item.product_id, "wid": sale.warehouse_id, "qty": item.qty,
+               "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": user_id})
     await db.commit()
     await db.refresh(sale)
     return sale
@@ -431,9 +457,11 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
         if pid not in return_map:
             continue
         qty = return_map[pid]
+        # Pro-rate the per-item discount proportionally to the returned qty
+        prorated_discount = (oi.discount * qty / oi.qty) if oi.qty else Decimal("0")
         db.add(SaleItem(sale_id=ret.id, product_id=oi.product_id, qty=qty,
-                        unit_price=oi.unit_price, unit_cost=oi.unit_cost, discount=Decimal("0")))
-        total += qty * oi.unit_price
+                        unit_price=oi.unit_price, unit_cost=oi.unit_cost, discount=prorated_discount))
+        total += qty * oi.unit_price - prorated_discount
         await record_movement(db, StockMovementCreate(product_id=oi.product_id, warehouse_id=orig.warehouse_id,
             movement_type=MovementType.return_in, qty=qty, unit_cost=oi.unit_cost, unit_price=oi.unit_price),
             current_user_id, ref_id=ret.id, ref_type="partial_return")
@@ -456,8 +484,13 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
         w_amt = round(wallet_part * ratio, 2)
         if w_amt > 0:
             from app.services.wallet_service import record_wallet_tx
-            await record_wallet_tx(db, orig.wallet_id, -Decimal(str(w_amt)), "return",
-                                   ret.id, f"مرتجع جزئي من {orig.invoice_number}", current_user_id)
+            wallet_row = await db.execute(sqlt(
+                "SELECT wallet_id FROM sale_payments WHERE sale_id=:sid AND method='wallet' LIMIT 1"
+            ), {"sid": sale_id})
+            wallet_id = wallet_row.scalar()
+            if wallet_id:
+                await record_wallet_tx(db, wallet_id, -Decimal(str(w_amt)), "return",
+                                       ret.id, f"مرتجع جزئي من {orig.invoice_number}", current_user_id)
     if credit_part > 0 and orig.customer_id:
         c_amt = round(credit_part * ratio, 2)
         if c_amt > 0:
@@ -514,7 +547,7 @@ async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uu
         if diff_qty > 0:
             await db.execute(sqlt("""
                 INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-                VALUES (:pid, :wid, 'sale_out', :qty, :cost, :price, :sid, 'sale_adjustment', :uid)
+                VALUES (:pid, :wid, 'sale', :qty, :cost, :price, :sid, 'sale_adjustment', :uid)
             """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": diff_qty,
                    "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user_id})
         elif diff_qty < 0:

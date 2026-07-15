@@ -5,7 +5,7 @@ operations.py — مستندات العمليات
 - طلب نواقص (stock_request): طلب توريد من مخزن
 كل عملية تُسجَّل في stock_movements وتُحفَظ في archived_documents تلقائياً.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
@@ -182,12 +182,14 @@ async def stock_request(data: StockRequestRequest, db: AsyncSession = Depends(ge
 
 
 @router.get("/")
-async def list_operations(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_operations(
+    limit: int = Query(200, le=1000),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
     """قائمة بكل مستندات العمليات."""
     # Basic pagination: allow callers to page through archived documents
-    from fastapi import Query
-    limit: int = Query(200, le=1000)
-    offset: int = Query(0, ge=0)
 
     result = await db.execute(
         select(ArchivedDocument)

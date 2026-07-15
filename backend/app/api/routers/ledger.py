@@ -197,11 +197,16 @@ async def ledger(
             cash_sales += item_total
 
 
-    # Opening balance: initial_amount of the first shift opened that day
+    # Opening balance: next_day_drawer from the last shift closed BEFORE the start of this period.
+    # We use the shift whose started_at is the earliest on/after the period start,
+    # and fall back to next_day_drawer of the last closed shift before period start.
     opening = Decimal("0")
     if warehouse_id:
-        shift_row = await db.execute(text(f"""
-            SELECT initial_amount FROM shifts
+        # Strategy: find the first shift that OPENED during this period — its initial_amount
+        # is the true opening drawer for the day (set by whoever opened first that morning).
+        shift_row = await db.execute(text("""
+            SELECT initial_amount
+            FROM shifts
             WHERE warehouse_id = :wh_id
               AND started_at BETWEEN :start AND :end
             ORDER BY started_at ASC
@@ -210,6 +215,23 @@ async def ledger(
         s = shift_row.fetchone()
         if s:
             opening = Decimal(str(s.initial_amount))
+        else:
+            # No shift opened today — fall back to next_day_drawer of last closed shift
+            shift_row2 = await db.execute(text("""
+                SELECT COALESCE(next_day_drawer, closing_balance, 0) as opening_amt
+                FROM shifts
+                WHERE warehouse_id = :wh_id
+                  AND status = 'closed'
+                  AND closed_at < :start
+                ORDER BY closed_at DESC
+                LIMIT 1
+            """), {"wh_id": warehouse_id, "start": start})
+            s2 = shift_row2.fetchone()
+            if s2:
+                opening = Decimal(str(s2.opening_amt))
+    # net_sales = صافي إيرادات المبيعات فقط (بدون deposits)
+    net_sales = total_sales - total_returns - total_expenses
+    # net = إجمالي حركة الدرج (مبيعات + دواخل - مصروفات - مرتجعات)
     net = total_sales - total_returns + total_deposits - total_expenses
 
     return {
@@ -225,8 +247,9 @@ async def ledger(
             "total_returns": total_returns,
             "total_expenses": total_expenses,
             "total_deposits": total_deposits,
-            "net": net,
-            "closing": float(opening) + net,
+            "net": net_sales,        # صافي المبيعات (بدون دواخل)
+            "net_with_deposits": net, # إجمالي حركة الدرج
+            "closing": float(opening) + net,  # محتوى الدرج الفعلي
         },
         "from_date": from_date,
         "to_date": to_date,

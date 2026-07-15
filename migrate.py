@@ -211,6 +211,14 @@ MIGRATIONS = [
         );
         CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id);
     """),
+
+    # v15 — shift model: expected_balance, difference, deposit tracking
+    ("v15_shift_expected_balance", """
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS expected_balance numeric(12,2);
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS difference numeric(12,2);
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS deposit_received_by uuid REFERENCES users(id);
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS deposit_amount numeric(12,2);
+    """),
 ]
 
 def run():

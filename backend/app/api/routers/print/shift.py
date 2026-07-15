@@ -32,10 +32,9 @@ async def print_shift_summary(shift_id: uuid.UUID,
     handover_row = await db.execute(text("""
         SELECT metadata FROM archived_documents
         WHERE doc_type = 'shift_handover'
-        AND ((metadata->>'from_shift')::text = :sid
-        OR metadata->>'from_user' IS NOT NULL)
+        AND ref_id = :sid
         ORDER BY created_at DESC LIMIT 1
-    """), {"sid": str(shift_id)})
+    """), {"sid": shift_id})
     handover = handover_row.fetchone()
     if handover and handover[0]:
         import json as _j
@@ -58,7 +57,7 @@ async def print_shift_summary(shift_id: uuid.UUID,
                COALESCE(c.name,'عميل عادي') as customer,
                COALESCE(s.payment_method,'cash') as payment_method,
                pw.name as wallet_name,
-               COALESCE(SUM(si.qty * si.unit_price - si.discount),0) - COALESCE(MAX(s.discount_amount),0) as total
+               COALESCE(SUM(si.qty * si.unit_price - si.discount),0) - COALESCE(SUM(s.discount_amount),0) as total
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id

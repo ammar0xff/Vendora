@@ -26,16 +26,17 @@ export default function CategoryCardBrowser({
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: subcategoriesApi.list })
 
-  const { data: products } = useQuery({
+  const { data: productsRaw } = useQuery({
     queryKey: ['card-products', selectedSubId],
     queryFn: () => productsApi.list({ page_size: 5000, subcategory_id: selectedSubId! }),
     enabled: !!selectedSubId,
   })
+  const products = Array.isArray(productsRaw) ? productsRaw : (productsRaw?.items ?? [])
 
   const { data: stockMap } = useQuery({
-    queryKey: ['card-stock', warehouseId, products?.map((p: any) => p.id)?.join(',') ?? ''],
-    queryFn: () => stockApi.balanceBulk(warehouseId!, products!.map((p: any) => p.id)),
-    enabled: !!warehouseId && !!products?.length,
+    queryKey: ['card-stock', warehouseId, products.map((p: any) => p.id).join(',') ?? ''],
+    queryFn: () => stockApi.balanceBulk(warehouseId!, products.map((p: any) => p.id)),
+    enabled: !!warehouseId && !!products.length,
   })
 
   const getSubsForCat = (catId: string) => (subcategories as any[])?.filter((s: any) => s.category_id === catId) || []

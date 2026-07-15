@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.base import get_db
 from app.models.payroll import Employee, PayrollPeriod, PayrollEntry
+from app.schemas.hr import EmployeeCreate
 from app.dependencies import require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
@@ -17,10 +18,8 @@ async def list_employees(db: AsyncSession = Depends(get_db), _=Depends(require_p
 
 
 @router.post("/employees")
-async def create_employee(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
-    from app.schemas.hr import EmployeeCreate
-    validated = EmployeeCreate(**data)
-    e = Employee(**validated.model_dump())
+async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+    e = Employee(**data.model_dump())
     db.add(e)
     await db.commit()
     await db.refresh(e)
@@ -86,7 +85,7 @@ async def approve_period(period_id: uuid.UUID, db: AsyncSession = Depends(get_db
             "amt": total_amount,
             "desc": f"رواتب شهر {p.month}/{p.year}",
             "dt": f"{p.year}-{p.month:02d}-01",
-            "by": p.created_by,
+            "by": p.created_by or current_user.id,
             "notes": f"Payroll period {period_id}",
         })
 

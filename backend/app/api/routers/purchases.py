@@ -211,7 +211,7 @@ async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseRec
         ), {"remaining": remaining, "sid": po.supplier_id})
 
     # Archive the purchase invoice
-    from app.models.archive import ArchivedDocument
+    from app.models.archive import ArchivedDocument, DocType
     supplier_name = (await db.execute(text("SELECT name FROM suppliers WHERE id=:id"), {"id": po.supplier_id})).scalar() if po.supplier_id else None
     total_received = sum(
         float(overrides.get(str(item.product_id), {}).get("unit_cost", item.unit_cost)) *
@@ -220,7 +220,7 @@ async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseRec
     )
     db.add(ArchivedDocument(
         doc_number=po.po_number,
-        doc_type="purchase_invoice",
+        doc_type=DocType.purchase_invoice,
         amount=total_received,
         ref_id=po.id,
         created_by=current_user.id,

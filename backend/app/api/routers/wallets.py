@@ -74,7 +74,7 @@ async def wallets_summary(
             pw.phone as wallet_phone,
             pw.type as wallet_type,
             COUNT(s.id) as invoice_count,
-            COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) - COALESCE(MAX(s.discount_amount),0) as total
+            COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) - COALESCE(SUM(s.discount_amount),0) as total
         FROM sales s
         LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
         LEFT JOIN sale_items si ON si.sale_id = s.id
@@ -86,15 +86,15 @@ async def wallets_summary(
 
 
 @router.post("/{wid}/reset-balance", status_code=204)
-async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
+async def reset_wallet_balance(wid: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("finance"))):
     """Reset a wallet balance to 0."""
     row = await db.execute(text("SELECT balance FROM payment_wallets WHERE id=:id FOR UPDATE"), {"id": wid})
     old_balance = row.scalar_one_or_none()
     if old_balance and float(old_balance) != 0:
         await db.execute(text("""
-            INSERT INTO wallet_transactions (wallet_id, amount, tx_type, note)
-            VALUES (:wid, :amt, 'adjustment', 'تصفير الرصيد')
-        """), {"wid": wid, "amt": -old_balance})
+            INSERT INTO wallet_transactions (wallet_id, amount, tx_type, note, created_by)
+            VALUES (:wid, :amt, 'adjustment', 'تصفير الرصيد', :uid)
+        """), {"wid": wid, "amt": -old_balance, "uid": current_user.id})
     await db.execute(text("UPDATE payment_wallets SET balance = 0 WHERE id = :id"), {"id": wid})
     await db.commit()
 

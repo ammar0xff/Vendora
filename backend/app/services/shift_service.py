@@ -1,106 +1,184 @@
 import uuid
+import json
 from decimal import Decimal
-import logging
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text as sqlt
 from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
-from app.core.exceptions import BusinessError, NotFoundError
-from app.core.exceptions import ForbiddenError
+from app.core.exceptions import BusinessError, NotFoundError, ForbiddenError
 
 
-def _assert_owner(shift: Shift, user_id: uuid.UUID):
-    """Only the cashier who currently holds the drawer can operate on it."""
-    if shift.cashier_id and shift.cashier_id != user_id:
-        raise ForbiddenError("الدرج مسجل باسم موظف آخر — لا يمكنك الوصول إليه")
-
-
-async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, data) -> Shift:
-    result = await db.execute(
-        select(Shift)
-        .where(Shift.warehouse_id == data.warehouse_id,
-               Shift.cashier_id == cashier_id,
-               Shift.status == ShiftStatus.open)
-        .with_for_update()
+async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, warehouse_id: uuid.UUID, initial_amount: Decimal, supervisor_id: uuid.UUID | None = None) -> Shift:
+    """Open a new shift. Enforces one-open-shift-per-(cashier, warehouse)."""
+    existing = await db.execute(
+        select(Shift).where(
+            Shift.warehouse_id == warehouse_id,
+            Shift.cashier_id == cashier_id,
+            Shift.status == ShiftStatus.open
+        ).with_for_update()
     )
-    existing = result.scalar_one_or_none()
-    if existing:
+    if existing.scalar_one_or_none():
         raise BusinessError("لديك وردية مفتوحة بالفعل في هذا الفرع")
-    shift = Shift(cashier_id=cashier_id, initial_amount=data.initial_amount,
-                  warehouse_id=data.warehouse_id, supervisor_id=getattr(data, 'supervisor_id', None))
+
+    shift = Shift(
+        cashier_id=cashier_id,
+        warehouse_id=warehouse_id,
+        supervisor_id=supervisor_id,
+        initial_amount=initial_amount,
+    )
     db.add(shift)
     await db.commit()
     await db.refresh(shift)
     return shift
 
 
-async def close_shift(db: AsyncSession, shift_id: uuid.UUID, data, closed_by: uuid.UUID) -> Shift:
+async def close_shift(db: AsyncSession, shift_id: uuid.UUID, closing_balance: Decimal, next_day_drawer: Decimal | None, notes: str | None, closed_by: uuid.UUID) -> dict:
+    """Close a shift: compute summary, store expected_balance + difference."""
     result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
     shift = result.scalar_one_or_none()
     if not shift:
-        raise NotFoundError("Shift not found")
+        raise NotFoundError("الوردية غير موجودة")
     if shift.status != ShiftStatus.open:
-        raise BusinessError("Shift is already closed")
-    _assert_owner(shift, closed_by)
+        raise BusinessError("الوردية مغلقة بالفعل")
+    if shift.cashier_id and shift.cashier_id != closed_by:
+        raise ForbiddenError("الدرج مسجل باسم موظف آخر — لا يمكنك إغلاقه")
+
+    summary = await compute_summary(db, shift_id)
+    expected = summary["expected_balance"]
+    difference = closing_balance - expected
+
     shift.status = ShiftStatus.closed
-    shift.closing_balance = data.closing_balance
-    shift.next_day_drawer = data.next_day_drawer
-    shift.notes = data.notes
+    shift.closing_balance = closing_balance
+    shift.expected_balance = expected
+    shift.difference = difference
+    shift.next_day_drawer = next_day_drawer if next_day_drawer is not None else closing_balance
+    shift.notes = notes
     shift.closed_by = closed_by
     shift.closed_at = datetime.now(timezone.utc)
+
     await db.commit()
     await db.refresh(shift)
-    return shift
+
+    return {
+        **{c.name: getattr(shift, c.name) for c in shift.__table__.columns},
+        "variance": float(difference),
+        "expected_balance": float(expected),
+    }
+
+
+async def close_shift_with_manager(db: AsyncSession, shift_id: uuid.UUID, data, current_user_id: uuid.UUID) -> dict:
+    """Close shift with manager override. Verifies manager credentials first."""
+    from app.core.security import verify_password
+    from app.models.user import User
+
+    mgr = await db.get(User, data.manager_id)
+    if not mgr or not mgr.is_manager:
+        raise BusinessError("المدير غير موجود أو ليس لديه صلاحية المدير")
+    if not verify_password(data.manager_password, mgr.password_hash):
+        raise ForbiddenError("كلمة مرور المدير غير صحيحة")
+
+    result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
+    shift = result.scalar_one_or_none()
+    if not shift:
+        raise NotFoundError("الوردية غير موجودة")
+    if shift.status != ShiftStatus.open:
+        raise BusinessError("الوردية مغلقة بالفعل")
+
+    summary = await compute_summary(db, shift_id)
+    expected = summary["expected_balance"]
+    closing = data.closing_balance
+    difference = closing - expected
+
+    deposit_amount = closing - (data.next_day_drawer if data.next_day_drawer is not None else closing)
+
+    shift.status = ShiftStatus.closed
+    shift.closing_balance = closing
+    shift.expected_balance = expected
+    shift.difference = difference
+    shift.next_day_drawer = data.next_day_drawer if data.next_day_drawer is not None else closing
+    shift.notes = data.notes
+    shift.closed_by = current_user_id
+    shift.deposit_received_by = data.manager_id
+    shift.deposit_amount = deposit_amount
+    shift.closed_at = datetime.now(timezone.utc)
+
+    # Apply variance to payroll as deduction/bonus
+    if difference != 0 and shift.cashier_id:
+        note = f"فرق عجز/زيادة الدرج — وردية {shift_id}"
+        record_type = "خصم" if difference < 0 else "مكافأة"
+        emp = await db.execute(
+            sqlt("SELECT e.id FROM hr_employees e JOIN users u ON u.full_name = e.name WHERE u.id = :uid LIMIT 1"),
+            {"uid": shift.cashier_id}
+        )
+        emp_id = emp.scalar_one_or_none()
+        if emp_id:
+            await db.execute(sqlt("""
+                INSERT INTO hr_advances (id, employee_id, amount, note, record_type, date, created_by)
+                VALUES (gen_random_uuid(), :eid, :amt, :note, :rtype, NOW(), :uid)
+            """), {"eid": emp_id, "amt": abs(float(difference)), "note": note, "rtype": record_type, "uid": current_user_id})
+
+    await db.commit()
+    await db.refresh(shift)
+
+    return {
+        **{c.name: getattr(shift, c.name) for c in shift.__table__.columns},
+        "variance": float(difference),
+        "expected_balance": float(expected),
+    }
 
 
 async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
-    result = await db.execute(select(Shift).where(Shift.id == shift_id))
-    shift = result.scalar_one_or_none()
+    """Compute full financial summary for a shift.
+
+    expected_balance = cash-only balance in the physical drawer.
+    Wallet transactions are tracked separately and do NOT affect the drawer.
+    """
+    shift = await db.get(Shift, shift_id)
     if not shift:
         raise NotFoundError("Shift not found")
-    # Aggregate totals by transaction type
+
+    tx_count = await db.execute(select(func.count()).where(DrawerTransaction.shift_id == shift_id))
+
+    # Aggregate ALL drawer transactions by type (for display totals)
     rows = await db.execute(
         select(DrawerTransaction.type, func.sum(DrawerTransaction.amount).label("total"))
         .where(DrawerTransaction.shift_id == shift_id)
         .group_by(DrawerTransaction.type)
     )
-    # Normalize keys to the underlying value (robust to enum or string being returned)
-    def _key_of(t):
-        # If SQLAlchemy returns an Enum object, use its .value; if it's already a string, use it.
-        try:
-            return t.value  # Enum with .value (also works for str-subclass enums)
-        except Exception:
-            return str(t)
+    totals: dict[str, Decimal] = {}
+    for row in rows:
+        key = row.type.value if hasattr(row.type, 'value') else str(row.type)
+        totals[key] = Decimal(str(row.total or 0))
 
-    totals = {_key_of(row.type): row.total for row in rows}
-    sales      = totals.get(DrawerTxType.sale.value,       Decimal("0")) or Decimal("0")
-    returns    = totals.get(DrawerTxType.return_.value,    Decimal("0")) or Decimal("0")
-    expenses   = totals.get(DrawerTxType.expense.value,    Decimal("0")) or Decimal("0")
-    deposits   = totals.get(DrawerTxType.deposit.value,    Decimal("0")) or Decimal("0")
-    withdrawals= totals.get(DrawerTxType.withdrawal.value, Decimal("0")) or Decimal("0")
-    expected = shift.initial_amount + sales + deposits - returns - expenses - withdrawals
-    variance = (shift.closing_balance - expected) if shift.closing_balance is not None else None
-    tx_count = await db.execute(select(func.count()).where(DrawerTransaction.shift_id == shift_id))
+    sales            = totals.get("sale", Decimal("0"))
+    returns          = totals.get("return", Decimal("0"))
+    expenses         = totals.get("expense", Decimal("0"))
+    deposits         = totals.get("deposit", Decimal("0"))
+    withdrawals      = totals.get("withdrawal", Decimal("0"))
+    revenue_delivery = totals.get("revenue_delivery", Decimal("0"))
 
-    # Payment method breakdown
-    from sqlalchemy import text as sqlt
+    # Payment method breakdown (from sales linked to this shift)
     pay_rows = await db.execute(sqlt("""
-        SELECT COALESCE(s.payment_method, 'cash') as method,
-               pw.name as wallet_name, pw.type as wallet_type,
-               COUNT(s.id) as count,
-               COALESCE(SUM(si.qty * si.unit_price - si.discount), 0) - COALESCE(MAX(s.discount_amount),0) as total
-        FROM sales s
-        LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
-        LEFT JOIN sale_items si ON si.sale_id = s.id
-        WHERE s.shift_id = :sid AND s.status = 'confirmed'
-        GROUP BY s.payment_method, pw.name, pw.type
+        SELECT method, wallet_name, wallet_type,
+               COUNT(*) as count,
+               COALESCE(SUM(sale_total - COALESCE(invoice_discount,0)), 0) as total
+        FROM (
+            SELECT s.payment_method as method, pw.name as wallet_name, pw.type as wallet_type,
+                   s.id, s.discount_amount as invoice_discount,
+                   SUM(si.qty * si.unit_price - si.discount) as sale_total
+            FROM sales s
+            LEFT JOIN payment_wallets pw ON pw.id = s.wallet_id
+            LEFT JOIN sale_items si ON si.sale_id = s.id
+            WHERE s.shift_id = :sid AND s.status = 'confirmed'
+            GROUP BY s.id, s.payment_method, pw.name, pw.type, s.discount_amount
+        ) sub
+        GROUP BY method, wallet_name, wallet_type
     """), {"sid": shift_id})
     payment_breakdown = [dict(r._mapping) for r in pay_rows.fetchall()]
 
-    # Wallet sales total
     wallet_sales = sum(float(p["total"]) for p in payment_breakdown if p["method"] != "cash")
 
-    # Wallet deposits/expenses breakdown
+    # Wallet deposits/expenses from drawer transactions
     wallet_tx_rows = await db.execute(sqlt("""
         SELECT dt.payment_method, pw.name as wallet_name, pw.type as wallet_type,
                dt.type as tx_type, SUM(dt.amount) as total
@@ -112,40 +190,36 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     """), {"sid": shift_id})
     wallet_tx_breakdown = [dict(r._mapping) for r in wallet_tx_rows.fetchall()]
 
-    # --- Defensive cash computation & debug logging ---
-    # Fetch raw drawer transaction rows to compute cash-only sums (some wallets/sales mix can confuse grouped totals)
-    raw_res = await db.execute(
+    # ── Cash-only expected balance ─────────────────────────────────────────
+    # Only transactions with payment_method != 'wallet' affect the physical drawer.
+    raw = await db.execute(
         select(DrawerTransaction.type, DrawerTransaction.amount, DrawerTransaction.payment_method)
         .where(DrawerTransaction.shift_id == shift_id)
     )
-    raw_rows = raw_res.fetchall()
-    # cash if payment_method is null/"cash" (tolerant to None)
     cash_sums: dict[str, Decimal] = {}
-    for r in raw_rows:
-        t = _key_of(r.type)
-        amt = Decimal(r.amount or 0)
-        pm = (r.payment_method or 'cash')
-        if pm == 'wallet':
-            # skip wallet transactions for cash sums
-            continue
-        cash_sums[t] = cash_sums.get(t, Decimal('0')) + amt
+    for r in raw.fetchall():
+        t = r.type.value if hasattr(r.type, 'value') else str(r.type)
+        amt = Decimal(str(r.amount or 0))
+        pm = r.payment_method or "cash"
+        if pm == "wallet":
+            continue  # wallet transactions don't touch the physical drawer
+        cash_sums[t] = cash_sums.get(t, Decimal("0")) + amt
 
-    # Compute cash_in_drawer explicitly from cash-only transactions
-    cash_in_drawer = (shift.initial_amount
-                      + cash_sums.get(DrawerTxType.sale.value, Decimal('0'))
-                      + cash_sums.get(DrawerTxType.deposit.value, Decimal('0'))
-                      - cash_sums.get(DrawerTxType.return_.value, Decimal('0'))
-                      - cash_sums.get(DrawerTxType.expense.value, Decimal('0'))
-                      - cash_sums.get(DrawerTxType.withdrawal.value, Decimal('0')))
+    cash_sales            = cash_sums.get("sale", Decimal("0"))
+    cash_returns          = cash_sums.get("return", Decimal("0"))
+    cash_expenses         = cash_sums.get("expense", Decimal("0"))
+    cash_deposits         = cash_sums.get("deposit", Decimal("0"))
+    cash_withdrawals      = cash_sums.get("withdrawal", Decimal("0"))
+    cash_revenue_delivery = cash_sums.get("revenue_delivery", Decimal("0"))
 
-    logger = logging.getLogger(__name__)
-    try:
-        logger.debug("shift_summary debug shift=%s totals=%s cash_sums=%s payment_breakdown=%s wallet_tx_breakdown=%s",
-                     str(shift_id), {k: float(v) for k, v in totals.items()}, {k: float(v) for k, v in cash_sums.items()},
-                     payment_breakdown, wallet_tx_breakdown)
-    except Exception:
-        # Don't let logging break the summary calculation
-        logger.debug("shift_summary computed for %s", str(shift_id))
+    # This is the ONLY expected_balance used everywhere (cash drawer only)
+    expected = (
+        shift.initial_amount
+        + cash_sales + cash_deposits
+        - cash_returns - cash_expenses - cash_withdrawals - cash_revenue_delivery
+    )
+    cash_in_drawer = expected
+    variance = (shift.closing_balance - expected) if shift.closing_balance is not None else None
 
     return {
         "shift_id": shift_id,
@@ -155,8 +229,8 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
         "expenses_total": expenses,
         "deposits_total": deposits,
         "withdrawals_total": withdrawals,
+        "revenue_delivery_total": revenue_delivery,
         "expected_balance": expected,
-        # cash_in_drawer: explicit cash-only computation to avoid mixing wallet txns
         "cash_in_drawer": cash_in_drawer,
         "wallet_total": wallet_sales,
         "closing_balance": shift.closing_balance,
@@ -167,28 +241,52 @@ async def compute_summary(db: AsyncSession, shift_id: uuid.UUID) -> dict:
     }
 
 
-async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uuid.UUID, amount: Decimal, from_user_id: uuid.UUID, notes: str = None) -> Shift:
+async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uuid.UUID, amount: Decimal, from_user_id: uuid.UUID | None, notes: str | None = None, closed_by: uuid.UUID | None = None) -> Shift:
+    """Hand over drawer to another user: close current shift + open new one."""
     result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
     shift = result.scalar_one_or_none()
     if not shift:
         raise NotFoundError("Shift not found")
     if shift.status != ShiftStatus.open:
-        raise BusinessError("Shift is not open")
-    _assert_owner(shift, from_user_id)
+        raise BusinessError("الوردية غير مفتوحة")
+    # None = admin/privileged bypass; otherwise enforce ownership
+    if from_user_id is not None and shift.cashier_id and shift.cashier_id != from_user_id:
+        raise ForbiddenError("الدرج مسجل باسم موظف آخر")
 
+    actor = closed_by or from_user_id or shift.cashier_id
     shift.status = ShiftStatus.closed
     shift.closing_balance = amount
     shift.next_day_drawer = amount
-    shift.closed_by = from_user_id
+    shift.closed_by = actor
     shift.closed_at = datetime.now(timezone.utc)
     shift.notes = f"تسليم عهدة إلى {to_user_id}. {notes or ''}"
+    # Compute and store expected_balance for audit trail
+    summary = await compute_summary(db, shift_id)
+    expected = summary["expected_balance"]
+    shift.expected_balance = expected
+    shift.difference = amount - expected
 
-    new_shift = Shift(cashier_id=to_user_id, initial_amount=amount,
-                      warehouse_id=shift.warehouse_id, supervisor_id=shift.supervisor_id,
-                      notes=f"استلام عهدة من {from_user_id}")
+    # Prevent duplicate open shifts for the receiver
+    existing = await db.execute(
+        select(Shift).where(
+            Shift.warehouse_id == shift.warehouse_id,
+            Shift.cashier_id == to_user_id,
+            Shift.status == ShiftStatus.open
+        ).with_for_update()
+    )
+    if existing.scalar_one_or_none():
+        raise BusinessError("المستلم لديه وردية مفتوحة بالفعل في هذا الفرع — يرجى إغلاقها أولاً")
+
+    new_shift = Shift(
+        cashier_id=to_user_id,
+        initial_amount=amount,
+        warehouse_id=shift.warehouse_id,
+        supervisor_id=shift.supervisor_id,
+        notes=f"استلام عهدة من {from_user_id}",
+    )
     db.add(new_shift)
 
-    # Auto-grant warehouse access to the receiving user
+    # Auto-grant warehouse access
     if shift.warehouse_id:
         from app.models.user import user_warehouses
         existing = await db.execute(
@@ -202,57 +300,174 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
                 user_warehouses.insert().values(user_id=to_user_id, warehouse_id=shift.warehouse_id)
             )
 
+    # Archive handover document
     from app.models.archive import ArchivedDocument, DocType
-    doc_number = f"HND-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
-    from sqlalchemy import select as sa_select
     from app.models.user import User
-    from_user_row = (await db.execute(sa_select(User.full_name).where(User.id == from_user_id))).scalar()
-    to_user_row   = (await db.execute(sa_select(User.full_name).where(User.id == to_user_id))).scalar()
-    db.add(ArchivedDocument(doc_number=doc_number, doc_type=DocType.shift_handover,
-                            amount=amount, ref_id=shift.id, created_by=from_user_id,
-                            metadata_={"from_user": str(from_user_id), "to_user": str(to_user_id),
-                                       "from_user_name": from_user_row or str(from_user_id),
-                                       "to_user_name": to_user_row or str(to_user_id),
-                                       "amount": float(amount), "notes": notes or ""}))
+    from_user = (await db.execute(select(User.full_name).where(User.id == from_user_id))).scalar()
+    to_user = (await db.execute(select(User.full_name).where(User.id == to_user_id))).scalar()
+    doc_number = f"HND-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}-{uuid.uuid4().hex[:4]}"
+    db.add(ArchivedDocument(
+        doc_number=doc_number,
+        doc_type=DocType.shift_handover,
+        amount=amount,
+        ref_id=shift.id,
+        created_by=from_user_id,
+        metadata_={
+            "from_user": str(from_user_id) if from_user_id else "",
+            "to_user": str(to_user_id) if to_user_id else "",
+            "from_user_name": from_user or str(from_user_id),
+            "to_user_name": to_user or str(to_user_id),
+            "amount": float(amount),
+            "notes": notes or "",
+        }
+    ))
+
     await db.commit()
     await db.refresh(new_shift)
     return new_shift
 
 
-async def add_transaction(db: AsyncSession, shift_id: uuid.UUID, data, created_by: uuid.UUID) -> DrawerTransaction:
-    result = await db.execute(select(Shift).where(Shift.id == shift_id, Shift.status == ShiftStatus.open))
+async def add_transaction(db: AsyncSession, shift_id: uuid.UUID, tx_type: DrawerTxType, amount: Decimal, created_by: uuid.UUID, note: str | None = None, category_id: uuid.UUID | None = None, payment_method: str = "cash", wallet_id: uuid.UUID | None = None, customer_id: uuid.UUID | None = None) -> DrawerTransaction:
+    """Add a drawer transaction to an open shift."""
+    result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
     shift = result.scalar_one_or_none()
-    if not shift:
-        raise BusinessError("No open shift found")
-    _assert_owner(shift, created_by)
-    dt = DrawerTransaction(shift_id=shift_id, type=data.type, amount=data.amount, note=data.note,
-                           category_id=getattr(data, 'category_id', None),
-                           payment_method=getattr(data, 'payment_method', 'cash') or 'cash',
-                           wallet_id=getattr(data, 'wallet_id', None),
-                           created_by=created_by)
+    if not shift or shift.status != ShiftStatus.open:
+        raise BusinessError("لا توجد وردية مفتوحة")
+    if shift.cashier_id and shift.cashier_id != created_by:
+        raise ForbiddenError("الدرج مسجل باسم موظف آخر")
+
+    dt = DrawerTransaction(
+        shift_id=shift_id,
+        type=tx_type,
+        amount=amount,
+        note=note,
+        category_id=category_id,
+        payment_method=payment_method or "cash",
+        wallet_id=wallet_id,
+        created_by=created_by,
+    )
     db.add(dt)
 
-    # Update wallet balance if payment via wallet
-    wallet_id = getattr(data, 'wallet_id', None)
-    if wallet_id and getattr(data, 'payment_method', 'cash') == 'wallet':
+    # Update wallet balance if wallet payment
+    if wallet_id and payment_method == "wallet":
         from app.services.wallet_service import record_wallet_tx
-        from decimal import Decimal as D
-        if data.type == DrawerTxType.deposit:
-            await record_wallet_tx(db, wallet_id, D(str(data.amount)), "deposit",
-                                   None, data.note, created_by)
-        elif data.type in (DrawerTxType.expense, DrawerTxType.withdrawal):
-            await record_wallet_tx(db, wallet_id, -D(str(data.amount)), "expense",
-                                   None, data.note, created_by)
-    # If this is a customer debt payment, record it and reduce customer balance
-    if getattr(data, 'customer_id', None) and data.type == DrawerTxType.deposit:
+        if tx_type == DrawerTxType.deposit:
+            await record_wallet_tx(db, wallet_id, amount, "deposit", None, note, created_by)
+        elif tx_type in (DrawerTxType.expense, DrawerTxType.withdrawal):
+            await record_wallet_tx(db, wallet_id, -amount, "expense", None, note, created_by)
+
+    # Customer debt payment
+    if customer_id and tx_type == DrawerTxType.deposit:
         from app.models.customer_payment import CustomerPayment
-        from sqlalchemy import text as sqlt
-        db.add(CustomerPayment(customer_id=data.customer_id, amount=data.amount,
-                               note=data.note, created_by=created_by))
-        # Reduce customer balance
+        db.add(CustomerPayment(
+            customer_id=customer_id,
+            amount=amount,
+            note=note,
+            created_by=created_by,
+        ))
         await db.execute(sqlt(
-            "UPDATE customers SET balance = GREATEST(0, COALESCE(balance,0) - :amt) WHERE id = :cid"
-        ), {"amt": float(data.amount), "cid": data.customer_id})
+            "UPDATE customers SET balance = GREATEST(0, COALESCE(balance,0) - :amt) WHERE id = :cid",
+        ), {"amt": float(amount), "cid": customer_id})
+
     await db.commit()
     await db.refresh(dt)
     return dt
+
+
+async def revenue_delivery(db: AsyncSession, shift_id: uuid.UUID, data, current_user: "User") -> dict:
+    """Mid-shift revenue delivery to safe — requires manager authorization."""
+    from app.core.security import verify_password
+    from app.models.user import User
+
+    mgr = await db.get(User, data.manager_id)
+    if not mgr or not mgr.is_manager:
+        raise BusinessError("المدير غير موجود أو ليس لديه صلاحية المدير")
+    if not verify_password(data.manager_password, mgr.password_hash):
+        raise ForbiddenError("كلمة مرور المدير غير صحيحة")
+
+    result = await db.execute(select(Shift).where(Shift.id == shift_id).with_for_update())
+    shift = result.scalar_one_or_none()
+    if not shift:
+        raise NotFoundError("الوردية غير موجودة")
+    if shift.status != ShiftStatus.open:
+        raise BusinessError("الوردية مغلقة بالفعل")
+
+    # Drawer transaction (withdrawal from drawer to safe)
+    dt = DrawerTransaction(
+        shift_id=shift_id,
+        type=DrawerTxType.revenue_delivery,
+        amount=data.amount,
+        note=f"تسليم إيرادات إلى الخزنة. {data.notes or ''}",
+        created_by=current_user.id,
+    )
+    db.add(dt)
+
+    # Credit the safe
+    safe_name = (await db.execute(sqlt("SELECT name FROM safes WHERE id=:id"), {"id": data.safe_id})).scalar() or ""
+    await db.execute(sqlt("UPDATE safes SET balance = balance + :amt WHERE id = :id"),
+                     {"amt": float(data.amount), "id": data.safe_id})
+    new_balance = (await db.execute(sqlt("SELECT balance FROM safes WHERE id=:id"), {"id": data.safe_id})).scalar()
+    await db.execute(sqlt("""
+        INSERT INTO safe_transactions (id, safe_id, tx_type, amount, balance_after, note, created_by)
+        VALUES (gen_random_uuid(), :sid, 'deposit', :amt, :bal, :note, :uid)
+    """), {"sid": data.safe_id, "amt": float(data.amount), "bal": new_balance,
+           "note": f"إيرادات من وردية — {data.notes or ''}", "uid": current_user.id})
+
+    # Warehouse name for archive
+    wh_name = ""
+    if shift.warehouse_id:
+        wh_name = (await db.execute(sqlt("SELECT name FROM warehouses WHERE id=:id"), {"id": shift.warehouse_id})).scalar() or ""
+
+    # Archive
+    seq = (await db.execute(sqlt("SELECT nextval('invoice_seq')"))).scalar()
+    doc_number = f"DEP-{seq:06d}"
+    await db.execute(sqlt("""
+        INSERT INTO archived_documents (id, doc_number, doc_type, amount, created_by, metadata)
+        VALUES (gen_random_uuid(), :doc, 'safe_deposit', :amt, :uid, cast(:meta as jsonb))
+    """), {
+        "doc": doc_number, "amt": float(data.amount), "uid": current_user.id,
+        "meta": json.dumps({
+            "safe_name": safe_name,
+            "warehouse": wh_name,
+            "received_by": mgr.full_name,
+            "deposited_by": current_user.full_name,
+            "notes": data.notes or "",
+            "type": "revenue_delivery",
+        })
+    })
+
+    await db.commit()
+    return {
+        "doc_number": doc_number,
+        "amount": float(data.amount),
+        "safe": safe_name,
+        "received_by": mgr.full_name,
+    }
+
+
+async def delete_drawer_transaction(db: AsyncSession, tx_id: uuid.UUID, current_user_id: uuid.UUID) -> None:
+    """Delete a drawer transaction (manager only). Reverses wallet if needed."""
+    result = await db.execute(sqlt("""
+        SELECT dt.*, sh.status as shift_status
+        FROM drawer_transactions dt
+        JOIN shifts sh ON sh.id = dt.shift_id
+        WHERE dt.id = :id
+    """), {"id": tx_id})
+    row = result.fetchone()
+    if not row:
+        raise NotFoundError("العملية غير موجودة")
+    tx = dict(row._mapping)
+    if tx["shift_status"] == "closed":
+        raise BusinessError("لا يمكن حذف معاملة من وردية مغلقة")
+
+    # Reverse wallet balance if wallet payment
+    if tx.get("wallet_id") and tx.get("payment_method") == "wallet":
+        from app.services.wallet_service import record_wallet_tx
+        amt = Decimal(str(tx["amount"]))
+        if tx["type"] == "deposit":
+            await record_wallet_tx(db, tx["wallet_id"], -amt, "deposit_reversed", tx_id, "حذف دواخل", current_user_id)
+        elif tx["type"] in ("expense", "withdrawal"):
+            await record_wallet_tx(db, tx["wallet_id"], amt, "expense_reversed", tx_id, "حذف خوارج", current_user_id)
+
+    await db.execute(sqlt("DELETE FROM drawer_transactions WHERE id=:id"), {"id": tx_id})
+    await db.commit()

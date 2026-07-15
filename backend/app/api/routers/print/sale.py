@@ -199,7 +199,7 @@ async def print_sale(sale_id: uuid.UUID,
         <td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555;white-space:nowrap">المجموع الفرعي</td>
         <td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;white-space:nowrap;min-width:90px;text-align:left">{ar_egp(subtotal)}</td>
       </tr>
-      {f'<tr><td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555;white-space:nowrap">الخصم</td><td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;white-space:nowrap;text-align:left">({ar_egp(disc)})</td></tr>' if disc else ''}
+      {f'<tr><td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;color:#555;white-space:nowrap">الخصم{f" ({round(disc/subtotal*100, 1):.1f}%)" if subtotal > 0 else ""}</td><td style="padding:4px 12px;font-size:10px;border-bottom:1px solid #e8e8e8;font-weight:700;white-space:nowrap;color:#dc2626;text-align:left">({ar_egp(disc)})</td></tr>' if disc else ''}
       <tr style="background:#111">
         <td style="padding:6px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap">الإجمالي</td>
         <td style="padding:6px 12px;font-size:13px;font-weight:900;color:#fff;white-space:nowrap;text-align:left">{ar_egp(total)}</td>

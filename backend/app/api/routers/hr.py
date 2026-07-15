@@ -90,19 +90,25 @@ async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSess
     vals = data.model_dump(exclude_unset=True)
     if not vals:
         return {"detail": "no changes"}
-    cols = []
+    # col_map: schema field → actual DB column name (must match hr_employees columns)
+    col_map = {
+        "name": "name",
+        "position": "position",
+        "monthly_salary": "monthly_salary",
+        "shift_schedule": "shift_schedule",
+        "hire_date": "hire_date",
+        "is_active": "is_active",
+    }
+    set_parts = []
     params: dict = {"id": emp_id}
-    col_map = {"name": "name", "position": "pos", "monthly_salary": "sal",
-               "shift_schedule": "shift", "hire_date": "hire"}
-    for k, v in vals.items():
-        c = col_map.get(k)
-        if c is None:
-            continue
-        cols.append(f"{c}=:{k}")
-        params[k] = v
-    if not cols:
+    for field, col in col_map.items():
+        if field in vals:
+            param_key = f"p_{field}"   # avoid collisions with reserved words
+            set_parts.append(f"{col} = :{param_key}")
+            params[param_key] = vals[field]
+    if not set_parts:
         return {"detail": "no changes"}
-    await db.execute(text(f"UPDATE hr_employees SET {','.join(cols)} WHERE id=:id"), params)
+    await db.execute(text(f"UPDATE hr_employees SET {', '.join(set_parts)} WHERE id=:id"), params)
     await db.commit()
     return {"detail": "updated"}
 
@@ -470,14 +476,51 @@ async def get_daily_breakdown(payroll_id: uuid.UUID, db: AsyncSession = Depends(
 
 @router.put("/payroll/{payroll_id}")
 async def update_payroll(payroll_id: uuid.UUID, data: PayrollUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+    """Update manual adjustments (bonus, deductions, drawer_variance) on a payroll record.
+    Re-applies these on top of the engine-calculated values rather than overwriting them.
+    """
+    # Fetch current engine-calculated values
+    row = (await db.execute(text(
+        "SELECT base_salary, lateness_deduction, overtime_pay, bonus_payment, advances, "
+        "       working_days, absent_days FROM hr_payroll WHERE id=:id"
+    ), {"id": payroll_id})).mappings().fetchone()
+    if not row:
+        raise NotFoundError()
+
+    base_salary        = float(row["base_salary"] or 0)
+    lateness_deduction = float(row["lateness_deduction"] or 0)
+    overtime_pay       = float(row["overtime_pay"] or 0)
+    engine_bonus       = float(row["bonus_payment"] or 0)
+    advances           = float(row["advances"] or 0)
+
+    # net = engine base pay - lateness - deduction - advances + overtime + bonuses + drawer_variance
+    net_salary = (
+        base_salary
+        - lateness_deduction
+        - float(data.deductions)
+        - advances
+        + overtime_pay
+        + engine_bonus
+        + float(data.bonus)
+        + float(data.drawer_variance)
+    )
+
     await db.execute(text("""
-        UPDATE hr_payroll SET bonus=:bonus, deductions=:ded, drawer_variance=:var,
-        net_salary=base_salary - (absent_days*(base_salary/26.0)) - advances + :bonus - :ded + :var,
-        status=:status, notes=:notes WHERE id=:id
-    """), {'id': payroll_id, 'bonus': data.bonus, 'ded': data.deductions,
-           'var': data.drawer_variance, 'status': data.status, 'notes': data.notes or ''})
+        UPDATE hr_payroll
+        SET bonus=:bonus, deductions=:ded, drawer_variance=:var,
+            net_salary=:net, status=:status, notes=:notes
+        WHERE id=:id
+    """), {
+        'id': payroll_id,
+        'bonus': data.bonus,
+        'ded': data.deductions,
+        'var': data.drawer_variance,
+        'net': max(0, round(net_salary, 2)),
+        'status': data.status,
+        'notes': data.notes or '',
+    })
     await db.commit()
-    return {"detail": "updated"}
+    return {"detail": "updated", "net_salary": max(0, round(net_salary, 2))}
 
 
 # ── Advances ───────────────────────────────────────────────────────────────
@@ -506,7 +549,7 @@ async def add_advance(data: AdvanceCreate, db: AsyncSession = Depends(get_db), c
            'by': current_user.id, 'rt': record_type})
     await db.execute(text("""
         INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details)
-        VALUES ('create', 'advance', :eid, :by, :note, :det::jsonb)
+        VALUES ('create', 'advance', :eid, :by, :note, CAST(:det AS jsonb))
     """), {'eid': str(data.employee_id), 'by': current_user.id,
            'note': data.note or '', 'det': f'{{"type":"{record_type}","amount":{data.amount}}}'})
     await db.commit()

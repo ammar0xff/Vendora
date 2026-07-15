@@ -85,16 +85,18 @@ async def require_is_manager(current_user: User = Depends(get_current_user)) -> 
 
 
 async def require_open_period(db: AsyncSession = Depends(get_db)):
-    await db.execute(text("""
-        CREATE TABLE IF NOT EXISTS accounting_periods (
-            month TEXT PRIMARY KEY,
-            status TEXT DEFAULT 'open',
-            locked_at TIMESTAMP,
-            locked_by_id UUID REFERENCES users(id)
-        )
-    """))
+    """Block transactions if the current accounting month is closed.
+    Uses the same table schema as periods.py (UUID pk, closed_by, closed_at).
+    """
     month = datetime.now().strftime("%Y-%m")
-    status_row = (await db.execute(text("SELECT status FROM accounting_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
+    # Use the correct schema (same as periods.py / models/period.py)
+    try:
+        status_row = (await db.execute(text(
+            "SELECT status FROM accounting_periods WHERE month=:m"
+        ), {"m": month})).scalar_one_or_none()
+    except Exception:
+        # Table doesn't exist yet — let the transaction proceed; periods.py creates it on first use
+        return
     if status_row == "closed":
         raise HTTPException(status_code=400, detail=f"الشهر {month} مغلق — لا يمكن إجراء المعاملات")
 
