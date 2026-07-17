@@ -9,7 +9,15 @@ from app.core.exceptions import BusinessError, NotFoundError, ForbiddenError
 
 
 async def _find_employee_by_user_id(db: AsyncSession, user_id: uuid.UUID):
-    """Find hr_employees record by matching emp_code to user UUID."""
+    """Find hr_employees record by matching user_id FK column."""
+    result = await db.execute(
+        sqlt("SELECT e.id FROM hr_employees e WHERE e.user_id = :uid AND e.is_active = TRUE LIMIT 1"),
+        {"uid": user_id}
+    )
+    emp = result.scalar_one_or_none()
+    if emp:
+        return emp
+    # Fallback: match emp_code = user UUID (legacy data)
     result = await db.execute(
         sqlt("SELECT e.id FROM hr_employees e WHERE e.emp_code = :uid_text AND e.is_active = TRUE LIMIT 1"),
         {"uid_text": str(user_id)}

@@ -11,6 +11,7 @@ class EmployeeCreate(BaseModel):
     Fields match the SQL INSERT in hr.py router.
     """
     emp_code: Optional[str] = None
+    user_id: Optional[uuid.UUID] = None
     name: str = Field(..., min_length=1, max_length=128)
     position: Optional[str] = None
     monthly_salary: Decimal = Field(default=Decimal("0"), ge=0)
@@ -20,6 +21,7 @@ class EmployeeCreate(BaseModel):
 
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=128)
+    user_id: Optional[uuid.UUID] = None
     position: Optional[str] = None
     monthly_salary: Optional[Decimal] = Field(default=None, ge=0)
     shift_schedule: Optional[str] = None

@@ -13,6 +13,7 @@ class HrEmployee(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     emp_code: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     position: Mapped[str | None] = mapped_column(String(64), nullable=True)
     monthly_salary: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)

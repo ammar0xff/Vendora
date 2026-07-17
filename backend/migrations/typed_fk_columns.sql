@@ -39,4 +39,15 @@ WHERE ref_type IN ('dispatch', 'goods_receipt')
   AND ref_id IS NOT NULL
   AND operation_id IS NULL;
 
+-- ─── 4. hr_employees: add user_id FK for payroll variance lookup ────────────
+ALTER TABLE hr_employees
+    ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_hr_employees_user_id ON hr_employees(user_id);
+
+-- Backfill: if emp_code happens to be a valid user UUID, populate user_id
+UPDATE hr_employees SET user_id = emp_code::uuid
+WHERE emp_code ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  AND user_id IS NULL;
+
 COMMIT;

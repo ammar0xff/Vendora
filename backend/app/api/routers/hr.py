@@ -76,9 +76,9 @@ async def list_employees(db: AsyncSession = Depends(get_db), _=Depends(get_curre
 @router.post("/employees")
 async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     r = await db.execute(text("""
-        INSERT INTO hr_employees (emp_code, name, position, monthly_salary, shift_schedule, hire_date)
-        VALUES (:code, :name, :pos, :sal, :shift, :hire) RETURNING *
-    """), {'code': data.emp_code, 'name': data.name, 'pos': data.position or '',
+        INSERT INTO hr_employees (emp_code, user_id, name, position, monthly_salary, shift_schedule, hire_date)
+        VALUES (:code, :uid, :name, :pos, :sal, :shift, :hire) RETURNING *
+    """), {'code': data.emp_code, 'uid': data.user_id, 'name': data.name, 'pos': data.position or '',
            'sal': data.monthly_salary, 'shift': data.shift_schedule or '',
            'hire': data.hire_date})
     await db.commit()
@@ -94,6 +94,7 @@ async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSess
     # col_map: schema field → actual DB column name (must match hr_employees columns)
     col_map = {
         "name": "name",
+        "user_id": "user_id",
         "position": "position",
         "monthly_salary": "monthly_salary",
         "shift_schedule": "shift_schedule",
