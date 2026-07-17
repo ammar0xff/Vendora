@@ -19,7 +19,7 @@
 | Infrastructure | 0 | 0 | 0 | 0 | 0 |
 | **Total** | **0** | **0** | **0** | **0** | **0** |
 
-> **Fixed across 8 rounds:** 104 issues
+> **Fixed across 10 rounds:** 114 issues
 > **Remaining open:** 0
 > **Design decisions confirmed intentional:** 2 (handover no manager gate, require_perm OR semantics)
 
@@ -32,6 +32,29 @@ No open issues remain. The system is production-ready.
 ---
 
 ## Fixed Issues — Complete Record
+
+### Round 10 (2026-07-17) — DB audit + infrastructure — 10 fixes
+
+| # | Fix | Details |
+|---|-----|---------|
+| 1 | `typed_fk_columns.sql` made idempotent | Removed `BEGIN/COMMIT` wrapper, added `IF NOT EXISTS` for constraint. Was silently rolling back every time it ran. |
+| 2 | `drawer_transactions.ref_id` FK to `sales.id` | Added typed FK constraint `fk_drawer_tx_sale` on existing `ref_id` column |
+| 3 | `stock_movements` typed FK columns | Added `sale_id`, `purchase_id`, `operation_id` columns + indexes; backfilled 370 sale rows, 1 purchase row, 6 operation rows from polymorphic `ref_type`/`ref_id` |
+| 4 | `hr_employees.user_id` FK | Already existed from Round 9, migration now skips gracefully |
+| 5 | Dropped duplicate FK on `drawer_transactions.category_id` | Two constraints existed: `fk_drawer_txn_category` (ON DELETE SET NULL) and `drawer_transactions_category_id_fkey` (no ON DELETE). Kept the SET NULL one. |
+| 6 | Added 53 missing FK indexes | `cleanup_and_indexes.sql`: indexes on all FK columns that lacked them (purchase_orders, expenses, safe_deposits, sales, shifts, etc.) |
+| 7 | Payroll data migration | Migrated 18 rows from old flat `hr_payroll` → normalized `hr_payroll_periods` (2 rows) + `hr_payroll_entries` (18 rows). Dropped old `hr_payroll` table. |
+| 8 | Dropped orphan tables | `payroll_entries` (0 rows), `payroll_periods` (0 rows) dropped. `employees` kept (0 rows but `report_generator.py` imports from legacy `models.py`). |
+| 9 | SECRET_KEY set to real key | Replaced `change-this-in-production-use-random-32-chars` with 64-byte random key in `docker-compose.yml` |
+| 10 | Tauri Ed25519 keypair | Generated on server via `cryptography` library. Private key at `C:\eg-co-erp\.tauri-update-key` (gitignored), public key `XuSBI9QvTk2pTHIWO6xBUvnwECUduW8irlRr97FzzKo=` in `tauri.conf.json` |
+
+### Round 10b (2026-07-17) — FCM push notifications — 3 fixes
+
+| # | Fix | Details |
+|---|-----|---------|
+| 1 | Firebase project created | Project `eg-co-erp` (ID: 573495197643), Android app `com.egco.erp` |
+| 2 | Service account mounted in Docker | `firebase-service-account.json` mounted read-only at `/app/firebase-service-account.json` |
+| 3 | `FIREBASE_CREDENTIALS` env var set | Backend now initializes Firebase Admin SDK on first push notification request |
 
 ### Round 9 (2026-07-17) — 2 fixes
 
@@ -145,7 +168,10 @@ No open issues remain. The system is production-ready.
 |------|---------|
 | `backend/migrations/add_indexes.sql` | Composite indexes + unique constraint DDL |
 | `backend/migrations/fix_nullable_and_fks.sql` | NOT NULL on sales columns + FK on drawer_transactions.category_id |
-| `backend/migrations/typed_fk_columns.sql` | Typed FK columns for drawer_transactions + stock_movements + data backfill |
+| `backend/migrations/typed_fk_columns.sql` | Typed FK columns for drawer_transactions + stock_movements + data backfill (idempotent) |
+| `backend/migrations/cleanup_and_indexes.sql` | Duplicate FK cleanup + 53 missing FK indexes (guarded for dropped tables) |
+| `backend/migrations/migrate_hr_payroll.sql` | Migrate 18 rows from flat hr_payroll to normalized hr_payroll_periods + hr_payroll_entries |
+| `backend/migrations/drop_orphan_tables.sql` | Drop legacy payroll_periods + payroll_entries tables |
 | `backend/app/schemas/collection.py` | Pydantic schemas for product collections |
 | `backend/app/models/financial_category.py` | ORM model for `financial_categories` |
 | `backend/app/models/safe.py` | ORM model for `safes` |
@@ -155,5 +181,34 @@ No open issues remain. The system is production-ready.
 | `frontend/src/pages/pos/modals/*.tsx` | 11 extracted modal components |
 | `frontend/src/utils/pushNotifications.ts` | Capacitor push notification registration |
 | `frontend/src/utils/desktopUpdate.ts` | Tauri auto-update checker |
-| `deploy.sh` | Production deployment script (bash) — push, SSH, migrate, close shifts, Docker rebuild, health check |
-| `deploy.ps1` | Production deployment script (PowerShell) — same as above for Windows |
+| `deploy.sh` | Production deployment script (bash) |
+| `deploy.ps1` | Production deployment script (PowerShell) |
+
+---
+
+## Appendix: Production DB State (2026-07-17 final)
+
+| Metric | Value |
+|--------|-------|
+| Tables | 47 (down from 50 — 3 orphan tables dropped) |
+| FK constraints | 77 |
+| Indexes | 143 |
+| Broken FKs | 0 |
+| Orphan tables remaining | 1 (`employees` — 0 rows, kept for `report_generator.py` compat) |
+
+### Dropped Tables
+
+| Table | Rows | Reason |
+|-------|------|--------|
+| `hr_payroll` | 18 | Migrated to normalized `hr_payroll_periods` + `hr_payroll_entries` |
+| `payroll_entries` | 0 | Legacy, superseded by `hr_payroll_entries` |
+| `payroll_periods` | 0 | Legacy, superseded by `hr_payroll_periods` |
+
+### Secrets on Server
+
+| Secret | Location | Notes |
+|--------|----------|-------|
+| SECRET_KEY | `docker-compose.yml` env var | 64-byte random key |
+| Firebase service account | `C:\eg-co-erp\firebase-service-account.json` | Mounted read-only in Docker |
+| Tauri update private key | `C:\eg-co-erp\.tauri-update-key` | Ed25519, gitignored |
+| SSH password | User `Right Click` | `اهشك الجمبري` — should be changed |
