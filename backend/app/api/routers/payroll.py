@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.base import get_db
-from app.models.payroll import Employee, PayrollPeriod, PayrollEntry
+from app.models.payroll import HrEmployee as Employee, HrPayrollPeriod as PayrollPeriod, HrPayrollEntry as PayrollEntry
 from app.schemas.hr import EmployeeCreate
 from app.dependencies import require_perm
 from app.models.user import User
@@ -51,7 +51,7 @@ async def list_entries(period_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/periods/{period_id}/approve")
-async def approve_period(period_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+async def approve_period(period_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     from sqlalchemy import text as sqlt
     from decimal import Decimal
 
