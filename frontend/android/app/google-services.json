@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "573495197643",
+    "project_id": "eg-co-erp",
+    "storage_bucket": "eg-co-erp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:573495197643:android:3fa2f804968e175e19804e",
+        "android_client_info": {
+          "package_name": "com.egco.erp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYkN2DB7aRZnVVwhyWiFWiaW2LnQ_Kyy0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
