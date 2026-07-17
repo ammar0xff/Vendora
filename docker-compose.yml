@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/inventory_db
-      SECRET_KEY: change-this-in-production-use-random-32-chars
+      SECRET_KEY: 9ctFsYq0nJ2lIDQiat8aBKd9jItGAL0ITFwnPO82m56o4st9Sv6W0QxOtpoBZFru98UsgMvPLvALfwfmLwhsyA
     volumes:
       - uploads_data:/app/uploads
     depends_on:
