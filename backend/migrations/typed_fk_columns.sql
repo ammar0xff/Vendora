@@ -1,23 +1,28 @@
 -- Migration: Add typed FK columns to drawer_transactions and stock_movements
 -- Replaces polymorphic ref_id/ref_type with proper foreign keys
 -- Safe: all columns nullable, no data loss, backward compatible
--- Run: psql -U postgres -d egco -f backend/migrations/typed_fk_columns.sql
-
-BEGIN;
+-- Idempotent: safe to run multiple times
+-- Run: psql -U postgres -d inventory_db -f backend/migrations/typed_fk_columns.sql
 
 -- ─── 1. DrawerTransaction: add FK constraint on existing ref_id ─────────────
 -- ref_id always points to sales.id (or NULL). Add FK + index.
-ALTER TABLE drawer_transactions
-    ADD CONSTRAINT fk_drawer_tx_sale FOREIGN KEY (ref_id) REFERENCES sales(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_drawer_tx_sale'
+    ) THEN
+        ALTER TABLE drawer_transactions
+            ADD CONSTRAINT fk_drawer_tx_sale FOREIGN KEY (ref_id) REFERENCES sales(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- ─── 2. StockMovement: add typed FK columns ─────────────────────────────────
-ALTER TABLE stock_movements
-    ADD COLUMN sale_id     UUID REFERENCES sales(id) ON DELETE SET NULL,
-    ADD COLUMN purchase_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL,
-    ADD COLUMN operation_id UUID;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS sale_id     UUID REFERENCES sales(id) ON DELETE SET NULL;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS purchase_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS operation_id UUID;
 
-CREATE INDEX IF NOT EXISTS idx_stock_movements_sale_id     ON stock_movements(sale_id);
-CREATE INDEX IF NOT EXISTS idx_stock_movements_purchase_id ON stock_movements(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_sale_id      ON stock_movements(sale_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_purchase_id  ON stock_movements(purchase_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_operation_id ON stock_movements(operation_id);
 
 -- ─── 3. Backfill StockMovement.typed columns from existing ref_type/ref_id ──
@@ -40,8 +45,7 @@ WHERE ref_type IN ('dispatch', 'goods_receipt')
   AND operation_id IS NULL;
 
 -- ─── 4. hr_employees: add user_id FK for payroll variance lookup ────────────
-ALTER TABLE hr_employees
-    ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_hr_employees_user_id ON hr_employees(user_id);
 
@@ -49,5 +53,3 @@ CREATE INDEX IF NOT EXISTS idx_hr_employees_user_id ON hr_employees(user_id);
 UPDATE hr_employees SET user_id = emp_code::uuid
 WHERE emp_code ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
   AND user_id IS NULL;
-
-COMMIT;
