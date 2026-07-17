@@ -43,15 +43,27 @@ CREATE INDEX IF NOT EXISTS idx_hr_advances_employee_id ON hr_advances(employee_i
 -- hr_audit_log
 CREATE INDEX IF NOT EXISTS idx_hr_audit_log_performed_by ON hr_audit_log(performed_by);
 
--- hr_payroll
-CREATE INDEX IF NOT EXISTS idx_hr_payroll_created_by ON hr_payroll(created_by);
+-- hr_payroll (may have been dropped)
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'hr_payroll') THEN
+        CREATE INDEX IF NOT EXISTS idx_hr_payroll_created_by ON hr_payroll(created_by);
+    END IF;
+END $$;
 
--- payroll_entries
-CREATE INDEX IF NOT EXISTS idx_payroll_entries_employee_id ON payroll_entries(employee_id);
-CREATE INDEX IF NOT EXISTS idx_payroll_entries_period_id ON payroll_entries(period_id);
+-- payroll_entries (may have been dropped)
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'payroll_entries') THEN
+        CREATE INDEX IF NOT EXISTS idx_payroll_entries_employee_id ON payroll_entries(employee_id);
+        CREATE INDEX IF NOT EXISTS idx_payroll_entries_period_id ON payroll_entries(period_id);
+    END IF;
+END $$;
 
--- payroll_periods
-CREATE INDEX IF NOT EXISTS idx_payroll_periods_created_by ON payroll_periods(created_by);
+-- payroll_periods (may have been dropped)
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'payroll_periods') THEN
+        CREATE INDEX IF NOT EXISTS idx_payroll_periods_created_by ON payroll_periods(created_by);
+    END IF;
+END $$;
 
 -- purchase_order_items
 CREATE INDEX IF NOT EXISTS idx_purchase_order_items_product_id ON purchase_order_items(product_id);
