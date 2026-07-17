@@ -1,6 +1,6 @@
 """HR / Payroll router"""
 import json
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import date
@@ -562,7 +562,6 @@ async def add_advance(data: AdvanceCreate, db: AsyncSession = Depends(get_db), c
 
 async def _report_auth(request: Request, token: str | None = None, db: AsyncSession = Depends(get_db)):
     """Accept JWT as query param or httpOnly cookie for browser-opened HTML reports."""
-    from fastapi import HTTPException, Request as _Req
     from app.core.security import decode_token
     from app.models.user import User
     import uuid
