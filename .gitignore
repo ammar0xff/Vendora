@@ -44,3 +44,6 @@ _*.py
 
 # Tauri update private key (NEVER commit)
 .tauri-update-key
+
+# Firebase service account (NEVER commit)
+firebase-service-account.json
