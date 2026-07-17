@@ -38,11 +38,37 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
    - POSPage.tsx reduced from 2294 → 1558 lines
    - TypeScript compiles clean
 
+3. **DB structure audit + fix:**
+   - Ran comprehensive audit of all 50 tables (FK constraints, orphan tables, missing indexes, broken FKs)
+   - Found: duplicate FK on `drawer_transactions.category_id`, 53 FK columns without indexes, `typed_fk_columns.sql` never applied (rolled back every time)
+   - Fixed `typed_fk_columns.sql` to be idempotent (removed `BEGIN/COMMIT` wrapper, added `IF NOT EXISTS` for constraint)
+   - Created `cleanup_and_indexes.sql`: drops duplicate FK + adds 53 missing indexes
+   - All 3 migrations applied to production: typed FKs now on `stock_movements` (370 rows backfilled), `drawer_transactions.ref_id` now has FK to `sales.id`
+
+4. **Payroll data migration:**
+   - Migrated 18 rows from old flat `hr_payroll` table → normalized `hr_payroll_periods` (2 rows) + `hr_payroll_entries` (18 rows)
+   - Dropped old `hr_payroll` table
+   - Dropped orphan `payroll_periods` and `payroll_entries` tables (0 rows, legacy)
+   - `employees` table kept (0 rows but `report_generator.py` imports from legacy `models.py`)
+
+5. **Tauri auto-update:**
+   - Generated Ed25519 keypair on server via `cryptography` library
+   - Private key saved at `C:\eg-co-erp\.tauri-update-key` on server (gitignored)
+   - Public key `XuSBI9QvTk2pTHIWO6xBUvnwECUduW8irlRr97FzzKo=` set in `tauri.conf.json`
+
+6. **SECRET_KEY:**
+   - Replaced placeholder with real random 64-byte key in `docker-compose.yml`
+   - Backend logs no longer show SECRET_KEY warning
+
 ### Current State
 
-- **98 issues fixed** across all sessions, **2 remaining** (both MEDIUM, both architectural — polymorphic `ref_id` without FK)
+- **104 issues fixed** across all sessions, **0 remaining**
 - `npx tsc --noEmit` passes clean
-- Migration SQL ready: `fix_nullable_and_fks.sql` + `add_indexes.sql`
+- All migrations applied to production ✓
+- All 4 Docker containers healthy ✓
+- SECRET_KEY set ✓
+- Tauri updater keypair generated ✓
+- Orphan tables cleaned up (3 dropped, 1 kept for legacy compat) ✓
 
 ### Key Decisions
 - Square PWA icons auto-generated from uploaded logo (center-crop + resize to 192×192 and 512×512)
@@ -55,18 +81,21 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 - All monetary calculations use `Decimal()`
 - Redis rate limiter auto-fallback: uses Redis when `REDIS_URL` set, in-memory otherwise
 - FCM push: lazy Firebase init, only when `FIREBASE_CREDENTIALS` env var set
+- Migrations must be idempotent (no `BEGIN/COMMIT` wrappers, use `IF NOT EXISTS`)
+- Orphan tables (`employees`, `payroll_periods`, `payroll_entries`, `hr_payroll`) left in DB for now — 0 rows on old tables, 18 on `hr_payroll`
 
 ### Next Steps
-1. **Run migration SQL on production:** `psql -U postgres -d egco -f backend/migrations/typed_fk_columns.sql`
-2. **Docker rebuild** and production testing
-3. **Close the 3 stale open shifts** (احمد الكوك, بلال عادل, عبد اللطيف الديب) if still open
-4. **Fix router port forwarding** for 443 so HTTPS works externally
-5. **For FCM:** Create Firebase project → download `google-services.json` → mount in Docker
-6. **For Tauri auto-update:** Generate Ed25519 keypair (`npx tauri signer generate`), set pubkey in `tauri.conf.json`
+1. **Fix router port forwarding** for 443 so HTTPS works externally
+2. **For FCM:** Create Firebase project → download `google-services.json` → mount in Docker
+3. **Change SSH password** — `اهشك الجمبري` is exposed in this chat
 
 ### Relevant Files
 | File | Role |
 |------|------|
+| `backend/migrations/typed_fk_columns.sql` | Typed FK columns (idempotent) |
+| `backend/migrations/cleanup_and_indexes.sql` | Duplicate FK cleanup + 53 missing indexes |
+| `backend/migrations/migrate_hr_payroll.sql` | Migrate 18 rows from flat hr_payroll to normalized tables |
+| `backend/migrations/drop_orphan_tables.sql` | Drop legacy payroll_periods + payroll_entries tables |
 | `backend/app/api/routers/settings.py` | `upload_logo` (PWA icon generation), `pwa_manifest` |
 | `backend/app/api/routers/sales.py` | `get_sale` — returns `payment_history`, `returns_total`, `remaining` |
 | `backend/app/api/routers/parties.py` | `add_payment` — accepts `sale_id`, updates `sales.paid_amount` |
