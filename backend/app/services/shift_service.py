@@ -288,7 +288,7 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
 
     # Apply variance to payroll as deduction/bonus (same as close_shift_with_manager)
     difference = amount - expected
-    await _record_payroll_variance(db, shift_id, difference, current_user_id, actor)
+    await _record_payroll_variance(db, shift_id, difference, actor, actor)
 
     # Prevent duplicate open shifts for the receiver
     existing = await db.execute(
