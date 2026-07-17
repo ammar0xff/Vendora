@@ -41,3 +41,6 @@ frontend/android/gradle*.zip
 
 # Temp deploy scripts
 _*.py
+
+# Tauri update private key (NEVER commit)
+.tauri-update-key

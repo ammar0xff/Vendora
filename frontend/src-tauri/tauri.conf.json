@@ -39,7 +39,7 @@
     "updater": {
       "active": true,
       "endpoints": ["https://releases.egco-erp.com/{{target}}-{{arch}}/{{current_version}}"],
-      "pubkey": ""
+      "pubkey": "XuSBI9QvTk2pTHIWO6xBUvnwECUduW8irlRr97FzzKo="
     },
     "notification": {
       "all": true
