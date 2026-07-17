@@ -19,8 +19,9 @@
 | Infrastructure | 0 | 0 | 0 | 0 | 0 |
 | **Total** | **0** | **0** | **0** | **0** | **0** |
 
-> **Fixed across 8 rounds:** 102 issues
+> **Fixed across 8 rounds:** 104 issues
 > **Remaining open:** 0
+> **Design decisions confirmed intentional:** 2 (handover no manager gate, require_perm OR semantics)
 
 ---
 
@@ -31,6 +32,13 @@ No open issues remain. The system is production-ready.
 ---
 
 ## Fixed Issues — Complete Record
+
+### Round 9 (2026-07-17) — 2 fixes
+
+| # | File | Fix |
+|---|------|-----|
+| 1 | `services/shift_service.py:291` | `transfer_drawer` NameError crash: `current_user_id` → `actor` |
+| 2 | `models/payroll.py` + `services/shift_service.py` + `routers/hr.py` + `schemas/hr.py` | Added `user_id` FK to `hr_employees`; `_find_employee_by_user_id` queries `user_id` first, falls back to `emp_code` |
 
 ### Round 8 (2026-07-17) — 14 fixes + infrastructure
 
