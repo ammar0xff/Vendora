@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Enum as SAEnum
+from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Index, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
@@ -21,11 +21,18 @@ class MovementType(str, enum.Enum):
 
     @property
     def is_in(self) -> bool:
-        return self in {self.opening_stock, self.purchase, self.return_in, self.adjustment_in, self.transfer_in}
+        return self in IN_TYPES
+
+# Canonical tuples — import from here instead of redeclaring
+IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
+OUT_TYPES = ("sale", "damage", "adjustment_out", "transfer_out")
 
 
 class StockMovement(Base):
     __tablename__ = "stock_movements"
+    __table_args__ = (
+        Index("idx_stock_movements_product_warehouse", "product_id", "warehouse_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), index=True)
@@ -36,6 +43,9 @@ class StockMovement(Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     ref_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     ref_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    sale_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales.id", ondelete="SET NULL"), nullable=True, index=True)
+    purchase_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True)
+    operation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

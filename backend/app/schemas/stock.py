@@ -33,6 +33,9 @@ class StockMovementOut(BaseModel):
     unit_price: Decimal
     ref_id: Optional[uuid.UUID]
     ref_type: Optional[str]
+    sale_id: Optional[uuid.UUID] = None
+    purchase_id: Optional[uuid.UUID] = None
+    operation_id: Optional[uuid.UUID] = None
     note: Optional[str]
     created_by: Optional[uuid.UUID]
     created_at: datetime

@@ -53,13 +53,15 @@ async def get_current_user(
     return user
 
 
-async def get_print_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
-    t = request.cookies.get("access_token") or request.query_params.get("token")
+async def get_print_user(request: Request, token: Optional[str] = None, db: AsyncSession = Depends(get_db)) -> User:
+    # Accept httpOnly cookie OR query param (frontend sends ?token=... for browser-opened tabs)
+    t = request.cookies.get("access_token") or token
     if not t:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required")
     payload = decode_token(t)
+    # Enforce scope exactly "print" — tokens without a scope claim are invalid
     scope = payload.get("scope")
-    if scope and scope != "print":
+    if scope != "print":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token scope")
     user_id = payload.get("sub")
     result = await db.execute(select(User).where(User.id == uuid.UUID(user_id), User.is_active))
@@ -89,14 +91,16 @@ async def require_open_period(db: AsyncSession = Depends(get_db)):
     Uses the same table schema as periods.py (UUID pk, closed_by, closed_at).
     """
     month = datetime.now().strftime("%Y-%m")
-    # Use the correct schema (same as periods.py / models/period.py)
     try:
         status_row = (await db.execute(text(
             "SELECT status FROM accounting_periods WHERE month=:m"
         ), {"m": month})).scalar_one_or_none()
-    except Exception:
-        # Table doesn't exist yet — let the transaction proceed; periods.py creates it on first use
-        return
+    except Exception as e:
+        # Only allow through if the table doesn't exist (42P01 = undefined_table in PG)
+        # For all other errors (connection, auth, etc.) — fail closed
+        if hasattr(e, 'orig') and getattr(e.orig, 'pgcode', None) == '42P01':
+            return  # table doesn't exist yet — no periods are closed
+        raise
     if status_row == "closed":
         raise HTTPException(status_code=400, detail=f"الشهر {month} مغلق — لا يمكن إجراء المعاملات")
 

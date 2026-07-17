@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.base import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_perm
 from fastapi.responses import StreamingResponse
 import io
 
@@ -41,7 +41,7 @@ async def _to_excel(rows: list[dict], sheet_name: str = "Sheet1") -> bytes:
 
 
 @router.get("/products")
-async def export_products(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_products(db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     rows = (await db.execute(text("""
         SELECT p.name, p.company, p.unit, p.retail_price, p.wholesale_price, p.cost_price,
                c.name as category, s.name as subcategory, p.stock_status
@@ -57,7 +57,7 @@ async def export_products(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.get("/sales")
-async def export_sales(from_date: str = Query(None), to_date: str = Query(None), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_sales(from_date: str = Query(None), to_date: str = Query(None), db: AsyncSession = Depends(get_db), _=Depends(require_perm("reports"))):
     params = {}
     whr = ["s.status IN ('confirmed','returned')"]
     if from_date:
@@ -84,7 +84,7 @@ async def export_sales(from_date: str = Query(None), to_date: str = Query(None),
 
 
 @router.get("/stock")
-async def export_stock(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_stock(db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     rows = (await db.execute(text("""
         SELECT p.name, p.company, w.name as warehouse, COALESCE(s.qty,0) as qty, p.unit,
                p.retail_price, p.cost_price, (COALESCE(s.qty,0) * p.cost_price) as stock_value
@@ -106,7 +106,7 @@ async def export_stock(db: AsyncSession = Depends(get_db), _=Depends(get_current
 
 
 @router.get("/customers")
-async def export_customers(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_customers(db: AsyncSession = Depends(get_db), _=Depends(require_perm("sales"))):
     rows = (await db.execute(text("""
         SELECT c.name, c.phone, c.balance, c.credit_limit
         FROM customers c
@@ -119,7 +119,7 @@ async def export_customers(db: AsyncSession = Depends(get_db), _=Depends(get_cur
 
 
 @router.get("/suppliers")
-async def export_suppliers(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_suppliers(db: AsyncSession = Depends(get_db), _=Depends(require_perm("purchases"))):
     rows = (await db.execute(text("""
         SELECT s.name, s.phone, s.balance
         FROM suppliers s
@@ -132,7 +132,7 @@ async def export_suppliers(db: AsyncSession = Depends(get_db), _=Depends(get_cur
 
 
 @router.get("/expenses")
-async def export_expenses(from_date: str = Query(None), to_date: str = Query(None), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_expenses(from_date: str = Query(None), to_date: str = Query(None), db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     params = {}
     whr = ["1=1"]
     if from_date:
@@ -156,7 +156,7 @@ async def export_expenses(from_date: str = Query(None), to_date: str = Query(Non
 
 
 @router.get("/purchases")
-async def export_purchases(from_date: str = Query(None), to_date: str = Query(None), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def export_purchases(from_date: str = Query(None), to_date: str = Query(None), db: AsyncSession = Depends(get_db), _=Depends(require_perm("purchases"))):
     params = {}
     whr = ["1=1"]
     if from_date:

@@ -1,15 +1,17 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
+const serverUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
 const config: CapacitorConfig = {
   appId: 'com.egco.erp',
   appName: 'EG-CO ERP',
   webDir: 'dist',
   server: {
-    url: 'http://81.10.109.140',
-    cleartext: true,
+    url: serverUrl,
+    cleartext: !serverUrl.startsWith('https'),
   },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: !serverUrl.startsWith('https'),
   },
   plugins: {
     SplashScreen: {
@@ -21,6 +23,9 @@ const config: CapacitorConfig = {
       style: 'DARK',
       backgroundColor: '#1e3a5f',
       overlaysWebView: false,
+    },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
     },
   },
 };

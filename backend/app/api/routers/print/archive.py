@@ -30,7 +30,7 @@ async def print_archive_doc(doc_id: uuid.UUID,
         import json as _json
         try:
             meta = _json.loads(_raw_meta)
-        except (json.JSONDecodeError, ValueError):
+        except (_json.JSONDecodeError, ValueError):
             meta = {}
     else:
         meta = _raw_meta or {}

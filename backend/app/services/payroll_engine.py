@@ -43,7 +43,7 @@ def parse_shift(shift_str: str, shifts_map: dict = None) -> tuple:
     if len(nums) >= 2:
         s, e = int(nums[0]), int(nums[1])
         # Detect AM/PM from Arabic keywords
-        shift_str.lower()
+        shift_str = shift_str.lower()
         parts_ar = shift_str.split('الى') if 'الى' in shift_str else shift_str.split('إلى')
         if len(parts_ar) == 2:
             start_part, end_part = parts_ar[0], parts_ar[1]
@@ -252,7 +252,7 @@ def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
                 if eff_in > shift_start_t:
                     raw_late = int((eff_in - shift_start_t).total_seconds() / 60)
                     if not ignore_lateness:
-                        late_mins = 0 if raw_late <= grace_period else raw_late
+                        late_mins = 0 if raw_late <= grace_period else raw_late - grace_period
                     if status == 'excuse' and excuse_no_late:
                         late_mins = 0
                         note_parts.append('عذر (إلغاء التأخير)')

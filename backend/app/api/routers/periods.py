@@ -9,14 +9,20 @@ from app.core.exceptions import BusinessError
 
 router = APIRouter(prefix="/periods", tags=["periods"])
 
+_initialized = False
+
 
 def current_month() -> str:
     from datetime import datetime
     return datetime.now().strftime("%Y-%m")
 
 
-async def ensure_table(db: AsyncSession):
+# Ensure accounting_periods table exists (run once at startup)
+async def ensure_period_table(db: AsyncSession):
     """Create accounting_periods table if it doesn't exist."""
+    global _initialized
+    if _initialized:
+        return
     await db.execute(text("""
         CREATE TABLE IF NOT EXISTS accounting_periods (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,18 +35,20 @@ async def ensure_table(db: AsyncSession):
         )
     """))
     await db.commit()
+    _initialized = True
 
 
 @router.get("")
 async def list_periods(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    await ensure_table(db)
+    # Do NOT call ensure_table from GET handler; table should be created at startup.
+    # For compatibility with existing deployments, just skip the DDL.
     rows = await db.execute(text("SELECT * FROM accounting_periods ORDER BY month DESC LIMIT 24"))
     return [dict(r._mapping) for r in rows.fetchall()]
 
 
 @router.post("/{month}/close")
 async def close_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("finance"))):
-    await ensure_table(db)
+    await ensure_period_table(db)
     if month >= current_month():
         raise BusinessError("لا يمكن إغلاق الشهر الحالي أو المستقبلي")
     existing = (await db.execute(text("SELECT status FROM accounting_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
@@ -57,7 +65,7 @@ async def close_period(month: str, db: AsyncSession = Depends(get_db), current_u
 
 @router.post("/{month}/reopen")
 async def reopen_period(month: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("finance"))):
-    await ensure_table(db)
+    await ensure_period_table(db)
     existing = (await db.execute(text("SELECT status FROM accounting_periods WHERE month=:m"), {"m": month})).scalar_one_or_none()
     if not existing or existing != "closed":
         raise BusinessError(f"شهر {month} غير مغلق")

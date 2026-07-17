@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  build: { sourcemap: true },
+  build: { sourcemap: !process.env.CI },
   test: {
     environment: 'jsdom',
     exclude: ['e2e/**', 'node_modules/**'],

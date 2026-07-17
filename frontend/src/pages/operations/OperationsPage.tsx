@@ -275,7 +275,7 @@ export default function OperationsPage() {
                   if (!fromWh && activeOp !== 'goods_receipt') return toast.error('اختر المخزن المصدر أولاً')
                   submitMut.mutate()
                 }}
-                disabled={!items.length || submitMut.isPending}
+                disabled={!items.length || !toWh || (!fromWh && activeOp !== 'goods_receipt') || submitMut.isPending}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
                 style={{ background: opConfig[activeOp].color }}
               >

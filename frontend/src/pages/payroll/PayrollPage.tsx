@@ -41,6 +41,10 @@ function AttendanceTable({ month, employees }: { month: string; employees: any[]
   })
   const qc = useQueryClient()
   const [editRec, setEditRec] = useState<any>(null)
+  const [editCheckIn, setEditCheckIn] = useState('')
+  const [editCheckOut, setEditCheckOut] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [editReason, setEditReason] = useState('')
   const saveMut = useMutation({
     mutationFn: (d: any) => hrApi.addAttendance(d),
     onSuccess: () => { toast.success('تم الحفظ'); setEditRec(null); qc.invalidateQueries({ queryKey: ['hr-attendance'] }) },
@@ -64,7 +68,7 @@ function AttendanceTable({ month, employees }: { month: string; employees: any[]
                 <td className="text-xs text-slate-600 font-mono">{a.check_out ? new Date(a.check_out).toLocaleTimeString('ar-EG') : '-'}</td>
                 <td><span className={statusColors[a.status] || 'badge-gray'}>{statusLabels[a.status] || a.status}</span></td>
                 <td className="text-xs text-slate-400">{a.edit_reason || ''}</td>
-                <td><button onClick={() => setEditRec(a)} className="text-xs text-blue-600 hover:underline">تعديل</button></td>
+                <td>                <button onClick={() => { setEditRec(a); setEditCheckIn(a.check_in?.slice(0,16) || ''); setEditCheckOut(a.check_out?.slice(0,16) || ''); setEditStatus(a.status); setEditReason(a.edit_reason || '') }} className="text-xs text-blue-600 hover:underline">تعديل</button></td>
               </tr>
             ))}
           </tbody>
@@ -75,25 +79,25 @@ function AttendanceTable({ month, employees }: { month: string; employees: any[]
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-slate-600 mb-1">وقت الدخول</label>
-                <input type="datetime-local" className="input" defaultValue={editRec.check_in?.slice(0,16)} id="ci" /></div>
+                <input type="datetime-local" className="input" value={editCheckIn} onChange={e => setEditCheckIn(e.target.value)} /></div>
               <div><label className="block text-sm font-medium text-slate-600 mb-1">وقت الخروج</label>
-                <input type="datetime-local" className="input" defaultValue={editRec.check_out?.slice(0,16)} id="co" /></div>
+                <input type="datetime-local" className="input" value={editCheckOut} onChange={e => setEditCheckOut(e.target.value)} /></div>
             </div>
             <div><label className="block text-sm font-medium text-slate-600 mb-1">الحالة</label>
-              <select className="input" defaultValue={editRec.status} id="st">
+              <select className="input" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
                 {['present','absent','leave','mission','excuse'].map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
               </select></div>
             <div><label className="block text-sm font-medium text-slate-600 mb-1">سبب التعديل</label>
-              <input className="input" defaultValue={editRec.edit_reason || ''} id="er" /></div>
+              <input className="input" value={editReason} onChange={e => setEditReason(e.target.value)} /></div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setEditRec(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
               <button onClick={() => saveMut.mutate({
                 employee_id: editRec.employee_id,
                 work_date: editRec.work_date,
-                check_in: (document.getElementById('ci') as HTMLInputElement)?.value || null,
-                check_out: (document.getElementById('co') as HTMLInputElement)?.value || null,
-                status: (document.getElementById('st') as HTMLSelectElement)?.value,
-                edit_reason: (document.getElementById('er') as HTMLInputElement)?.value,
+                check_in: editCheckIn || null,
+                check_out: editCheckOut || null,
+                status: editStatus,
+                edit_reason: editReason,
                 edited: true,
               })} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
             </div>

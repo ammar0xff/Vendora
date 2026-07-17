@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 from typing import List
 from pydantic import BaseModel

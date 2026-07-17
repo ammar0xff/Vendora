@@ -47,15 +47,41 @@ class SaleCreate(BaseModel):
     customer_id: uuid.UUID | None = None
     shift_id: uuid.UUID | None = None
     warehouse_id: uuid.UUID
-    sale_mode: str = "retail"
+    sale_mode: str = Field(default="retail", pattern=r"^(retail|wholesale)$")
     items: list[SaleItemCreate]
     is_credit: bool = False
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
-    payment_method: str = "cash"
+    payment_method: str = Field(default="cash", pattern=r"^(cash|wallet|credit|bank|cheque)$")
     wallet_id: uuid.UUID | None = None
     paid_amount: Decimal | None = Field(default=None, ge=0)
     notes: str | None = None
     payments: list[SplitPaymentItem] | None = None
+    local_id: str | None = None  # idempotency key for offline sync dedup
+
+
+class UpdateSaleItem(BaseModel):
+    product_id: uuid.UUID
+    qty: Decimal = Field(..., gt=0)
+    unit_price: Decimal
+    unit_cost: Decimal = Decimal("0")
+    discount: Decimal = Decimal("0")
+
+
+class UpdateSale(BaseModel):
+    items: list[UpdateSaleItem] = []
+    discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
+    notes: str | None = None
+    customer_id: uuid.UUID | None = None
+
+
+class PartialReturnItem(BaseModel):
+    product_id: uuid.UUID
+    qty: Decimal = Field(..., gt=0)
+
+
+class PartialReturnRequest(BaseModel):
+    items: list[PartialReturnItem]
+    shift_id: uuid.UUID | None = None
 
 
 class SaleItemOut(BaseModel):

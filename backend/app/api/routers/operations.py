@@ -105,12 +105,12 @@ async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_d
             raise HTTPException(400, f"رصيد غير كافٍ للمنتج {prod.name if prod else ''} — المتاح {balance}")
         db.add(StockMovement(product_id=item.product_id, warehouse_id=data.from_warehouse_id,
                              movement_type=MovementType.transfer_out, qty=item.qty,
-                             ref_id=ref_id, ref_type="dispatch", note=item.note or data.notes,
-                             created_by=current_user.id))
+                             ref_id=ref_id, ref_type="dispatch", operation_id=ref_id,
+                             note=item.note or data.notes, created_by=current_user.id))
         db.add(StockMovement(product_id=item.product_id, warehouse_id=data.to_warehouse_id,
                              movement_type=MovementType.transfer_in, qty=item.qty,
-                             ref_id=ref_id, ref_type="dispatch", note=item.note or data.notes,
-                             created_by=current_user.id))
+                             ref_id=ref_id, ref_type="dispatch", operation_id=ref_id,
+                             note=item.note or data.notes, created_by=current_user.id))
         total_qty += item.qty
         items_detail.append({"product_id": str(item.product_id), "name": prod.name if prod else "", "qty": float(item.qty)})
 
@@ -139,8 +139,8 @@ async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(ge
         db.add(StockMovement(product_id=item.product_id, warehouse_id=data.warehouse_id,
                              movement_type=MovementType.purchase, qty=item.qty,
                              unit_cost=item.unit_cost,
-                             ref_id=ref_id, ref_type="goods_receipt", note=data.notes,
-                             created_by=current_user.id))
+                             ref_id=ref_id, ref_type="goods_receipt", operation_id=ref_id,
+                             note=data.notes, created_by=current_user.id))
         total_cost += item.qty * item.unit_cost
         items_detail.append({"product_id": str(item.product_id), "name": prod.name if prod else "",
                               "qty": float(item.qty), "unit_cost": float(item.unit_cost)})

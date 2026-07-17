@@ -22,7 +22,10 @@ async def daily_sales(db: AsyncSession, target_date: date, warehouse_id: str | N
         .group_by(Sale.id, Sale.discount_amount)
     )
     if warehouse_id:
-        inner = inner.where(Sale.warehouse_id == _uuid.UUID(warehouse_id))
+        try:
+            inner = inner.where(Sale.warehouse_id == _uuid.UUID(warehouse_id))
+        except ValueError:
+            pass
     inner_sub = inner.subquery()
     q = select(
         func.coalesce(func.sum(inner_sub.c.items_net - func.coalesce(inner_sub.c.discount_amount, 0)), 0).label("total_sales"),
@@ -50,7 +53,10 @@ async def monthly_sales(db: AsyncSession, year: int, month: int, warehouse_id: s
         .group_by(Sale.id, Sale.discount_amount)
     )
     if warehouse_id:
-        inner = inner.where(Sale.warehouse_id == _uuid.UUID(warehouse_id))
+        try:
+            inner = inner.where(Sale.warehouse_id == _uuid.UUID(warehouse_id))
+        except ValueError:
+            pass
     inner_sub = inner.subquery()
     q = select(
         func.coalesce(func.sum(inner_sub.c.items_net - func.coalesce(inner_sub.c.discount_amount, 0)), 0).label("total_sales"),
@@ -84,7 +90,12 @@ async def profit_report(db: AsyncSession, from_date: str, to_date: str, warehous
     from sqlalchemy import text as sqlt
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date)
-    wh_filter = [Sale.warehouse_id == _uuid.UUID(warehouse_id)] if warehouse_id else []
+    wh_filter: list = []
+    if warehouse_id:
+        try:
+            wh_filter = [Sale.warehouse_id == _uuid.UUID(warehouse_id)]
+        except ValueError:
+            pass
 
     rev = await db.execute(
         select(func.coalesce(func.sum(SaleItem.qty * SaleItem.unit_price - SaleItem.discount), 0))
@@ -103,9 +114,13 @@ async def profit_report(db: AsyncSession, from_date: str, to_date: str, warehous
 
     # Expenses from drawer transactions
     exp_params: dict = {"start": start, "end": end}
-    exp_wh = "AND s.warehouse_id = :wh_id" if warehouse_id else ""
+    exp_wh = ""
     if warehouse_id:
-        exp_params["wh_id"] = _uuid.UUID(warehouse_id)
+        try:
+            exp_params["wh_id"] = _uuid.UUID(warehouse_id)
+            exp_wh = "AND s.warehouse_id = :wh_id"
+        except ValueError:
+            pass
     exp_rows = await db.execute(sqlt(f"""
         SELECT dt.note, SUM(dt.amount) as total
         FROM drawer_transactions dt

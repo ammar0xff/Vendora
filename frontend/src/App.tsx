@@ -68,6 +68,7 @@ function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: 
 
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import { checkForDesktopUpdates } from './utils/desktopUpdate'
 
 /** Redirect /print/* → /api/print/* so nginx proxies it to the backend */
 function PrintRedirect() {
@@ -103,6 +104,7 @@ function FaviconUpdater() {
 }
 
 export default function App() {
+  useEffect(() => { checkForDesktopUpdates() }, [])
   return (
     <QueryClientProvider client={qc}>
       <FaviconUpdater />

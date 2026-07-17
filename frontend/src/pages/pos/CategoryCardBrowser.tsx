@@ -26,7 +26,7 @@ export default function CategoryCardBrowser({
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: subcategoriesApi.list })
 
-  const { data: productsRaw } = useQuery({
+  const { data: productsRaw, isLoading: loadingProducts } = useQuery({
     queryKey: ['card-products', selectedSubId],
     queryFn: () => productsApi.list({ page_size: 5000, subcategory_id: selectedSubId! }),
     enabled: !!selectedSubId,
@@ -57,7 +57,7 @@ export default function CategoryCardBrowser({
   }
 
   if (selectedSubId) {
-    const subProducts = (products || []).filter((p: any) => {
+    const subProducts = loadingProducts ? [] : (products || []).filter((p: any) => {
       const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
       return q === null || q > 0
     })
@@ -75,7 +75,11 @@ export default function CategoryCardBrowser({
           <span className="text-xs font-bold text-slate-800">{selectedSub?.name || 'الكل'}</span>
         </div>
 
-        {subProducts.length === 0 ? (
+        {loadingProducts ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-sm text-slate-400 animate-pulse">جاري تحميل المنتجات...</div>
+          </div>
+        ) : subProducts.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">لا توجد منتجات</div>
         ) : (
           <div className="flex-1 overflow-y-auto">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../api/client'
+import { suppliersApi } from '../../api/endpoints'
 import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
@@ -8,16 +8,7 @@ import { Plus, Eye, Edit2, Trash2, TrendingUp, TrendingDown } from 'lucide-react
 import ExportButton from '../../components/ui/ExportButton'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
-const suppliersApi = {
-  list: (type?: string) => api.get('/suppliers', { params: type ? { type } : {} }).then(r => r.data),
-  create: (d: any) => api.post('/suppliers', d).then(r => r.data),
-  update: (id: string, d: any) => api.put(`/suppliers/${id}`, d).then(r => r.data),
-  delete: (id: string) => api.delete(`/suppliers/${id}`),
-  ledger: (id: string) => api.get(`/suppliers/${id}/ledger`).then(r => r.data),
-  addTx: (id: string, d: any) => api.post(`/suppliers/${id}/transactions`, d).then(r => r.data),
-}
-
-function SupplierForm({ initial, onSave, onClose }: any) {
+function SupplierForm({ initial, onSave, onClose, saving }: any) {
   const [form, setForm] = useState(initial || { name: '', phone: '', address: '', type: 'supplier', notes: '' })
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
   return (
@@ -31,7 +22,7 @@ function SupplierForm({ initial, onSave, onClose }: any) {
       </div>
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+        <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>{saving ? 'جاري الحفظ...' : 'حفظ'}</button>
       </div>
     </form>
   )
@@ -189,10 +180,10 @@ export default function SuppliersPage() {
         emptyAction={{ label: 'إضافة مورد', onClick: () => setShowAdd(true) }} />
 
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة جديد">
-        <SupplierForm onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
+        <SupplierForm saving={createMut.isPending} onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
       </Modal>
       <Modal open={!!editItem} onClose={() => setEditItem(null)} title="تعديل">
-        {editItem && <SupplierForm initial={editItem} onSave={(d: any) => updateMut.mutate({ id: editItem.id, d })} onClose={() => setEditItem(null)} />}
+        {editItem && <SupplierForm saving={updateMut.isPending} initial={editItem} onSave={(d: any) => updateMut.mutate({ id: editItem.id, d })} onClose={() => setEditItem(null)} />}
       </Modal>
       <Modal open={!!ledgerItem} onClose={() => setLedgerItem(null)} title={`كشف حساب — ${ledgerItem?.name}`} size="lg">
         {ledgerItem && <LedgerModal supplier={ledgerItem} onClose={() => setLedgerItem(null)} />}

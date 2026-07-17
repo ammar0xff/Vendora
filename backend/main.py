@@ -23,6 +23,12 @@ import app.models.archive
 import app.models.payroll
 import app.models.settings
 import app.models.customer_payment
+import app.models.expense
+import app.models.period
+import app.models.financial_category
+import app.models.safe
+import app.models.sale_payment
+import app.models.device_token
 
 
 @asynccontextmanager

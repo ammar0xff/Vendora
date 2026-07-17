@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm
+from pydantic import BaseModel
+from typing import Any
 import logging
 import re
 
@@ -12,6 +14,10 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
+
+
+class SettingsUpdate(BaseModel):
+    settings: dict[str, Any]
 
 
 @router.post("/upload-logo")
@@ -89,10 +95,10 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("")
-async def update_settings(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
+async def update_settings(data: SettingsUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     import json as _json
     from app.models.settings import StoreSetting
-    for key, value in data.items():
+    for key, value in data.settings.items():
         # Store lists/dicts as JSON string
         str_value = _json.dumps(value, ensure_ascii=False) if isinstance(value, (list, dict)) else str(value)
         result = await db.execute(select(StoreSetting).where(StoreSetting.key == key))

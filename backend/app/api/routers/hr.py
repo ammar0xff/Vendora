@@ -1,4 +1,5 @@
 """HR / Payroll router"""
+import json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -8,7 +9,7 @@ from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
-from app.schemas.hr import EmployeeCreate, EmployeeUpdate, AttendanceCreate, PayrollCalculate, PayrollUpdate, AdvanceCreate
+from app.schemas.hr import EmployeeCreate, EmployeeUpdate, AttendanceCreate, PayrollCalculate, PayrollUpdate, AdvanceCreate, ShiftCreate, HRSettingsUpdate
 from sqlalchemy import text
 import uuid
 
@@ -41,12 +42,12 @@ async def list_shifts(db: AsyncSession = Depends(get_db), _=Depends(get_current_
 
 
 @router.post("/shifts")
-async def create_shift(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+async def create_shift(data: ShiftCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     sid = str(int(uuid.uuid4().int % 10**10))
     await db.execute(text("INSERT INTO hr_shifts (id, name, start_time, end_time, description) VALUES (:id,:name,:st,:et,:desc)"),
-                     {'id': sid, 'name': data['name'], 'st': data['start_time'], 'et': data['end_time'], 'desc': data.get('description','')})
+                     {'id': sid, 'name': data.name, 'st': data.start_time, 'et': data.end_time, 'desc': data.description})
     await db.commit()
-    return {'id': sid, 'name': data['name']}
+    return {'id': sid, 'name': data.name}
 
 
 @router.get("/settings")
@@ -56,8 +57,8 @@ async def get_hr_settings(db: AsyncSession = Depends(get_db), _=Depends(require_
 
 
 @router.put("/settings")
-async def update_hr_settings(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
-    for k, v in data.items():
+async def update_hr_settings(data: HRSettingsUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+    for k, v in data.settings.items():
         await db.execute(text("INSERT INTO hr_settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value"),
                          {'k': k, 'v': str(v)})
     await db.commit()
@@ -115,7 +116,9 @@ async def update_employee(emp_id: uuid.UUID, data: EmployeeUpdate, db: AsyncSess
 
 @router.delete("/employees/{emp_id}", status_code=204)
 async def delete_employee(emp_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
-    await db.execute(text("UPDATE hr_employees SET is_active=FALSE WHERE id=:id"), {'id': emp_id})
+    result = await db.execute(text("UPDATE hr_employees SET is_active=FALSE WHERE id=:id"), {'id': emp_id})
+    if result.rowcount == 0:
+        raise HTTPException(404, "Employee not found")
     await db.commit()
 
 
@@ -551,24 +554,25 @@ async def add_advance(data: AdvanceCreate, db: AsyncSession = Depends(get_db), c
         INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details)
         VALUES ('create', 'advance', :eid, :by, :note, CAST(:det AS jsonb))
     """), {'eid': str(data.employee_id), 'by': current_user.id,
-           'note': data.note or '', 'det': f'{{"type":"{record_type}","amount":{data.amount}}}'})
+           'note': data.note or '', 'det': json.dumps({"type": record_type, "amount": float(data.amount)})})
     await db.commit()
     return {"detail": "saved"}
 
 
-async def _report_auth(token: str | None = None, db: AsyncSession = Depends(get_db)):
-    """Accept JWT as query param for browser-opened HTML reports."""
-    if not token:
-        from fastapi import HTTPException
-        raise HTTPException(401, "Not authenticated")
+async def _report_auth(request: Request, token: str | None = None, db: AsyncSession = Depends(get_db)):
+    """Accept JWT as query param or httpOnly cookie for browser-opened HTML reports."""
+    from fastapi import HTTPException, Request as _Req
     from app.core.security import decode_token
     from app.models.user import User
     import uuid
-    payload = decode_token(token)
+    # Try cookie first, then query param
+    t = request.cookies.get("access_token") or token
+    if not t:
+        raise HTTPException(401, "Not authenticated")
+    payload = decode_token(t)
     result = await db.execute(select(User).where(User.id == uuid.UUID(payload["sub"])))
     user = result.scalar_one_or_none()
     if not user or not user.is_active:
-        from fastapi import HTTPException
         raise HTTPException(401)
     return user
 
@@ -576,7 +580,8 @@ async def _report_auth(token: str | None = None, db: AsyncSession = Depends(get_
 async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML payroll report for all employees — matches Qt ReportGenerator.generate_payroll_report()"""
     import sys
-    sys.path.insert(0, '/app')
+    if '/app' not in sys.path:
+        sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
     from app.services.payroll_engine import calculate_payroll
 
@@ -644,9 +649,9 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
                           db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate individual employee HTML report — matches Qt generate_employee_report() and generate_payslip_ticket()"""
     import sys
-    sys.path.insert(0, '/app')
+    if '/app' not in sys.path:
+        sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
-    from models import Employee, Attendance
     from app.services.payroll_engine import calculate_payroll
 
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
@@ -746,7 +751,8 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
 async def attendance_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML attendance report — matches Qt generate_attendance_report()"""
     import sys
-    sys.path.insert(0, '/app')
+    if '/app' not in sys.path:
+        sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
 
     rows = (await db.execute(text("""

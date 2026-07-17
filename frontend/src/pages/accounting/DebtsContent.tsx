@@ -3,8 +3,19 @@ import api from '../../api/client'
 import { customersApi } from '../../api/endpoints'
 
 export default function DebtsContent() {
-  const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() })
-  const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers').then(r => r.data) })
+  const { data: customers, isLoading: loadingCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() })
+  const { data: suppliers, isLoading: loadingSuppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers').then(r => r.data) })
+
+  if (loadingCustomers || loadingSuppliers) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="card h-24 animate-pulse bg-slate-50" />
+          <div className="card h-24 animate-pulse bg-slate-50" />
+        </div>
+      </div>
+    )
+  }
 
   const customerDebts = (customers || []).filter((c: any) => Number(c.balance_due || 0) > 0)
     .sort((a: any, b: any) => Number(b.balance_due) - Number(a.balance_due))

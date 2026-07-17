@@ -37,10 +37,12 @@ export default function FinanceLedgerContent() {
   const addCatMut = useMutation({
     mutationFn: () => api.post('/financial-categories', { name: newCatName, type: newCatType, color: newCatColor }),
     onSuccess: () => { toast.success('تمت الإضافة'); setNewCatName(''); qc.invalidateQueries({ queryKey: ['financial-categories'] }) },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'خطأ'),
   })
   const deleteCatMut = useMutation({
     mutationFn: (id: string) => api.delete(`/financial-categories/${id}`),
     onSuccess: () => { toast.success('تم الحذف'); qc.invalidateQueries({ queryKey: ['financial-categories'] }) },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'خطأ'),
   })
 
   const expenses = ledger?.categories?.filter((c: any) => c.type === 'expense') || []

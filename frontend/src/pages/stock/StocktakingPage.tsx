@@ -78,9 +78,9 @@ export default function StocktakingPage() {
     if (!toSave.length) return toast.error('لا توجد كميات لحفظها')
     setSaving(true)
     try {
-      for (const [pid, e] of toSave) {
+      await Promise.all(toSave.map(([pid, e]) => {
         const product = products?.find((p: any) => p.id === pid)
-        await api.post('/stock/movements', {
+        return api.post('/stock/movements', {
           product_id: pid,
           warehouse_id: activeWarehouseId,
           movement_type: e.type || 'opening_stock',
@@ -88,7 +88,7 @@ export default function StocktakingPage() {
           unit_cost: Number(product?.cost_price) || 0,
           note: e.type === 'opening_stock' ? 'رصيد افتتاحي' : 'تصحيح جرد',
         })
-      }
+      }))
       toast.success(`✅ تم حفظ ${toSave.length} منتج في ${activeWh?.name}`)
       setEntries({})
       qc.invalidateQueries({ queryKey: ['products-all-stocktaking'] })

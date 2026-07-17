@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
-import { stockApi } from '../../api/endpoints'
+import { stockApi, suppliersApi } from '../../api/endpoints'
 import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
@@ -11,7 +11,6 @@ const purchasesApi = {
   suggestions: () => api.get('/purchases/suggestions').then(r => r.data),
   create: (d: any) => api.post('/purchases', d).then(r => r.data),
 }
-const suppliersApi = { list: () => api.get('/suppliers').then(r => r.data) }
 
 export default function PurchaseOrdersPage() {
   const qc = useQueryClient()

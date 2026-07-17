@@ -7,7 +7,8 @@ from app.core.pagination import Page
 from app.schemas.product import (
     CategoryCreate, CategoryOut, SubcategoryCreate, SubcategoryOut, 
     ProductCreate, ProductUpdate, ProductOut,
-    ProductBarcodeCreate, ProductBarcodeOut, ProductWithBarcodes
+    ProductBarcodeCreate, ProductBarcodeOut, ProductWithBarcodes,
+    MoveProduct,
 )
 from app.models.product import Category, Subcategory, Product, ProductBarcode
 from app.models.user import User
@@ -63,16 +64,14 @@ async def update_subcategory(sub_id: uuid.UUID, data: SubcategoryCreate, db: Asy
 
 
 @router.post("/products/{product_id}/move")
-async def move_product(product_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("inventory"))):
+async def move_product(product_id: uuid.UUID, data: MoveProduct, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("inventory"))):
     """Move product to a different subcategory."""
     result = await db.execute(select(Product).where(Product.id == product_id))
     p = result.scalar_one_or_none()
     if not p:
         raise NotFoundError()
 
-    new_subcategory_id = data.get("subcategory_id")
-    if not new_subcategory_id:
-        raise BusinessError("معرف التصنيف الفرعي الجديد مطلوب")
+    new_subcategory_id = data.subcategory_id
     
     # Validate new subcategory exists
     sub_result = await db.execute(select(Subcategory).where(Subcategory.id == new_subcategory_id))
@@ -241,13 +240,18 @@ async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_d
 async def product_movements(product_id: uuid.UUID, from_date: str | None = None, to_date: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Per-product movement log — used in product analytics."""
     from app.models.stock import StockMovement
+    from datetime import datetime
     q = select(StockMovement).where(StockMovement.product_id == product_id).order_by(StockMovement.created_at.desc())
     if from_date:
-        from datetime import datetime
-        q = q.where(StockMovement.created_at >= datetime.fromisoformat(from_date))
+        try:
+            q = q.where(StockMovement.created_at >= datetime.fromisoformat(from_date))
+        except ValueError:
+            raise HTTPException(400, f"Invalid from_date format: {from_date}")
     if to_date:
-        from datetime import datetime
-        q = q.where(StockMovement.created_at <= datetime.fromisoformat(to_date))
+        try:
+            q = q.where(StockMovement.created_at <= datetime.fromisoformat(to_date))
+        except ValueError:
+            raise HTTPException(400, f"Invalid to_date format: {to_date}")
     result = await db.execute(q)
     return result.scalars().all()
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.dependencies import get_db, get_current_user, require_perm
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 import uuid
 
@@ -20,6 +20,13 @@ class TxIn(BaseModel):
     type: str  # debit / credit
     reference_doc: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v):
+        if v not in ("debit", "credit"):
+            raise ValueError("type must be 'debit' or 'credit'")
+        return v
 
 @router.get("")
 async def list_suppliers(type: Optional[str] = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
@@ -53,6 +60,10 @@ async def update_supplier(sid: uuid.UUID, data: SupplierIn, db: AsyncSession = D
 
 @router.delete("/{sid}", status_code=204)
 async def delete_supplier(sid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
+    # Check for linked purchase orders before soft-deleting.
+    po_count = await db.execute(text("SELECT COUNT(*) FROM purchase_orders WHERE supplier_id=:id"), {"id": sid})
+    if (po_count.scalar_one() or 0) > 0:
+        raise HTTPException(400, "Cannot delete supplier with linked purchase orders")
     # Soft-delete to avoid FK constraint issues and keep history.
     await db.execute(text("UPDATE suppliers SET is_active=false WHERE id=:id"), {"id": sid})
     await db.commit()

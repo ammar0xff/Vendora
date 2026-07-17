@@ -168,7 +168,7 @@ async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseRec
             qty=qty,
             unit_cost=cost,
         )
-        await record_movement(db, mv, current_user.id, ref_id=po.id, ref_type="purchase")
+        await record_movement(db, mv, current_user.id, ref_id=po.id, ref_type="purchase", purchase_id=po.id)
         item.qty_received = qty
         item.unit_cost = cost
 

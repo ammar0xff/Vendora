@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid as _uuid
 from decimal import Decimal
 from pydantic import BaseModel, Field
 
@@ -22,7 +23,12 @@ class CustomerUpdate(BaseModel):
 class CustomerPaymentCreate(BaseModel):
     amount: Decimal = Field(..., gt=0)
     note: str | None = None
-    sale_id: str | None = None
+    sale_id: _uuid.UUID | None = None
+
+
+class SetBalanceRequest(BaseModel):
+    balance: Decimal = Field(default=Decimal("0"))
+    note: str | None = None
 
 
 class SupplierCreate(BaseModel):

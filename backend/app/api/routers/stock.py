@@ -5,7 +5,7 @@ from decimal import Decimal
 from app.db.base import get_db
 from app.schemas.stock import StockMovementCreate, StockMovementOut, TransferRequest
 from app.schemas.warehouse import WarehouseCreate, WarehouseUpdate
-from app.models.stock import StockMovement
+from app.models.stock import StockMovement, IN_TYPES
 from app.models.warehouse import Warehouse
 from app.services import stock_service
 from app.dependencies import get_current_user, require_perm, require_open_period, verify_warehouse_access
@@ -78,7 +78,6 @@ async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID]
     await verify_warehouse_access(db, current_user, warehouse_id)
     if not product_ids:
         return {}
-    IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
     result = await db.execute(
         select(
             StockMovement.product_id,
@@ -98,7 +97,6 @@ async def get_total_balance_bulk(product_ids: list[uuid.UUID] = Body(...), db: A
     from sqlalchemy import func, case as sa_case
     if not product_ids:
         return {}
-    IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
     result = await db.execute(
         select(
             StockMovement.product_id,
@@ -144,9 +142,11 @@ async def reset_warehouse_stock(
 ):
     """Delete all stock movements for a warehouse (reset inventory)."""
     from sqlalchemy import text as sqlt
+    count = (await db.execute(sqlt("SELECT COUNT(*) FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})).scalar() or 0
+    if count > 1000:
+        raise BusinessError(f"لا يمكن إعادة تعيين {count} حركة — تجاوز الحد الأقصى")
     await db.execute(sqlt("DELETE FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})
     await db.execute(sqlt("DELETE FROM warehouse_product_status WHERE warehouse_id = :wid"), {"wid": warehouse_id})
-    # Reset products that now have no movements and no status records back to untracked
     await db.execute(sqlt("""
         UPDATE products SET stock_status = 'untracked'
         WHERE id NOT IN (SELECT DISTINCT product_id FROM stock_movements)
@@ -201,6 +201,9 @@ async def bulk_adjustment(data: list[StockMovementCreate], db: AsyncSession = De
     """Bulk stock adjustment — equivalent to Qt's AddStockDialog / bulk_add_stock().
     Body: [{"product_id": "...", "warehouse_id": "...", "movement_type": "adjustment_in", "qty": 10, "note": "..."}]
     """
+    from fastapi import HTTPException
+    if len(data) > 500:
+        raise HTTPException(400, "Too many items (max 500)")
     for item in data:
         await stock_service.record_movement(db, item, current_user.id)
         await audit_log(db, "stock", "adjustment", current_user.id, current_user.full_name, None, {"product_id": str(item.product_id), "qty": float(item.qty), "type": item.movement_type}, "تسوية مخزون")

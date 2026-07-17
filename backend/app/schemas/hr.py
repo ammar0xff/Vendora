@@ -57,6 +57,13 @@ class AdvanceCreate(BaseModel):
     record_type: str = "سلفة"
 
 
+class ShiftCreate(BaseModel):
+    name: str
+    start_time: str
+    end_time: str
+    description: str = ""
+
+
 class HRSettingsUpdate(BaseModel):
     """Generic key-value settings update."""
     settings: dict = {}

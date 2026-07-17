@@ -13,19 +13,17 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost",
-        "http://0.0.0.0",
-        "http://81.10.109.140",
-        "https://81.10.109.140",
-        "http://192.168.1.50",
-        "https://192.168.1.50",
-        "*",
+        "https://eg-co.duckdns.org",
     ]
     IS_PRODUCTION: bool = False
     # ⚠️ CORS_ORIGINS must NOT contain wildcard ("*") when credentials are enabled
 
     def model_post_init(self, __context):
         if self.SECRET_KEY in ("change-this-in-production-use-random-32-chars", "super-secret-inventory-erp-key-2026-change-in-production"):
-            warnings.warn("⚠️ SECRET_KEY is still set to a default/placeholder value! Generate a strong random key with: openssl rand -hex 32")
+            import os
+            if os.environ.get("APP_ENV") == "production":
+                raise RuntimeError("SECRET_KEY must be set to a random value in production! Run: openssl rand -hex 32")
+            warnings.warn("SECRET_KEY is still a placeholder! Set a real key via SECRET_KEY env var for production.")
 
     class Config:
         env_file = ".env"

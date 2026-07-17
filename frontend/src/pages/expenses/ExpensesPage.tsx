@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
-import { expensesApi } from '../../api/endpoints'
+import { expensesApi, stockApi } from '../../api/endpoints'
 import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -37,8 +37,8 @@ export default function ExpensesPage() {
     queryFn: () => expensesApi.list({ search: search || undefined, status: statusFilter || undefined, page_size: 200 }),
   })
   const { data: vendors } = useQuery({ queryKey: ['expense-vendors'], queryFn: () => expensesApi.vendors.list() })
-  const { data: categories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/finance/financial-categories').then(r => r.data) })
-  const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: () => api.get('/stock/warehouses').then(r => r.data) })
+  const { data: categories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/financial-categories').then(r => r.data) })
+  const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { data: summary } = useQuery({ queryKey: ['expenses-summary'], queryFn: () => expensesApi.summary() })
 
   const createMut = useMutation({

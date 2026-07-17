@@ -10,7 +10,7 @@ from app.dependencies import get_current_user, require_perm
 from app.models.user import User
 from app.core.exceptions import NotFoundError
 from app.services.audit_service import log as audit_log
-from app.schemas.party import CustomerCreate, CustomerUpdate, CustomerPaymentCreate
+from app.schemas.party import CustomerCreate, CustomerUpdate, CustomerPaymentCreate, SetBalanceRequest
 import uuid
 
 router = APIRouter(tags=["parties"])
@@ -104,7 +104,7 @@ async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _
         "total_invoiced": float(agg["total_invoiced"]),
         "total_returned": float(agg["total_returned"]),
         "total_paid": float(agg["total_paid"]),
-        "balance_due": float(c.balance),
+        "balance_due": float(agg["total_invoiced"]) - float(agg["total_returned"]) - float(agg["total_paid"]),
         "credit_limit": float(c.credit_limit) if c.credit_limit else None,
     }
 
@@ -150,12 +150,12 @@ async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
 
 @router.put("/customers/{cid}/balance")
-async def set_customer_balance(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
+async def set_customer_balance(cid: uuid.UUID, data: SetBalanceRequest, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
     result = await db.execute(select(Customer).where(Customer.id == cid))
     c = result.scalar_one_or_none()
     if not c:
         raise NotFoundError()
-    balance = Decimal(str(data.get("balance", 0)))
+    balance = data.balance
     c.balance = balance
     await db.commit()
     return {"id": str(cid), "balance": float(balance)}
@@ -182,7 +182,7 @@ async def add_payment(cid: uuid.UUID, data: CustomerPaymentCreate, db: AsyncSess
         raise NotFoundError()
     sale_id: uuid.UUID | None = None
     if data.sale_id:
-        sale_id = uuid.UUID(data.sale_id)
+        sale_id = data.sale_id  # already uuid.UUID from Pydantic validation
         # Verify the sale exists and belongs to this customer
         s = (await db.execute(select(Sale).where(Sale.id == sale_id))).scalar_one_or_none()
         if not s:

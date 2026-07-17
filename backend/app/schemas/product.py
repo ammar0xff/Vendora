@@ -113,3 +113,7 @@ class ProductBarcodeOut(BaseModel):
 
 class ProductWithBarcodes(ProductOut):
     barcodes: list[ProductBarcodeOut] = []
+
+
+class MoveProduct(BaseModel):
+    subcategory_id: uuid.UUID

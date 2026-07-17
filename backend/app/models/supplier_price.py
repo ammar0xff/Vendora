@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, Boolean, func
+from sqlalchemy import String, Numeric, DateTime, ForeignKey, Boolean, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
@@ -10,6 +10,9 @@ from app.db.base import Base
 
 class SupplierPrice(Base):
     __tablename__ = "supplier_prices"
+    __table_args__ = (
+        UniqueConstraint("supplier_id", "product_id", name="uq_supplier_product"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     supplier_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("suppliers.id", ondelete="CASCADE"))

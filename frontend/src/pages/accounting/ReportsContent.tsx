@@ -38,8 +38,9 @@ export default function ReportsContent() {
   const handleInventoryPrint = () => {
     if (!mainWh) return toast.error('اختر فرعاً أولاً')
     setPrinting(true)
+    const handler = () => { setPrinting(false); window.removeEventListener('afterprint', handler) }
+    window.addEventListener('afterprint', handler)
     openPrint(`/print/inventory/${mainWh}`)
-    setTimeout(() => setPrinting(false), 3000)
   }
 
   // Monthly trend

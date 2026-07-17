@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOfflineStore } from '../store/offline'
 import { usePendingSalesStore } from '../store/pendingSales'
@@ -14,13 +14,22 @@ export default function OfflineSync() {
   const markFailed = useOfflineStore(s => s.markFailed)
   const markSyncing = useOfflineStore(s => s.markSyncing)
   const qc = useQueryClient()
+  const syncingRef = useRef(false)
 
   useEffect(() => {
-    if (!isOnline) return
+    if (!isOnline || syncingRef.current) return
+    syncingRef.current = true
 
-    syncLocalShift()
-    syncPendingSales()
-    syncLegacyQueue()
+    ;(async () => {
+      try {
+        // Sequential: shift first, then sales, then legacy queue — prevents race conditions
+        await syncLocalShift()
+        await syncPendingSales()
+        await syncLegacyQueue()
+      } finally {
+        syncingRef.current = false
+      }
+    })()
 
     async function syncLegacyQueue() {
       const pending = queue.filter(q => q.status === 'pending')

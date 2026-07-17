@@ -1,22 +1,19 @@
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
-from app.models.stock import StockMovement, MovementType
+from app.models.stock import StockMovement, MovementType, IN_TYPES, OUT_TYPES
 from app.models.product import Product
 from app.core.exceptions import BusinessError
 import uuid
 
 
-IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
-OUT_TYPES = ("sale", "damage", "adjustment_out", "transfer_out")
-
-
 async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID, for_update: bool = False) -> Decimal:
     if for_update:
-        # Lock the product row to serialize concurrent stock access
-        # (FOR UPDATE on aggregate SUM is not supported by Postgres)
         from sqlalchemy import text as sqlt
-        await db.execute(sqlt("SELECT 1 FROM products WHERE id=:pid FOR UPDATE"), {"pid": product_id})
+        exists = await db.execute(sqlt("SELECT 1 FROM products WHERE id=:pid FOR UPDATE"), {"pid": product_id})
+        if not exists.scalar_one_or_none():
+            from app.core.exceptions import NotFoundError
+            raise NotFoundError(f"Product {product_id} not found")
     q = select(
         func.sum(
             case(
@@ -32,7 +29,9 @@ async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uui
     return result.scalar_one() or Decimal("0")
 
 
-async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=None, ref_type=None) -> StockMovement:
+async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=None, ref_type=None,
+                          sale_id: uuid.UUID = None, purchase_id: uuid.UUID = None,
+                          operation_id: uuid.UUID = None) -> StockMovement:
     mv = StockMovement(
         product_id=data.product_id,
         warehouse_id=data.warehouse_id,
@@ -44,6 +43,9 @@ async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=
         created_by=created_by,
         ref_id=ref_id,
         ref_type=ref_type,
+        sale_id=sale_id,
+        purchase_id=purchase_id,
+        operation_id=operation_id,
     )
     db.add(mv)
     # Mark product as tracked in this specific warehouse when stock is recorded

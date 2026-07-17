@@ -11,7 +11,7 @@ class PaymentWallet(Base):
     __tablename__ = "payment_wallets"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(128))
+    name: Mapped[str] = mapped_column(String(128), unique=True)
     type: Mapped[str] = mapped_column(String(32))
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))

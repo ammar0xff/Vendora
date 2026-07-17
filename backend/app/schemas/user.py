@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+_VALID_ROLES = {"admin", "manager", "cashier"}
 
 
 class UserCreate(BaseModel):
@@ -10,11 +12,30 @@ class UserCreate(BaseModel):
     role: str = "cashier"
     password: str
 
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in _VALID_ROLES:
+            raise ValueError(f"role must be one of: {', '.join(sorted(_VALID_ROLES))}")
+        return v
+
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
+    full_name: Optional[str] = Field(None, min_length=1, max_length=128)
     role: Optional[str] = None
-    is_active: Optional[bool] = None
+    is_manager: Optional[bool] = None
+    default_warehouse_id: Optional[str] = None
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_ROLES:
+            raise ValueError(f"role must be one of: {', '.join(sorted(_VALID_ROLES))}")
+        return v
+
+
+class SetUserWarehouses(BaseModel):
+    warehouse_ids: list[str] = []
 
 
 class UserPasswordUpdate(BaseModel):

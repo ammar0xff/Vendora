@@ -36,14 +36,16 @@ async def record_wallet_tx(
 
 
 async def get_wallet_balance(db: AsyncSession, wallet_id: uuid.UUID) -> Decimal:
-    """Compute balance from transactions (source of truth)."""
+    """Read balance from payment_wallets.balance (authoritative — updated by record_wallet_tx)."""
     row = await db.execute(text(
-        "SELECT COALESCE(SUM(amount), 0) FROM wallet_transactions WHERE wallet_id = :wid"
+        "SELECT balance FROM payment_wallets WHERE id = :wid"
     ), {"wid": wallet_id})
     return row.scalar() or Decimal("0")
 
 
 async def get_wallet_history(db: AsyncSession, wallet_id: uuid.UUID, limit: int = 100):
+    if limit <= 0:
+        limit = 100
     rows = await db.execute(text("""
         SELECT wt.*, u.full_name as user_name
         FROM wallet_transactions wt

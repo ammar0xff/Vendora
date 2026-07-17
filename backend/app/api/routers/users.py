@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text, delete as sqldelete
 from app.db.base import get_db
-from app.schemas.user import UserCreate, UserOut, PasswordReset
+from app.schemas.user import UserCreate, UserOut, PasswordReset, UserUpdate, SetUserWarehouses
 from app.services import auth_service
 from app.dependencies import require_perm, get_current_user
 from app.models.user import User, user_warehouses
@@ -52,27 +52,24 @@ async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
 
 
 @router.put("/{user_id}")
-async def update_user(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+async def update_user(user_id: uuid.UUID, data: UserUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise NotFoundError("User not found")
     from app.core.roles import ROLE_LABELS
-    allowed = {"full_name": str, "role": str, "is_manager": bool, "default_warehouse_id": str}
-    for k, v in data.items():
-        if k not in allowed:
-            continue
-        expected_type = allowed[k]
-        if expected_type is bool:
-            setattr(user, k, bool(v) if v is not None else None)
-        elif expected_type is str and v is not None:
-            setattr(user, k, str(v) if str(v) != "" else None)
-        else:
-            setattr(user, k, v)
+    fields = data.model_dump(exclude_unset=True)
+    for k, v in fields.items():
+        if k == "is_manager":
+            user.is_manager = bool(v) if v is not None else None
+        elif k == "default_warehouse_id":
+            user.default_warehouse_id = str(v) if v else None
+        elif v is not None:
+            setattr(user, k, str(v) if isinstance(v, str) and v != "" else v)
     # Validate role
-    if "role" in data and data["role"] not in ROLE_LABELS:
+    if "role" in fields and fields["role"] not in ROLE_LABELS:
         from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=f"Invalid role: {data['role']}")
+        raise HTTPException(status_code=400, detail=f"Invalid role: {fields['role']}")
     await db.commit()
     await db.refresh(user)
     return user
@@ -107,13 +104,12 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
 
 
 @router.put("/{user_id}/warehouses", status_code=200)
-async def set_user_warehouses(user_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
-    """Set which warehouses a user can access. data = { warehouse_ids: [uuid, ...] } """
-    warehouse_ids = data.get("warehouse_ids", [])
+async def set_user_warehouses(user_id: uuid.UUID, data: SetUserWarehouses, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+    """Set which warehouses a user can access."""
     await db.execute(sqldelete(user_warehouses).where(user_warehouses.c.user_id == user_id))
-    for wid in warehouse_ids:
+    for wid in data.warehouse_ids:
         await db.execute(
-            user_warehouses.insert().values(user_id=user_id, warehouse_id=uuid.UUID(wid) if isinstance(wid, str) else wid)
+            user_warehouses.insert().values(user_id=user_id, warehouse_id=uuid.UUID(wid))
         )
     await db.commit()
     return {"ok": True}

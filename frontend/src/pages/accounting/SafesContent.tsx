@@ -10,9 +10,7 @@ export default function SafesContent() {
 
   const { data: history } = useQuery({
     queryKey: ['safe-deposits-all'],
-    queryFn: () => api.get('/archive?limit=100').then(r =>
-      r.data.filter((d: any) => d.doc_type === 'safe_deposit')
-    ),
+    queryFn: () => api.get('/archive?limit=200&doc_type=safe_deposit').then(r => r.data),
   })
 
   const totalBalance = (safes || []).reduce((s: number, safe: any) => s + Number(safe.balance), 0)

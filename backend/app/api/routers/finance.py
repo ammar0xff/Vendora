@@ -6,6 +6,7 @@ from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm, verify_warehouse_access
 from app.models.user import User
 from app.schemas.finance import FinancialCategoryCreate, FinancialCategoryUpdate, PermissionsUpdate
+from app.core.exceptions import BusinessError
 from fastapi import HTTPException
 from datetime import datetime
 import uuid
@@ -51,10 +52,13 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        # Has linked transactions — null out the category_id first then delete
         await db.execute(text("UPDATE drawer_transactions SET category_id=NULL WHERE category_id=:id"), {'id': cat_id})
-        await db.execute(text("DELETE FROM financial_categories WHERE id=:id"), {'id': cat_id})
-        await db.commit()
+        try:
+            await db.execute(text("DELETE FROM financial_categories WHERE id=:id"), {'id': cat_id})
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise BusinessError("لا يمكن حذف التصنيف — مرتبط ببيانات أخرى")
 
 
 # ── User Permissions ───────────────────────────────────────────────────────
@@ -85,7 +89,7 @@ async def financial_ledger(
     from_date: str, to_date: str,
     warehouse_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_perm("finance")),
 ):
     """
     Returns all drawer transactions grouped by financial category.

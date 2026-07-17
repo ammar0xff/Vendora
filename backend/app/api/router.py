@@ -3,6 +3,7 @@ from app.api.routers import auth, users, products, stock, sales, shifts, reports
 from app.api.routers import ledger as ledger_router
 from app.api.routers import hr, finance, suppliers, admin_overview, safes, wallets, collections as collections_router
 from app.api.routers import print_router, expenses, periods, export as export_router
+from app.api.routers import notifications
 
 router = APIRouter()
 
@@ -31,3 +32,4 @@ router.include_router(wallets.router)
 router.include_router(expenses.router)
 router.include_router(periods.router)
 router.include_router(export_router.router)
+router.include_router(notifications.router)

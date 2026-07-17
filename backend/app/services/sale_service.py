@@ -40,9 +40,9 @@ async def _is_untracked(db, product_id, warehouse_id=None) -> bool:
 
 async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     """Create a quotation (عرض سعر) — no stock deduction, status=quotation."""
-    gross_total = sum(float(i.qty) * float(i.unit_price) for i in data.items)
-    total_discount = sum(float(i.discount) for i in data.items)
-    net_total = gross_total - total_discount - float(data.discount_amount)
+    gross_total = sum(Decimal(str(i.qty)) * Decimal(str(i.unit_price)) for i in data.items)
+    total_discount = sum(Decimal(str(i.discount)) for i in data.items)
+    net_total = gross_total - total_discount - Decimal(str(data.discount_amount))
 
     sale = Sale(
         invoice_number=await _quotation_number(db),
@@ -96,7 +96,7 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
                                   movement_type=MovementType.sale, qty=item.qty,
                                   unit_cost=item.unit_cost, unit_price=item.unit_price)
-        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale")
+        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id)
 
     sale.status = SaleStatus.confirmed
     sale.invoice_number = await _invoice_number(db)
@@ -121,9 +121,9 @@ async def create_draft_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sa
         shift = await db.get(Shift, data.shift_id)
         if not shift or shift.cashier_id != cashier_id:
             raise BusinessError("هذه الوردية لا تخصك")
-    gross_total = sum(float(i.qty) * float(i.unit_price) for i in data.items)
-    total_discount = sum(float(i.discount) for i in data.items)
-    net_total = gross_total - total_discount - float(data.discount_amount)
+    gross_total = sum(Decimal(str(i.qty)) * Decimal(str(i.unit_price)) for i in data.items)
+    total_discount = sum(Decimal(str(i.discount)) for i in data.items)
+    net_total = gross_total - total_discount - Decimal(str(data.discount_amount))
 
     sale = Sale(
         invoice_number=await _invoice_number(db),
@@ -177,7 +177,7 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
         mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
                                   movement_type=MovementType.sale, qty=item.qty,
                                   unit_cost=item.unit_cost, unit_price=item.unit_price)
-        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale")
+        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id)
 
     new_inv = await _invoice_number(db)
     sale.status = SaleStatus.confirmed
@@ -191,6 +191,18 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
 
 
 async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
+    from sqlalchemy import text as sqlt
+
+    # Idempotency: if local_id provided (offline sync), check for duplicate
+    local_id = getattr(data, 'local_id', None)
+    if local_id:
+        safe_local_id = local_id.replace("[", "[[]").replace("%", "[%]").replace("_", "[_]")
+        existing = (await db.execute(sqlt(
+            "SELECT id FROM sales WHERE notes LIKE :pattern AND cashier_id = :cid AND created_at > NOW() - INTERVAL '1 hour'"
+        ), {"pattern": f"[local_id:{safe_local_id}]", "cid": cashier_id})).scalar_one_or_none()
+        if existing:
+            return await db.get(Sale, existing)
+
     # Verify shift ownership
     if data.shift_id:
         shift = await db.get(Shift, data.shift_id)
@@ -210,11 +222,11 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         c = await db.execute(sqlt("SELECT credit_limit, balance FROM customers WHERE id=:id FOR UPDATE"), {"id": data.customer_id})
         c = c.one_or_none()
         if c and c.credit_limit is not None:
-            total = sum(float(i.qty) * float(i.unit_price) - float(i.discount) for i in data.items)
-            total -= float(data.discount_amount)
-            new_balance = float(c.balance or 0) + total
-            if new_balance > float(c.credit_limit):
-                remaining = float(c.credit_limit) - float(c.balance or 0)
+            total = sum(Decimal(str(i.qty)) * Decimal(str(i.unit_price)) - Decimal(str(i.discount)) for i in data.items)
+            total -= Decimal(str(data.discount_amount))
+            new_balance = Decimal(str(c.balance or 0)) + total
+            if new_balance > Decimal(str(c.credit_limit)):
+                remaining = Decimal(str(c.credit_limit)) - Decimal(str(c.balance or 0))
                 raise BusinessError(f"تجاوز حد الائتمان (الحد: {c.credit_limit:.2f}, المتبقي: {remaining:.2f})")
 
     sale = Sale(
@@ -228,14 +240,14 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         is_credit=data.is_credit,
         payment_method=getattr(data, 'payment_method', 'cash') or 'cash',
         wallet_id=getattr(data, 'wallet_id', None),
-        notes=data.notes,
+        notes=f"[local_id:{local_id}] {data.notes or ''}" if local_id else data.notes,
         created_by=cashier_id,
     )
     db.add(sale)
     await db.flush()
 
-    gross_total = 0
-    total_discount = 0
+    gross_total = Decimal("0")
+    total_discount = Decimal("0")
     for item in data.items:
         si = SaleItem(
             sale_id=sale.id,
@@ -246,8 +258,8 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
             discount=item.discount,
         )
         db.add(si)
-        gross_total += float(item.qty) * float(item.unit_price)
-        total_discount += float(item.discount)
+        gross_total += Decimal(str(item.qty)) * Decimal(str(item.unit_price))
+        total_discount += Decimal(str(item.discount))
 
         mv = StockMovementCreate(
             product_id=item.product_id,
@@ -257,9 +269,9 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
             unit_cost=item.unit_cost,
             unit_price=item.unit_price,
         )
-        await record_movement(db, mv, cashier_id, ref_id=sale.id, ref_type="sale")
+        await record_movement(db, mv, cashier_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id)
 
-    net_total = gross_total - total_discount - float(data.discount_amount)
+    net_total = gross_total - total_discount - Decimal(str(data.discount_amount))
     sale.total = Decimal(str(gross_total))
     sale.net_total = Decimal(str(net_total))
     paid = getattr(data, 'paid_amount', None)
@@ -336,7 +348,11 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
     if sale.status != SaleStatus.confirmed:
         raise BusinessError("Only confirmed sales can be returned")
 
-    total = 0
+    # Guard: reject full return if any items were already partially returned
+    if sale.returns_total and Decimal(str(sale.returns_total)) > 0:
+        raise BusinessError("تم إرجاع أجزاء من هذه الفاتورة مسبقاً — استخدم إرجاع جزئي للمتبقي")
+
+    total = Decimal("0")
     for item in sale.items:
         mv = StockMovementCreate(
             product_id=item.product_id,
@@ -346,42 +362,48 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
             unit_cost=item.unit_cost,
             unit_price=item.unit_price,
         )
-        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="return")
-        total += float(item.qty) * float(item.unit_price) - float(item.discount)
+        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="return", sale_id=sale.id)
+        total += Decimal(str(item.qty)) * Decimal(str(item.unit_price)) - Decimal(str(item.discount))
 
-    total -= float(sale.discount_amount)
+    total -= Decimal(str(sale.discount_amount))
     sale.status = SaleStatus.returned
 
     # Only record cash portion in drawer — other methods reversed separately
     pmt = await db.execute(sqlt(
         "SELECT method, COALESCE(SUM(amount),0) as amt FROM sale_payments WHERE sale_id = :sid GROUP BY method"
     ), {"sid": sale_id})
-    pmt_map = {r.method: float(r.amt) for r in pmt.fetchall()}
-    cash_part = pmt_map.get("cash", 0)
-    credit_part = pmt_map.get("credit", 0)
+    pmt_map = {r.method: Decimal(str(r.amt)) for r in pmt.fetchall()}
+    cash_part = pmt_map.get("cash", Decimal("0"))
+    credit_part = pmt_map.get("credit", Decimal("0"))
+    wallet_part = pmt_map.get("wallet", Decimal("0"))
 
-    if sale.shift_id and cash_part > 0:
+    # Cap each method's reversal so total doesn't exceed return value
+    remaining = total
+    actual_cash = min(cash_part, remaining)
+    remaining -= actual_cash
+    actual_wallet = min(wallet_part, remaining)
+    remaining -= actual_wallet
+    actual_credit = min(credit_part, remaining)
+
+    if sale.shift_id and actual_cash > 0:
         db.add(DrawerTransaction(
             shift_id=sale.shift_id,
             type=DrawerTxType.return_,
-            amount=min(cash_part, total),
+            amount=Decimal(str(actual_cash)),
             ref_id=sale.id,
             created_by=user_id,
         ))
 
     # Reverse wallet balance
-    wallet_part = pmt_map.get("wallet", 0)
-    if wallet_part > 0:
+    if actual_wallet > 0:
         from app.services.wallet_service import record_wallet_tx
-        w_amt = min(wallet_part, total - cash_part - credit_part)
-        if w_amt > 0:
-            wallet_row = await db.execute(sqlt(
-                "SELECT wallet_id FROM sale_payments WHERE sale_id=:sid AND method='wallet' LIMIT 1"
-            ), {"sid": sale.id})
-            wallet_id = wallet_row.scalar()
-            if wallet_id:
-                await record_wallet_tx(db, wallet_id, -Decimal(str(w_amt)), "return",
-                                       sale.id, f"مرتجع {sale.invoice_number}", user_id)
+        wallet_row = await db.execute(sqlt(
+            "SELECT wallet_id FROM sale_payments WHERE sale_id=:sid AND method='wallet' LIMIT 1"
+        ), {"sid": sale.id})
+        wallet_id = wallet_row.scalar()
+        if wallet_id:
+            await record_wallet_tx(db, wallet_id, -Decimal(str(actual_wallet)), "return",
+                                   sale.id, f"مرتجع {sale.invoice_number}", user_id)
 
     # Track returns_total on the original sale
     await db.execute(sqlt(
@@ -389,12 +411,10 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
     ), {"amt": total, "sid": sale_id})
 
     # Reverse customer credit balance
-    if credit_part > 0 and sale.customer_id:
-        credit_amt = min(credit_part, total - cash_part - wallet_part)
-        if credit_amt > 0:
-            await db.execute(sqlt(
-                "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
-            ), {"amt": Decimal(str(credit_amt)), "cid": sale.customer_id})
+    if actual_credit > 0 and sale.customer_id:
+        await db.execute(sqlt(
+            "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
+        ), {"amt": Decimal(str(actual_credit)), "cid": sale.customer_id})
 
     await db.commit()
     return {"detail": "Returned", "invoice_number": sale.invoice_number, "amount": total}
@@ -402,6 +422,8 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
 async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
     from sqlalchemy import text as sqlt
+    from app.models.payment_wallet import PaymentWallet
+
     result = await db.execute(select(Sale).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
@@ -409,17 +431,45 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
         raise NotFoundError("Sale not found")
     if sale.status != SaleStatus.confirmed:
         raise BusinessError("Only confirmed sales can be cancelled")
+    if sale.returns_total and Decimal(str(sale.returns_total)) > 0:
+        raise BusinessError("تم إرجاع أجزاء من هذه الفاتورة مسبقاً — لا يمكن إلغاء الفاتورة")
+
     sale.status = SaleStatus.cancelled
+
     # Restore stock for all sale items
     items = (await db.execute(
         select(SaleItem).where(SaleItem.sale_id == sale_id)
     )).scalars().all()
     for item in items:
         await db.execute(sqlt("""
-            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_cancel', :uid)
+            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, sale_id, created_by)
+            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_cancel', :sid, :uid)
         """), {"pid": item.product_id, "wid": sale.warehouse_id, "qty": item.qty,
-               "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": user_id})
+               "cost": item.unit_cost, "price": item.unit_price, "sid": str(sale_id), "uid": str(user_id)})
+
+    # Restore wallet balances for wallet-based drawer transactions before deleting them
+    wallet_txns = (await db.execute(
+        sqlt("SELECT wallet_id, amount FROM drawer_transactions WHERE ref_id = :sid AND wallet_id IS NOT NULL"),
+        {"sid": str(sale_id)}
+    )).fetchall()
+    for wtx in wallet_txns:
+        await db.execute(
+            sqlt("UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"),
+            {"amt": float(wtx.amount), "wid": str(wtx.wallet_id)}
+        )
+
+    # Delete all drawer transactions for this sale (reverses cash effects on shifts)
+    await db.execute(
+        sqlt("DELETE FROM drawer_transactions WHERE ref_id = :sid"),
+        {"sid": str(sale_id)}
+    )
+
+    # Delete all customer payment records for this sale
+    await db.execute(
+        sqlt("DELETE FROM customer_payments WHERE sale_id = :sid"),
+        {"sid": str(sale_id)}
+    )
+
     await db.commit()
     await db.refresh(sale)
     return sale
@@ -434,7 +484,7 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
     from app.models.shift import DrawerTransaction, DrawerTxType
     from datetime import datetime, timezone
 
-    orig = (await db.execute(select(Sale).options(sil(Sale.items)).where(Sale.id == sale_id))).scalar_one_or_none()
+    orig = (await db.execute(select(Sale).options(sil(Sale.items)).where(Sale.id == sale_id).with_for_update())).scalar_one_or_none()
     if not orig:
         from app.core.exceptions import NotFoundError
         raise NotFoundError("Sale not found")
@@ -442,6 +492,18 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
     return_map = {str(i["product_id"]): Decimal(str(i["qty"])) for i in data.get("items", [])}
     if not return_map:
         raise BusinessError("No items")
+
+    # Validate returnable quantities: compute already-returned qty per product from prior returns
+    already_returned: dict[str, Decimal] = {}
+    safe_inv = orig.invoice_number.replace("[", "[[]").replace("%", "[%]").replace("_", "[_]")
+    prior_returns = (await db.execute(sqlt(
+        "SELECT si.product_id, SUM(si.qty) as ret_qty "
+        "FROM sale_items si JOIN sales s ON s.id = si.sale_id "
+        "WHERE s.status = 'returned' AND s.notes LIKE :pattern "
+        "GROUP BY si.product_id"
+    ), {"pattern": f"%مرتجع جزئي من {safe_inv}%"})).fetchall()
+    for pr in prior_returns:
+        already_returned[str(pr.product_id)] = Decimal(str(pr.ret_qty))
 
     ret = Sale(invoice_number="RET-" + datetime.now(timezone.utc).strftime('%m%d%H%M%S'),
                customer_id=orig.customer_id, warehouse_id=orig.warehouse_id,
@@ -457,6 +519,11 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
         if pid not in return_map:
             continue
         qty = return_map[pid]
+        # Block returning more than remaining returnable qty
+        already = already_returned.get(pid, Decimal("0"))
+        remaining = Decimal(str(oi.qty)) - already
+        if qty > remaining:
+            raise BusinessError(f"الكمية المرتجعة ({qty}) تتجاوز المتبقي القابل للإرجاع ({remaining}) للمنتج {oi.product_id}")
         # Pro-rate the per-item discount proportionally to the returned qty
         prorated_discount = (oi.discount * qty / oi.qty) if oi.qty else Decimal("0")
         db.add(SaleItem(sale_id=ret.id, product_id=oi.product_id, qty=qty,
@@ -464,24 +531,24 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
         total += qty * oi.unit_price - prorated_discount
         await record_movement(db, StockMovementCreate(product_id=oi.product_id, warehouse_id=orig.warehouse_id,
             movement_type=MovementType.return_in, qty=qty, unit_cost=oi.unit_cost, unit_price=oi.unit_price),
-            current_user_id, ref_id=ret.id, ref_type="partial_return")
+            current_user_id, ref_id=ret.id, ref_type="partial_return", sale_id=ret.id)
 
     from sqlalchemy import text as sqlt
     pmt = await db.execute(sqlt(
         "SELECT method, COALESCE(SUM(amount),0) as amt FROM sale_payments WHERE sale_id = :sid GROUP BY method"
     ), {"sid": sale_id})
-    pmt_map = {r.method: float(r.amt) for r in pmt.fetchall()}
-    cash_part = pmt_map.get("cash", 0)
-    credit_part = pmt_map.get("credit", 0)
-    wallet_part = pmt_map.get("wallet", 0)
-    ratio = float(total) / float(orig.total) if orig.total else 0
+    pmt_map = {r.method: Decimal(str(r.amt)) for r in pmt.fetchall()}
+    cash_part = pmt_map.get("cash", Decimal("0"))
+    credit_part = pmt_map.get("credit", Decimal("0"))
+    wallet_part = pmt_map.get("wallet", Decimal("0"))
+    ratio = total / orig.total if orig.total else Decimal("0")
 
-    drawer_amt = round(cash_part * ratio, 2)
+    drawer_amt = (cash_part * ratio).quantize(Decimal("0.01"))
     if ret.shift_id and drawer_amt > 0:
         db.add(DrawerTransaction(shift_id=ret.shift_id, type=DrawerTxType.return_,
                                   amount=drawer_amt, ref_id=ret.id, created_by=current_user_id))
     if wallet_part > 0:
-        w_amt = round(wallet_part * ratio, 2)
+        w_amt = (wallet_part * ratio).quantize(Decimal("0.01"))
         if w_amt > 0:
             from app.services.wallet_service import record_wallet_tx
             wallet_row = await db.execute(sqlt(
@@ -492,7 +559,7 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
                 await record_wallet_tx(db, wallet_id, -Decimal(str(w_amt)), "return",
                                        ret.id, f"مرتجع جزئي من {orig.invoice_number}", current_user_id)
     if credit_part > 0 and orig.customer_id:
-        c_amt = round(credit_part * ratio, 2)
+        c_amt = (credit_part * ratio).quantize(Decimal("0.01"))
         if c_amt > 0:
             await db.execute(sqlt(
                 "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
@@ -513,19 +580,21 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
 async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.UUID, data, current_user_id: uuid.UUID, current_user_full_name: str) -> dict:
     from sqlalchemy import text as sqlt
     from app.models.shift import DrawerTransaction, DrawerTxType
-    from fastapi import HTTPException
+    from app.core.exceptions import NotFoundError
 
     new_qty = data.qty
 
     item_row = await db.execute(sqlt(
-        "SELECT si.*, s.warehouse_id, s.shift_id, p.stock_status FROM sale_items si "
+        "SELECT si.*, s.warehouse_id, s.shift_id, s.status as sale_status, p.stock_status FROM sale_items si "
         "JOIN sales s ON s.id = si.sale_id "
         "JOIN products p ON p.id = si.product_id "
-        "WHERE si.id = :iid AND si.sale_id = :sid"
+        "WHERE si.id = :iid AND si.sale_id = :sid FOR UPDATE OF si"
     ), {"iid": item_id, "sid": sale_id})
     item = item_row.fetchone()
     if not item:
-        raise HTTPException(404, "البند غير موجود")
+        raise NotFoundError("البند غير موجود")
+    if item.sale_status not in ('confirmed',):
+        raise BusinessError("لا يمكن تعديل فاتورة ملغاة أو مرتجعة")
 
     old_qty = Decimal(str(item.qty))
     diff_qty = new_qty - old_qty
@@ -538,24 +607,22 @@ async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uu
         if result.rowcount == 0:
             current = (await db.execute(sqlt("SELECT qty FROM sale_items WHERE id=:id"), {"id": item_id})).scalar_one_or_none()
             if current is None:
-                raise HTTPException(404, "البند غير موجود")
-            raise HTTPException(409, f"تم تعديل الكمية بواسطة مستخدم آخر (الكمية الحالية: {current})")
+                raise NotFoundError("البند غير موجود")
+            raise BusinessError(f"تم تعديل الكمية بواسطة مستخدم آخر (الكمية الحالية: {current})")
     else:
         await db.execute(sqlt("UPDATE sale_items SET qty=:q WHERE id=:id"), {"q": new_qty, "id": item_id})
 
     if item.stock_status == "tracked":
         if diff_qty > 0:
-            await db.execute(sqlt("""
-                INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-                VALUES (:pid, :wid, 'sale', :qty, :cost, :price, :sid, 'sale_adjustment', :uid)
-            """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": diff_qty,
-                   "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user_id})
+            mv = StockMovementCreate(product_id=item.product_id, warehouse_id=item.warehouse_id,
+                                     movement_type=MovementType.sale, qty=diff_qty,
+                                     unit_cost=item.unit_cost, unit_price=item.unit_price)
+            await record_movement(db, mv, current_user_id, ref_id=sale_id, ref_type="sale_adjustment", sale_id=sale_id)
         elif diff_qty < 0:
-            await db.execute(sqlt("""
-                INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-                VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_adjustment', :uid)
-            """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": abs(diff_qty),
-                   "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user_id})
+            mv = StockMovementCreate(product_id=item.product_id, warehouse_id=item.warehouse_id,
+                                     movement_type=MovementType.return_in, qty=abs(diff_qty),
+                                     unit_cost=item.unit_cost, unit_price=item.unit_price)
+            await record_movement(db, mv, current_user_id, ref_id=sale_id, ref_type="sale_adjustment", sale_id=sale_id)
 
     if item.shift_id and diff_amount != 0:
         tx_type = DrawerTxType.sale if diff_amount > 0 else DrawerTxType.return_
@@ -577,17 +644,19 @@ async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uu
 async def delete_sale_item(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.UUID, current_user_id: uuid.UUID) -> dict:
     from sqlalchemy import text as sqlt
     from app.models.shift import DrawerTransaction, DrawerTxType
-    from fastapi import HTTPException
+    from app.core.exceptions import NotFoundError
 
     item_row = await db.execute(sqlt(
-        "SELECT si.*, s.warehouse_id, s.shift_id, p.stock_status FROM sale_items si "
+        "SELECT si.*, s.warehouse_id, s.shift_id, s.status as sale_status, p.stock_status FROM sale_items si "
         "JOIN sales s ON s.id = si.sale_id "
         "JOIN products p ON p.id = si.product_id "
-        "WHERE si.id = :iid AND si.sale_id = :sid"
+        "WHERE si.id = :iid AND si.sale_id = :sid FOR UPDATE OF si"
     ), {"iid": item_id, "sid": sale_id})
     item = item_row.fetchone()
     if not item:
-        raise HTTPException(404, "البند غير موجود")
+        raise NotFoundError("البند غير موجود")
+    if item.sale_status not in ('confirmed',):
+        raise BusinessError("لا يمكن حذف بند من فاتورة ملغاة أو مرتجعة")
 
     qty = Decimal(str(item.qty))
     amount = qty * Decimal(str(item.unit_price))
@@ -595,11 +664,10 @@ async def delete_sale_item(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.U
     await db.execute(sqlt("DELETE FROM sale_items WHERE id=:id"), {"id": item_id})
 
     if item.stock_status == "tracked":
-        await db.execute(sqlt("""
-            INSERT INTO stock_movements (id, product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, created_by)
-            VALUES (gen_random_uuid(), :pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'item_deleted', :uid)
-        """), {"pid": item.product_id, "wid": item.warehouse_id, "qty": qty,
-               "cost": item.unit_cost, "price": item.unit_price, "sid": sale_id, "uid": current_user_id})
+        mv = StockMovementCreate(product_id=item.product_id, warehouse_id=item.warehouse_id,
+                                 movement_type=MovementType.return_in, qty=qty,
+                                 unit_cost=item.unit_cost, unit_price=item.unit_price)
+        await record_movement(db, mv, current_user_id, ref_id=sale_id, ref_type="item_deleted", sale_id=sale_id)
 
     if item.shift_id:
         db.add(DrawerTransaction(

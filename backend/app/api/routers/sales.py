@@ -4,7 +4,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 from app.db.base import get_db
-from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate
+from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate, UpdateSale, PartialReturnRequest
 from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.product import Product
 from app.services import sale_service
@@ -60,9 +60,8 @@ async def delete_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
         raise NotFoundError()
     if sale.status not in (SaleStatus.draft, SaleStatus.quotation):
         raise BusinessError("Only drafts and quotations can be deleted")
-    await db.execute(text("DELETE FROM sale_items WHERE sale_id=:id"), {"id": sale_id})
     await db.execute(text("DELETE FROM archived_documents WHERE ref_id=:id AND doc_type IN ('sale_invoice','quotation')"), {"id": sale_id})
-    await db.execute(text("DELETE FROM sales WHERE id=:id"), {"id": sale_id})
+    await db.delete(sale)
     await db.commit()
 
 
@@ -152,10 +151,16 @@ async def print_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=D
     if not sale:
         raise NotFoundError("Sale not found")
 
-    # Enrich items with product names
+    # Enrich items with product names — single bulk query (avoids N+1)
+    product_ids = list({item.product_id for item in sale.items})
+    products_map: dict = {}
+    if product_ids:
+        prod_rows = await db.execute(sa_select(Product).where(Product.id.in_(product_ids)))
+        products_map = {p.id: p for p in prod_rows.scalars().all()}
+
     items_out = []
     for item in sale.items:
-        prod = (await db.execute(sa_select(Product).where(Product.id == item.product_id))).scalar_one_or_none()
+        prod = products_map.get(item.product_id)
         items_out.append({
             "product_name": prod.name if prod else str(item.product_id),
             "unit": prod.unit if prod else "",
@@ -196,11 +201,11 @@ async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
     from app.models.customer_payment import CustomerPayment
     row = await db.execute(sqlt("""
         SELECT s.*, c.name as customer_name,
-                json_agg(json_build_object(
+                COALESCE(json_agg(json_build_object(
                  'id', si.id, 'product_id', si.product_id, 'product_name', p.name,
                  'qty', si.qty, 'unit_price', si.unit_price, 'unit_cost', si.unit_cost,
                  'discount', si.discount
-                )) as items
+                )) FILTER (WHERE si.id IS NOT NULL), '[]'::json) as items
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN sale_items si ON si.sale_id = s.id
@@ -233,9 +238,10 @@ async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
 
 
 @router.put("/{sale_id}")
-async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations"))):
+async def update_sale(sale_id: uuid.UUID, data: UpdateSale, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations"))):
     """Edit a quotation (status=quotation only)."""
     from sqlalchemy import text as sqlt
+    d = data.model_dump()
     sale_row = await db.execute(sqlt("SELECT status FROM sales WHERE id=:id"), {"id": sale_id})
     sale = sale_row.fetchone()
     if not sale:
@@ -245,7 +251,7 @@ async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends
     # Update items + recalculate total
     await db.execute(sqlt("DELETE FROM sale_items WHERE sale_id=:id"), {"id": sale_id})
     total = 0.0
-    for item in data.get("items", []):
+    for item in d.get("items", []):
         line = float(item["qty"]) * float(item["unit_price"])
         disc = item.get("discount", 0) or 0
         total += line - disc
@@ -255,14 +261,14 @@ async def update_sale(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends
         """), {"sid": sale_id, "pid": item["product_id"], "qty": item["qty"],
                "price": item["unit_price"], "cost": item.get("unit_cost", 0),
                "disc": disc})
-    invoice_disc = float(data.get("discount_amount", 0) or 0)
+    invoice_disc = float(d.get("discount_amount", 0) or 0)
     net_total = total - invoice_disc
     await db.execute(sqlt("UPDATE sales SET total=:total, net_total=:net, discount_amount=:disc WHERE id=:id"),
                      {"total": total, "net": net_total, "disc": invoice_disc, "id": sale_id})
-    if "notes" in data:
-        await db.execute(sqlt("UPDATE sales SET notes=:notes WHERE id=:id"), {"notes": data["notes"], "id": sale_id})
-    if "customer_id" in data:
-        await db.execute(sqlt("UPDATE sales SET customer_id=:cid WHERE id=:id"), {"cid": data.get("customer_id"), "id": sale_id})
+    if "notes" in d:
+        await db.execute(sqlt("UPDATE sales SET notes=:notes WHERE id=:id"), {"notes": d["notes"], "id": sale_id})
+    if "customer_id" in d:
+        await db.execute(sqlt("UPDATE sales SET customer_id=:cid WHERE id=:id"), {"cid": d.get("customer_id"), "id": sale_id})
     await db.commit()
     return {"id": str(sale_id)}
 
@@ -282,9 +288,9 @@ async def return_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
 
 
 @router.post("/{sale_id}/partial-return")
-async def partial_return(sale_id: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
+async def partial_return(sale_id: uuid.UUID, data: PartialReturnRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("sales"))):
     """مرتجع جزئي — body: {items:[{product_id,qty}], shift_id?}"""
-    return await sale_service.partial_return_sale(db, sale_id, data, current_user.id)
+    return await sale_service.partial_return_sale(db, sale_id, data.model_dump(), current_user.id)
 
 
 @router.put("/{sale_id}/items/{item_id}")

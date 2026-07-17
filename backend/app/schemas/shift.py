@@ -54,7 +54,12 @@ class DrawerTxOut(BaseModel):
     shift_id: uuid.UUID
     type: DrawerTxType
     amount: Decimal
+    ref_id: uuid.UUID | None = None
     note: str | None = None
+    category_id: uuid.UUID | None = None
+    payment_method: str | None = "cash"
+    wallet_id: uuid.UUID | None = None
+    created_by: uuid.UUID | None = None
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -90,7 +95,10 @@ class ShiftOut(BaseModel):
     expected_balance: Decimal | None = None
     difference: Decimal | None = None
     next_day_drawer: Decimal | None = None
+    deposit_received_by: uuid.UUID | None = None
+    deposit_amount: Decimal | None = None
+    closed_by: uuid.UUID | None = None
+    notes: str | None = None
     started_at: datetime
     closed_at: datetime | None = None
-    notes: str | None = None
     model_config = {"from_attributes": True}

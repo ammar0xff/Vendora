@@ -5,6 +5,7 @@ from sqlalchemy import text
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm, verify_warehouse_access
 from app.models.user import User
+from app.schemas.collection import CollectionCreate, CollectionUpdate
 import uuid
 
 router = APIRouter(prefix="/collections", tags=["collections"])
@@ -29,14 +30,15 @@ async def list_collections(db: AsyncSession = Depends(get_db), _=Depends(get_cur
 
 
 @router.post("", status_code=201)
-async def create_collection(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
+async def create_collection(data: CollectionCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
+    d = data.model_dump()
     r = await db.execute(text("""
         INSERT INTO product_collections (name, description, retail_price, wholesale_price)
         VALUES (:name, :desc, :retail, :wholesale) RETURNING *
-    """), {"name": data["name"], "desc": data.get("description", ""),
-           "retail": data.get("retail_price", 0), "wholesale": data.get("wholesale_price", 0)})
+    """), {"name": d["name"], "desc": d.get("description", ""),
+           "retail": d.get("retail_price", 0), "wholesale": d.get("wholesale_price", 0)})
     coll = dict(r.fetchone()._mapping)
-    for item in data.get("items", []):
+    for item in d.get("items", []):
         await db.execute(text("""
             INSERT INTO collection_items (collection_id, product_id, qty)
             VALUES (:cid, :pid, :qty)
@@ -46,15 +48,16 @@ async def create_collection(data: dict, db: AsyncSession = Depends(get_db), _=De
 
 
 @router.put("/{cid}")
-async def update_collection(cid: uuid.UUID, data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
+async def update_collection(cid: uuid.UUID, data: CollectionUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
+    d = data.model_dump()
     await db.execute(text("""
         UPDATE product_collections SET name=:name, description=:desc,
         retail_price=:retail, wholesale_price=:wholesale WHERE id=:id
-    """), {"name": data["name"], "desc": data.get("description", ""),
-           "retail": data.get("retail_price", 0), "wholesale": data.get("wholesale_price", 0), "id": cid})
+    """), {"name": d["name"], "desc": d.get("description", ""),
+           "retail": d.get("retail_price", 0), "wholesale": d.get("wholesale_price", 0), "id": cid})
     # Replace items
     await db.execute(text("DELETE FROM collection_items WHERE collection_id=:id"), {"id": cid})
-    for item in data.get("items", []):
+    for item in d.get("items", []):
         await db.execute(text("""
             INSERT INTO collection_items (collection_id, product_id, qty)
             VALUES (:cid, :pid, :qty)
@@ -63,11 +66,10 @@ async def update_collection(cid: uuid.UUID, data: dict, db: AsyncSession = Depen
     return {"ok": True}
 
 
-@router.delete("/{cid}")
+@router.delete("/{cid}", status_code=204)
 async def delete_collection(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
     await db.execute(text("UPDATE product_collections SET is_active=false WHERE id=:id"), {"id": cid})
     await db.commit()
-    return {"ok": True}
 
 
 @router.get("/{cid}/availability")

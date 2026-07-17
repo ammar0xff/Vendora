@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.base import get_db
 from app.models.sale import Sale, SaleItem
+from app.models.stock import IN_TYPES
 from app.services import report_service
 from app.dependencies import get_current_user, verify_warehouse_access
 from app.models.user import User
@@ -74,7 +75,6 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
     wh_id = uuid.UUID(warehouse_id)
     wh = (await db.execute(select(Warehouse).where(Warehouse.id == wh_id))).scalar_one_or_none()
 
-    IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
     balance_subq = (
         select(StockMovement.product_id,
                func.coalesce(func.sum(sa_case((StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty), else_=-StockMovement.qty)), 0).label("qty"))

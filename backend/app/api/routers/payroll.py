@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.base import get_db
@@ -31,9 +32,13 @@ async def list_periods(db: AsyncSession = Depends(get_db), _=Depends(require_per
     return (await db.execute(select(PayrollPeriod).order_by(PayrollPeriod.year.desc(), PayrollPeriod.month.desc()))).scalars().all()
 
 
+class CreatePeriodRequest(BaseModel):
+    month: int
+    year: int
+
 @router.post("/periods")
-async def create_period(data: dict, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
-    p = PayrollPeriod(month=data["month"], year=data["year"], created_by=current_user.id)
+async def create_period(data: CreatePeriodRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
+    p = PayrollPeriod(month=data.month, year=data.year, created_by=current_user.id)
     db.add(p)
     await db.commit()
     await db.refresh(p)

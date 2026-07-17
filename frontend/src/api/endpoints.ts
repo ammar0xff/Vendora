@@ -108,7 +108,7 @@ export const usersApi = {
 
 export const settingsApi = {
   get: () => api.get('/settings').then(r => r.data),
-  update: (data: any) => api.put('/settings', data),
+  update: (data: any) => api.put('/settings', { settings: data }),
   getOptions: () => api.get('/settings/product-options').then(r => r.data),
   updateOptions: (data: any) => api.put('/settings/product-options', data),
 }
@@ -158,4 +158,20 @@ export const purchasesApi = {
 
 export const suppliersApi = {
   list: (type?: string) => api.get('/suppliers', { params: type ? { type } : {} }).then(r => r.data),
+  create: (d: any) => api.post('/suppliers', d).then(r => r.data),
+  update: (id: string, d: any) => api.put(`/suppliers/${id}`, d).then(r => r.data),
+  delete: (id: string) => api.delete(`/suppliers/${id}`),
+  ledger: (id: string) => api.get(`/suppliers/${id}/ledger`).then(r => r.data),
+  addTx: (id: string, d: any) => api.post(`/suppliers/${id}/transactions`, d).then(r => r.data),
+}
+
+export const notificationsApi = {
+  register: (data: { token: string; platform: string; device_name?: string }) =>
+    api.post('/notifications/register', data).then(r => r.data),
+  unregister: (token: string) =>
+    api.post('/notifications/unregister', null, { params: { token } }).then(r => r.data),
+  send: (data: { user_id: string; title: string; body: string; data?: Record<string, string> }) =>
+    api.post('/notifications/send', data).then(r => r.data),
+  tokens: (userId?: string) =>
+    api.get('/notifications/tokens', { params: userId ? { user_id: userId } : {} }).then(r => r.data),
 }

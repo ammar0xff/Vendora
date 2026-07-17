@@ -22,6 +22,9 @@ async function registerPWA() {
 }
 registerPWA()
 
+import { registerForPushNotifications } from './utils/pushNotifications'
+registerForPushNotifications()
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <NativeShell />

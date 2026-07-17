@@ -8,14 +8,46 @@ from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
 from app.core.exceptions import BusinessError, NotFoundError, ForbiddenError
 
 
+async def _find_employee_by_user_id(db: AsyncSession, user_id: uuid.UUID):
+    """Find hr_employees record by matching emp_code to user UUID."""
+    result = await db.execute(
+        sqlt("SELECT e.id FROM hr_employees e WHERE e.emp_code = :uid_text AND e.is_active = TRUE LIMIT 1"),
+        {"uid_text": str(user_id)}
+    )
+    return result.scalar_one_or_none()
+
+
+async def _record_payroll_variance(db: AsyncSession, shift_id, difference, current_user_id, actor=None):
+    """Record shift variance as payroll advance/deduction."""
+    if difference == 0:
+        return
+    note = f"فرق عجز/زيادة الدرج — وردية {shift_id}"
+    record_type = "خصم" if difference < 0 else "مكافأة"
+    shift = await db.get(Shift, shift_id)
+    if not shift or not shift.cashier_id:
+        return
+    emp_id = await _find_employee_by_user_id(db, shift.cashier_id)
+    if emp_id:
+        await db.execute(sqlt("""
+            INSERT INTO hr_advances (id, employee_id, amount, note, record_type, date, created_by)
+            VALUES (gen_random_uuid(), :eid, :amt, :note, :rtype, NOW(), :uid)
+        """), {"eid": emp_id, "amt": abs(float(difference)), "note": note, "rtype": record_type, "uid": str(actor or current_user_id)})
+
+
 async def open_shift(db: AsyncSession, cashier_id: uuid.UUID, warehouse_id: uuid.UUID, initial_amount: Decimal, supervisor_id: uuid.UUID | None = None) -> Shift:
     """Open a new shift. Enforces one-open-shift-per-(cashier, warehouse)."""
+    if initial_amount < 0:
+        raise BusinessError("مبلغ العهدة لا يمكن أن يكون سالباً")
+    # Advisory lock serializes concurrent opens for same cashier+warehouse
+    lock_key = hash((str(cashier_id), str(warehouse_id))) & 0x7FFFFFFF
+    await db.execute(sqlt("SELECT pg_advisory_xact_lock(:k)"), {"k": lock_key})
+
     existing = await db.execute(
         select(Shift).where(
             Shift.warehouse_id == warehouse_id,
             Shift.cashier_id == cashier_id,
             Shift.status == ShiftStatus.open
-        ).with_for_update()
+        )
     )
     if existing.scalar_one_or_none():
         raise BusinessError("لديك وردية مفتوحة بالفعل في هذا الفرع")
@@ -103,19 +135,7 @@ async def close_shift_with_manager(db: AsyncSession, shift_id: uuid.UUID, data, 
     shift.closed_at = datetime.now(timezone.utc)
 
     # Apply variance to payroll as deduction/bonus
-    if difference != 0 and shift.cashier_id:
-        note = f"فرق عجز/زيادة الدرج — وردية {shift_id}"
-        record_type = "خصم" if difference < 0 else "مكافأة"
-        emp = await db.execute(
-            sqlt("SELECT e.id FROM hr_employees e JOIN users u ON u.full_name = e.name WHERE u.id = :uid LIMIT 1"),
-            {"uid": shift.cashier_id}
-        )
-        emp_id = emp.scalar_one_or_none()
-        if emp_id:
-            await db.execute(sqlt("""
-                INSERT INTO hr_advances (id, employee_id, amount, note, record_type, date, created_by)
-                VALUES (gen_random_uuid(), :eid, :amt, :note, :rtype, NOW(), :uid)
-            """), {"eid": emp_id, "amt": abs(float(difference)), "note": note, "rtype": record_type, "uid": current_user_id})
+    await _record_payroll_variance(db, shift_id, difference, current_user_id, current_user_id)
 
     await db.commit()
     await db.refresh(shift)
@@ -265,6 +285,10 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
     expected = summary["expected_balance"]
     shift.expected_balance = expected
     shift.difference = amount - expected
+
+    # Apply variance to payroll as deduction/bonus (same as close_shift_with_manager)
+    difference = amount - expected
+    await _record_payroll_variance(db, shift_id, difference, current_user_id, actor)
 
     # Prevent duplicate open shifts for the receiver
     existing = await db.execute(

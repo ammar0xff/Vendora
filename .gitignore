@@ -4,7 +4,11 @@ backend/__pycache__/
 backend/**/__pycache__/
 backend/**/*.pyc
 backend/.env
+backend/.env.*
 frontend/.env
+frontend/.env.*
+*.env
+*.env.*
 *.log
 
 # Node

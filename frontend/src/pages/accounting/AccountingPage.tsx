@@ -2,8 +2,9 @@
  * AccountingPage — unified accounting hub
  * Tabs: Dashboard | Income Statement | Financial Ledger | Sales | Debts
  */
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAppStore } from '../../store/app'
+import { useAuthStore } from '../../store/auth'
 import AdminOverview from '../admin/AdminPage'
 import ReportsContent from './ReportsContent'
 import FinanceLedgerContent from './FinanceLedgerContent'
@@ -23,8 +24,11 @@ const TABS = [
 ]
 
 export default function AccountingPage() {
-  const [tab, setTab] = useState('overview')
   const { activeWarehouseId } = useAppStore()
+  const user = useAuthStore(s => s.user)
+  const visibleTabs = useMemo(() => TABS.filter(t => t.roles.includes(user?.role || '')), [user?.role])
+  const [tab, setTab] = useState(visibleTabs[0]?.id || 'overview')
+  const activeTab = visibleTabs.some(t => t.id === tab) ? tab : visibleTabs[0]?.id || 'overview'
 
   return (
     <div>
@@ -39,22 +43,22 @@ export default function AccountingPage() {
 
       {/* Tabs */}
       <div className="flex gap-0 mb-6 border-b border-slate-200 overflow-x-auto">
-        {TABS.map(t => (
+        {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-all flex-shrink-0
-              ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              ${activeTab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'overview' && <AdminOverview />}
-      {tab === 'pnl'      && <ReportsContent />}
-      {tab === 'ledger'   && <FinanceLedgerContent />}
-      {tab === 'reports'  && <ReportsPage />}
-      {tab === 'sales'    && <SalesReportContent />}
-      {tab === 'debts'    && <DebtsContent />}
-      {tab === 'safes'    && <SafesContent />}
+      {activeTab === 'overview' && <AdminOverview />}
+      {activeTab === 'pnl'      && <ReportsContent />}
+      {activeTab === 'ledger'   && <FinanceLedgerContent />}
+      {activeTab === 'reports'  && <ReportsPage />}
+      {activeTab === 'sales'    && <SalesReportContent />}
+      {activeTab === 'debts'    && <DebtsContent />}
+      {activeTab === 'safes'    && <SafesContent />}
     </div>
   )
 }

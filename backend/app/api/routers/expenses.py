@@ -149,7 +149,8 @@ async def update_expense(eid: uuid.UUID, data: ExpenseUpdate, db: AsyncSession =
     if not existing.mappings().first():
         raise NotFoundError()
     from app.schemas.expense import ExpenseUpdate as _ExpenseUpdate
-    ALLOWED_EXPENSE_FIELDS = set(_ExpenseUpdate.model_fields.keys())
+    # Exclude 'status' — it must be changed via the approve/reject endpoint only
+    ALLOWED_EXPENSE_FIELDS = set(_ExpenseUpdate.model_fields.keys()) - {"status"}
     updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if k in ALLOWED_EXPENSE_FIELDS}
     if not updates:
         raise NotFoundError()

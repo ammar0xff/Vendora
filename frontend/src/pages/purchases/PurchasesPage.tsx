@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
-import { productsApi, stockApi } from '../../api/endpoints'
+import { productsApi, stockApi, purchasesApi, suppliersApi } from '../../api/endpoints'
 import { useAppStore } from '../../store/app'
 import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
@@ -10,16 +10,6 @@ import toast from 'react-hot-toast'
 import { Plus, Trash2, Eye, CheckCircle, Package, Printer } from 'lucide-react'
 import ExportButton from '../../components/ui/ExportButton'
 import { openPrint } from '../../utils/format'
-
-const purchasesApi = {
-  list: () => api.get('/purchases').then(r => r.data),
-  get: (id: string) => api.get(`/purchases/${id}`).then(r => r.data),
-  create: (d: any) => api.post('/purchases', d).then(r => r.data),
-  receive: (id: string, d: any) => api.post(`/purchases/${id}/receive`, d).then(r => r.data),
-  priceHistory: (pid: string) => api.get(`/purchases/price-history/${pid}`).then(r => r.data),
-}
-
-const suppliersApi = { list: () => api.get('/suppliers').then(r => r.data) }
 
 const STATUS_LABEL: Record<string, string> = { draft: 'مسودة', received: 'مستلم', cancelled: 'ملغي' }
 const STATUS_CLASS: Record<string, string> = { draft: 'badge-yellow', received: 'badge-green', cancelled: 'badge-red' }
