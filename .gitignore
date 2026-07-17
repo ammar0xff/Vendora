@@ -38,3 +38,6 @@ frontend/android/app/build/
 frontend/android/*.zip
 frontend/android/gradle*.zip
 .obsidian/
+
+# Temp deploy scripts
+_*.py

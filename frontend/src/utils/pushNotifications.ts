@@ -3,7 +3,7 @@
  * Only active on native platforms (Android via Capacitor).
  * Web PWA uses service worker push (separate flow).
  */
-import { PushNotifications, Token } from '@capacitor/push-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { notificationsApi } from '../api/endpoints';
 
@@ -22,7 +22,7 @@ export async function registerForPushNotifications(): Promise<void> {
 
     await PushNotifications.register();
 
-    PushNotifications.addListener('registration', async (token: Token) => {
+    PushNotifications.addListener('registration', async (token: { value: string }) => {
       console.log('FCM token:', token.value);
       try {
         await notificationsApi.register({
