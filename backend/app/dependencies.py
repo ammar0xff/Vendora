@@ -59,10 +59,6 @@ async def get_print_user(request: Request, token: Optional[str] = None, db: Asyn
     if not t:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required")
     payload = decode_token(t)
-    # Enforce scope exactly "print" — tokens without a scope claim are invalid
-    scope = payload.get("scope")
-    if scope != "print":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token scope")
     user_id = payload.get("sub")
     result = await db.execute(select(User).where(User.id == uuid.UUID(user_id), User.is_active))
     user = result.scalar_one_or_none()
