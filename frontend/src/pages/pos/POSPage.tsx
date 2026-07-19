@@ -732,7 +732,7 @@ export default function POSPage() {
     : null
 
   if (shiftOwner) return (
-    <div className="flex flex-col h-[calc(100vh-3rem)]">
+    <div className="flex flex-col h-[calc(100vh-7rem)]">
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ filter: 'blur(6px)', opacity: 0.12 }}>
         <div className="grid grid-cols-5 gap-3 p-8">
           {Array.from({ length: 20 }).map((_, i) => <div key={i} className="bg-white rounded-xl h-32 border border-slate-200" />)}
@@ -759,7 +759,7 @@ export default function POSPage() {
 
   // ── Lock screen when no shift at all ─────────────────────────────────
   if (!shift && mainWh) return (
-    <div className="flex flex-col h-[calc(100vh-3rem)]">
+    <div className="flex flex-col h-[calc(100vh-7rem)]">
       {/* Blurred POS background hint */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ filter: 'blur(6px)', opacity: 0.15 }}>
         <div className="grid grid-cols-5 gap-3 p-8">
@@ -829,7 +829,7 @@ export default function POSPage() {
   return (
     <div>
     {/* ── DESKTOP layout (lg+) ── */}
-    <div className="hidden lg:flex flex-col h-[calc(100vh-3rem)] gap-0">
+    <div className="hidden lg:flex flex-col h-[calc(100vh-7rem)] gap-0">
       {/* Top bar — drawer balance */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h1 className="page-title">نقطة البيع — {mainWh?.name}</h1>
@@ -1316,7 +1316,7 @@ export default function POSPage() {
     </div>{/* end desktop */}
 
     {/* ── MOBILE layout (< lg) ── */}
-    <div className="lg:hidden flex flex-col" style={{ height: 'calc(100vh - 3rem)' }}>
+    <div className="lg:hidden flex flex-col" style={{ height: 'calc(100vh - 7rem)' }}>
 
       {/* Mobile top bar */}
       <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ background: '#1e3a5f' }}>
