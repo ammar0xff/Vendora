@@ -94,7 +94,7 @@ async def get_low_stock(db: AsyncSession, warehouse_id: uuid.UUID, threshold: De
     result = await db.execute(
         select(Product, balance_subq.c.qty)
         .join(balance_subq, Product.id == balance_subq.c.product_id)
-        .where(balance_subq.c.qty <= threshold)
+        .where(balance_subq.c.qty >= 0, balance_subq.c.qty <= threshold)
     )
     return result.all()
 
