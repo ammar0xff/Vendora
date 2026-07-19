@@ -69,6 +69,9 @@ app.add_middleware(
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+updates_dir = os.environ.get("UPDATES_DIR", "./updates")
+os.makedirs(updates_dir, exist_ok=True)
+app.mount("/updates", StaticFiles(directory=updates_dir), name="updates")
 app.include_router(router)
 
 
