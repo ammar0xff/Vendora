@@ -144,7 +144,7 @@ async def update_purchase(po_id: uuid.UUID, data: PurchaseUpdate, db: AsyncSessi
 @router.post("/{po_id}/receive")
 async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseReceive(), db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     """Receive PO. Optionally pass overridden items with actual received qty/cost."""
-    result = await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == po_id))
+    result = await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == po_id).with_for_update())
     po = result.scalar_one_or_none()
     if not po:
         raise NotFoundError()

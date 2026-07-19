@@ -151,7 +151,7 @@ async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
 @router.put("/customers/{cid}/balance")
 async def set_customer_balance(cid: uuid.UUID, data: SetBalanceRequest, db: AsyncSession = Depends(get_db), _=Depends(require_perm("customers"))):
-    result = await db.execute(select(Customer).where(Customer.id == cid))
+    result = await db.execute(select(Customer).where(Customer.id == cid).with_for_update())
     c = result.scalar_one_or_none()
     if not c:
         raise NotFoundError()
@@ -177,7 +177,7 @@ async def add_payment(cid: uuid.UUID, data: CustomerPaymentCreate, db: AsyncSess
     """Record a payment received from customer.  If sale_id is provided, the payment is attributed to that invoice."""
     if data.amount <= 0:
         raise HTTPException(400, "المبلغ يجب أن يكون أكبر من 0")
-    c = (await db.execute(select(Customer).where(Customer.id == cid))).scalar_one_or_none()
+    c = (await db.execute(select(Customer).where(Customer.id == cid).with_for_update())).scalar_one_or_none()
     if not c:
         raise NotFoundError()
     sale_id: uuid.UUID | None = None

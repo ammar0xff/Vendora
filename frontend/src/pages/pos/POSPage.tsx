@@ -12,6 +12,7 @@ import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { openPrint } from '../../utils/format'
+import Decimal from 'decimal.js'
 import {
   Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle,
   X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw, AlertCircle,
@@ -442,13 +443,17 @@ export default function POSPage() {
   const checkoutMut = useMutation({
     mutationFn: async () => {
       const useSplits = splitPayments.length > 0
-      const total = items.reduce((s, i) => s + i.qty * i.unit_price - (i.item_discount_pct > 0 ? i.qty * i.unit_price * (i.item_discount_pct / 100) : i.item_discount), 0) - totalDiscount()
+      const total = items.reduce((s, i) => {
+        const lineTotal = new Decimal(i.qty).mul(i.unit_price)
+        const itemDisc = i.item_discount_pct > 0 ? lineTotal.mul(i.item_discount_pct).div(100) : new Decimal(i.item_discount)
+        return s.add(lineTotal).sub(itemDisc)
+      }, new Decimal(0)).sub(totalDiscount()).toNumber()
 
       if (!isOnline) {
         const saleItems = items.map(i => {
-          const lineTotal = i.qty * i.unit_price
-          const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
-          return { product_id: i.product_id, name: i.name, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc }
+          const lineTotal = new Decimal(i.qty).mul(i.unit_price)
+          const itemDisc = i.item_discount_pct > 0 ? lineTotal.mul(i.item_discount_pct).div(100) : new Decimal(i.item_discount)
+          return { product_id: i.product_id, name: i.name, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc.toNumber() }
         })
         usePendingSalesStore.getState().addSale({
           local_id: crypto.randomUUID?.() || String(Date.now()),
@@ -478,9 +483,9 @@ export default function POSPage() {
         wallet_id: useSplits ? (splitPayments.find(p => p.method === 'wallet')?.walletId || undefined) : (paymentWalletId || undefined),
         payments: useSplits ? splitPayments.map(p => ({ method: p.method, amount: p.amount, wallet_id: p.walletId || null })) : undefined,
         items: items.map(i => {
-          const lineTotal = i.qty * i.unit_price
-          const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
-          return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc }
+          const lineTotal = new Decimal(i.qty).mul(i.unit_price)
+          const itemDisc = i.item_discount_pct > 0 ? lineTotal.mul(i.item_discount_pct).div(100) : new Decimal(i.item_discount)
+          return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost, discount: itemDisc.toNumber() }
         }),
       })
     },
@@ -701,9 +706,9 @@ export default function POSPage() {
   const convertToQuotationMut = useMutation({
     mutationFn: async (bill: any) => {
       const items = bill.items.map((i: any) => {
-        const lineTotal = i.qty * i.unit_price
-        const discount = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : (i.item_discount || 0)
-        return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost || 0, discount }
+        const lineTotal = new Decimal(i.qty).mul(i.unit_price)
+        const discount = i.item_discount_pct > 0 ? lineTotal.mul(i.item_discount_pct).div(100) : new Decimal(i.item_discount || 0)
+        return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost || 0, discount: discount.toNumber() }
       })
       return api.post('/sales/quotations', {
         warehouse_id: bill.warehouse_id || mainWh?.id,

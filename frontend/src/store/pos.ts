@@ -1,5 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import Decimal from 'decimal.js'
+
+function d(v: number | string): Decimal {
+  return new Decimal(v)
+}
 
 export interface CartItem {
   product_id: string
@@ -121,18 +126,18 @@ export const usePOSStore = create<POSState>()(
       deleteHeld: (id) => set({ suspended: get().suspended.filter(b => b.id !== id) }),
 
       subtotal: () => get().items.reduce((s, i) => {
-        const lineTotal = i.qty * i.unit_price
-        const itemDisc = i.item_discount_pct > 0 ? lineTotal * (i.item_discount_pct / 100) : i.item_discount
-        return s + lineTotal - itemDisc
-      }, 0),
+        const lineTotal = d(i.qty).mul(i.unit_price)
+        const itemDisc = i.item_discount_pct > 0 ? lineTotal.mul(i.item_discount_pct).div(100) : d(i.item_discount)
+        return s.add(lineTotal).sub(itemDisc)
+      }, d(0)).toNumber(),
 
       totalDiscount: () => {
-        const sub = get().subtotal()
+        const sub = d(get().subtotal())
         const { invoice_discount, invoice_discount_pct } = get()
-        return invoice_discount_pct > 0 ? sub * (invoice_discount_pct / 100) : invoice_discount
+        return invoice_discount_pct > 0 ? sub.mul(invoice_discount_pct).div(100).toNumber() : invoice_discount
       },
 
-      total: () => Math.max(0, get().subtotal() - get().totalDiscount()),
+      total: () => Math.max(0, d(get().subtotal()).sub(get().totalDiscount()).toNumber()),
     }),
     { name: 'pos-cart' }
   )

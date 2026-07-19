@@ -1,5 +1,7 @@
 """HR / Payroll router"""
 import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -836,6 +838,21 @@ async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db),
         return {"action": "added"}
 
 
+_zk_executor = ThreadPoolExecutor(max_workers=1)
+
+
+def _zk_fetch(host: str, port: int, timeout: int):
+    """Blocking ZK device call — runs in thread pool."""
+    from zk import ZK
+    zk = ZK(host, port=port, timeout=timeout, force_udp=False, ommit_ping=False)
+    conn = zk.connect()
+    conn.disable_device()
+    punches = conn.get_attendance()
+    conn.enable_device()
+    conn.disconnect()
+    return punches
+
+
 @router.post("/sync-device")
 async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     """Trigger sync from ZK device — only works if backend can reach the device directly."""
@@ -847,17 +864,9 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
         raise HTTPException(400, "ZK device host not configured — set device_host in hr_settings")
 
     try:
-        from zk import ZK
-    except ImportError:
-        raise HTTPException(500, "pyzk not installed")
-
-    try:
-        zk = ZK(host, port=port, timeout=timeout, force_udp=False, ommit_ping=False)
-        conn = zk.connect()
-        conn.disable_device()
-        punches = conn.get_attendance()
-        conn.enable_device()
-        conn.disconnect()
+        punches = await asyncio.get_event_loop().run_in_executor(
+            _zk_executor, _zk_fetch, host, port, timeout
+        )
     except Exception as e:
         await db.execute(text(
             "INSERT INTO hr_sync_log (status, message) VALUES ('failure', :m)"
