@@ -101,49 +101,30 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
   const [editSubId, setEditSubId] = useState<{ id: string; catId: string; name: string } | null>(null)
   const [editSubName, setEditSubName] = useState('')
 
-  const toggle = (id: string) => setExpanded(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
+  const toggle = (id: string) => setExpanded(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const getSubs = (catId: string) => subcategories.filter((s: any) => s.category_id === catId)
 
   const addCatMut = useMutation({
     mutationFn: () => categoriesApi.create(newCatName),
-    onSuccess: () => {
-      toast.success('تمت الإضافة')
-      setShowNewCat(false)
-      setNewCatName('')
-      qc.invalidateQueries({ queryKey: ['categories'] })
-    },
+    onSuccess: () => { toast.success('تمت الإضافة'); setShowNewCat(false); setNewCatName(''); qc.invalidateQueries({ queryKey: ['categories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
   const editCatMut = useMutation({
     mutationFn: () => categoriesApi.update(editCatId!.id, editCatName),
-    onSuccess: () => {
-      toast.success('تم التعديل')
-      setEditCatId(null)
-      qc.invalidateQueries({ queryKey: ['categories'] })
-    },
+    onSuccess: () => { toast.success('تم التعديل'); setEditCatId(null); qc.invalidateQueries({ queryKey: ['categories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
   const editSubMut = useMutation({
     mutationFn: () => subcategoriesApi.update(editSubId!.id, editSubId!.catId, editSubName),
-    onSuccess: () => {
-      toast.success('تم التعديل')
-      setEditSubId(null)
-      qc.invalidateQueries({ queryKey: ['subcategories'] })
-    },
+    onSuccess: () => { toast.success('تم التعديل'); setEditSubId(null); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
   const addSubMut = useMutation({
     mutationFn: () => subcategoriesApi.create(newSubCatId!, newSubName),
-    onSuccess: () => {
-      toast.success('تمت الإضافة')
-      setExpanded(p => new Set([...p, newSubCatId!]))
-      setNewSubCatId(null)
-      setNewSubName('')
-      qc.invalidateQueries({ queryKey: ['subcategories'] })
-    },
+    onSuccess: () => { toast.success('تمت الإضافة'); setNewSubCatId(null); setNewSubName(''); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
@@ -194,63 +175,48 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           </div>
         )}
 
-        <div className="space-y-0.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map((cat: any) => {
             const subs = getSubs(cat.id)
             const isOpen = expanded.has(cat.id)
 
             return (
-              <div key={cat.id}>
-                <div className="flex items-center gap-2 px-3 py-3 rounded-xl hover:bg-slate-50 group transition-colors">
-                  <button onClick={() => toggle(cat.id)}
-                    className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0">
-                    {subs.length > 0
-                      ? (isOpen ? <ChevronDown size={15} /> : <ChevronLeft size={15} />)
-                      : <span className="w-3 h-px bg-slate-200 block" />}
-                  </button>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#1e3a5f15' }}>
-                    <Tag size={15} style={{ color: '#1e3a5f' }} />
+              <div key={cat.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ background: '#1e3a5f' }}>
+                      <Tag size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-slate-900 leading-tight">{cat.name}</p>
+                      <p className="text-xs text-slate-400">{subs.length} تصنيف فرعي</p>
+                    </div>
                   </div>
-                  <span className="flex-1 font-semibold text-sm text-slate-800">{cat.name}</span>
-                  {subs.length > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{subs.length}</span>
-                  )}
-                  <div className="flex items-center gap-1">
-                    <ActBtn onClick={() => { setNewSubCatId(cat.id); setNewSubName('') }}
-                      color="#2563eb" hoverColor="#2563eb" title="إضافة تصنيف فرعي"><Plus size={15} /></ActBtn>
+                  <div className="flex items-center gap-2">
                     <ActBtn onClick={() => { setEditCatId({ id: cat.id, name: cat.name }); setEditCatName(cat.name) }}
-                      color="#d97706" hoverColor="#d97706" title="تعديل الاسم"><Pencil size={15} /></ActBtn>
+                      color="#d97706" hoverColor="#d97706" title="تعديل الاسم"><Pencil size={14} /></ActBtn>
                     <ActBtn onClick={() => setConfirmDelCat({ id: cat.id, name: cat.name, subsCount: subs.length })}
-                      color="#ef4444" hoverColor="#ef4444" title="حذف"><Trash2 size={15} /></ActBtn>
+                      color="#ef4444" hoverColor="#ef4444" title="حذف"><Trash2 size={14} /></ActBtn>
                   </div>
                 </div>
 
-                {isOpen && (
-                  <div className="mr-12 border-r-2 border-slate-100 pr-3 mb-1 space-y-0.5">
+                {subs.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {subs.map((sub: any) => (
-                      <div key={sub.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 group transition-colors">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#c8a84b15' }}>
-                          <Layers size={13} style={{ color: '#c8a84b' }} />
-                        </div>
-                        <span className="flex-1 text-sm text-slate-600">{sub.name}</span>
-                        <div className="flex items-center gap-1">
-                          <ActBtn onClick={() => { setEditSubId({ id: sub.id, catId: sub.category_id, name: sub.name }); setEditSubName(sub.name) }}
-                            color="#d97706" hoverColor="#d97706" size="sm" title="تعديل الاسم"><Pencil size={12} /></ActBtn>
-                          <ActBtn onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })}
-                            color="#ef4444" hoverColor="#ef4444" size="sm" title="حذف"><Trash2 size={12} /></ActBtn>
-                        </div>
-                      </div>
+                      <span key={sub.id} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                        <span className="font-medium">{sub.name}</span>
+                        <button onClick={() => { setEditSubId({ id: sub.id, catId: sub.category_id, name: sub.name }); setEditSubName(sub.name) }} className="text-slate-400 hover:text-slate-600"><Pencil size={12} /></button>
+                        <button onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
+                      </span>
                     ))}
-
-                    <button onClick={() => { setNewSubCatId(cat.id); setNewSubName('') }}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 border-dashed w-full"
-                      style={{ color: '#2563eb', borderColor: '#93c5fd', background: '#eff6ff' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#dbeafe'; (e.currentTarget as HTMLElement).style.borderColor = '#60a5fa' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#eff6ff'; (e.currentTarget as HTMLElement).style.borderColor = '#93c5fd' }}>
-                      <Plus size={14} /> تصنيف فرعي جديد
-                    </button>
                   </div>
                 )}
+
+                <button onClick={() => { setNewSubCatId(cat.id); setNewSubName('') }}
+                  className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border border-dashed"
+                  style={{ color: '#2563eb', borderColor: '#93c5fd', background: '#eff6ff' }}>
+                  إضافة تصنيف فرعي
+                </button>
               </div>
             )
           })}
