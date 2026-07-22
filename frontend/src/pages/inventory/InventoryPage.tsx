@@ -119,9 +119,9 @@ export default function InventoryPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-3rem)]">
-      {!categories || !subcategories || !products ? (
+      {( !categories || !subcategories || !products ) ? (
         <>
-          <aside className="w-full lg:w-52 flex-shrink-0"><SkeletonSidebar /></aside>
+          <aside className="w-full lg:w-52 flex-shrink-0 bg-white rounded-2xl border border-slate-100 p-4"><SkeletonSidebar /></aside>
           <div className="flex-1 min-w-0 space-y-3 p-1">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
@@ -132,15 +132,13 @@ export default function InventoryPage() {
             </div>
             <div className="h-10 w-full bg-slate-200 rounded-2xl animate-pulse" />
             <div className="space-y-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <SkeletonRow key={i} />
-              ))}
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
             </div>
           </div>
         </>
       ) : (
         <>
-          {/* ── Tree Sidebar ─────────────────────────────────────────── */} 
+          {/* ── Tree Sidebar ── */}
       <aside className="w-full lg:w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">التصنيفات</p>
@@ -377,6 +375,7 @@ export default function InventoryPage() {
       </Modal>
       {showCollection && <CollectionModal open={showCollection} onClose={() => setShowCollection(false)} />}
       <ConfirmDialog open={!!confirmDelProduct} onClose={() => setConfirmDelProduct(null)} onConfirm={() => { deleteMut.mutate(confirmDelProduct); setConfirmDelProduct(null) }} message="حذف المنتج؟" danger confirmText="حذف" />
+      </>
     </div>
   )
 }
