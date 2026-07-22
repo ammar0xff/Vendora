@@ -166,13 +166,13 @@ async def list_products(
         if product_ids:
             bal_rows = (await db.execute(sqlt("""
                 SELECT sm.product_id,
-                       COALESCE(SUM(CASE WHEN sm.movement_type IN (:in_types)
-                                         THEN sm.qty ELSE -sm.qty END), 0) as qty
+                       COALESCE(SUM(CASE WHEN sm.movement_type IN (
+                           'opening_stock','purchase','return_in','adjustment_in','transfer_in'
+                       ) THEN sm.qty ELSE -sm.qty END), 0) as qty
                 FROM stock_movements sm
                 WHERE sm.warehouse_id = :wid AND sm.product_id = ANY(:pids)
                 GROUP BY sm.product_id
             """), {
-                "in_types": ['opening_stock','purchase','return_in','adjustment_in','transfer_in'],
                 "wid": warehouse_id,
                 "pids": product_ids,
             })).fetchall()
@@ -190,13 +190,13 @@ async def list_products(
         if product_ids:
             bal_rows = (await db.execute(sqlt("""
                 SELECT sm.product_id,
-                       COALESCE(SUM(CASE WHEN sm.movement_type IN (:in_types)
-                                         THEN sm.qty ELSE -sm.qty END), 0) as qty
+                       COALESCE(SUM(CASE WHEN sm.movement_type IN (
+                           'opening_stock','purchase','return_in','adjustment_in','transfer_in'
+                       ) THEN sm.qty ELSE -sm.qty END), 0) as qty
                 FROM stock_movements sm
                 WHERE sm.product_id = ANY(:pids)
                 GROUP BY sm.product_id
             """), {
-                "in_types": ['opening_stock','purchase','return_in','adjustment_in','transfer_in'],
                 "pids": product_ids,
             })).fetchall()
             bal_map = {str(r[0]): float(r[1]) for r in bal_rows}
