@@ -158,7 +158,9 @@ async def list_products(
 
     items_out: list[ProductOutWithBalance] = []
     for p in products:
-        items_out.append(ProductOutWithBalance.model_validate({**p.__dict__, **{"current_qty": Decimal("0")}}))
+        item = ProductOutWithBalance.model_validate(p)
+        item.current_qty = Decimal("0")
+        items_out.append(item)
 
     if warehouse_id:
         # inline warehouse scope balance for visible products
