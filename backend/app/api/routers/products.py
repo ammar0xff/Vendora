@@ -158,52 +158,7 @@ async def list_products(
 
     items_out: list[ProductOutWithBalance] = []
     for p in products:
-        item = ProductOutWithBalance.model_validate(p)
-        item.current_qty = Decimal("0")
-        items_out.append(item)
-
-    if warehouse_id:
-        # inline warehouse scope balance for visible products
-        product_ids = [p.id for p in products]
-        if product_ids:
-            bal_rows = (await db.execute(sqlt("""
-                SELECT sm.product_id,
-                       COALESCE(SUM(CASE WHEN sm.movement_type IN (
-                           'opening_stock','purchase','return_in','adjustment_in','transfer_in'
-                       ) THEN sm.qty ELSE -sm.qty END), 0) as qty
-                FROM stock_movements sm
-                WHERE sm.warehouse_id = :wid AND sm.product_id = ANY(:pids)
-                GROUP BY sm.product_id
-            """), {
-                "wid": warehouse_id,
-                "pids": product_ids,
-            })).fetchall()
-            bal_map = {str(r[0]): float(r[1]) for r in bal_rows}
-            wh_rows = (await db.execute(sqlt(
-                "SELECT product_id, status FROM warehouse_product_status WHERE warehouse_id = :wid"
-            ), {"wid": warehouse_id})).fetchall()
-            wh_status = {str(r[0]): r[1] for r in wh_rows}
-            for po in items_out:
-                po.current_qty = Decimal(str(bal_map.get(str(po.id), 0)))
-                po.stock_status = wh_status.get(str(po.id), po.stock_status)
-    else:
-        # company view: total balance across warehouses
-        product_ids = [p.id for p in products]
-        if product_ids:
-            bal_rows = (await db.execute(sqlt("""
-                SELECT sm.product_id,
-                       COALESCE(SUM(CASE WHEN sm.movement_type IN (
-                           'opening_stock','purchase','return_in','adjustment_in','transfer_in'
-                       ) THEN sm.qty ELSE -sm.qty END), 0) as qty
-                FROM stock_movements sm
-                WHERE sm.product_id = ANY(:pids)
-                GROUP BY sm.product_id
-            """), {
-                "pids": product_ids,
-            })).fetchall()
-            bal_map = {str(r[0]): float(r[1]) for r in bal_rows}
-            for po in items_out:
-                po.current_qty = Decimal(str(bal_map.get(str(po.id), 0)))
+        items_out.append(ProductOutWithBalance.model_validate(p))
 
     return Page(items=items_out, total=total, page=page, size=page_size, pages=pages)
 
