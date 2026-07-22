@@ -52,15 +52,19 @@ export async function isBiometricAvailable(): Promise<boolean> {
 export async function printBluetooth(text: string): Promise<boolean> {
   try {
     const mod = await import('@capacitor-community/bluetooth-le')
+    const PRINTER_SERVICE = '000018f0-0000-1000-8000-00805f9b34fb'
+    const PRINTER_CHAR = '00002af1-0000-1000-8000-00805f9b34fb'
     const device = await mod.BluetoothLe.requestDevice({
-      services: ['0000180f-0000-1000-8000-00805f9b34fb'],
+      services: [PRINTER_SERVICE],
     })
     await mod.BluetoothLe.connect({ deviceId: device.device.deviceId })
+    const encoder = new TextEncoder()
+    const data = encoder.encode(text)
     await mod.BluetoothLe.write({
       deviceId: device.device.deviceId,
-      service: '0000180f-0000-1000-8000-00805f9b34fb',
-      characteristic: '00002a19-0000-1000-8000-00805f9b34fb',
-      value: btoa(text),
+      service: PRINTER_SERVICE,
+      characteristic: PRINTER_CHAR,
+      value: data.buffer,
     })
     await mod.BluetoothLe.disconnect({ deviceId: device.device.deviceId })
     return true

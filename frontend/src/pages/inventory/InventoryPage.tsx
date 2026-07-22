@@ -85,18 +85,9 @@ export default function InventoryPage() {
       ...(selectedSubId ? { subcategory_id: selectedSubId } : selectedCatId ? { category_id: selectedCatId } : {}),
       ...(activeWarehouseId ? { warehouse_id: activeWarehouseId } : {}),
     }),
-  })
-
-  // Fetch stock balances for visible products
-  const productIds = products?.map((p: any) => p.id) || []
-  const { data: balances } = useQuery({
-    queryKey: ['balances', activeWarehouseId, productIds.join(',')],
-    queryFn: () => isCompanyView
-      ? api.post('/stock/balance/total', productIds).then(r => r.data)
-      : api.post(`/stock/balance/bulk?warehouse_id=${activeWarehouseId}`, productIds).then(r => r.data),
-    enabled: productIds.length > 0,
     staleTime: 30_000,
   })
+
   const { data: movements } = useQuery({
     queryKey: ['movements', viewMovements?.id],
     queryFn: () => productsApi.movements(viewMovements.id),
@@ -254,12 +245,10 @@ export default function InventoryPage() {
               )},
               { key: 'qty', label: 'المخزون', sortable: true, render: (p: any) => {
                 if (p.stock_status === 'untracked') return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
-                const qty = balances
-                  ? (p.id in balances ? balances[p.id] : (p.stock_status === 'tracked' ? null : 0))
-                  : null
-                if (qty === null) return <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium whitespace-nowrap">لم يُجرد هنا</span>
+                const qty = p.current_qty ?? 0
+                if (p.stock_status === 'tracked' && qty === 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium whitespace-nowrap">لم يُجرد هنا</span>
                 const low = qty <= 5
-                return <span className={`font-black text-sm ${low ? 'text-red-600' : 'text-green-700'}`}>{qty} {p.unit}</span>
+                return <span className={`font-black text-sm ${low ? 'text-red-600' : 'text-green-700'}`}>{Number(qty).toLocaleString('ar-EG')} {p.unit}</span>
               }},
               { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold" style={{ color: '#c8a84b' }}>{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'wholesale_price', label: 'سعر الجملة', sortable: true, render: (p: any) => <span className="text-slate-600">{Number(p.wholesale_price).toLocaleString('ar-EG')} ج.م</span> },
@@ -357,7 +346,6 @@ export default function InventoryPage() {
                 toast.success('تم إدخال الرصيد الافتتاحي')
                 setOpeningStockProduct(null)
                 qc.invalidateQueries({ queryKey: ['products'] })
-                qc.invalidateQueries({ queryKey: ['balances'] })
               }}
               className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#16a34a' }}>
               تأكيد الرصيد

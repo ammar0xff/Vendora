@@ -73,10 +73,8 @@ import { checkForDesktopUpdates } from './utils/desktopUpdate'
 /** Redirect /print/* → /api/print/* so nginx proxies it to the backend */
 function PrintRedirect() {
   const location = useLocation()
-  const { token } = useAuthStore()
   useEffect(() => {
-    const sep = location.search ? '&' : '?'
-    const url = `/api${location.pathname}${location.search}${sep}token=${encodeURIComponent(token || '')}`
+    const url = `/api${location.pathname}${location.search}`
     window.location.replace(url)
   }, [])
   return <div style={{ fontFamily: 'Cairo, sans-serif', padding: 32, direction: 'rtl', fontSize: 16 }}>جارٍ فتح الفاتورة…</div>

@@ -368,29 +368,27 @@ async def create_supplier_price(
     current_user=Depends(require_perm("operations"))
 ):
     """Create or update supplier price."""
-    
-    # Check if already exists
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    stmt = pg_insert(SupplierPrice).values(**data.model_dump())
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_supplier_product",
+        set_={
+            "price": data.price,
+            "currency": data.currency,
+            "min_qty": data.min_qty,
+            "notes": data.notes,
+            "is_active": True,
+        }
+    )
+    await db.execute(stmt)
+    await db.commit()
     existing = await db.scalar(
         select(SupplierPrice).where(
             SupplierPrice.supplier_id == data.supplier_id,
             SupplierPrice.product_id == data.product_id
         )
     )
-    
-    if existing:
-        # Update
-        existing.price = data.price
-        existing.currency = data.currency
-        existing.min_qty = data.min_qty
-        existing.notes = data.notes
-        existing.is_active = True
-    else:
-        # Create
-        existing = SupplierPrice(**data.model_dump())
-        db.add(existing)
-    
-    await db.commit()
-    await db.refresh(existing)
     return existing
 
 

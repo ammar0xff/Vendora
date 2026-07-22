@@ -92,15 +92,19 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
                 prod_name = prod.scalar() or str(item.product_id)
                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
-    for item in sale.items:
-        mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
-                                  movement_type=MovementType.sale, qty=item.qty,
-                                  unit_cost=item.unit_cost, unit_price=item.unit_price)
-        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id)
+    movements = [
+        StockMovement(
+            product_id=item.product_id, warehouse_id=sale.warehouse_id,
+            movement_type=MovementType.sale, qty=item.qty,
+            unit_cost=item.unit_cost, unit_price=item.unit_price,
+            created_by=user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id,
+        )
+        for item in sale.items
+    ]
+    db.add_all(movements)
 
     sale.status = SaleStatus.confirmed
     sale.invoice_number = await _invoice_number(db)
-    # Create archived document
     from app.models.archive import ArchivedDocument, DocType
     doc = ArchivedDocument(
         doc_type=DocType.sale_invoice,
@@ -173,11 +177,16 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
                 prod_name = prod.scalar() or str(item.product_id)
                 raise BusinessError(f"المخزون غير كافي لـ {prod_name}")
 
-    for item in sale.items:
-        mv = StockMovementCreate(product_id=item.product_id, warehouse_id=sale.warehouse_id,
-                                  movement_type=MovementType.sale, qty=item.qty,
-                                  unit_cost=item.unit_cost, unit_price=item.unit_price)
-        await record_movement(db, mv, user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id)
+    movements = [
+        StockMovement(
+            product_id=item.product_id, warehouse_id=sale.warehouse_id,
+            movement_type=MovementType.sale, qty=item.qty,
+            unit_cost=item.unit_cost, unit_price=item.unit_price,
+            created_by=user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id,
+        )
+        for item in sale.items
+    ]
+    db.add_all(movements)
 
     new_inv = await _invoice_number(db)
     sale.status = SaleStatus.confirmed
@@ -248,6 +257,8 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
 
     gross_total = Decimal("0")
     total_discount = Decimal("0")
+    sale_items: list[SaleItem] = []
+    stock_movements: list = []
     for item in data.items:
         si = SaleItem(
             sale_id=sale.id,
@@ -257,19 +268,26 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
             unit_cost=item.unit_cost,
             discount=item.discount,
         )
-        db.add(si)
+        sale_items.append(si)
         gross_total += Decimal(str(item.qty)) * Decimal(str(item.unit_price))
         total_discount += Decimal(str(item.discount))
 
-        mv = StockMovementCreate(
+        mv = StockMovement(
             product_id=item.product_id,
             warehouse_id=data.warehouse_id,
             movement_type=MovementType.sale,
             qty=item.qty,
             unit_cost=item.unit_cost,
             unit_price=item.unit_price,
+            created_by=cashier_id,
+            ref_id=sale.id,
+            ref_type="sale",
+            sale_id=sale.id,
         )
-        await record_movement(db, mv, cashier_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id)
+        stock_movements.append(mv)
+
+    db.add_all(sale_items)
+    db.add_all(stock_movements)
 
     net_total = gross_total - total_discount - Decimal(str(data.discount_amount))
     sale.total = Decimal(str(gross_total))
@@ -286,9 +304,9 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     from sqlalchemy import text as sqlt
     payments = getattr(data, 'payments', None)
     if payments:
-        pmt_sum = sum(float(p.amount) for p in payments)
-        if abs(pmt_sum - net_total) > 0.01:
-            raise BusinessError(f"مجموع المدفوعات ({pmt_sum:.2f}) لا يساوي إجمالي الفاتورة ({net_total:.2f})")
+        pmt_sum = sum(Decimal(str(p.amount)) for p in payments)
+        if pmt_sum != net_total:
+            raise BusinessError(f"مجموع المدفوعات ({pmt_sum}) لا يساوي إجمالي الفاتورة ({net_total})")
         is_credit = any(p.method == 'credit' for p in payments)
         sale.is_credit = is_credit
         sale.payment_method = payments[0].method
@@ -299,17 +317,17 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
             if p.method == 'cash' and data.shift_id:
                 db.add(DrawerTransaction(
                     shift_id=data.shift_id, type=DrawerTxType.sale,
-                    amount=float(p.amount), ref_id=sale.id, created_by=cashier_id,
+                    amount=Decimal(str(p.amount)), ref_id=sale.id, created_by=cashier_id,
                     note=f"قسط نقدي - {sale.invoice_number}",
                 ))
             elif p.method == 'wallet' and p.wallet_id:
                 from app.services.wallet_service import record_wallet_tx
-                await record_wallet_tx(db, p.wallet_id, float(p.amount), "sale", sale.id,
+                await record_wallet_tx(db, p.wallet_id, Decimal(str(p.amount)), "sale", sale.id,
                                        f"قسط محفظة - {sale.invoice_number}", cashier_id)
             elif p.method == 'credit' and data.customer_id:
                 await db.execute(sqlt(
                     "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
-                ), {"amt": float(p.amount), "cid": data.customer_id})
+                ), {"amt": Decimal(str(p.amount)), "cid": data.customer_id})
     else:
         # Legacy single payment — record drawer only for cash
         if data.shift_id and not data.is_credit and not getattr(data, 'wallet_id', None):
@@ -436,6 +454,12 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
     sale.status = SaleStatus.cancelled
 
+    # Reverse customer balance for credit sales
+    if sale.is_credit and sale.customer_id:
+        await db.execute(sqlt(
+            "UPDATE customers SET balance = GREATEST(COALESCE(balance,0) - :amt, 0) WHERE id = :cid"
+        ), {"amt": sale.net_total, "cid": sale.customer_id})
+
     # Restore stock for all sale items
     items = (await db.execute(
         select(SaleItem).where(SaleItem.sale_id == sale_id)
@@ -453,10 +477,9 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
         {"sid": str(sale_id)}
     )).fetchall()
     for wtx in wallet_txns:
-        await db.execute(
-            sqlt("UPDATE payment_wallets SET balance = balance + :amt WHERE id = :wid"),
-            {"amt": float(wtx.amount), "wid": str(wtx.wallet_id)}
-        )
+        from app.services.wallet_service import record_wallet_tx
+        await record_wallet_tx(db, wtx.wallet_id, -Decimal(str(wtx.amount)), "drawer_txn_reversed",
+                               sale.id, f"إلغاء فاتورة {sale.invoice_number}", user_id)
 
     # Delete all drawer transactions for this sale (reverses cash effects on shifts)
     await db.execute(
@@ -470,6 +493,12 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
         {"sid": str(sale_id)}
     )
 
+    # Delete split payment records for this sale
+    await db.execute(
+        sqlt("DELETE FROM sale_payments WHERE sale_id = :sid"),
+        {"sid": str(sale_id)}
+    )
+
     await db.commit()
     await db.refresh(sale)
     return sale
@@ -477,7 +506,7 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
 async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, current_user_id: uuid.UUID) -> dict:
     from sqlalchemy.orm import selectinload as sil
-    from app.models.stock import MovementType
+    from app.models.stock import MovementType, StockMovement
     from app.schemas.stock import StockMovementCreate
     from app.services.stock_service import record_movement
     from app.models.archive import ArchivedDocument, DocType
@@ -541,7 +570,9 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
     cash_part = pmt_map.get("cash", Decimal("0"))
     credit_part = pmt_map.get("credit", Decimal("0"))
     wallet_part = pmt_map.get("wallet", Decimal("0"))
-    ratio = total / orig.total if orig.total else Decimal("0")
+    ratio = total / orig.total if orig.total > 0 else Decimal("0")
+    if ratio == 0:
+        raise BusinessError("Original total is zero — cannot prorate return")
 
     drawer_amt = (cash_part * ratio).quantize(Decimal("0.01"))
     if ret.shift_id and drawer_amt > 0:

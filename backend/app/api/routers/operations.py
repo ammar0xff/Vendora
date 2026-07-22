@@ -100,7 +100,7 @@ async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_d
     items_detail = []
     for item in data.items:
         prod = (await db.execute(select(Product).where(Product.id == item.product_id))).scalar_one_or_none()
-        balance = await get_balance(db, item.product_id, data.from_warehouse_id)
+        balance = await get_balance(db, item.product_id, data.from_warehouse_id, for_update=True)
         if balance < item.qty:
             raise HTTPException(400, f"رصيد غير كافٍ للمنتج {prod.name if prod else ''} — المتاح {balance}")
         db.add(StockMovement(product_id=item.product_id, warehouse_id=data.from_warehouse_id,

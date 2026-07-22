@@ -98,6 +98,10 @@ class ProductWithStock(ProductOut):
     current_qty: Decimal = Decimal("0")
 
 
+class ProductOutWithBalance(ProductOut):
+    model_config = {"from_attributes": True, "extra": "allow"}
+
+
 class ProductBarcodeCreate(BaseModel):
     barcode: str
     is_primary: bool = False

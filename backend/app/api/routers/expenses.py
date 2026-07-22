@@ -11,6 +11,15 @@ import uuid
 router = APIRouter(tags=["expenses"])
 
 
+def _safe_uuid(value: str | None) -> uuid.UUID | None:
+    if not value:
+        return None
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid warehouse_id")
+
+
 # ── Expense Vendors ────────────────────────────────────────────────────────
 
 @router.get("/expense-vendors")
@@ -71,7 +80,7 @@ async def list_expenses(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
+    await verify_warehouse_access(db, current_user, _safe_uuid(warehouse_id))
     params: dict = {}
     where_parts = ["1=1"]
     if search:
@@ -195,7 +204,7 @@ async def expense_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
+    await verify_warehouse_access(db, current_user, _safe_uuid(warehouse_id))
     params: dict = {}
     where_parts = ["e.status = 'approved'"]
     if date_from:

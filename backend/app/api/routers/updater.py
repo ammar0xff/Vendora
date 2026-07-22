@@ -44,7 +44,10 @@ async def check_update(target: str, current_version: str):
 
 @router.get("/download/{filename:path}")
 async def download_update(filename: str):
-    file_path = UPDATES_DIR / filename
+    safe_name = os.path.basename(filename)
+    file_path = (UPDATES_DIR / safe_name).resolve()
+    if not file_path.is_relative_to(UPDATES_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid filename")
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(

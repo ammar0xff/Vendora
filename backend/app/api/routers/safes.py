@@ -8,6 +8,7 @@ from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm, require_is_manager
 from app.models.user import User
 from app.schemas.safe import SafeCreate, SafeUpdate, SafeTransferCreate, SafeDepositCreate, SafeWithdrawCreate
+from app.services.wallet_service import record_wallet_tx
 
 router = APIRouter(prefix="/safes", tags=["safes"])
 
@@ -50,8 +51,8 @@ async def transfer_to_safe(data: SafeTransferCreate, db: AsyncSession = Depends(
     if float(wallet["balance"]) < amt:
         raise HTTPException(400, f"رصيد المحفظة غير كافٍ ({wallet['balance']} ج.م)")
 
-    # Deduct from wallet
-    await db.execute(text("UPDATE payment_wallets SET balance = balance - :amt WHERE id=:id"), {"amt": amt, "id": wallet_id})
+    # Deduct from wallet via service path to keep balance invariant
+    await record_wallet_tx(db, wallet_id, -amt, "safe_transfer", safe_id, data.note or f"تحويل إلى خزنة {wallet['name']}", current_user.id)
     # Add to safe
     await db.execute(text("UPDATE safes SET balance = balance + :amt WHERE id=:id"), {"amt": amt, "id": safe_id})
     # Log transaction

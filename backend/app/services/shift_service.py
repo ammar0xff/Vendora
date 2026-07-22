@@ -318,20 +318,6 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
     )
     db.add(new_shift)
 
-    # Auto-grant warehouse access
-    if shift.warehouse_id:
-        from app.models.user import user_warehouses
-        existing = await db.execute(
-            select(user_warehouses.c.warehouse_id).where(
-                user_warehouses.c.user_id == to_user_id,
-                user_warehouses.c.warehouse_id == shift.warehouse_id,
-            )
-        )
-        if not existing.scalar_one_or_none():
-            await db.execute(
-                user_warehouses.insert().values(user_id=to_user_id, warehouse_id=shift.warehouse_id)
-            )
-
     # Archive handover document
     from app.models.archive import ArchivedDocument, DocType
     from app.models.user import User

@@ -132,8 +132,9 @@ async def list_products(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from sqlalchemy import func, text as sqlt
+    from sqlalchemy import func, text as sqlt, case as sa_case
     from app.models.user import User
+    from app.schemas.product import ProductOutWithBalance
     await verify_warehouse_access(db, current_user, warehouse_id)
     base_q = select(Product).where(Product.is_active)
     count_q = select(func.count(Product.id)).where(Product.is_active)
@@ -154,18 +155,53 @@ async def list_products(
     offset = (page - 1) * page_size
     products = (await db.execute(base_q.offset(offset).limit(page_size))).scalars().all()
 
-    items_out: list[ProductOut] = []
+    items_out: list[ProductOutWithBalance] = []
     for p in products:
-        po = ProductOut.model_validate(p)
-        items_out.append(po)
+        items_out.append(ProductOutWithBalance.model_validate({**p.__dict__, **{"current_qty": Decimal("0")}}))
 
     if warehouse_id:
-        rows = (await db.execute(sqlt(
-            "SELECT product_id, status FROM warehouse_product_status WHERE warehouse_id = :wid"
-        ), {"wid": warehouse_id})).fetchall()
-        wh_status = {str(r[0]): r[1] for r in rows}
-        for po in items_out:
-            po.stock_status = wh_status.get(str(po.id), po.stock_status)
+        # inline warehouse scope balance for visible products
+        product_ids = [p.id for p in products]
+        if product_ids:
+            bal_rows = (await db.execute(sqlt("""
+                SELECT sm.product_id,
+                       COALESCE(SUM(CASE WHEN sm.movement_type IN (:in_types)
+                                         THEN sm.qty ELSE -sm.qty END), 0) as qty
+                FROM stock_movements sm
+                WHERE sm.warehouse_id = :wid AND sm.product_id = ANY(:pids)
+                GROUP BY sm.product_id
+            """), {
+                "in_types": ['opening_stock','purchase','return_in','adjustment_in','transfer_in'],
+                "wid": warehouse_id,
+                "pids": product_ids,
+            })).fetchall()
+            bal_map = {str(r[0]): float(r[1]) for r in bal_rows}
+            wh_rows = (await db.execute(sqlt(
+                "SELECT product_id, status FROM warehouse_product_status WHERE warehouse_id = :wid"
+            ), {"wid": warehouse_id})).fetchall()
+            wh_status = {str(r[0]): r[1] for r in wh_rows}
+            for po in items_out:
+                po.current_qty = Decimal(str(bal_map.get(str(po.id), 0)))
+                po.stock_status = wh_status.get(str(po.id), po.stock_status)
+    else:
+        # company view: total balance across warehouses
+        product_ids = [p.id for p in products]
+        if product_ids:
+            bal_rows = (await db.execute(sqlt("""
+                SELECT sm.product_id,
+                       COALESCE(SUM(CASE WHEN sm.movement_type IN (:in_types)
+                                         THEN sm.qty ELSE -sm.qty END), 0) as qty
+                FROM stock_movements sm
+                WHERE sm.product_id = ANY(:pids)
+                GROUP BY sm.product_id
+            """), {
+                "in_types": ['opening_stock','purchase','return_in','adjustment_in','transfer_in'],
+                "pids": product_ids,
+            })).fetchall()
+            bal_map = {str(r[0]): float(r[1]) for r in bal_rows}
+            for po in items_out:
+                po.current_qty = Decimal(str(bal_map.get(str(po.id), 0)))
+
     return Page(items=items_out, total=total, page=page, size=page_size, pages=pages)
 
 

@@ -84,14 +84,14 @@ async def supplier_ledger(sid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
 
 @router.post("/{sid}/transactions", status_code=201)
 async def add_transaction(sid: uuid.UUID, data: TxIn, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory", "purchases"))):
+    # Lock supplier row first to prevent concurrent balance corruption
+    await db.execute(text("SELECT balance FROM suppliers WHERE id=:id FOR UPDATE"), {"id": sid})
     # Insert transaction
     await db.execute(text(
         "INSERT INTO supplier_transactions (supplier_id,amount,type,reference_doc,notes) VALUES (:sid,:amount,:type,:ref,:notes)"
     ), {"sid": sid, "amount": data.amount, "type": data.type, "ref": data.reference_doc, "notes": data.notes})
     # Update balance: debit = we owe them (+), credit = they owe us / payment (-)
     delta = data.amount if data.type == "debit" else -data.amount
-    # Lock supplier row to prevent concurrent balance corruption
-    await db.execute(text("SELECT balance FROM suppliers WHERE id=:id FOR UPDATE"), {"id": sid})
     await db.execute(text("UPDATE suppliers SET balance=balance+:delta WHERE id=:id"), {"delta": delta, "id": sid})
     await db.commit()
     return {"ok": True}

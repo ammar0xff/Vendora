@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 
+const registeredAnchors = new WeakSet<HTMLAnchorElement>()
+
 export default function NativeShell() {
   useEffect(() => {
     const cleanups: (() => void)[] = []
@@ -30,13 +32,15 @@ export default function NativeShell() {
         cleanups.push(() => backListener.remove())
 
         document.querySelectorAll('a[target="_blank"]').forEach((a) => {
+          if (registeredAnchors.has(a)) return
+          registeredAnchors.add(a)
           const handler = (e: Event) => {
             e.preventDefault()
             const href = (a as HTMLAnchorElement).href
             if (href) Browser.open({ url: href })
           }
           a.addEventListener('click', handler)
-          cleanups.push(() => a.removeEventListener('click', handler))
+          cleanups.push(() => { a.removeEventListener('click', handler); registeredAnchors.delete(a) })
         })
       } catch (e) {
         console.warn('Capacitor plugins not available (not running in native app)', e)

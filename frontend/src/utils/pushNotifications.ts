@@ -23,7 +23,6 @@ export async function registerForPushNotifications(): Promise<void> {
     await PushNotifications.register();
 
     PushNotifications.addListener('registration', async (token: { value: string }) => {
-      console.log('FCM token:', token.value);
       try {
         await notificationsApi.register({
           token: token.value,

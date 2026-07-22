@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 
 export default function OfflineSync() {
   const isOnline = useOnlineStatus()
-  const queue = useOfflineStore(s => s.queue)
+  const queueLen = useOfflineStore(s => s.queue.length)
   const dequeue = useOfflineStore(s => s.dequeue)
   const markFailed = useOfflineStore(s => s.markFailed)
   const markSyncing = useOfflineStore(s => s.markSyncing)
@@ -32,7 +32,7 @@ export default function OfflineSync() {
     })()
 
     async function syncLegacyQueue() {
-      const pending = queue.filter(q => q.status === 'pending')
+      const pending = useOfflineStore.getState().queue.filter(q => q.status === 'pending')
       if (pending.length === 0) return
       let success = 0
       let fail = 0
@@ -122,7 +122,7 @@ export default function OfflineSync() {
         console.warn('Local shift sync failed, will retry on next online cycle', e)
       }
     }
-  }, [isOnline, queue, dequeue, markFailed, markSyncing, qc])
+  }, [isOnline, queueLen, dequeue, markFailed, markSyncing, qc])
 
   return null
 }

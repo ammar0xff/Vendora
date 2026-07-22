@@ -31,13 +31,21 @@ export default class ErrorBoundary extends Component<Props, State> {
           <p className="text-slate-500 text-sm max-w-md">
             {this.state.error?.message || 'حاول تحديث الصفحة أو العودة لاحقاً'}
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl font-bold text-white text-sm"
-            style={{ background: '#1e3a5f' }}
-          >
-            تحديث الصفحة
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="px-6 py-3 rounded-xl font-bold text-white text-sm"
+              style={{ background: '#1e3a5f' }}
+            >
+              إعادة المحاولة
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 rounded-xl font-bold text-slate-600 text-sm border border-slate-300"
+            >
+              تحديث الصفحة
+            </button>
+          </div>
         </div>
       )
     }

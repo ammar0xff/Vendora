@@ -59,7 +59,7 @@ export default defineConfig({
   ],
   server: {
     proxy: process.env.CI ? undefined : {
-      '/api': { target: 'http://81.10.109.140', rewrite: (p) => p.replace(/^\/api/, '') },
+      '/api': { target: process.env.VITE_API_TARGET || 'http://localhost:8000', rewrite: (p) => p.replace(/^\/api/, '') },
     },
   },
 })

@@ -8,7 +8,15 @@ const BASE_URL = isNative
   ? (import.meta.env.VITE_API_URL || '') + '/api'
   : '/api'
 
-const api = axios.create({ baseURL: BASE_URL })
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: 30_000,
+  withCredentials: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+})
+
+let logoutTimer: ReturnType<typeof setTimeout> | null = null
 
 api.interceptors.request.use((config) => {
   const { token } = useAuthStore.getState()
@@ -19,7 +27,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/')) useAuthStore.getState().logout()
+    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/')) {
+      if (!logoutTimer) {
+        logoutTimer = setTimeout(() => { logoutTimer = null }, 1000)
+        useAuthStore.getState().logout()
+      }
+    }
     return Promise.reject(err)
   }
 )

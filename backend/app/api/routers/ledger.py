@@ -55,7 +55,7 @@ BASE_RETURN = """
         p.unit,
         si.qty,
         si.unit_price,
-        (si.qty * si.unit_price) as line_total,
+        (si.qty * si.unit_price - si.discount) as line_total,
         s.invoice_number,
         s.created_at,
         c.name as customer_name

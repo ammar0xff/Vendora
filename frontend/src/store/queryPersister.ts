@@ -10,5 +10,5 @@ export const persister = createAsyncStoragePersister({
     setItem: (key: string, value: string) => set(key, value),
     removeItem: (key: string) => del(key),
   },
-  throttleTime: 1000,
+  throttleTime: 2000,
 })

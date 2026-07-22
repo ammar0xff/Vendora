@@ -97,7 +97,7 @@ export const usePOSStore = create<POSState>()(
       holdCurrent: (opts) => {
         const state = get()
         const bill: HeldBill = {
-          id: crypto.randomUUID?.() || String(Date.now()),
+          id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           label: opts?.label || `فاتورة #${state.suspended.length + 1}`,
           items: [...state.items],
           created_at: Date.now(),

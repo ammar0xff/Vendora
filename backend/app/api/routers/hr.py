@@ -2,6 +2,7 @@
 import json
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -338,7 +339,10 @@ async def calculate_payroll(data: PayrollCalculate, db: AsyncSession = Depends(g
             WHERE employee_id=:eid AND TO_CHAR(date,'YYYY-MM')=:month
         """), {'eid': eid, 'month': month})).scalar() or 0
 
-        result = calc(emp, attendances, settings, shifts_map, advance=float(adv), month=month)
+        result = await asyncio.get_running_loop().run_in_executor(
+            None,
+            partial(calc, emp, attendances, settings, shifts_map, advance=float(adv), month=month),
+        )
 
         # Save to DB
         await db.execute(text("""
@@ -608,7 +612,10 @@ async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db),
         att_cols = ['check_in','check_out','status','edited','edited_by','edit_reason','excuse_no_late','excuse_no_early','excuse_allow_overtime','shift_override']
         attendances = [dict(zip(att_cols, r)) for r in att_rows]
         adv = float((await db.execute(text("SELECT COALESCE(SUM(amount),0) FROM hr_advances WHERE employee_id=:eid AND TO_CHAR(date,'YYYY-MM')=:month"), {'eid': emp['id'], 'month': month})).scalar() or 0)
-        result = calculate_payroll(emp, attendances, settings, shifts_map, advance=adv, month=month)
+        result = await asyncio.get_running_loop().run_in_executor(
+            None,
+            partial(calculate_payroll, emp, attendances, settings, shifts_map, advance=adv, month=month),
+        )
         result['emp_id'] = str(emp.get('emp_code') or emp['id'])
         result['emp_name'] = emp['name']
         result['position'] = emp['position']
@@ -682,7 +689,10 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     adv_total = sum(float(r[0]) for r in adv_rows)
     finances = [{'type': 'سلفة', 'amount': float(r[0]), 'date': str(r[1]), 'note': r[2] or ''} for r in adv_rows]
 
-    result = calculate_payroll(emp, attendances, settings, shifts_map, advance=adv_total, month=month)
+    result = await asyncio.get_running_loop().run_in_executor(
+        None,
+        partial(calculate_payroll, emp, attendances, settings, shifts_map, advance=adv_total, month=month),
+    )
     result['emp_name'] = emp['name']
     result['position'] = emp['position']
     result['base_salary'] = float(emp['monthly_salary'])

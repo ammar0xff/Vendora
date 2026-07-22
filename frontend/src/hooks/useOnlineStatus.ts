@@ -19,21 +19,27 @@ export function useOnlineStatus() {
     window.addEventListener('offline', goOffline)
 
     let removeNetworkListener: (() => void) | undefined
+    let cancelled = false
 
     if (isCapacitor) {
       import('@capacitor/network').then(({ Network }) => {
         Network.getStatus().then(s => {
-          setOnline(s.connected)
-          setNetworkStatus(s.connected ? 'online' : 'offline')
+          if (!cancelled) {
+            setOnline(s.connected)
+            setNetworkStatus(s.connected ? 'online' : 'offline')
+          }
         })
         Network.addListener('networkStatusChange', (s) => {
-          setOnline(s.connected)
-          setNetworkStatus(s.connected ? 'online' : 'offline')
-        }).then(l => { removeNetworkListener = l.remove })
+          if (!cancelled) {
+            setOnline(s.connected)
+            setNetworkStatus(s.connected ? 'online' : 'offline')
+          }
+        }).then(l => { if (!cancelled) removeNetworkListener = l.remove })
       }).catch((e) => console.warn('Capacitor Network plugin not available', e))
     }
 
     return () => {
+      cancelled = true
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
       removeNetworkListener?.()

@@ -45,7 +45,7 @@ export const usePendingSalesStore = create<PendingSalesState>()(
     (set, get) => ({
       sales: [],
       addSale: (sale) => {
-        const id = crypto.randomUUID?.() || String(Date.now())
+        const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
         set({ sales: [...get().sales, { ...sale, id, created_at: Date.now(), status: 'pending' }] })
       },
       markSynced: (local_id, server_id) => set({

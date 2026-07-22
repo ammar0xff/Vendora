@@ -77,3 +77,10 @@ async def issue_print_token(current_user: User = Depends(get_current_user)):
         expires_delta=timedelta(seconds=60),
     )
     return {"token": token}
+
+
+@router.post("/reauthenticate")
+async def reauthenticate(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """Verify credentials without issuing a new session — used for handover/manager approval."""
+    user = await auth_service.authenticate(db, data.username, data.password)
+    return {"user_id": str(user.id), "username": user.username, "full_name": user.full_name}

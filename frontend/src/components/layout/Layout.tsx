@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query'
 import { stockApi, settingsApi } from '../../api/endpoints'
 import { fixUploadUrl } from '../../utils/format'
 import { clsx } from 'clsx'
+import type { Warehouse } from '../../types'
 
 // Top-level tab groups with icon
 const TAB_GROUPS = [
@@ -86,7 +87,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { activeWarehouseId, setActiveWarehouse } = useAppStore()
-  const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
+  const { data: warehouses } = useQuery<Warehouse[]>({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get })
   const companyName = settings?.store_name || 'نظام الجرد'
   const logoUrl = settings?.logo_url || ''
@@ -96,13 +97,13 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (defaultWhId && warehouses?.length && !activeWarehouseId) {
-      const wh = warehouses.find((w: any) => w.id === defaultWhId)
+      const wh = warehouses.find(w => w.id === defaultWhId)
       if (wh) setActiveWarehouse(wh.id, wh.name)
     }
   }, [defaultWhId, warehouses, warehouses?.length, activeWarehouseId, setActiveWarehouse])
 
-  const activeWh = warehouses?.find((w: any) => w.id === activeWarehouseId)
-  const defaultWh = warehouses?.find((w: any) => w.id === defaultWhId)
+  const activeWh = warehouses?.find(w => w.id === activeWarehouseId)
+  const defaultWh = warehouses?.find(w => w.id === defaultWhId)
   const whType = activeWh?.warehouse_type || defaultWh?.warehouse_type || 'all'
   const isCompanyView = !activeWarehouseId
 
@@ -111,7 +112,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     if (!perm) return true
     return userPerms.includes(perm)
   }
-  const isVisible = (item: any) => {
+  const isVisible = (item: { perm: string | null; warehouseTypes: string[] }) => {
     if (!hasPermission(item.perm)) return false
     if (isManager && isCompanyView) return true
     const effectiveType = whType === 'all' ? 'showroom' : whType
@@ -164,21 +165,21 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Warehouse selector */}
-        <select value={activeWarehouseId || ''}
+          <select value={activeWarehouseId || ''}
           onChange={e => {
-            const wh = warehouses?.find((w: any) => w.id === e.target.value)
+            const wh = warehouses?.find(w => w.id === e.target.value)
             if (wh) setActiveWarehouse(wh.id, wh.name)
             else setActiveWarehouse('', '')
           }}
           className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-blue-400 cursor-pointer">
           <option value="">🏢 إدارة شاملة</option>
           <optgroup label="المعارض">
-            {warehouses?.filter((w: any) => w.warehouse_type === 'showroom').map((w: any) => (
+            {warehouses?.filter(w => w.warehouse_type === 'showroom').map(w => (
               <option key={w.id} value={w.id}>🏪 {w.name}</option>
             ))}
           </optgroup>
           <optgroup label="المخازن">
-            {warehouses?.filter((w: any) => w.warehouse_type === 'warehouse').map((w: any) => (
+            {warehouses?.filter(w => w.warehouse_type === 'warehouse').map(w => (
               <option key={w.id} value={w.id}>🏭 {w.name}</option>
             ))}
           </optgroup>

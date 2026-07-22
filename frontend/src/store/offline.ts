@@ -30,7 +30,7 @@ export const useOfflineStore = create<OfflineState>()(
       queue: [],
       setOnline: (v) => set({ isOnline: v }),
       enqueue: (op) => {
-        const id = crypto.randomUUID?.() || String(Date.now())
+        const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
         set({ queue: [...get().queue, { ...op, id, created_at: Date.now(), status: 'pending' }] })
       },
       dequeue: (id) => set({ queue: get().queue.filter(q => q.id !== id) }),

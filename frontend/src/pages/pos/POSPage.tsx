@@ -22,6 +22,8 @@ import {
 import { clsx } from 'clsx'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
+import type { Warehouse, Wallet, Customer, Product, Category, Subcategory, Collection, SaleDetail, ConfirmDeleteItem, ConfirmDeleteTx, ShiftSummaryData, User } from '../../types'
+import type { CartItem } from '../../store/pos'
 import CategoryCardBrowser from './CategoryCardBrowser'
 import { HeldInvoicesModal } from './modals/HeldInvoicesModal'
 import { ReturnModal } from './modals/ReturnModal'
@@ -36,7 +38,13 @@ import { SplitPaymentModal } from './modals/SplitPaymentModal'
 import { PhoneModal } from './modals/PhoneModal'
 
 // ── Drawer Balance Badge ──────────────────────────────────────────────────
-function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDelivery, warehouseName, supervisorName, wallets, currentUserId }: any) {
+function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDelivery, warehouseName, supervisorName, wallets, currentUserId }: {
+  shift: { id: string; initial_amount: number; cashier_id: string; cashier_name?: string; supervisor_id?: string | null } | null
+  summary: ShiftSummaryData | null | undefined
+  onOpen: () => void; onHandover: () => void; onClose: () => void;
+  onRevenueDelivery: () => void; warehouseName: string; supervisorName: string | null;
+  wallets: Wallet[]; currentUserId: string
+}) {
   if (!shift) return (
     <div className="flex items-center gap-2">
       <button onClick={onOpen} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#16a34a' }}>
@@ -59,12 +67,12 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
 
   // Merge wallet sales + wallet deposits per wallet
   const walletMap: Record<string, { name: string; type: string; total: number }> = {}
-  breakdown.filter((p: any) => p.method !== 'cash').forEach((p: any) => {
+  breakdown.filter((p: { method: string; total: number; wallet_name?: string; wallet_type?: string }) => p.method !== 'cash').forEach((p: { method: string; total: number; wallet_name: string; wallet_type: string }) => {
     const k = p.wallet_name
     if (!walletMap[k]) walletMap[k] = { name: p.wallet_name, type: p.wallet_type, total: 0 }
     walletMap[k].total += Number(p.total)
   })
-  walletTxBreakdown.forEach((t: any) => {
+  walletTxBreakdown.forEach((t: { wallet_name: string; wallet_type: string; tx_type: string; total: number }) => {
     const k = t.wallet_name
     if (!walletMap[k]) walletMap[k] = { name: t.wallet_name, type: t.wallet_type, total: 0 }
     walletMap[k].total += t.tx_type === 'deposit' ? Number(t.total) : -Number(t.total)
@@ -99,7 +107,7 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
               <span className="text-slate-600">💵 نقدي (الدرج)</span>
               <span className="font-bold text-slate-800">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
             </div>
-            {Object.values(walletMap).map((w: any) => (
+            {Object.values(walletMap).map((w: { name: string; type: string; total: number }) => (
               <div key={w.name} className="flex justify-between text-xs">
                 <span className="text-slate-600">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
                 <span className="font-bold text-slate-800">{Number(w.total).toLocaleString('ar-EG')} ج.م</span>
@@ -143,12 +151,12 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
   )
 }
 
-function LedgerRow({ e, hasItems, singleItem }: any) {
+function LedgerRow({ e, hasItems, singleItem }: { e: LedgerEntry; hasItems: boolean; singleItem?: LedgerEntry['items'] extends Array<infer T> ? T : never }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <tr className={hasItems ? 'cursor-pointer hover:bg-slate-50' : ''} onClick={() => hasItems && setOpen(o => !o)}>
-        <td className="text-xs text-slate-500">{new Date(e.date).toLocaleTimeString('ar-EG')}</td>
+        <td className="text-xs text-slate-500">{e.date ? new Date(e.date).toLocaleTimeString('ar-EG') : '—'}</td>
         <td><span className={e.credit > 0 ? 'badge-green' : 'badge-red'}>{e.type}</span></td>
         <td>
           {singleItem ? (
@@ -169,7 +177,7 @@ function LedgerRow({ e, hasItems, singleItem }: any) {
         <td className="text-red-600 font-semibold text-sm">{e.debit > 0 ? Number(e.debit).toLocaleString('ar-EG') : ''}</td>
         <td className={`font-black text-sm ${e.balance >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Number(e.balance).toLocaleString('ar-EG')}</td>
       </tr>
-      {hasItems && open && e.items.map((item: any, idx: number) => (
+      {hasItems && open && e.items?.map((item, idx) => (
         <tr key={idx} className="bg-slate-50 border-r-2 border-blue-200">
           <td></td>
           <td></td>
@@ -193,7 +201,7 @@ export default function POSPage() {
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [selectedSub, setSelectedSub] = useState<string | null>(null)
   const [customerInput, setCustomerInput] = useState('')
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
   const [pendingCustomerName, setPendingCustomerName] = useState('')
   const [showPhoneModal, setShowPhoneModal] = useState(false)
@@ -211,7 +219,7 @@ export default function POSPage() {
   const [showCustomerDebt, setShowCustomerDebt] = useState(false)
   // Debt payment state
   const [debtCustomerSearch, setDebtCustomerSearch] = useState('')
-  const [debtCustomer, setDebtCustomer] = useState<any>(null)
+  const [debtCustomer, setDebtCustomer] = useState<Customer | null>(null)
   const [debtPayAmount, setDebtPayAmount] = useState('')
   const [debtPayNote, setDebtPayNote] = useState('')
   // Drawer entry state
@@ -221,7 +229,7 @@ export default function POSPage() {
   const [drawerEntryCategoryId, setDrawerEntryCategoryId] = useState('')
   const [drawerEntryPaymentMethod, setDrawerEntryPaymentMethod] = useState('cash')
   const [drawerEntryWalletId, setDrawerEntryWalletId] = useState('')
-  const [drawerEntryCustomer, setDrawerEntryCustomer] = useState<any>(null)
+  const [drawerEntryCustomer, setDrawerEntryCustomer] = useState<Customer | null>(null)
   const [drawerCustomerSearch, setDrawerCustomerSearch] = useState('')
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
   const [supervisorId, setSupervisorId] = useState('')
@@ -276,11 +284,11 @@ export default function POSPage() {
     subtotal, totalDiscount, total, invoice_discount, invoice_discount_pct, setInvoiceDiscount,
   } = usePOSStore()
 
-  const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
+  const { data: warehouses } = useQuery<Warehouse[]>({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { activeWarehouseId } = useAppStore()
   const { setActiveWarehouse } = useAppStore()
   // Strictly use selected warehouse — no fallback
-  const mainWh = warehouses?.find((w: any) => w.id === activeWarehouseId) ?? null
+  const mainWh = warehouses?.find(w => w.id === activeWarehouseId) ?? null
 
   // If user switches warehouse, cart cannot be trusted (different stock/shift).
   useEffect(() => {
@@ -336,23 +344,23 @@ export default function POSPage() {
     queryFn: () => api.get('/collections').then(r => r.data),
   })
   const filteredCollections = search
-    ? (collections || []).filter((c: any) => c.name.includes(search))
+    ? (collections || []).filter((c: Collection) => c.name.includes(search))
     : (collections || [])
 
   // Bulk stock balances for displayed products
   const { data: stockMap } = useQuery({
-    queryKey: ['stock-bulk', mainWh?.id, products?.map((p: any) => p.id)?.join(',') ?? ''],
-    queryFn: () => stockApi.balanceBulk(mainWh!.id, products!.map((p: any) => p.id)),
+    queryKey: ['stock-bulk', mainWh?.id, products?.map((p: Product) => p.id)?.join(',') ?? ''],
+    queryFn: () => stockApi.balanceBulk(mainWh!.id, products!.map((p: Product) => p.id)),
     enabled: !!mainWh?.id && !!products?.length,
     staleTime: 10_000,
   })
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: subcategoriesApi.list })
-  const getSubsForCat = (catId: string) => (subcategories as any[])?.filter((s: any) => s.category_id === catId) || []
+  const getSubsForCat = (catId: string) => (subcategories as Subcategory[])?.filter((s) => s.category_id === catId) || []
   const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
-  const { data: wallets } = useQuery({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data), staleTime: 10_000, refetchInterval: 30_000 })
+  const { data: wallets } = useQuery<Wallet[]>({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data), staleTime: 10_000, refetchInterval: 30_000 })
   const { data: safes } = useQuery({ queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data), enabled: showClose || showRevenueDelivery })
   const { data: finCategories } = useQuery({ queryKey: ['financial-categories'], queryFn: () => api.get('/financial-categories').then(r => r.data) })
 
@@ -407,24 +415,24 @@ export default function POSPage() {
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }, [])
-  const [returnSaleDetails, setReturnSaleDetails] = useState<any>(null)
+  const [returnSaleDetails, setReturnSaleDetails] = useState<SaleDetail | null>(null)
   const [returnQtys, setReturnQtys] = useState<Record<string, number>>({})
-  const [confirmDelItem, setConfirmDelItem] = useState<any>(null)
-  const [confirmDelReturn, setConfirmDelReturn] = useState<any>(null)
-  const [confirmDelTx, setConfirmDelTx] = useState<any>(null)
+  const [confirmDelItem, setConfirmDelItem] = useState<ConfirmDeleteItem | null>(null)
+  const [confirmDelReturn, setConfirmDelReturn] = useState<ConfirmDeleteItem | null>(null)
+  const [confirmDelTx, setConfirmDelTx] = useState<ConfirmDeleteTx | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
 
-  const handleAddProduct = (p: any) => {
+  const handleAddProduct = (p: Product) => {
     if (!shift) { toast.error('افتح وردية أولاً قبل البيع', { icon: '🔒' }); return }
     const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
     addItem({ product_id: p.id, name: p.name, unit_price: price, unit_cost: Number(p.cost_price), unit: p.unit })
     toast.success(`تمت إضافة ${p.name}`, { duration: 800 })
   }
 
-  const handleAddCollection = (c: any) => {
+  const handleAddCollection = (c: Collection) => {
     if (!shift) { toast.error('افتح وردية أولاً قبل البيع', { icon: '🔒' }); return }
     if (!c.items?.length) return
-    c.items.forEach((item: any) => {
+    c.items.forEach((item) => {
       const price = mode === 'wholesale' ? Number(item.wholesale_price) || Number(item.retail_price) : Number(item.retail_price)
       addItem({ product_id: item.product_id, name: item.product_name, unit_price: price, unit_cost: Number(item.cost_price || 0), unit: item.unit })
       if (Number(item.qty) > 1) updateQty(item.product_id, Number(item.qty))
@@ -517,7 +525,7 @@ export default function POSPage() {
     mutationFn: async () => {
       if (!returnSaleDetails) return
       const allFull = returnSaleDetails.items?.every(
-        (i: any) => (returnQtys[i.product_id] || 0) >= Number(i.qty)
+        (i) => (returnQtys[i.product_id] || 0) >= Number(i.qty)
       )
       if (allFull) {
         return salesApi.return(returnSaleDetails.id)
@@ -527,7 +535,7 @@ export default function POSPage() {
       })
       return data
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { sale_id?: string } | undefined) => {
       toast.success('تم تسجيل المرتجع')
       const printId = data?.sale_id || (returnSaleDetails?.id)
       if (printId) openPrint(`/print/pdf/sale/${printId}`)
@@ -629,9 +637,9 @@ export default function POSPage() {
 
   const handoverMut = useMutation({
     mutationFn: async () => {
-      // Verify receiving employee credentials first
-      const loginRes = await api.post('/auth/login', { username: handoverUsername, password: handoverPassword })
-      const toUserId = loginRes.data.user_id
+      // Verify receiving employee credentials without creating a new session
+      const authRes = await api.post('/auth/reauthenticate', { username: handoverUsername, password: handoverPassword })
+      const toUserId = authRes.data.user_id
       return shiftsApi.transfer(shift!.id, { to_user_id: toUserId, amount: Number(summary?.expected_balance ?? 0) })
     },
     onSuccess: () => {
@@ -669,7 +677,7 @@ export default function POSPage() {
       }
       return res.data
     },
-    onSuccess: (d: any) => {
+    onSuccess: (d: { closing_balance?: number }) => {
       const closBal = Number(d.closing_balance || 0)
       toast.success(`✅ إغلاق الوردية — الدرج: ${closBal.toLocaleString('ar-EG')} ج.م`)
       if (shift?.id) openPrint(`/print/pdf/shift/${shift.id}`)
@@ -693,7 +701,7 @@ export default function POSPage() {
       manager_password: revenueManagerPassword,
       notes: revenueNotes || undefined,
     }),
-    onSuccess: (d: any) => {
+    onSuccess: (d: { amount: number; safe: string; doc_number: string }) => {
       toast.success(`✅ تم تسليم ${Number(d.amount).toLocaleString('ar-EG')} ج.م إلى ${d.safe} — مستند: ${d.doc_number}`)
       setShowRevenueDelivery(false); setRevenueAmount(''); setRevenueSafeId('')
       setRevenueManagerId(''); setRevenueManagerPassword(''); setRevenueNotes('')
@@ -704,8 +712,8 @@ export default function POSPage() {
   })
 
   const convertToQuotationMut = useMutation({
-    mutationFn: async (bill: any) => {
-      const items = bill.items.map((i: any) => {
+    mutationFn: async (bill: HeldBill) => {
+      const items = bill.items.map((i) => {
         const lineTotal = new Decimal(i.qty).mul(i.unit_price)
         const discount = i.item_discount_pct > 0 ? lineTotal.mul(i.item_discount_pct).div(100) : new Decimal(i.item_discount || 0)
         return { product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost || 0, discount: discount.toNumber() }
@@ -719,7 +727,7 @@ export default function POSPage() {
         notes: `مأخوذة من فاتورة معلقة: ${bill.label}`,
       }).then(r => r.data)
     },
-    onSuccess: (_data: any, bill: any) => {
+    onSuccess: (_data: unknown, bill: HeldBill) => {
       deleteHeld(bill.id)
       toast.success(`✅ تم تحويل "${bill.label}" إلى عرض سعر`)
     },
@@ -733,7 +741,7 @@ export default function POSPage() {
   // ── Shift open but belongs to another cashier (non-admins only) ──────
   const canUseAnyShift = user?.is_manager === true
   const shiftOwner = shift && shift.cashier_id !== user?.id && !canUseAnyShift
-    ? (shift.cashier_name || (allUsers as any[])?.find((u: any) => u.id === shift.cashier_id)?.full_name || 'موظف آخر')
+    ? (shift.cashier_name || (allUsers as User[])?.find((u) => u.id === shift.cashier_id)?.full_name || 'موظف آخر')
     : null
 
   if (shiftOwner) return (
@@ -820,7 +828,7 @@ export default function POSPage() {
           <p className="text-slate-500 text-sm">يجب اختيار معرض أو مخزن من القائمة الجانبية قبل فتح نقطة البيع</p>
         </div>
         <div className="flex flex-wrap gap-3 justify-center">
-          {warehouses.filter((w: any) => w.warehouse_type === 'showroom').map((w: any) => (
+          {warehouses.filter(w => w.warehouse_type === 'showroom').map(w => (
             <button key={w.id} onClick={() => setActiveWarehouse(w.id, w.name)}
               className="px-5 py-3 rounded-xl font-bold text-white text-sm" style={{ background: '#1e3a5f' }}>
               🏪 {w.name}
@@ -843,7 +851,7 @@ export default function POSPage() {
             <BookOpen size={14} /> سجل اليوم
           </button>
           <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} onRevenueDelivery={() => setShowRevenueDelivery(true)} warehouseName={mainWh?.name}
-            supervisorName={shift?.supervisor_id ? (allUsers as any[])?.find((u: any) => u.id === shift.supervisor_id)?.full_name : null}
+            supervisorName={shift?.supervisor_id ? (allUsers as User[])?.find((u) => u.id === shift.supervisor_id)?.full_name : null}
             wallets={wallets} currentUserId={user?.id} />
 
         </div>
@@ -865,7 +873,7 @@ export default function POSPage() {
             >
               الكل
             </button>
-            {(categories as any[])?.map((cat: any) => {
+            {(categories as Category[])?.map((cat) => {
               const subs = getSubsForCat(cat.id)
               const isExpanded = expandedCats.has(cat.id)
               const isCatActive = selectedCat === cat.id && !selectedSub
@@ -888,7 +896,7 @@ export default function POSPage() {
                       </button>
                     )}
                   </div>
-                  {isExpanded && subs.map((sub: any) => {
+                  {isExpanded && subs.map((sub) => {
                     const isSubActive = selectedSub === sub.id
                     return (
                       <button key={sub.id}
@@ -944,7 +952,7 @@ export default function POSPage() {
                 <div className="mb-3">
                   <p className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">📦 كوليكشنات</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {filteredCollections.map((c: any) => {
+                    {filteredCollections.map((c) => {
                       const price = mode === 'wholesale' ? Number(c.wholesale_price) || Number(c.retail_price) : Number(c.retail_price)
                       return (
                         <button key={c.id} onClick={() => handleAddCollection(c)}
@@ -985,10 +993,10 @@ export default function POSPage() {
                     {products?.length === 0 && (
                       <tr><td colSpan={7} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
                     )}
-                    {products?.filter((p: any) => {
+                    {products?.filter((p: Product) => {
                       const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                       return q === null || q > 0
-                    })?.map((p: any) => {
+                    })?.map((p: Product) => {
                       const retailPrice = Number(p.retail_price)
                       const wholesalePrice = Number(p.wholesale_price) || retailPrice
                       const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
@@ -1092,13 +1100,13 @@ export default function POSPage() {
                       'bg-blue-500 text-white border-blue-400')}>
                     💵 نقدي
                   </button>
-                  {(wallets || []).filter((w: any) => w.type !== 'cash').length > 0 && (
+                   {(wallets || []).filter(w => w.type !== 'cash').length > 0 && (
                     <div className="relative flex-1">
                       <select value={paymentWalletId}
                         onChange={e => { setPaymentMethod('wallet'); setPaymentWalletId(e.target.value) }}
                         className="w-full rounded-lg text-xs font-bold border px-3 py-2 bg-white/10 border-white/20 text-white/60 outline-none">
                         <option value="" style={{ background: '#1e3a5f', color: '#fff' }}>💳 تحويل إلكتروني...</option>
-                        {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                        {(wallets || []).filter(w => w.type !== 'cash').map(w => (
                           <option key={w.id} value={w.id} style={{ background: '#1e3a5f', color: '#fff' }}>
                             {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
                           </option>
@@ -1147,7 +1155,7 @@ export default function POSPage() {
                 placeholder="اسم العميل — يُترك فارغاً للعميل العادي" />
               {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
                 <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-48 overflow-y-auto">
-                  {customerResults?.map((c: any) => (
+                  {customerResults?.map((c: Customer) => (
                     <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
                       className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0">
                       <p className="font-semibold text-slate-800">{c.name}</p>
@@ -1376,7 +1384,7 @@ export default function POSPage() {
               style={!selectedCat ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
               الكل
             </button>
-            {(categories as any[])?.map((cat: any) => (
+            {(categories as Category[])?.map((cat) => (
               <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null) }}
                 className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
                 style={selectedCat === cat.id ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
@@ -1400,10 +1408,10 @@ export default function POSPage() {
                 {products?.length === 0 && (
                   <tr><td colSpan={5} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
                 )}
-                {(products || []).filter((p: any) => {
+                {(products || []).filter((p: Product) => {
                   const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                   return q === null || q > 0
-                }).map((p: any) => {
+                }).map((p: Product) => {
                   const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
                   const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                   return (
@@ -1447,7 +1455,7 @@ export default function POSPage() {
                   <>
                     <button onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
                       className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'cash' ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>💵</button>
-                    {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
+                    {(wallets || []).filter(w => w.type !== 'cash').map(w => (
                       <button key={w.id} onClick={() => { setPaymentMethod('wallet'); setPaymentWalletId(w.id) }}
                         className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>
                         {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
@@ -1476,7 +1484,7 @@ export default function POSPage() {
                 placeholder="اسم العميل (اختياري)" />
               {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
                 <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-40 overflow-y-auto">
-                  {customerResults?.map((c: any) => (
+                  {customerResults?.map((c: Customer) => (
                     <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
                       className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0">
                       <p className="font-semibold text-slate-800">{c.name}</p>
@@ -1505,7 +1513,7 @@ export default function POSPage() {
                 <p className="text-sm">السلة فارغة</p>
               </div>
             )}
-            {items.map((item: any) => {
+            {items.map((item) => {
               const lineTotal = item.qty * item.unit_price
               const itemDiscAmt = item.item_discount || (item.item_discount_pct ? lineTotal * item.item_discount_pct / 100 : 0)
               const lineNet = lineTotal - itemDiscAmt
