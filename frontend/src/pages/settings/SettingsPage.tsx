@@ -165,10 +165,8 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
     const dim = size === 'sm' ? 'w-7 h-7' : 'w-8 h-8'
     return (
       <button onClick={onClick} title={title}
-        className={`${dim} rounded-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95`}
-        style={{ color, background: `${color}10` }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${hoverColor}20` }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${color}10` }}>
+        className={`${dim} rounded-lg flex items-center justify-center`}
+        style={{ color, background: hoverColor ? `${hoverColor}18` : `${color}12` }}>
         {children}
       </button>
     )
@@ -183,7 +181,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
             <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {subcategories.length} تصنيف فرعي</p>
           </div>
           <button onClick={() => { setShowNewCat(true); setNewCatName('') }}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm hover:shadow-md transition-all"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm"
             style={{ background: '#1e3a5f' }}>
             <Plus size={15} /> فئة جديدة
           </button>
@@ -245,7 +243,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                     ))}
 
                     <button onClick={() => { setNewSubCatId(cat.id); setNewSubName('') }}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 border-dashed transition-all w-full"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 border-dashed w-full"
                       style={{ color: '#2563eb', borderColor: '#93c5fd', background: '#eff6ff' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#dbeafe'; (e.currentTarget as HTMLElement).style.borderColor = '#60a5fa' }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#eff6ff'; (e.currentTarget as HTMLElement).style.borderColor = '#93c5fd' }}>
@@ -451,7 +449,7 @@ export default function SettingsPage() {
           <button
             key={id}
             onClick={() => setTab(id as any)}
-            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${tab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 -mb-px ${tab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <Icon size={16} />{label}
           </button>
