@@ -155,14 +155,14 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
 
   return (
     <>
-      <div className="card max-w-2xl">
+      <div className="card w-full">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-bold text-slate-800">الفئات والتصنيفات</h3>
             <p className="text-xs text-slate-400 mt-0.5">{categories.length} فئة · {subcategories.length} تصنيف فرعي</p>
           </div>
           <button onClick={() => { setShowNewCat(true); setNewCatName('') }}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white"
             style={{ background: '#1e3a5f' }}>
             <Plus size={15} /> فئة جديدة
           </button>
@@ -178,10 +178,9 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories.map((cat: any) => {
             const subs = getSubs(cat.id)
-            const isOpen = expanded.has(cat.id)
 
             return (
-              <div key={cat.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div key={cat.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ background: '#1e3a5f' }}>
