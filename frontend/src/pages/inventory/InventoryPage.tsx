@@ -4,6 +4,7 @@ import { productsApi, categoriesApi, subcategoriesApi, stockApi } from '../../ap
 import { useAppStore } from '../../store/app'
 import { useAuthStore } from '../../store/auth'
 import { PageLoader, EmptyState } from '../../components/ui/Loaders'
+import { SkeletonRow, SkeletonSidebar } from '../../components/ui/Skeleton'
 import ProductForm from '../../components/ui/ProductForm'
 import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
@@ -118,8 +119,28 @@ export default function InventoryPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-3rem)]">
-
-      {/* ── Tree Sidebar ─────────────────────────────────────────── */}
+      {!categories || !subcategories || !products ? (
+        <>
+          <aside className="w-full lg:w-52 flex-shrink-0"><SkeletonSidebar /></aside>
+          <div className="flex-1 min-w-0 space-y-3 p-1">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="h-7 w-32 bg-slate-200 rounded-2xl animate-pulse" />
+                <div className="h-4 w-48 bg-slate-200 rounded-xl animate-pulse" />
+              </div>
+              <div className="h-10 w-40 bg-slate-200 rounded-2xl animate-pulse" />
+            </div>
+            <div className="h-10 w-full bg-slate-200 rounded-2xl animate-pulse" />
+            <div className="space-y-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonRow key={i} />
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* ── Tree Sidebar ─────────────────────────────────────────── */} 
       <aside className="w-full lg:w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">التصنيفات</p>
