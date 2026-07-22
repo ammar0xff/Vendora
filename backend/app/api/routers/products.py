@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from decimal import Decimal
 from app.db.base import get_db
 from app.core.pagination import Page
 from app.schemas.product import (
@@ -128,7 +129,7 @@ async def list_products(
     category_id: uuid.UUID | None = None,
     warehouse_id: uuid.UUID | None = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(5000, ge=1, le=5000),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
