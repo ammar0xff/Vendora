@@ -110,20 +110,43 @@ async def customer_account(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _
 
 
 @router.get("/customers/{cid}/ledger")
-async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    """Full chronological ledger: invoices + returns + payments."""
+async def customer_ledger(
+    cid: uuid.UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """Full chronological ledger: invoices + returns + payments with pagination."""
     from sqlalchemy.orm import selectinload
+
+    sales_count_q = select(func.count()).select_from(Sale).where(
+        Sale.customer_id == cid,
+        Sale.status.in_([SaleStatus.confirmed, SaleStatus.returned]),
+        Sale.is_credit,
+    )
+    sales_total = (await db.execute(sales_count_q)).scalar() or 0
+
+    payments_count_q = select(func.count()).select_from(CustomerPayment).where(
+        CustomerPayment.customer_id == cid,
+    )
+    payments_total = (await db.execute(payments_count_q)).scalar() or 0
+
+    offset = (page - 1) * page_size
 
     sales = (await db.execute(
         select(Sale).options(selectinload(Sale.items))
         .where(Sale.customer_id == cid,
                Sale.status.in_([SaleStatus.confirmed, SaleStatus.returned]),
                Sale.is_credit)
-        .order_by(Sale.created_at.asc())  # oldest first for debt payment order
+        .order_by(Sale.created_at.asc())
+        .offset(offset).limit(page_size)
     )).scalars().all()
 
     payments = (await db.execute(
-        select(CustomerPayment).where(CustomerPayment.customer_id == cid).order_by(CustomerPayment.created_at.desc())
+        select(CustomerPayment).where(CustomerPayment.customer_id == cid)
+        .order_by(CustomerPayment.created_at.desc())
+        .offset(offset).limit(page_size)
     )).scalars().all()
 
     entries = []
@@ -144,9 +167,18 @@ async def customer_ledger(cid: uuid.UUID, db: AsyncSession = Depends(get_db), _=
             "note": p.note,
             "date": p.created_at.isoformat(),
         })
+    entries.sort(key=lambda e: e["date"])
 
-    entries.sort(key=lambda x: x["date"], reverse=True)
-    return entries
+    return entries + [{
+        "__pagination": {
+            "page": page,
+            "page_size": page_size,
+            "sales_total": sales_total,
+            "payments_total": payments_total,
+            "sales_pages": max(1, (sales_total + page_size - 1) // page_size),
+            "payments_pages": max(1, (payments_total + page_size - 1) // page_size),
+        },
+    }]
 
 
 @router.put("/customers/{cid}/balance")

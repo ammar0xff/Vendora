@@ -28,7 +28,7 @@ export default function CategoryCardBrowser({
 
   const { data: productsRaw, isLoading: loadingProducts } = useQuery({
     queryKey: ['card-products', selectedSubId],
-    queryFn: () => productsApi.list({ page_size: 5000, subcategory_id: selectedSubId! }),
+    queryFn: () => productsApi.list({ subcategory_id: selectedSubId! }),
     enabled: !!selectedSubId,
   })
   const products = Array.isArray(productsRaw) ? productsRaw : (productsRaw?.items ?? [])

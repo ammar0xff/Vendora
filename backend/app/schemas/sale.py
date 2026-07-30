@@ -99,6 +99,7 @@ class SaleOut(BaseModel):
     id: uuid.UUID
     invoice_number: str
     customer_id: uuid.UUID | None
+    customer_name: str | None = None
     warehouse_id: uuid.UUID
     cashier_id: uuid.UUID
     shift_id: uuid.UUID | None

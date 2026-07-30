@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi, salesApi, stockApi, shiftsApi, customersApi, categoriesApi, subcategoriesApi } from '../../api/endpoints'
 import api from '../../api/client'
-import { usePOSStore } from '../../store/pos'
+import { usePOSStore, type HeldBill } from '../../store/pos'
 import { usePendingSalesStore } from '../../store/pendingSales'
 import { useLocalShiftStore } from '../../store/localShift'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
@@ -15,9 +15,9 @@ import { openPrint } from '../../utils/format'
 import Decimal from 'decimal.js'
 import {
   Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle,
-  X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw, AlertCircle,
-  ChevronDown, ChevronLeft, Tag, Layers, DollarSign, BookOpen,
-  LayoutGrid, List, Landmark
+  X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw,
+  ChevronDown, ChevronLeft, Tag, DollarSign, BookOpen,
+  LayoutGrid, List, Landmark, Package
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../../store/auth'
@@ -271,6 +271,7 @@ export default function POSPage() {
   const [holdLabel, setHoldLabel] = useState('')
   const prevWarehouseRef = useRef<string | null>(null)
   const prevShiftRef = useRef<string | null>(null)
+  const [productPage, setProductPage] = useState(1)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300)
@@ -327,21 +328,30 @@ export default function POSPage() {
     }
     prevShiftRef.current = sid
   }, [shift?.id])
+  useEffect(() => { setProductPage(1) }, [debouncedSearch, selectedCat, selectedSub])
   const { data: summary } = useQuery({
     queryKey: ['shift-summary', shift?.id], queryFn: () => shiftsApi.summary(shift!.id),
     enabled: !!shift?.id, refetchInterval: 15_000,
   })
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products', debouncedSearch, selectedCat, selectedSub],
-    queryFn: () => productsApi.list({ page_size: 5000, ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) }),
+  const { data: productsPage, isLoading } = useQuery({
+    queryKey: ['products', debouncedSearch, selectedCat, selectedSub, productPage],
+    queryFn: () => productsApi.listPage({ 
+      page: productPage, 
+      page_size: 24,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}), 
+      ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) 
+    }),
     staleTime: 30_000,
   })
+  const products = productsPage?.items
+  const productsTotal = productsPage?.total || 0
+  const productPages = productsPage?.pages || 1
 
   // Collections — shown in search results
   const { data: collections } = useQuery({
     queryKey: ['collections'],
-    queryFn: () => api.get('/collections').then(r => r.data),
+    queryFn: () => api.get('/collections').then(r => r.data?.items ?? r.data),
   })
   const filteredCollections = search
     ? (collections || []).filter((c: Collection) => c.name.includes(search))
@@ -393,6 +403,10 @@ export default function POSPage() {
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products')
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
   const [cartWidth, setCartWidth] = useState(320)
+  const [catPage, setCatPage] = useState(0)
+  const [subPage, setSubPage] = useState(0)
+  const CATS_PER_PAGE = 8
+  const SUBS_PER_PAGE = 8
   const cartElRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{ startX: number; startW: number } | null>(null)
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -444,7 +458,7 @@ export default function POSPage() {
     if (!search.trim()) return
     try {
       const p = await productsApi.byBarcode(search.trim())
-      handleAddProduct(p); setSearch('')
+      handleAddProduct(p); setSearch(''); setDebouncedSearch('')
     } catch { /* barcode not found, fall through to normal search */ }
   }
 
@@ -842,340 +856,327 @@ export default function POSPage() {
   return (
     <div>
     {/* ── DESKTOP layout (lg+) ── */}
-    <div className="hidden lg:flex flex-col h-[calc(100vh-7rem)] gap-0">
-      {/* Top bar — drawer balance */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <h1 className="page-title">نقطة البيع — {mainWh?.name}</h1>
+    <div className="hidden lg:flex flex-col h-[calc(100vh-7rem)]">
+
+      {/* POS Header bar (VB6-style: title + nav buttons + drawer badge) */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white border border-slate-200 rounded-t-xl flex-shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowLedger(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
-            <BookOpen size={14} /> سجل اليوم
-          </button>
           <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} onRevenueDelivery={() => setShowRevenueDelivery(true)} warehouseName={mainWh?.name}
             supervisorName={shift?.supervisor_id ? (allUsers as User[])?.find((u) => u.id === shift.supervisor_id)?.full_name : null}
             wallets={wallets} currentUserId={user?.id} />
-
         </div>
+        <h1 className="text-sm font-bold text-slate-600">فاتورة كاشير — {mainWh?.name}</h1>
       </div>
 
-      <div className="flex gap-5 flex-1 min-h-0">
-        {viewMode === 'table' && (<>
-        {/* ── Category Tree Sidebar ── */}
-        <aside className="w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-slate-100 flex-shrink-0">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">الأصناف</p>
+      {/* ═══ Split screen: RIGHT panel (Products+Cats) | LEFT panel (Cart) ═══ */}
+      <div className="flex flex-1 min-h-0 border-x border-b border-slate-200 rounded-b-xl overflow-hidden">
+
+        {/* ══════ RIGHT PANEL (Products & Categories) ══════ */}
+        <div className="flex flex-col flex-1 min-w-0">
+
+          {/* ── Search bar at top ── */}
+          <div className="relative px-3 pt-2 pb-1 flex-shrink-0">
+            <Search size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search}
+              onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
+              onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
+              className="w-full pr-8 pl-3 py-1.5 rounded-lg text-xs border border-slate-200 bg-white text-slate-700 placeholder-slate-400 outline-none focus:border-blue-400 transition-all"
+              placeholder="ابحث عن صنف أو امسح الباركود..." />
           </div>
-          <div className="flex-1 overflow-y-auto py-1.5">
-            <button
-              onClick={() => { setSelectedCat(null); setSelectedSub(null) }}
-              className={clsx('w-full text-right px-3 py-2 text-xs font-bold transition-colors rounded-lg mx-1.5 flex items-center gap-1.5',
-                !selectedCat ? 'text-white' : 'text-slate-600 hover:bg-slate-50')}
-              style={!selectedCat ? { background: '#1e3a5f', width: 'calc(100% - 12px)' } : { width: 'calc(100% - 12px)' }}
-            >
-              الكل
-            </button>
-            {(categories as Category[])?.map((cat) => {
-              const subs = getSubsForCat(cat.id)
-              const isExpanded = expandedCats.has(cat.id)
-              const isCatActive = selectedCat === cat.id && !selectedSub
+
+          {/* ── Horizontal Categories Bar ── */}
+          <div className="flex-shrink-0 bg-white border-b border-slate-200">
+            {/* Main categories row */}
+            {(() => {
+              const allCats = (categories as Category[]) || []
+              const totalCatPages = Math.max(1, Math.ceil(allCats.length / CATS_PER_PAGE))
+              const catStart = catPage * CATS_PER_PAGE
+              const visibleCats = allCats.slice(catStart, catStart + CATS_PER_PAGE)
               return (
-                <div key={cat.id}>
-                  <div className="flex items-center pr-1.5">
-                    <button
-                      onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); if (!isExpanded && subs.length) toggleCat(cat.id) }}
-                      title={cat.name}
-                      className={clsx('flex-1 text-right px-2 py-1.5 text-xs font-semibold transition-colors rounded-lg flex items-center gap-1.5',
-                        isCatActive ? 'text-white' : 'text-slate-700 hover:bg-slate-50')}
-                      style={isCatActive ? { background: '#1e3a5f' } : {}}
-                    >
-                      <Tag size={10} className="flex-shrink-0 opacity-60" />
-                      <span className="truncate leading-tight">{cat.name}</span>
+                <div className="flex items-center gap-1 px-2 py-1.5">
+                  <button onClick={() => setCatPage(p => Math.max(0, p - 1))}
+                    disabled={catPage === 0}
+                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    ▶
+                  </button>
+                  <div className="flex gap-1 flex-1 overflow-hidden">
+                    <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
+                      className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
+                        !selectedCat ? 'bg-[#1e3a5f] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                      الكل
                     </button>
-                    {subs.length > 0 && (
-                      <button onClick={() => toggleCat(cat.id)} className="p-1 text-slate-300 hover:text-slate-500 flex-shrink-0">
-                        {isExpanded ? <ChevronDown size={11} /> : <ChevronLeft size={11} />}
+                    {visibleCats.map(cat => (
+                      <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
+                        className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
+                          selectedCat === cat.id && !selectedSub ? 'bg-[#1e3a5f] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                        {cat.name}
                       </button>
-                    )}
+                    ))}
                   </div>
-                  {isExpanded && subs.map((sub) => {
-                    const isSubActive = selectedSub === sub.id
-                    return (
-                      <button key={sub.id}
-                        onClick={() => { setSelectedCat(cat.id); setSelectedSub(sub.id) }}
-                        title={sub.name}
-                        className={clsx('w-full text-right pr-6 pl-2 py-1 text-xs transition-colors rounded-lg mx-1.5 flex items-center gap-1',
-                          isSubActive ? 'text-white font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700')}
-                        style={isSubActive ? { background: '#2d5a8e', width: 'calc(100% - 12px)' } : { width: 'calc(100% - 12px)' }}
-                      >
-                        <Layers size={9} className="flex-shrink-0 opacity-50 shrink-0" />
-                        <span className="truncate leading-tight">{sub.name}</span>
-                      </button>
-                    )
-                  })}
+                  <button onClick={() => setCatPage(p => Math.min(totalCatPages - 1, p + 1))}
+                    disabled={catPage >= totalCatPages - 1}
+                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    ◀
+                  </button>
                 </div>
               )
-            })}
+            })()}
+
+            {/* Subcategories row (visible when a main category is selected) */}
+            {selectedCat && getSubsForCat(selectedCat).length > 0 && (() => {
+              const subs = getSubsForCat(selectedCat)
+              const totalSubPages = Math.max(1, Math.ceil(subs.length / SUBS_PER_PAGE))
+              const subStart = subPage * SUBS_PER_PAGE
+              const visibleSubs = subs.slice(subStart, subStart + SUBS_PER_PAGE)
+              return (
+                <div className="flex items-center gap-1 px-2 py-1.5 border-t border-slate-100">
+                  <button onClick={() => setSubPage(p => Math.max(0, p - 1))}
+                    disabled={subPage === 0}
+                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    ▶
+                  </button>
+                  <div className="flex gap-1 flex-1 overflow-hidden">
+                    <button onClick={() => setSelectedSub(null)}
+                      className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
+                        !selectedSub ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100')}>
+                      {(categories as Category[])?.find(c => c.id === selectedCat)?.name || 'الكل'}
+                    </button>
+                    {visibleSubs.map(sub => (
+                      <button key={sub.id} onClick={() => setSelectedSub(sub.id)}
+                        className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
+                          selectedSub === sub.id ? 'bg-[#2d5a8e] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')}>
+                        {sub.name}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setSubPage(p => Math.min(totalSubPages - 1, p + 1))}
+                    disabled={subPage >= totalSubPages - 1}
+                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    ◀
+                  </button>
+                </div>
+              )
+            })()}
           </div>
-        </aside>
-        </>)}
 
-        {/* ── Products + Cart ── */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Search + view toggle */}
-          <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input ref={searchRef} value={search}
-                onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
-                onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-                className="input pr-10" placeholder="ابحث بالاسم أو امسح الباركود..." />
+          {/* ── Center: Product display grid ── */}
+          <div className="flex-1 flex flex-col bg-slate-50 min-w-0 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-white flex-shrink-0">
+              <h3 className="text-xs font-bold text-slate-600">أصناف المجموعة</h3>
+              <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">
+                {viewMode === 'table' ? <><LayoutGrid size={11} /> كروت</> : <><List size={11} /> جدول</>}
+              </button>
             </div>
-            <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0">
-              {viewMode === 'table'
-                ? <><LayoutGrid size={14} /> عرض الفئات</>
-                : <><List size={14} /> عرض الجدول</>
-              }
-            </button>
-          </div>
 
-          {viewMode === 'cards' ? (
-            <div className="flex-1 min-h-0">
-              <CategoryCardBrowser warehouseId={mainWh?.id} mode={mode} onAddProduct={(p) => { handleAddProduct(p); }} />
-            </div>
-          ) : (
-          <>
-          {isLoading ? <PageLoader /> : (
-            <div className="flex-1 overflow-y-auto relative">
-
-              {/* Collections */}
-              {filteredCollections.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">📦 كوليكشنات</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {filteredCollections.map((c) => {
-                      const price = mode === 'wholesale' ? Number(c.wholesale_price) || Number(c.retail_price) : Number(c.retail_price)
+            {/* Product content */}
+            {debouncedSearch ? (
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                {isLoading ? <PageLoader /> : !products?.length ? (
+                  <div className="text-center py-12 text-slate-400 text-xs">لا توجد نتائج</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                    {products.map((p: any) => {
+                      const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
                       return (
-                        <button key={c.id} onClick={() => handleAddCollection(c)}
-                          className="bg-white rounded-xl border-2 border-amber-200 p-3 text-right hover:border-amber-400 hover:shadow-md transition-all active:scale-95">
-                          <div className="w-full h-10 rounded-lg mb-2 flex items-center justify-center text-base font-black text-white"
-                            style={{ background: 'linear-gradient(135deg, #c8a84b, #e8c96b)' }}>
-                            📦
-                          </div>
-                          <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{c.name}</p>
-                          <p className="text-xs text-slate-400">{c.items?.length || 0} منتج</p>
-                          <div className="flex items-end justify-between mt-1.5">
-                            <div>
-                              <p className="text-sm font-black leading-none" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</p>
-                              <p className="text-xs text-slate-400 leading-none">ج.م</p>
+                        <button key={p.id} onClick={() => handleAddProduct(p)}
+                          className="bg-white rounded-xl border border-slate-200 p-2.5 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 flex flex-col">
+                          <div className="flex items-start justify-between mb-1.5">
+                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
+                              <Package size={12} className="text-blue-600" />
                             </div>
+                          </div>
+                          <p className="text-[11px] font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
+                          {p.company && <p className="text-[10px] text-slate-400 mb-1">{p.company}</p>}
+                          <div className="mt-auto">
+                            <p className="text-xs font-black leading-none" style={{ color: '#c8a84b' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
                           </div>
                         </button>
                       )
                     })}
                   </div>
-                </div>
-              )}
-
-              <div className="overflow-y-auto flex-1 border border-slate-200 rounded-xl">
-                <table className="w-full text-right text-xs">
-                  <thead className="sticky top-0 bg-slate-100 z-10">
-                    <tr className="text-slate-500 font-semibold">
-                      <th className="py-2 px-3">المنتج</th>
-                      <th className="py-2 px-3">الشركة</th>
-                      <th className="py-2 px-3">الرف</th>
-                      <th className="py-2 px-3">القطاعي</th>
-                      <th className="py-2 px-3">الجملة</th>
-                      <th className="py-2 px-3">المخزون</th>
-                      <th className="py-2 px-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products?.length === 0 && (
-                      <tr><td colSpan={7} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
+                )}
+                {productPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-3">
+                    <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                      disabled={productPage <= 1}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                      السابق
+                    </button>
+                    <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
+                    <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                      disabled={productPage >= productPages}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                      التالي
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : viewMode === 'cards' ? (
+              <div className="flex-1 min-h-0">
+                <CategoryCardBrowser warehouseId={mainWh?.id} mode={mode} onAddProduct={(p) => handleAddProduct(p)} />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                {isLoading ? <PageLoader /> : (
+                  <>
+                    {filteredCollections.length > 0 && (
+                      <div className="px-3 pt-3">
+                        <p className="text-[10px] font-bold text-slate-400 mb-1.5">📦 كوليكشنات</p>
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          {filteredCollections.map((c) => {
+                            const price = mode === 'wholesale' ? Number(c.wholesale_price) || Number(c.retail_price) : Number(c.retail_price)
+                            return (
+                              <button key={c.id} onClick={() => handleAddCollection(c)}
+                                className="bg-white rounded-lg border border-amber-200 p-2 text-right hover:border-amber-400 hover:shadow-sm transition-all active:scale-95">
+                                <p className="text-[10px] font-bold text-slate-700 leading-tight truncate">{c.name}</p>
+                                <p className="text-[10px] text-slate-400">{c.items?.length || 0} منتج</p>
+                                <p className="text-xs font-black mt-0.5" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')} ج.م</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
                     )}
-                    {products?.filter((p: Product) => {
-                      const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
-                      return q === null || q > 0
-                    })?.map((p: Product) => {
-                      const retailPrice = Number(p.retail_price)
-                      const wholesalePrice = Number(p.wholesale_price) || retailPrice
-                      const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
-                      return (
-                        <tr key={p.id} onClick={() => handleAddProduct(p)}
-                          className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
-                          <td className="py-2 px-3 font-semibold text-slate-800">{p.name}</td>
-                          <td className="py-2 px-3 text-slate-400">{p.company || '—'}</td>
-                          <td className="py-2 px-3">{p.shelf_number ? <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                          <td className="py-2 px-3 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
-                          <td className="py-2 px-3 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
-                          <td className="py-2 px-3">
-                            {qty != null ? (
-                              <span className={`font-bold px-1.5 py-0.5 rounded-md ${
-                                qty <= 0 ? 'bg-red-100 text-red-600' :
-                                qty <= 5 ? 'bg-amber-100 text-amber-700' :
-                                'bg-green-100 text-green-700'
-                              }`}>{qty}</span>
-                            ) : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="py-2 px-3">
-                            <span className="text-blue-500 font-bold text-sm">+</span>
-                          </td>
+                    <table className="w-full text-right text-[11px]">
+                      <thead className="sticky top-0 z-10" style={{ background: '#2d5a8e' }}>
+                        <tr className="text-white font-bold">
+                          <th className="py-1.5 px-2">المنتج</th>
+                          <th className="py-1.5 px-2">الشركة</th>
+                          <th className="py-1.5 px-2">الرف</th>
+                          <th className="py-1.5 px-2">القطاعي</th>
+                          <th className="py-1.5 px-2">الجملة</th>
+                          <th className="py-1.5 px-2">المخزون</th>
+                          <th className="py-1.5 px-2 w-6"></th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {products?.length === 0 && (
+                          <tr><td colSpan={7} className="text-center py-12 text-slate-400 text-xs">لا توجد أصناف في هذه المجموعة</td></tr>
+                        )}
+                        {products?.filter((p: Product) => {
+                          const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                          return q === null || q > 0
+                        })?.map((p: Product) => {
+                          const retailPrice = Number(p.retail_price)
+                          const wholesalePrice = Number(p.wholesale_price) || retailPrice
+                          const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                          return (
+                            <tr key={p.id} onClick={() => handleAddProduct(p)}
+                              className="border-b border-slate-200 hover:bg-blue-50 cursor-pointer transition-colors">
+                              <td className="py-1.5 px-2 font-semibold text-slate-700">{p.name}</td>
+                              <td className="py-1.5 px-2 text-slate-400 text-[10px]">{p.company || '—'}</td>
+                              <td className="py-1.5 px-2">{p.shelf_number ? <span className="text-[10px] px-1 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
+                              <td className="py-1.5 px-2 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
+                              <td className="py-1.5 px-2 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
+                              <td className="py-1.5 px-2">
+                                {qty != null ? (
+                                  <span className={`font-bold px-1 rounded ${qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600'}`}>{qty}</span>
+                                ) : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="py-1.5 px-2 text-blue-500 font-bold text-sm">+</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Pagination controls */}
+            {productPages > 1 && (
+            <div className="flex items-center justify-center gap-4 py-2 border-t border-slate-200 bg-white flex-shrink-0">
+              <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                disabled={productPage <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-30 text-slate-500 hover:bg-slate-100 border border-slate-200">
+                <ChevronDown size={12} className="rotate-90" /> أصناف سابقة
+              </button>
+              <span className="text-[10px] text-slate-500">{productPage} / {productPages}</span>
+              <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                disabled={productPage >= productPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-30 text-slate-500 hover:bg-slate-100 border border-slate-200">
+                أصناف تالية <ChevronLeft size={12} />
+              </button>
+            </div>
+            )}
+
+            {/* Discount block */}
+            <div className="px-4 py-2.5 border-t border-slate-200 bg-white flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">خصم أصناف</span>
+                <div className="relative flex-1 max-w-[120px]">
+                  <input type="number" min="0" max="100" value={discountInput}
+                    onChange={e => setDiscountInput(e.target.value)}
+                    className="w-full text-center text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" placeholder="0.00" />
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">%</span>
+                </div>
+                <button
+                  onClick={() => { if (!discountInput) return; const pct = Number(discountInput); items.forEach(i => updateItemDiscount(i.product_id, 0, pct)); setDiscountInput(''); toast.success('تم تطبيق الخصم') }}
+                  disabled={!discountInput || !items.length}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40 border border-slate-200">
+                  تطبيق خصم
+                </button>
               </div>
             </div>
-          )}
-
-          {/* Action buttons — 4 */}
-          <div className="mt-3 grid grid-cols-2 gap-1.5 flex-shrink-0">
-            <button onClick={() => setShowReturn(true)}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border-2 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
-              <RotateCcw size={13} /> مرتجع
-            </button>
-            <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-40">
-              <Trash2 size={13} /> خوارج
-            </button>
-            <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border-2 border-green-200 text-green-700 bg-green-50 hover:bg-green-100 transition-colors disabled:opacity-40">
-              <DollarSign size={13} /> دواخل مالية
-            </button>
-            <button onClick={() => setShowCustomerDebt(true)} disabled={!shift}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border-2 border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-40">
-              <DollarSign size={13} /> دفع عميل آجل
-            </button>
           </div>
-          </>
-          )}
         </div>
 
-        {/* Cart panel */}
-        <div ref={cartElRef} className="flex-shrink-0 flex relative" style={{ width: cartWidth }}>
+        {/* ══════ LEFT PANEL (Transaction & Cart) ══════ */}
+        <div ref={cartElRef} className="flex flex-col bg-white border-r border-slate-200 overflow-hidden" style={{ width: cartWidth }}>
           <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group flex items-center justify-center"
             onMouseDown={handleDragStart}>
             <div className="w-0.5 h-8 rounded-full bg-slate-200 group-hover:bg-blue-400 transition-colors" />
           </div>
-          <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
 
-          {/* Cart header — customer + mode */}
-          <div className="p-4 border-b border-slate-100 flex-shrink-0" style={{ background: '#1e3a5f' }}>
+          {/* Top: Total display + Warehouse dropdown + mode toggles */}
+          <div className="px-4 py-3 border-b border-slate-200 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-white font-bold flex items-center gap-2"><ShoppingCart size={16} /> السلة ({items.length})</h2>
               <div className="flex items-center gap-2">
-                {/* Retail / Wholesale toggle inside cart */}
-                <div className="flex rounded-lg overflow-hidden border border-white/20">
-                  <button onClick={() => setMode('retail')} className={clsx('px-2.5 py-1 text-xs font-bold transition-all', mode === 'retail' ? 'bg-white text-slate-800' : 'text-white/70 hover:text-white')}>قطاعي</button>
-                  <button onClick={() => setMode('wholesale')} className={clsx('px-2.5 py-1 text-xs font-bold transition-all', mode === 'wholesale' ? 'bg-white text-slate-800' : 'text-white/70 hover:text-white')}>جملة</button>
+                <div className="flex rounded-lg overflow-hidden border border-slate-200">
+                  <button onClick={() => setMode('retail')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'retail' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'retail' ? { background: '#1e3a5f' } : {}}>قطاعي</button>
+                  <button onClick={() => setMode('wholesale')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'wholesale' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'wholesale' ? { background: '#1e3a5f' } : {}}>جملة</button>
                 </div>
-                {/* آجل toggle */}
                 <button onClick={() => setIsCredit(v => !v)}
-                  className={clsx('px-2.5 py-1 rounded-lg text-xs font-bold border transition-all', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-white/20 text-white/60 hover:text-white')}>
+                  className={clsx('px-2 py-1 rounded-lg text-[10px] font-bold border transition-all', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>
                   آجل
                 </button>
-                <button onClick={() => setShowHeld(true)} className="text-white/70 hover:text-white text-xs">
-                  معلقة ({suspended.length})
-                </button>
-                {items.length > 0 && (
-                  <button
-                    onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }}
-                    className="text-white/70 hover:text-white text-xs"
-                  >
-                    تعليق
-                  </button>
-                )}
-                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-white/50 hover:text-white text-xs">مسح</button>}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowHeld(true)} className="text-[10px] text-slate-400 hover:text-slate-600">معلقة ({suspended.length})</button>
+                {items.length > 0 && <button onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }} className="text-[10px] text-slate-400 hover:text-slate-600">تعليق</button>}
+                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-[10px] text-red-400 hover:text-red-600">مسح</button>}
               </div>
             </div>
-
-            {/* Split payment builder */}
-            <div className="mb-2 space-y-1.5">
-              {splitPayments.length === 0 && !isCredit && (
-                <div className="flex gap-2 items-center">
-                  <button type="button"
-                    onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
-                    className={clsx('px-3 py-2 rounded-lg text-xs font-bold border transition-all flex-shrink-0',
-                      'bg-blue-500 text-white border-blue-400')}>
-                    💵 نقدي
-                  </button>
-                   {(wallets || []).filter(w => w.type !== 'cash').length > 0 && (
-                    <div className="relative flex-1">
-                      <select value={paymentWalletId}
-                        onChange={e => { setPaymentMethod('wallet'); setPaymentWalletId(e.target.value) }}
-                        className="w-full rounded-lg text-xs font-bold border px-3 py-2 bg-white/10 border-white/20 text-white/60 outline-none">
-                        <option value="" style={{ background: '#1e3a5f', color: '#fff' }}>💳 تحويل إلكتروني...</option>
-                        {(wallets || []).filter(w => w.type !== 'cash').map(w => (
-                          <option key={w.id} value={w.id} style={{ background: '#1e3a5f', color: '#fff' }}>
-                            {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  <button onClick={() => { setSplitPayments([{ method: 'cash', amount: total() }]); setPaymentMethod('cash'); setPaymentWalletId('') }}
-                    className="text-[10px] text-white/40 hover:text-white underline whitespace-nowrap">
-                    تقسيم الدفع
-                  </button>
-                </div>
-              )}
-              {splitPayments.length > 0 && !isCredit && (
-                <div className="space-y-1">
-                  {splitPayments.map((sp, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-xs">
-                      <span className="text-white/70 w-16">
-                        {sp.method === 'cash' ? '💵 نقدي' : sp.method === 'wallet' ? '💳 محفظة' : sp.method === 'credit' ? '📋 آجل' : sp.method}
-                      </span>
-                      <span className="font-bold text-white">{sp.amount.toLocaleString('ar-EG')} ج.م</span>
-                      <button onClick={() => { setSplitPayments(p => p.filter((_, j) => j !== i)); if (splitPayments.length <= 1) { setSplitPayments([]); setPaymentMethod('cash') } }}
-                        className="text-red-300 hover:text-red-200 mr-1">✕</button>
-                    </div>
-                  ))}
-                  <div className="flex gap-1.5 items-center pt-0.5">
-                    <button onClick={() => setShowSplitModal(true)}
-                      className="text-[10px] text-white/40 hover:text-white underline">+ إضافة قسط</button>
-                    <span className="text-[10px] text-white/30">|</span>
-                    <span className="text-[10px] text-white/50">المجموع: {splitPayments.reduce((s, p) => s + p.amount, 0).toLocaleString('ar-EG')} / {total().toLocaleString('ar-EG')} ج.م</span>
-                    {Math.abs(splitPayments.reduce((s, p) => s + p.amount, 0) - total()) > 0.01 && (
-                      <span className="text-[10px] text-red-300">⚠️ غير متطابق</span>
-                    )}
-                  </div>
-                </div>
-              )}
+            <div className="text-center mb-2">
+              <p className="text-4xl font-black text-red-500 leading-none">{total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</p>
+              <p className="text-[10px] text-slate-400 mt-1">المبلغ الإجمالي — ج.م</p>
             </div>
-            {/* Customer smart search */}
+            {/* Customer search */}
             <div className="relative">
-              <input
-                value={selectedCustomer ? selectedCustomer.name : customerInput}
+              <input value={selectedCustomer ? selectedCustomer.name : customerInput}
                 onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomerInput(e.target.value); setShowCustomerDrop(true) }}
                 onFocus={() => setShowCustomerDrop(true)}
                 onBlur={() => setTimeout(() => setShowCustomerDrop(false), 200)}
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-white/30 outline-none focus:border-yellow-400 focus:bg-white/15 transition-all"
-                placeholder="اسم العميل — يُترك فارغاً للعميل العادي" />
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] text-slate-700 placeholder-slate-400 outline-none focus:border-blue-400 transition-all"
+                placeholder="اسم العميل (اختياري)" />
               {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
-                <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-48 overflow-y-auto">
+                <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-40 overflow-y-auto">
                   {customerResults?.map((c: Customer) => (
                     <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
-                      className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0">
+                      className="w-full text-right px-3 py-2 hover:bg-slate-50 text-xs border-b border-slate-50 last:border-0">
                       <p className="font-semibold text-slate-800">{c.name}</p>
-                      {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
+                      {c.phone && <p className="text-[10px] text-slate-400">{c.phone}</p>}
                     </button>
                   ))}
                   {customerSearch.length > 1 && (
                     <button onMouseDown={() => {
-                      if (isCredit) {
-                        setPendingCustomerName(customerSearch)
-                        setNewCustomerPhone('')
-                        setShowPhoneModal(true)
-                        setShowCustomerDrop(false)
-                      } else {
-                        customersApi.create({ name: customerSearch }).then(c => {
-                          setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false)
-                        })
-                      }
-                    }} className="w-full text-right px-4 py-2.5 hover:bg-green-50 text-sm text-green-700 font-semibold flex items-center gap-2">
-                      <span>+</span> إضافة "{customerSearch}" كعميل جديد{isCredit ? ' (آجل — يلزم تليفون)' : ''}
+                      if (isCredit) { setPendingCustomerName(customerSearch); setNewCustomerPhone(''); setShowPhoneModal(true); setShowCustomerDrop(false); return }
+                      customersApi.create({ name: customerSearch }).then(c => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) })
+                    }} className="w-full text-right px-3 py-2 hover:bg-green-50 text-xs text-green-700 font-semibold">
+                      + إضافة "{customerSearch}"{isCredit ? ' (يلزم تليفون)' : ''}
                     </button>
                   )}
                 </div>
@@ -1183,148 +1184,167 @@ export default function POSPage() {
             </div>
           </div>
 
-          {/* Cart items */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[55vh]">
-            {!items.length && (
-              <div className="text-center py-10 text-slate-400">
-                <ShoppingCart size={36} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">السلة فارغة</p>
-              </div>
-            )}
-            {items.map(item => {
-              const lineTotal = item.qty * item.unit_price
-              const itemDiscAmt = item.item_discount_pct > 0 ? lineTotal * (item.item_discount_pct / 100) : item.item_discount
-              const lineNet = lineTotal - itemDiscAmt
-              const belowCost = lineNet < item.qty * item.unit_cost
-              return (
-                <div key={item.product_id} className={clsx('rounded-xl p-3 border', belowCost ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-transparent')}>
-                  <div className="flex items-start justify-between mb-2">
-                    <p className="text-xs font-semibold text-slate-700 leading-tight flex-1 ml-2">{item.name}</p>
-                    <button onClick={() => removeItem(item.product_id)} className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"><X size={13} /></button>
-                  </div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={11} /></button>
-                      <input type="number" min="1"
-                        value={item.qty}
-                        onChange={e => updateQty(item.product_id, Number(e.target.value) || 1)}
-                        className="w-12 text-center text-sm font-bold border border-slate-200 rounded-lg py-0.5 outline-none focus:border-blue-300" />
-                      <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={11} /></button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input type="number" min="0" step="0.5"
-                        value={item.unit_price}
-                        onChange={e => {
-                          const newPrice = Number(e.target.value)
-                          if (newPrice > 0) updatePrice(item.product_id, newPrice)
-                        }}
-                        onBlur={e => {
-                          const newPrice = Number(e.target.value)
-                          if (newPrice < item.unit_cost) updatePrice(item.product_id, item.unit_cost)
-                        }}
-                        className={clsx('w-20 text-center text-sm font-bold border rounded-lg py-0.5 outline-none focus:border-blue-300',
-                          item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50' : 'border-slate-200')}
-                        title="سعر البيع" />
-                      <span className="text-xs text-slate-400">ج.م</span>
-                    </div>
-                    <div className="text-left">
-                      {itemDiscAmt > 0 && <p className="text-xs text-slate-400 line-through leading-none">{lineTotal.toLocaleString('ar-EG')}</p>}
-                      <p className={clsx('text-sm font-black leading-none', belowCost ? 'text-red-600' : '')} style={!belowCost ? { color: '#1e3a5f' } : {}}>{lineNet.toLocaleString('ar-EG')} ج.م</p>
-                    </div>
-                  </div>
-                  {/* Per-item discount row */}
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-xs text-slate-400">خصم:</span>
-                    <div className="flex items-center gap-1 flex-1">
-                      <input type="number" min="0"
-                        value={item.item_discount_pct || ''}
-                        onChange={e => {
-                          const pct = Number(e.target.value)
-                          updateItemDiscount(item.product_id, 0, pct)
-                        }}
-                        className="w-14 text-center text-xs border border-slate-200 rounded-md px-1 py-0.5 outline-none focus:border-blue-300"
-                        placeholder="%" />
-                      <span className="text-xs text-slate-400">%</span>
-                      <span className="text-xs text-slate-300 mx-0.5">أو</span>
-                      <input type="number" min="0"
-                        value={item.item_discount || ''}
-                        onChange={e => {
-                          const amt = Number(e.target.value)
-                          updateItemDiscount(item.product_id, amt, 0)
-                        }}
-                        className="w-16 text-center text-xs border border-slate-200 rounded-md px-1 py-0.5 outline-none focus:border-blue-300"
-                        placeholder="ج.م" />
-                    </div>
-                    {belowCost && <span className="text-xs text-red-500 font-bold flex-shrink-0">⚠️ خسارة</span>}
-                  </div>
-                </div>
-              )
-            })}
+          {/* Item counter */}
+          <div className="px-4 py-1.5 border-b border-slate-200 flex-shrink-0 bg-slate-50">
+            <span className="text-[11px] font-bold text-slate-500">{items.length} / {items.reduce((s, i) => s + i.qty, 0)} صنف</span>
           </div>
 
-          {/* Totals + invoice discount + checkout */}
-          <div className="p-4 border-t border-slate-100 flex-shrink-0 space-y-3">
-            {/* Invoice-level discount */}
-            {items.length > 0 && (
-              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
-                <p className="text-xs font-bold text-slate-500">خصم على الفاتورة</p>
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <input type="number" min="0" max="100"
-                      value={invoice_discount_pct || ''}
-                      onChange={e => setInvoiceDiscount(0, Number(e.target.value))}
-                      className="w-full text-center text-sm border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-300"
-                      placeholder="%" />
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
-                  </div>
-                  <div className="flex-1 relative">
-                    <input type="number" min="0"
-                      value={invoice_discount || ''}
-                      onChange={e => setInvoiceDiscount(Number(e.target.value), 0)}
-                      className="w-full text-center text-sm border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-300"
-                      placeholder="ج.م" />
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">ج</span>
-                  </div>
-                </div>
+          {/* Transaction table (VB6-style: كود الصنف | إسم الصنف | السعر | الكمية | الإجمالي) */}
+          <div className="flex-1 overflow-y-auto">
+            {!items.length ? (
+              <div className="text-center py-12 text-slate-300">
+                <ShoppingCart size={28} className="mx-auto mb-2 opacity-30" />
+                <p className="text-[11px]">لا توجد أصناف</p>
               </div>
+            ) : (
+              <table className="w-full text-right text-[11px]">
+                <thead className="sticky top-0 z-10" style={{ background: '#2d5a8e' }}>
+                  <tr className="text-white font-bold">
+                    <th className="py-1.5 px-2">كود الصنف</th>
+                    <th className="py-1.5 px-2">إسم الصنف</th>
+                    <th className="py-1.5 px-2 text-center">السعر</th>
+                    <th className="py-1.5 px-2 text-center">الكمية</th>
+                    <th className="py-1.5 px-2 text-center">الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, idx) => {
+                    const lineTotal = item.qty * item.unit_price
+                    const itemDiscAmt = item.item_discount_pct > 0 ? lineTotal * (item.item_discount_pct / 100) : item.item_discount
+                    const lineNet = lineTotal - itemDiscAmt
+                    const belowCost = lineNet < item.qty * item.unit_cost
+                    return (
+                      <tr key={item.product_id} onClick={() => removeItem(item.product_id)}
+                        className={clsx('border-b border-slate-100 cursor-pointer', belowCost ? 'bg-red-50' : 'hover:bg-slate-50')}>
+                        <td className="py-1.5 px-2 text-slate-400 font-mono text-[10px]">{idx + 1}</td>
+                        <td className="py-1.5 px-2 font-semibold text-slate-700 max-w-[100px] truncate" title={item.name}>{item.name}</td>
+                        <td className="py-1.5 px-2 text-center">
+                          <input type="number" min="0" step="0.5" value={item.unit_price} onClick={e => e.stopPropagation()}
+                            onChange={e => { const v = Number(e.target.value); if (v > 0) updatePrice(item.product_id, v) }}
+                            onBlur={e => { if (Number(e.target.value) < item.unit_cost) updatePrice(item.product_id, item.unit_cost) }}
+                            className={clsx('w-12 text-center text-[10px] font-bold border rounded py-0.5 outline-none',
+                              item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50' : 'border-slate-200')} />
+                        </td>
+                        <td className="py-1.5 px-2 text-center">
+                          <div className="flex items-center justify-center gap-0.5" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={9} /></button>
+                            <span className="w-6 text-center font-bold text-[11px]">{item.qty}</span>
+                            <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={9} /></button>
+                          </div>
+                        </td>
+                        <td className={clsx('py-1.5 px-2 text-center font-black', belowCost ? 'text-red-600' : '')} style={!belowCost ? { color: '#1e3a5f' } : {}}>
+                          {lineNet.toLocaleString('ar-EG')}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             )}
+          </div>
 
-            {/* Summary */}
-            <div className="space-y-1">
-              {totalDiscount() > 0 && (
-                <>
-                  <div className="flex justify-between text-xs text-slate-500">
-                    <span>المجموع</span><span>{subtotal().toLocaleString('ar-EG')} ج.م</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-red-500 font-semibold">
-                    <span>الخصم</span><span>- {totalDiscount().toLocaleString('ar-EG')} ج.م</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium text-sm">الإجمالي</span>
-                <span className="text-2xl font-black" style={{ color: '#1e3a5f' }}>{total().toLocaleString('ar-EG')} ج.م</span>
-              </div>
-            </div>
-
-            {!shift && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-xs">
-                <AlertCircle size={14} /><span>افتح وردية أولاً</span>
-              </div>
-            )}
-            <button
-              onClick={() => checkoutMut.mutate()}
+          {/* Bottom checkout bar */}
+          <div className="border-t border-slate-200 p-2 flex-shrink-0">
+            <button onClick={() => checkoutMut.mutate()}
               disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-              className="w-full py-4 rounded-xl font-black text-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: items.length ? '#c8a84b' : '#e2e8f0', color: items.length ? '#1e3a5f' : '#94a3b8' }}
-            >
-              <CheckCircle size={20} />
-              {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? '⚠️ حدد عميل للآجل' : isCredit ? '✓ تأكيد — آجل' : 'تأكيد الدفع'}
+              className="w-full py-2 rounded-lg text-[11px] font-bold text-white transition-all disabled:opacity-40"
+              style={{ background: items.length ? '#16a34a' : '#cbd5e1' }}>
+              <Printer size={12} className="inline ml-1" />
+              {checkoutMut.isPending ? 'جاري...' : `طباعة حفظ — ${total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })} ج.م`}
             </button>
           </div>
-        </div>{/* end cart inner */}
-      </div>{/* end cart wrapper */}
-      </div>{/* end main-row */}
+        </div>{/* end LEFT panel */}
+
+      </div>{/* end split screen */}
+
+      {/* Invoice-level discount + checkout (only when items exist) */}
+      {items.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-b-xl flex-shrink-0 -mt-px">
+          {splitPayments.length > 0 && !isCredit && (
+            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+              <span>{splitPayments.length} أقساط</span>
+              <button onClick={() => setSplitPayments([])} className="text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
+          <div className="flex-1" />
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>خصم: <span className="font-bold text-red-500">{totalDiscount().toLocaleString('ar-EG')} ج.م</span></span>
+            <span className="text-slate-300">|</span>
+            <span>الإجمالي: <span className="font-black text-lg" style={{ color: '#1e3a5f' }}>{total().toLocaleString('ar-EG')} ج.م</span></span>
+          </div>
+          <button onClick={() => checkoutMut.mutate()}
+            disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
+            className="px-6 py-2 rounded-xl font-black text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+            style={{ background: items.length ? '#c8a84b' : '#e2e8f0', color: items.length ? '#1e3a5f' : '#94a3b8' }}>
+            <CheckCircle size={16} />
+            {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? 'حدد عميل' : isCredit ? 'تأكيد — آجل' : 'تأكيد الدفع'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Bottom toolbar (VB6-style action buttons + discount) ── */}
+      <div className="flex-shrink-0 mt-2 flex items-stretch gap-3">
+        {/* Discount section */}
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2">
+          <Tag size={13} className="text-slate-400" />
+          <span className="text-[10px] font-bold text-slate-500">خصم أصناف</span>
+          <div className="relative">
+            <input type="number" min="0" max="100" value={discountInput}
+              onChange={e => setDiscountInput(e.target.value)}
+              className="w-16 text-center text-xs border border-slate-200 rounded-lg px-1 py-1 outline-none focus:border-blue-300" placeholder="%" />
+            <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">%</span>
+          </div>
+          <button
+            onClick={() => { if (!discountInput) return; const pct = Number(discountInput); items.forEach(i => updateItemDiscount(i.product_id, 0, pct)); setDiscountInput(''); toast.success('تم تطبيق الخصم') }}
+            disabled={!discountInput || !items.length}
+            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40">
+            تطبيق
+          </button>
+        </div>
+
+        {/* Separator */}
+        <div className="w-px bg-slate-200" />
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 flex-wrap flex-1">
+          {/* Barcode / code entry */}
+          <div className="flex items-center gap-1 bg-white rounded-xl border border-slate-200 px-2 py-1.5">
+            <Search size={12} className="text-slate-400" />
+            <input ref={searchRef} value={search}
+              onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
+              onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
+              className="w-32 text-[11px] bg-transparent outline-none placeholder-slate-400" placeholder="إدخال كود / باركود..." />
+          </div>
+
+          {/* Quick action buttons */}
+          <button onClick={() => setShowReturn(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors">
+            <RotateCcw size={11} /> مرتجع
+          </button>
+          <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-40">
+            <Trash2 size={11} /> خوارج
+          </button>
+          <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors disabled:opacity-40">
+            <DollarSign size={11} /> دواخل
+          </button>
+          <button onClick={() => setShowCustomerDebt(true)} disabled={!shift}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-40">
+            <DollarSign size={11} /> دفع عميل
+          </button>
+          <button onClick={() => setShowLedger(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-colors">
+            <BookOpen size={11} /> سجل اليوم
+          </button>
+          {items.length > 0 && (
+            <button onClick={() => { setMode(mode === 'wholesale' ? 'retail' : 'wholesale') }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors">
+              <Tag size={11} /> {mode === 'wholesale' ? 'جملة' : 'قطاعي'}
+            </button>
+          )}
+        </div>
+      </div>
 
     </div>{/* end desktop */}
 
@@ -1371,26 +1391,86 @@ export default function POSPage() {
             </button>
           </div>
 
-          {viewMode === 'cards' ? (
-            <div className="flex-1 min-h-0">
+          {debouncedSearch ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {isLoading ? <PageLoader /> : !products?.length ? (
+                <div className="text-center py-12 text-slate-400 text-xs">لا توجد نتائج</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {products.map((p: any) => {
+                    const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
+                    return (
+                      <button key={p.id} onClick={() => handleAddProduct(p)}
+                        className="bg-white rounded-xl border border-slate-200 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 flex flex-col">
+                        <div className="flex items-start justify-between mb-1.5">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
+                            <Package size={14} className="text-blue-600" />
+                          </div>
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
+                        {p.company && <p className="text-[10px] text-slate-400 mb-1">{p.company}</p>}
+                        <div className="mt-auto">
+                          <p className="text-sm font-black leading-none" style={{ color: '#c8a84b' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {productPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-3 pb-1">
+                  <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                    disabled={productPage <= 1}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                    السابق
+                  </button>
+                  <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
+                  <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                    disabled={productPage >= productPages}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                    التالي
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : viewMode === 'cards' ? (
+            <div className="flex-1 min-h-0 flex flex-col">
               <CategoryCardBrowser warehouseId={mainWh?.id} mode={mode} onAddProduct={(p) => { handleAddProduct(p); }} />
             </div>
           ) : (
           <>
-          {/* Category pills */}
-          <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <button onClick={() => { setSelectedCat(null); setSelectedSub(null) }}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
-              style={!selectedCat ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
-              الكل
-            </button>
-            {(categories as Category[])?.map((cat) => (
-              <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null) }}
-                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
-                style={selectedCat === cat.id ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
-                {cat.name}
-              </button>
-            ))}
+          {/* Category pills with paging */}
+          <div className="flex items-center gap-1 pb-2 flex-shrink-0">
+            {(() => {
+              const cats = (categories as Category[]) || []
+              const totalPages = Math.max(1, Math.ceil(cats.length / 6))
+              return <>
+                <button onClick={() => setCatPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={catPage >= totalPages - 1}
+                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-200 text-slate-500">
+                  ▶
+                </button>
+                <div className="flex gap-1.5 flex-1 overflow-hidden">
+                  <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
+                    className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                    style={!selectedCat ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
+                    الكل
+                  </button>
+                  {cats.slice(catPage * 6, (catPage + 1) * 6).map((cat) => (
+                    <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
+                      className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                      style={selectedCat === cat.id ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setCatPage(p => Math.max(0, p - 1))}
+                  disabled={catPage === 0}
+                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-200 text-slate-500">
+                  ◀
+                </button>
+              </>
+            })()}
           </div>
           {/* Product table */}
           <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
@@ -1434,6 +1514,23 @@ export default function POSPage() {
               </tbody>
             </table>
           </div>
+          {productPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-3 pb-1">
+              <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                disabled={productPage <= 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                السابق
+              </button>
+              <span className="text-xs text-slate-500 px-2">
+                {productPage} / {productPages}
+              </span>
+              <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                disabled={productPage >= productPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                التالي
+              </button>
+            </div>
+          )}
           </>
           )}
         </div>

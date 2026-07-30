@@ -23,7 +23,7 @@ export const productsApi = {
   update: (id: string, data: Partial<ProductCreate>) => api.put(`/products/${id}`, data).then(r => r.data),
   delete: (id: string) => api.delete(`/products/${id}`),
   byBarcode: (barcode: string) => api.get(`/products/barcode/${barcode}`).then(r => r.data),
-  movements: (id: string) => api.get(`/products/${id}/movements`).then(r => r.data),
+  movements: (id: string) => api.get(`/products/${id}/movements`).then(r => r.data?.items ?? r.data),
   move: (id: string, subcategory_id: string) => api.post(`/products/${id}/move`, { subcategory_id }),
   uploadImage: (id: string, file: File) => {
     const fd = new FormData(); fd.append('file', file)
@@ -155,12 +155,12 @@ export const supplierPricesApi = {
 export const purchasesApi = {
   create: (data: PurchaseCreate) => api.post('/purchases', data).then(r => r.data),
   receive: (id: string, data: { received_qty?: number; notes?: string }) => api.post(`/purchases/${id}/receive`, data).then(r => r.data),
-  list: () => api.get('/purchases').then(r => r.data),
+  list: () => api.get('/purchases').then(r => r.data?.items ?? r.data),
   get: (id: string) => api.get(`/purchases/${id}`).then(r => r.data),
 }
 
 export const suppliersApi = {
-  list: (type?: string) => api.get('/suppliers', { params: type ? { type } : {} }).then(r => r.data),
+  list: (type?: string) => api.get('/suppliers', { params: type ? { type } : {} }).then(r => r.data?.items ?? r.data),
   create: (d: SupplierCreate) => api.post('/suppliers', d).then(r => r.data),
   update: (id: string, d: Partial<SupplierCreate>) => api.put(`/suppliers/${id}`, d).then(r => r.data),
   delete: (id: string) => api.delete(`/suppliers/${id}`),

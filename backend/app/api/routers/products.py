@@ -231,23 +231,27 @@ async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_d
 
 
 @router.get("/products/{product_id}/movements")
-async def product_movements(product_id: uuid.UUID, from_date: str | None = None, to_date: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def product_movements(product_id: uuid.UUID, from_date: str | None = None, to_date: str | None = None, page: int = Query(1, ge=1), page_size: int = Query(100, ge=1, le=1000), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Per-product movement log — used in product analytics."""
     from app.models.stock import StockMovement
     from datetime import datetime
-    q = select(StockMovement).where(StockMovement.product_id == product_id).order_by(StockMovement.created_at.desc())
+    from sqlalchemy import func as sqla_func
+    base = select(StockMovement).where(StockMovement.product_id == product_id)
     if from_date:
         try:
-            q = q.where(StockMovement.created_at >= datetime.fromisoformat(from_date))
+            base = base.where(StockMovement.created_at >= datetime.fromisoformat(from_date))
         except ValueError:
             raise HTTPException(400, f"Invalid from_date format: {from_date}")
     if to_date:
         try:
-            q = q.where(StockMovement.created_at <= datetime.fromisoformat(to_date))
+            base = base.where(StockMovement.created_at <= datetime.fromisoformat(to_date))
         except ValueError:
             raise HTTPException(400, f"Invalid to_date format: {to_date}")
+    total = await db.scalar(select(sqla_func.count()).select_from(StockMovement).where(base.whereclause))
+    q = base.order_by(StockMovement.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(q)
-    return result.scalars().all()
+    items = result.scalars().all()
+    return Page(items=items, total=total or 0, page=page, size=page_size, pages=max(1, (total + page_size - 1) // page_size))
 
 @router.put("/products/{product_id}", response_model=ProductOut)
 async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("inventory"))):

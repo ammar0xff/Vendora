@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "notes": "تم إصلاح تنبيهات المخزون السالب وتحسين الطباعة",
+  "pub_date": "2026-07-19T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "url": "https://eg-co.duckdns.org/updates/windows-x86_64/EG-CO-ERP_0.2.0_x64-setup.exe",
+      "signature": "dGVzdHNpZ25hdHVyZQ=="
+    }
+  }
+}

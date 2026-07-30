@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, func
 from app.dependencies import get_db, get_current_user, require_perm
+from app.core.pagination import Page
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import uuid
@@ -29,15 +30,16 @@ class TxIn(BaseModel):
         return v
 
 @router.get("")
-async def list_suppliers(type: Optional[str] = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    q = "SELECT * FROM suppliers WHERE is_active=true"
+async def list_suppliers(type: Optional[str] = None, page: int = 1, page_size: int = 200, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    where = "WHERE is_active=true"
     params = {}
     if type:
-        q += " AND type=:type"
+        where += " AND type=:type"
         params["type"] = type
-    q += " ORDER BY name"
-    r = await db.execute(text(q), params)
-    return [dict(row._mapping) for row in r.fetchall()]
+    total = (await db.execute(text(f"SELECT COUNT(*) FROM suppliers {where}"), params)).scalar()
+    r = await db.execute(text(f"SELECT * FROM suppliers {where} ORDER BY name OFFSET :offset LIMIT :limit"), {**params, "offset": (page - 1) * page_size, "limit": page_size})
+    items = [dict(row._mapping) for row in r.fetchall()]
+    return Page(items=items, total=total, page=page, size=page_size, pages=-( -total // page_size))
 
 @router.post("", status_code=201)
 async def create_supplier(data: SupplierIn, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory", "purchases"))):

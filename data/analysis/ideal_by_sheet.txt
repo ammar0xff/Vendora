@@ -1,0 +1,67 @@
+             name              | count 
+-------------------------------+-------
+ اكسسوارات IOM                 |     8
+ اكسسوارات خلاطات              |     7
+ اكسسوارات ستوديو              |     7
+ الترا فلات ULTRA FLAT         |    17
+ الترا فلات نيو ULTRA FLAT NEW |    16
+ اندبندنت INDEPENDENT          |     7
+ اي لايف i.Life                |     8
+ ايديال ستريم IDEALSTREAM      |     6
+ ايديل IDYLL                   |     2
+ ايلاند - سمايل ISLAND-SMILE   |    15
+ بانيو سبيس SPACE              |    35
+ بانيو كونكت CONNECT           |    16
+ بانيو كيميرا KIMERA           |    25
+ بانيوهات سيملس SEAMLESS       |    10
+ بروسيس PROSYS                 |    19
+ بلان PLAN                     |    17
+ بلايا PLAYA                   |    22
+ تريند TREND                   |     2
+ توليب - جونيور TULIP-JUNIOR   |    12
+ تونك - ميديا بلس TONIC-MEDIA  |    15
+ تونك TONIC                    |    25
+ تيسي TESI                     |    17
+ حمامات القدم SHOWER TRAYS     |    20
+ خلاطات الكترونية              |     5
+ خلاطات المطبخ KITCHEN         |    16
+ دياجونال DIAGONAL             |     6
+ ريونيون - كوباكابانا          |    17
+ سان ريمو SAN REMO             |    22
+ سان ريمو احتياجات خاصة        |    13
+ سبا - ميني سبا - سوبر شاور    |    17
+ سبيس SPACE                    |    14
+ ستريم STREAM                  |    24
+ سليم لاين 2 SLIMLINE 2        |     2
+ سيرابلاس CERAPLUS             |     3
+ سيرابلان 3 CERAPLAN III       |     3
+ سيرافيت CERAFIT               |     6
+ سيرافين D CERAFINE D          |     3
+ سيرالوك مطبخ CERALOOK         |     2
+ سيراميكس CERAMIX              |     9
+ سيرف SURF                     |    18
+ صوفيا - ستيب SOPHIA-STEP      |    30
+ صوفيا SOPHIA                  |    12
+ كبائن البانيو BATH ENCLOSURES |    50
+ كبائن الدوش SHOWER ENCLOSURES |    69
+ كريدو CREDO                   |    29
+ كونتور CONTOUR                |    16
+ كونكت CONNECT                 |    16
+ كونكت اير CONNECT AIR         |     2
+ كيميرا KIMERA                 |    19
+ كينورا KENORA                 |     7
+ كينورا بلس KENORA PLUS        |     7
+ مانتا MANTA                   |    21
+ مجموعات الدوش SHOWERS         |    22
+ مفردات OTHERS                 |    13
+ ميني كورنر - بلان             |    31
+ نياجرا بلس NIAGRA PLUS        |    22
+ نيو ايسيدرا - كونشيرتو        |    14
+ نيو ايسيدرا NEW ESEDRA        |    13
+ نيو سيرافليكس NEW CERAFLEX    |     8
+ نيو فلوريدا - فلوريدا         |    20
+ نيو كابري NEW CAPRI           |    12
+ يوروبا EUROPA                 |     8
+ يوروستورم EUROSTORM           |     6
+(63 rows)
+

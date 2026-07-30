@@ -83,7 +83,8 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
     if sale.status != SaleStatus.quotation:
         raise BusinessError("Only quotations can be confirmed this way")
 
-    for item in sale.items:
+    sorted_items = sorted(sale.items, key=lambda i: str(i.product_id))
+    for item in sorted_items:
         if not await _is_untracked(db, item.product_id, sale.warehouse_id):
             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
             if balance < item.qty:
@@ -99,7 +100,7 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
             unit_cost=item.unit_cost, unit_price=item.unit_price,
             created_by=user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id,
         )
-        for item in sale.items
+        for item in sorted_items
     ]
     db.add_all(movements)
 
@@ -139,7 +140,7 @@ async def create_draft_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sa
         discount_amount=data.discount_amount,
         total=Decimal(str(gross_total)),
         net_total=Decimal(str(net_total)),
-        paid_amount=Decimal(str(net_total)),
+        paid_amount=Decimal("0"),
         notes=data.notes,
         is_credit=data.is_credit,
         payment_method=data.payment_method,
@@ -168,7 +169,8 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
     if sale.status != SaleStatus.draft:
         raise BusinessError("Only draft sales can be confirmed")
 
-    for item in sale.items:
+    sorted_items = sorted(sale.items, key=lambda i: str(i.product_id))
+    for item in sorted_items:
         if not await _is_untracked(db, item.product_id, sale.warehouse_id):
             balance = await get_balance(db, item.product_id, sale.warehouse_id, for_update=True)
             if balance < item.qty:
@@ -184,7 +186,7 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
             unit_cost=item.unit_cost, unit_price=item.unit_price,
             created_by=user_id, ref_id=sale.id, ref_type="sale", sale_id=sale.id,
         )
-        for item in sale.items
+        for item in sorted_items
     ]
     db.add_all(movements)
 
@@ -212,12 +214,15 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         if existing:
             return await db.get(Sale, existing)
 
+    # Sort items by product_id to prevent deadlocks (consistent lock ordering)
+    sorted_items = sorted(data.items, key=lambda i: str(i.product_id))
+
     # Verify shift ownership
     if data.shift_id:
         shift = await db.get(Shift, data.shift_id)
         if not shift or shift.cashier_id != cashier_id:
             raise BusinessError("هذه الوردية لا تخصك")
-    for item in data.items:
+    for item in sorted_items:
         if not await _is_untracked(db, item.product_id, data.warehouse_id):
             balance = await get_balance(db, item.product_id, data.warehouse_id, for_update=True)
             if balance < item.qty:
@@ -250,6 +255,7 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         payment_method=getattr(data, 'payment_method', 'cash') or 'cash',
         wallet_id=getattr(data, 'wallet_id', None),
         notes=f"[local_id:{local_id}] {data.notes or ''}" if local_id else data.notes,
+        status=SaleStatus.confirmed,
         created_by=cashier_id,
     )
     db.add(sale)
@@ -259,7 +265,7 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     total_discount = Decimal("0")
     sale_items: list[SaleItem] = []
     stock_movements: list = []
-    for item in data.items:
+    for item in sorted_items:
         si = SaleItem(
             sale_id=sale.id,
             product_id=item.product_id,
@@ -292,14 +298,6 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     net_total = gross_total - total_discount - Decimal(str(data.discount_amount))
     sale.total = Decimal(str(gross_total))
     sale.net_total = Decimal(str(net_total))
-    paid = getattr(data, 'paid_amount', None)
-    if paid is not None:
-        sale.paid_amount = Decimal(str(paid))
-    elif data.is_credit:
-        sale.paid_amount = Decimal("0")
-    else:
-        sale.paid_amount = Decimal(str(net_total))
-
     # ── Split Payments ──────────────────────────────────────────────────
     from sqlalchemy import text as sqlt
     payments = getattr(data, 'payments', None)
@@ -310,17 +308,21 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         is_credit = any(p.method == 'credit' for p in payments)
         sale.is_credit = is_credit
         sale.payment_method = payments[0].method
+        paid_cash_wallet = Decimal("0")
         for p in payments:
             await db.execute(sqlt(
                 "INSERT INTO sale_payments (sale_id, method, amount, wallet_id) VALUES (:sid, :m, :amt, :wid)"
             ), {"sid": sale.id, "m": p.method, "amt": p.amount, "wid": p.wallet_id})
-            if p.method == 'cash' and data.shift_id:
-                db.add(DrawerTransaction(
-                    shift_id=data.shift_id, type=DrawerTxType.sale,
-                    amount=Decimal(str(p.amount)), ref_id=sale.id, created_by=cashier_id,
-                    note=f"قسط نقدي - {sale.invoice_number}",
-                ))
+            if p.method in ('cash', 'bank', 'cheque'):
+                paid_cash_wallet += Decimal(str(p.amount))
+                if p.method == 'cash' and data.shift_id:
+                    db.add(DrawerTransaction(
+                        shift_id=data.shift_id, type=DrawerTxType.sale,
+                        amount=Decimal(str(p.amount)), ref_id=sale.id, created_by=cashier_id,
+                        note=f"قسط نقدي - {sale.invoice_number}",
+                    ))
             elif p.method == 'wallet' and p.wallet_id:
+                paid_cash_wallet += Decimal(str(p.amount))
                 from app.services.wallet_service import record_wallet_tx
                 await record_wallet_tx(db, p.wallet_id, Decimal(str(p.amount)), "sale", sale.id,
                                        f"قسط محفظة - {sale.invoice_number}", cashier_id)
@@ -328,7 +330,15 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
                 await db.execute(sqlt(
                     "UPDATE customers SET balance = COALESCE(balance,0) + :amt WHERE id = :cid"
                 ), {"amt": Decimal(str(p.amount)), "cid": data.customer_id})
+        sale.paid_amount = paid_cash_wallet
     else:
+        paid = getattr(data, 'paid_amount', None)
+        if paid is not None:
+            sale.paid_amount = Decimal(str(paid))
+        elif data.is_credit:
+            sale.paid_amount = Decimal("0")
+        else:
+            sale.paid_amount = Decimal(str(net_total))
         # Legacy single payment — record drawer only for cash
         if data.shift_id and not data.is_credit and not getattr(data, 'wallet_id', None):
             db.add(DrawerTransaction(

@@ -143,7 +143,7 @@ export default function ExpensesPage() {
                     <td><span className={statusBadge[e.status] || 'badge-gray'}>{statusLabel[e.status] || e.status}</span></td>
                     <td className="text-center">{e.is_recurring ? <span className="text-amber-600 text-sm">🔄 {e.recurring_interval}</span> : '-'}</td>
                     <td>
-                      <button onClick={e => e.stopPropagation()} className="text-red-500 hover:text-red-700 text-xs">حذف</button>
+                      <button onClick={ev => { ev.stopPropagation(); setConfirmDelete(e) }} className="text-red-500 hover:text-red-700 text-xs">حذف</button>
                     </td>
                   </tr>
                 ))}

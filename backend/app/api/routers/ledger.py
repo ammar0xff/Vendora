@@ -2,7 +2,7 @@
 GET /reports/ledger
 Returns all sale items + returns + expenses for a date range.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from datetime import datetime
@@ -87,6 +87,8 @@ async def ledger(
     from_date: str,
     to_date: str,
     warehouse_id: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -94,10 +96,23 @@ async def ledger(
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59)
     params: dict = {"start": start, "end": end}
+    offset = (page - 1) * page_size
 
     wh_s, wh_p = wh_clause("s", warehouse_id)
     params.update(wh_p)
-    items_rows = await db.execute(text(BASE_SELECT.format(wh=wh_s)), params)
+
+    # Count: sale items
+    count_sale_sql = text("""
+        SELECT COUNT(*) FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        WHERE s.status = 'confirmed'
+          AND s.created_at BETWEEN :start AND :end
+          {wh}
+    """.format(wh=wh_s))
+    total_sale_items = (await db.execute(count_sale_sql, params)).scalar()
+
+    sale_sql = text(BASE_SELECT.format(wh=wh_s) + " OFFSET :offset LIMIT :limit")
+    items_rows = await db.execute(sale_sql, {**params, "offset": offset, "limit": page_size})
 
     sale_items = []
     for r in items_rows.fetchall():
@@ -120,7 +135,18 @@ async def ledger(
 
     # Returns
     wh_r, wh_rp = wh_clause("s", warehouse_id)
-    ret_rows = await db.execute(text(BASE_RETURN.format(wh=wh_r)), {**params, **wh_rp})
+
+    count_return_sql = text("""
+        SELECT COUNT(*) FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        WHERE s.status = 'returned'
+          AND s.created_at BETWEEN :start AND :end
+          {wh}
+    """.format(wh=wh_r))
+    total_returns_count = (await db.execute(count_return_sql, {**params, **wh_rp})).scalar()
+
+    ret_sql = text(BASE_RETURN.format(wh=wh_r) + " OFFSET :offset LIMIT :limit")
+    ret_rows = await db.execute(ret_sql, {**params, **wh_rp, "offset": offset, "limit": page_size})
 
     returns = []
     for r in ret_rows.fetchall():
@@ -141,7 +167,18 @@ async def ledger(
 
     # Expenses / deposits / withdrawals
     wh_t, wh_tp = wh_clause("sh", warehouse_id)
-    tx_rows = await db.execute(text(BASE_TX.format(wh=wh_t)), {**params, **wh_tp})
+
+    count_tx_sql = text("""
+        SELECT COUNT(*) FROM drawer_transactions dt
+        JOIN shifts sh ON sh.id = dt.shift_id
+        WHERE dt.type IN ('expense','deposit','withdrawal')
+          AND dt.created_at BETWEEN :start AND :end
+          {wh}
+    """.format(wh=wh_t))
+    total_tx_count = (await db.execute(count_tx_sql, {**params, **wh_tp})).scalar()
+
+    tx_sql = text(BASE_TX.format(wh=wh_t) + " OFFSET :offset LIMIT :limit")
+    tx_rows = await db.execute(tx_sql, {**params, **wh_tp, "offset": offset, "limit": page_size})
 
     TX_AR = {"expense": "خوارج", "deposit": "دواخل", "withdrawal": "سحب"}
     expenses = []
@@ -162,6 +199,10 @@ async def ledger(
     total_returns = sum(i["total"] for i in returns)
     total_expenses= sum(e["amount"] for e in expenses if e["entry_type"] in ("expense","withdrawal"))
     total_deposits= sum(e["amount"] for e in expenses if e["entry_type"] == "deposit")
+
+    sale_pages = (total_sale_items + page_size - 1) // page_size
+    return_pages = (total_returns_count + page_size - 1) // page_size
+    tx_pages = (total_tx_count + page_size - 1) // page_size
 
     # Payment breakdown (cash / wallet / credit) from sale-level data
     cls_wh, cls_whp = wh_clause("s", warehouse_id)
@@ -198,7 +239,6 @@ async def ledger(
 
 
     # Opening balance: always use next_day_drawer from the last shift closed BEFORE the period start.
-    # This is correct for daily, weekly, and monthly ranges.
     opening = Decimal("0")
     if warehouse_id:
         shift_row = await db.execute(text("""
@@ -214,7 +254,6 @@ async def ledger(
         if s:
             opening = Decimal(str(s.opening_amt))
         else:
-            # No prior closed shift — use the first shift opened during the period
             shift_row2 = await db.execute(text("""
                 SELECT initial_amount
                 FROM shifts
@@ -226,9 +265,7 @@ async def ledger(
             s2 = shift_row2.fetchone()
             if s2:
                 opening = Decimal(str(s2.initial_amount))
-    # net_sales = صافي إيرادات المبيعات فقط (بدون deposits)
     net_sales = total_sales - total_returns - total_expenses
-    # net = إجمالي حركة الدرج (مبيعات + دواخل - مصروفات - مرتجعات)
     net = total_sales - total_returns + total_deposits - total_expenses
 
     return {
@@ -244,9 +281,14 @@ async def ledger(
             "total_returns": total_returns,
             "total_expenses": total_expenses,
             "total_deposits": total_deposits,
-            "net": net_sales,        # صافي المبيعات (بدون دواخل)
-            "net_with_deposits": net, # إجمالي حركة الدرج
-            "closing": float(opening) + net,  # محتوى الدرج الفعلي
+            "net": net_sales,
+            "net_with_deposits": net,
+            "closing": float(opening) + net,
+        },
+        "pagination": {
+            "sales": {"total": total_sale_items, "page": page, "size": page_size, "pages": sale_pages},
+            "returns": {"total": total_returns_count, "page": page, "size": page_size, "pages": return_pages},
+            "expenses": {"total": total_tx_count, "page": page, "size": page_size, "pages": tx_pages},
         },
         "from_date": from_date,
         "to_date": to_date,

@@ -1,18 +1,27 @@
 """Product Collections — packages of multiple products sold as one unit."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import func, text
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm, verify_warehouse_access
 from app.models.user import User
 from app.schemas.collection import CollectionCreate, CollectionUpdate
+from app.core.pagination import Page
 import uuid
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
 
 @router.get("")
-async def list_collections(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_collections(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(200, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    total_row = await db.execute(text("SELECT COUNT(*) FROM product_collections WHERE is_active = true"))
+    total = total_row.scalar()
+    offset = (page - 1) * page_size
     rows = await db.execute(text("""
         SELECT pc.*,
                json_agg(json_build_object(
@@ -25,8 +34,11 @@ async def list_collections(db: AsyncSession = Depends(get_db), _=Depends(get_cur
         LEFT JOIN products p ON p.id = ci.product_id
         WHERE pc.is_active = true
         GROUP BY pc.id ORDER BY pc.name
-    """))
-    return [dict(r._mapping) for r in rows.fetchall()]
+        OFFSET :offset LIMIT :limit
+    """), {"offset": offset, "limit": page_size})
+    items = [dict(r._mapping) for r in rows.fetchall()]
+    pages = (total + page_size - 1) // page_size
+    return Page(items=items, total=total, page=page, size=page_size, pages=pages)
 
 
 @router.post("", status_code=201)

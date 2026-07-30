@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, or_
+from sqlalchemy import select, text, or_, func
 from datetime import datetime, timezone
 from app.db.base import get_db
 from app.models.purchase import PurchaseOrder, PurchaseOrderItem, POStatus
@@ -17,6 +17,7 @@ from app.services.stock_service import record_movement
 from app.dependencies import get_current_user, require_perm, require_open_period
 from app.models.user import User
 from app.core.exceptions import NotFoundError, BusinessError
+from app.core.pagination import Page
 import uuid
 import re
 
@@ -48,17 +49,20 @@ async def purchase_suggestions(db: AsyncSession = Depends(get_db), _=Depends(get
 
 
 @router.get("")
-async def list_purchases(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    rows = await db.execute(text("""
-        SELECT po.*, s.name as supplier_name, w.name as warehouse_name,
-               u.full_name as created_by_name
+async def list_purchases(page: int = 1, page_size: int = 50, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    base_sql = """
         FROM purchase_orders po
         LEFT JOIN suppliers s ON s.id = po.supplier_id
         LEFT JOIN warehouses w ON w.id = po.warehouse_id
         LEFT JOIN users u ON u.id = po.created_by
-        ORDER BY po.created_at DESC LIMIT 100
-    """))
-    return [dict(r._mapping) for r in rows.fetchall()]
+    """
+    total = (await db.execute(text("SELECT COUNT(*) " + base_sql))).scalar()
+    rows = await db.execute(text("""
+        SELECT po.*, s.name as supplier_name, w.name as warehouse_name,
+               u.full_name as created_by_name
+    """ + base_sql + " ORDER BY po.created_at DESC OFFSET :offset LIMIT :limit"), {"offset": (page - 1) * page_size, "limit": page_size})
+    items = [dict(r._mapping) for r in rows.fetchall()]
+    return Page(items=items, total=total, page=page, size=page_size, pages=-( -total // page_size))
 
 
 @router.get("/{po_id}")

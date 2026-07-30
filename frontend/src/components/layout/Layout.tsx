@@ -4,7 +4,8 @@ import {
   LayoutDashboard, ShoppingCart, Package, BarChart3,
   Archive, Settings, Users, LogOut, FileText,
   Building2, Receipt, Truck, UserCheck, ShieldCheck,
-  DollarSign, ClipboardList, Vault, Clock, TrendingDown
+  DollarSign, ClipboardList, Vault, Clock, TrendingDown,
+  ChevronDown, ChevronLeft, PanelLeftClose, PanelLeft
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
@@ -14,14 +15,14 @@ import { fixUploadUrl } from '../../utils/format'
 import { clsx } from 'clsx'
 import type { Warehouse } from '../../types'
 
-// Top-level tab groups with icon
-const TAB_GROUPS = [
+// ── Navigation structure (VB6 Almodeer menu hierarchy) ──────────────
+const NAV_GROUPS = [
   {
     key: 'home',
     label: 'الرئيسية',
     icon: LayoutDashboard,
     items: [
-      { to: '/', perm: null, warehouseTypes: ['all'] },
+      { to: '/', perm: null, warehouseTypes: ['all'], label: 'لوحة التحكم', icon: LayoutDashboard },
     ]
   },
   {
@@ -29,10 +30,10 @@ const TAB_GROUPS = [
     label: 'المبيعات',
     icon: ShoppingCart,
     items: [
-      { to: '/pos',        icon: ShoppingCart, label: 'نقطة البيع',         perm: 'pos',        warehouseTypes: ['showroom'] },
-      { to: '/sales',      icon: Receipt,      label: 'المبيعات والمرتجعات', perm: 'sales',      warehouseTypes: ['showroom'] },
-      { to: '/quotations', icon: FileText,      label: 'عروض الأسعار',      perm: 'quotations', warehouseTypes: ['showroom'] },
-      { to: '/customers',  icon: UserCheck,    label: 'العملاء',            perm: 'customers',  warehouseTypes: ['showroom'] },
+      { to: '/pos',        icon: ShoppingCart, label: 'نقطة البيع',         perm: 'pos',        warehouseTypes: ['all'] },
+      { to: '/sales',      icon: Receipt,      label: 'المبيعات والمرتجعات', perm: 'sales',      warehouseTypes: ['all'] },
+      { to: '/quotations', icon: FileText,      label: 'عروض الأسعار',      perm: 'quotations', warehouseTypes: ['all'] },
+      { to: '/customers',  icon: UserCheck,    label: 'العملاء',            perm: 'customers',  warehouseTypes: ['all'] },
     ]
   },
   {
@@ -43,6 +44,9 @@ const TAB_GROUPS = [
       { to: '/inventory',       icon: Package,       label: 'الأصناف',               perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/suppliers',       icon: Building2,     label: 'الموردون',              perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/supplier-prices', icon: TrendingDown,   label: 'مقارنة أسعار الموردين', perm: 'operations', warehouseTypes: ['all'] },
+      { to: '/purchases',       icon: Receipt,        label: 'سجل المشتريات',         perm: 'inventory',  warehouseTypes: ['all'] },
+      { to: '/purchase-orders', icon: ClipboardList,  label: 'أوامر الشراء',           perm: 'inventory',  warehouseTypes: ['all'] },
+      { to: '/stock-adjustments', icon: TrendingDown,  label: 'تعديلات المخزون',       perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/operations',      icon: Truck,          label: 'المشتريات والعمليات',   perm: 'operations', warehouseTypes: ['all'] },
       { to: '/stocktaking',     icon: ClipboardList,  label: 'الجرد',                 perm: 'inventory',  warehouseTypes: ['all'] },
       { to: '/purchase-bill',   icon: ShoppingCart,   label: 'فاتورة مشتريات',        perm: 'inventory',  warehouseTypes: ['all'] },
@@ -82,6 +86,20 @@ const TAB_GROUPS = [
   },
 ]
 
+// ── Quick-access toolbar buttons (like VB6 Command buttons) ─────────
+const TOOLBAR_ITEMS = [
+  { to: '/pos',        icon: ShoppingCart, label: 'نقاطة بيع',  perm: 'pos',        color: 'bg-emerald-500' },
+  { to: '/sales',      icon: Receipt,      label: 'المبيعات',    perm: 'sales',      color: 'bg-blue-500' },
+  { to: '/quotations', icon: FileText,      label: 'عروض سعر',    perm: 'quotations', color: 'bg-purple-500' },
+  { to: '/inventory',  icon: Package,       label: 'الأصناف',     perm: 'inventory',  color: 'bg-amber-500' },
+  { to: '/purchases',  icon: Truck,         label: 'المشتريات',   perm: 'inventory',  color: 'bg-orange-500' },
+  { to: '/customers',  icon: UserCheck,     label: 'العملاء',     perm: 'customers',  color: 'bg-cyan-500' },
+  { to: '/safes',      icon: Vault,         label: 'الخزينة',     perm: 'finance',    color: 'bg-green-600' },
+  { to: '/expenses',   icon: DollarSign,    label: 'المصروفات',   perm: 'finance',    color: 'bg-red-400' },
+  { to: '/accounting', icon: BarChart3,     label: 'الحسابات',    perm: 'reports',    color: 'bg-indigo-500' },
+  { to: '/shifts',     icon: Clock,         label: 'الورديات',    perm: 'shifts',     color: 'bg-slate-500' },
+]
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuthStore()
   const location = useLocation()
@@ -91,6 +109,9 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get })
   const companyName = settings?.store_name || 'نظام الجرد'
   const logoUrl = settings?.logo_url || ''
+
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(['home']))
 
   const isManager = (user as any)?.is_manager
   const defaultWhId = (user as any)?.default_warehouse_id
@@ -115,14 +136,14 @@ export default function Layout({ children }: { children: ReactNode }) {
   const isVisible = (item: { perm: string | null; warehouseTypes: string[] }) => {
     if (!hasPermission(item.perm)) return false
     if (isManager && isCompanyView) return true
-    const effectiveType = whType === 'all' ? 'showroom' : whType
     if (item.warehouseTypes.includes('all')) return true
+    const effectiveType = whType === 'all' ? 'showroom' : whType
     return item.warehouseTypes.includes(effectiveType)
   }
 
-  // Determine which tab group is active based on current route
+  // Which group is active based on route
   const activeGroupKey = useMemo(() => {
-    for (const group of TAB_GROUPS) {
+    for (const group of NAV_GROUPS) {
       if (group.items.some(item => item.to === location.pathname)) {
         return group.key
       }
@@ -130,48 +151,57 @@ export default function Layout({ children }: { children: ReactNode }) {
     return 'home'
   }, [location.pathname])
 
-  const activeGroup = TAB_GROUPS.find(g => g.key === activeGroupKey) || TAB_GROUPS[0]
+  // Auto-expand the active group
+  useEffect(() => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      next.add(activeGroupKey)
+      return next
+    })
+  }, [activeGroupKey])
 
-  // Filter visible sub-items for the active group
-  const visibleSubItems = activeGroup.items.filter(isVisible)
-
-  // Auto-navigate to first visible item when switching tabs (if current route not in group)
-  const isCurrentRouteInGroup = activeGroup.items.some(item => item.to === location.pathname)
-
-  const handleTabClick = (group: typeof TAB_GROUPS[0]) => {
-    const firstVisible = group.items.find(isVisible)
-    if (firstVisible && firstVisible.to !== location.pathname) {
-      navigate(firstVisible.to)
-    }
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
-  // POS page gets a compact layout (no sub-tabs, just the top bar)
-  const isPOS = location.pathname === '/pos'
-
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-100" style={{ direction: 'rtl' }}>
       {/* ═══ Top Header Bar ═══ */}
-      <header className="h-14 flex items-center gap-4 px-5 border-b border-slate-200 bg-white flex-shrink-0 z-30">
+      <header className="h-11 flex items-center gap-3 px-4 border-b border-slate-200 bg-white flex-shrink-0 z-30">
+        {/* Sidebar toggle */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
+          title={sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'}
+        >
+          {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
+        </button>
+
         {/* Logo + Company */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {logoUrl ? (
-            <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-8 h-8 rounded-lg object-contain" />
+            <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-7 h-7 rounded-lg object-contain" />
           ) : (
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black text-white" style={{ background: 'var(--accent)' }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white" style={{ background: 'var(--primary)' }}>
               {companyName[0]}
             </div>
           )}
-          <span className="text-sm font-bold text-slate-700 hidden sm:block">{companyName}</span>
+          <span className="text-sm font-bold text-slate-700 hidden md:block">{companyName}</span>
         </div>
 
         {/* Warehouse selector */}
-          <select value={activeWarehouseId || ''}
+        <select value={activeWarehouseId || ''}
           onChange={e => {
             const wh = warehouses?.find(w => w.id === e.target.value)
             if (wh) setActiveWarehouse(wh.id, wh.name)
             else setActiveWarehouse('', '')
           }}
-          className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-blue-400 cursor-pointer">
+          className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-400 cursor-pointer">
           <option value="">🏢 إدارة شاملة</option>
           <optgroup label="المعارض">
             {warehouses?.filter(w => w.warehouse_type === 'showroom').map(w => (
@@ -189,77 +219,127 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="flex-1" />
 
         {/* User info + logout */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'var(--accent)' }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'var(--primary)' }}>
             {user?.full_name?.[0] || 'م'}
           </div>
           <div className="hidden sm:block text-left">
             <p className="text-xs font-semibold text-slate-700 leading-tight">{user?.full_name}</p>
-            <p className="text-xs text-slate-400">{isManager ? 'مدير' : 'موظف'}</p>
+            <p className="text-[10px] text-slate-400">{isManager ? 'مدير' : 'موظف'}</p>
           </div>
           <button onClick={logout} title="خروج"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
-            <LogOut size={15} />
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+            <LogOut size={14} />
           </button>
         </div>
       </header>
 
-      {/* ═══ Main Category Tabs ═══ */}
-      <div className="flex items-center gap-0 px-5 bg-white border-b border-slate-200 flex-shrink-0 z-20">
-        {TAB_GROUPS.map((group) => {
-          // Check if any item in this group is visible
-          const hasVisible = group.items.some(isVisible)
-          if (!hasVisible) return null
-          const Icon = group.icon
-          const isActive = group.key === activeGroupKey
-
-          return (
-            <button
-              key={group.key}
-              onClick={() => handleTabClick(group)}
-              className={clsx(
-                'flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap',
-                isActive
-                  ? 'text-blue-600 border-blue-600 bg-blue-50/50'
-                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'
-              )}
-            >
-              <Icon size={16} />
-              {group.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ═══ Sub-Tabs (only if not POS and group has sub-items) ═══ */}
-      {!isPOS && visibleSubItems.length > 1 && (
-        <div className="flex items-center gap-0 px-5 bg-slate-50 border-b border-slate-200 flex-shrink-0 z-10">
-          {visibleSubItems.map((item) => {
+      {/* ═══ Toolbar (VB6-style shortcut buttons) ═══ */}
+      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border-b border-slate-200 flex-shrink-0 z-20 overflow-x-auto">
+          {TOOLBAR_ITEMS.map((item) => {
+            if (!hasPermission(item.perm)) return null
             const Icon = item.icon
             const isActive = location.pathname === item.to
             return (
-              <NavLink
+              <button
                 key={item.to}
-                to={item.to}
+                onClick={() => navigate(item.to)}
                 className={clsx(
-                  'flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium transition-all border-b-2 -mb-px whitespace-nowrap',
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap',
                   isActive
-                    ? 'text-slate-800 border-slate-800 bg-white'
-                    : 'text-slate-400 border-transparent hover:text-slate-600 hover:bg-white/60'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100'
                 )}
               >
-                {Icon && <Icon size={14} />}
+                <div className={clsx('w-5 h-5 rounded-md flex items-center justify-center text-white', isActive ? 'bg-white/20' : item.color)}>
+                  <Icon size={11} />
+                </div>
                 {item.label}
-              </NavLink>
+              </button>
             )
           })}
         </div>
-      )}
 
-      {/* ═══ Content Area ═══ */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-4 lg:p-6">{children}</div>
-      </main>
+      {/* ═══ Main Layout: Sidebar + Content ═══ */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* ── Left Sidebar (VB6-style tree navigation) ── */}
+        {sidebarOpen && (
+          <aside className="w-56 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col overflow-hidden z-10">
+            <div className="flex-1 overflow-y-auto py-2 px-2">
+              {NAV_GROUPS.map((group) => {
+                const visibleItems = group.items.filter(isVisible)
+                if (!visibleItems.length) return null
+                const isExpanded = expandedGroups.has(group.key)
+                const isGroupActive = group.key === activeGroupKey
+                const GroupIcon = group.icon
+
+                return (
+                  <div key={group.key} className="mb-1">
+                    {/* Group header */}
+                    <button
+                      onClick={() => toggleGroup(group.key)}
+                      className={clsx(
+                        'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all',
+                        isGroupActive
+                          ? 'text-[var(--primary)] bg-blue-50'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      )}
+                    >
+                      <GroupIcon size={15} className={isGroupActive ? 'text-[var(--primary)]' : 'text-slate-400'} />
+                      <span className="flex-1 text-right">{group.label}</span>
+                      <ChevronDown
+                        size={14}
+                        className={clsx(
+                          'text-slate-400 transition-transform duration-200',
+                          isExpanded ? 'rotate-0' : '-rotate-90'
+                        )}
+                      />
+                    </button>
+
+                    {/* Group items */}
+                    {isExpanded && (
+                      <div className="mr-2 mt-0.5 space-y-0.5 border-r-2 border-slate-100 pr-2">
+                        {visibleItems.map((item) => {
+                          const ItemIcon = item.icon
+                          const isActive = location.pathname === item.to
+                          return (
+                            <NavLink
+                              key={item.to}
+                              to={item.to}
+                              className={clsx(
+                                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all',
+                                isActive
+                                  ? 'text-white font-bold'
+                                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                              )}
+                              style={isActive ? { background: 'var(--primary)' } : {}}
+                            >
+                              <ItemIcon size={13} />
+                              {item.label}
+                            </NavLink>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Sidebar footer */}
+            <div className="border-t border-slate-100 p-3">
+              <div className="text-[10px] text-slate-400 text-center">
+                EG-CO ERP v1.0
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* ── Content Area ── */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 lg:p-5">{children}</div>
+        </main>
+      </div>
     </div>
   )
 }

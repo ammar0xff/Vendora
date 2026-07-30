@@ -86,7 +86,7 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
               <div className="max-h-40 overflow-y-auto space-y-1">
                 <p className="text-xs font-bold text-slate-400 mb-2">الفواتير المستحقة (من الأقدم للأحدث)</p>
                 {(debtCustomerLedger as any[])
-                  .filter((e: any) => e.type === 'invoice')
+                  .filter((e: any) => e.type === 'invoice' && !e.__pagination)
                   .sort((a: any, b: any) => a.date.localeCompare(b.date))
                   .map((e: any) => (
                     <div key={e.ref} className="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2 text-sm">

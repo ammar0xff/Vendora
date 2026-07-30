@@ -199,8 +199,8 @@ export default function CustomersPage() {
                 <table>
                   <thead><tr><th>التاريخ والوقت</th><th>النوع</th><th>المرجع</th><th>المبلغ</th><th>ملاحظة</th></tr></thead>
                   <tbody>
-                    {!ledger?.length && <tr><td colSpan={5}><EmptyState message="لا توجد حركات" icon="📋" /></td></tr>}
-                    {ledger?.map((e: any, i: number) => (
+                    {(!ledger?.filter((e: any) => !e.__pagination)?.length) && <tr><td colSpan={5}><EmptyState message="لا توجد حركات" icon="📋" /></td></tr>}
+                    {ledger?.filter((e: any) => !e.__pagination)?.map((e: any, i: number) => (
                       <tr key={i}>
                         <td className="text-sm text-slate-600">{new Date(e.date).toLocaleString('ar-EG')}</td>
                         <td><span className={typeBadge[e.type] || 'badge-gray'}>{typeLabel[e.type] || e.type}</span></td>

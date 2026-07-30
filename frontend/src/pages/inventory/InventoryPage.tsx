@@ -70,6 +70,7 @@ export default function InventoryPage() {
   })
   const [viewMovements, setViewMovements] = useState<any>(null)
   const [confirmDelProduct, setConfirmDelProduct] = useState<any>(null)
+  const [productPage, setProductPage] = useState(1)
   const qc = useQueryClient()
 
   useEffect(() => {
@@ -77,17 +78,24 @@ export default function InventoryPage() {
     return () => clearTimeout(timer)
   }, [search])
 
+  useEffect(() => { setProductPage(1) }, [debouncedSearch, selectedCatId, selectedSubId])
+
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: () => subcategoriesApi.list() })
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products', debouncedSearch, selectedCatId, selectedSubId, activeWarehouseId],
-    queryFn: () => productsApi.list({
+  const { data: productsPage, isLoading } = useQuery({
+    queryKey: ['products', debouncedSearch, selectedCatId, selectedSubId, activeWarehouseId, productPage],
+    queryFn: () => productsApi.listPage({
+      page: productPage,
+      page_size: 30,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(selectedSubId ? { subcategory_id: selectedSubId } : selectedCatId ? { category_id: selectedCatId } : {}),
       ...(activeWarehouseId ? { warehouse_id: activeWarehouseId } : {}),
     }),
     staleTime: 30_000,
   })
+  const products = productsPage?.items
+  const productsTotal = productsPage?.total || 0
+  const productPages = productsPage?.pages || 1
 
   const { data: movements } = useQuery({
     queryKey: ['movements', viewMovements?.id],
@@ -243,7 +251,7 @@ export default function InventoryPage() {
         </div>
 
         {/* Products table */}
-        <p className="text-xs text-slate-400 mb-2">إجمالي: {products?.length || 0} منتج</p>
+        <p className="text-xs text-slate-400 mb-2">إجمالي: {productsTotal} منتج</p>
         <div className="flex-1 overflow-y-auto">
           <DataTable
             columns={[
@@ -294,6 +302,21 @@ export default function InventoryPage() {
             emptyMessage="لا توجد منتجات" emptyIcon="📦"
             emptyAction={{ label: 'إضافة منتج', onClick: () => setShowAdd(true) }}
           />
+          {productPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-3 pb-1">
+              <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                disabled={productPage <= 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                السابق
+              </button>
+              <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
+              <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                disabled={productPage >= productPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                التالي
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -376,6 +399,7 @@ export default function InventoryPage() {
       {showCollection && <CollectionModal open={showCollection} onClose={() => setShowCollection(false)} />}
       <ConfirmDialog open={!!confirmDelProduct} onClose={() => setConfirmDelProduct(null)} onConfirm={() => { deleteMut.mutate(confirmDelProduct); setConfirmDelProduct(null) }} message="حذف المنتج؟" danger confirmText="حذف" />
       </>
+      )}
     </div>
   )
 }
