@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.shift import Shift, DrawerTransaction, DrawerTxType
-from app.models.stock import MovementType
+from app.models.stock import MovementType, StockMovement
 from app.schemas.stock import StockMovementCreate
 from app.services.stock_service import record_movement, get_balance
 from app.core.exceptions import BusinessError
