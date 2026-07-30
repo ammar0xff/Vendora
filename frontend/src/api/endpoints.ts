@@ -135,7 +135,7 @@ export const auditApi = {
 }
 
 export const customersApi = {
-  list: (search?: string) => api.get('/customers', { params: search ? { search } : {} }).then(r => r.data),
+  list: (search?: string) => api.get('/customers', { params: search ? { search } : {} }).then(r => r.data?.items ?? r.data),
   create: (data: CustomerCreate) => api.post('/customers', data).then(r => r.data),
   update: (id: string, data: Partial<CustomerCreate & { balance?: number }>) => api.put(`/customers/${id}`, data).then(r => r.data),
   delete: (id: string) => api.delete(`/customers/${id}`),

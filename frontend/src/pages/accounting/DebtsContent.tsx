@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import api from '../../api/client'
-import { customersApi } from '../../api/endpoints'
+import { customersApi, suppliersApi } from '../../api/endpoints'
 
 export default function DebtsContent() {
   const { data: customers, isLoading: loadingCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() })
-  const { data: suppliers, isLoading: loadingSuppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers').then(r => r.data) })
+  const { data: suppliers, isLoading: loadingSuppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersApi.list() })
 
   if (loadingCustomers || loadingSuppliers) {
     return (
