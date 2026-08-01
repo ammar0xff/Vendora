@@ -75,7 +75,7 @@ BASE_TX = """
     FROM drawer_transactions dt
     JOIN shifts sh ON sh.id = dt.shift_id
     LEFT JOIN payment_wallets pw ON pw.id = dt.wallet_id
-    WHERE dt.type IN ('expense','deposit','withdrawal')
+    WHERE dt.type IN ('expense','deposit','withdrawal','revenue_delivery')
       AND dt.created_at BETWEEN :start AND :end
       {wh}
     ORDER BY dt.created_at
@@ -171,7 +171,7 @@ async def ledger(
     count_tx_sql = text("""
         SELECT COUNT(*) FROM drawer_transactions dt
         JOIN shifts sh ON sh.id = dt.shift_id
-        WHERE dt.type IN ('expense','deposit','withdrawal')
+        WHERE dt.type IN ('expense','deposit','withdrawal','revenue_delivery')
           AND dt.created_at BETWEEN :start AND :end
           {wh}
     """.format(wh=wh_t))
@@ -180,7 +180,7 @@ async def ledger(
     tx_sql = text(BASE_TX.format(wh=wh_t) + " OFFSET :offset LIMIT :limit")
     tx_rows = await db.execute(tx_sql, {**params, **wh_tp, "offset": offset, "limit": page_size})
 
-    TX_AR = {"expense": "خوارج", "deposit": "دواخل", "withdrawal": "سحب"}
+    TX_AR = {"expense": "خوارج", "deposit": "دواخل", "withdrawal": "سحب", "revenue_delivery": "توريد إيرادات"}
     expenses = []
     for r in tx_rows.fetchall():
         d = dict(r._mapping)
@@ -199,6 +199,32 @@ async def ledger(
     total_returns = sum(i["total"] for i in returns)
     total_expenses= sum(e["amount"] for e in expenses if e["entry_type"] in ("expense","withdrawal"))
     total_deposits= sum(e["amount"] for e in expenses if e["entry_type"] == "deposit")
+    total_revenue_delivery = sum(e["amount"] for e in expenses if e["entry_type"] == "revenue_delivery")
+
+    # Cash-only totals from drawer_transactions (excluding wallet)
+    cash_expenses = sum(e["amount"] for e in expenses if e["entry_type"] in ("expense","withdrawal") and e["payment_method"] == "نقدي")
+    cash_deposits = sum(e["amount"] for e in expenses if e["entry_type"] == "deposit" and e["payment_method"] == "نقدي")
+    cash_revenue_delivery = sum(e["amount"] for e in expenses if e["entry_type"] == "revenue_delivery" and e["payment_method"] == "نقدي")
+
+    # Cash drawer sale/return totals from drawer_transactions (matches physical drawer)
+    cash_drawer_sql = text(f"""
+        SELECT type, SUM(amount) as total
+        FROM drawer_transactions dt
+        JOIN shifts sh ON sh.id = dt.shift_id
+        WHERE dt.type IN ('sale','return')
+          AND (dt.payment_method IS NULL OR dt.payment_method = '' OR dt.payment_method = 'cash')
+          AND dt.created_at BETWEEN :start AND :end
+          {{wh}}
+        GROUP BY dt.type
+    """.format(wh=wh_t))
+    cash_drawer_rows = await db.execute(cash_drawer_sql, {**params, **wh_tp})
+    cash_drawer_sales = 0
+    cash_drawer_returns = 0
+    for r in cash_drawer_rows.fetchall():
+        if r.type == 'sale':
+            cash_drawer_sales = float(r.total or 0)
+        elif r.type == 'return':
+            cash_drawer_returns = float(r.total or 0)
 
     sale_pages = (total_sale_items + page_size - 1) // page_size
     return_pages = (total_returns_count + page_size - 1) // page_size
@@ -265,8 +291,11 @@ async def ledger(
             s2 = shift_row2.fetchone()
             if s2:
                 opening = Decimal(str(s2.initial_amount))
-    net_sales = total_sales - total_returns - total_expenses
-    net = total_sales - total_returns + total_deposits - total_expenses
+    net_sales = total_sales - total_returns - total_expenses - total_revenue_delivery
+    net = total_sales - total_returns + total_deposits - total_expenses - total_revenue_delivery
+
+    # Cash-only closing (matches physical drawer from drawer_transactions)
+    cash_closing = float(opening) + cash_drawer_sales - cash_drawer_returns + cash_deposits - cash_expenses - cash_revenue_delivery
 
     return {
         "sale_items": sale_items,
@@ -281,9 +310,11 @@ async def ledger(
             "total_returns": total_returns,
             "total_expenses": total_expenses,
             "total_deposits": total_deposits,
+            "total_revenue_delivery": total_revenue_delivery,
             "net": net_sales,
             "net_with_deposits": net,
             "closing": float(opening) + net,
+            "cash_closing": cash_closing,
         },
         "pagination": {
             "sales": {"total": total_sale_items, "page": page, "size": page_size, "pages": sale_pages},

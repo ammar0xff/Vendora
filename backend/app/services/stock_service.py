@@ -57,6 +57,10 @@ async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=
             VALUES (:wid, :pid, 'tracked')
             ON CONFLICT (warehouse_id, product_id) DO UPDATE SET status = 'tracked'
         """), {"wid": data.warehouse_id, "pid": data.product_id})
+        # Also promote global product status so it shows as tracked in company view
+        await db.execute(sqlt("""
+            UPDATE products SET stock_status = 'tracked' WHERE id = :pid AND stock_status = 'untracked'
+        """), {"pid": data.product_id})
     return mv
 
 

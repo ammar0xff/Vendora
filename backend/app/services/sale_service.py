@@ -25,18 +25,16 @@ async def _quotation_number(db) -> str:
 
 async def _is_untracked(db, product_id, warehouse_id=None) -> bool:
     from sqlalchemy import text as sqlt
-    row = await db.execute(sqlt("SELECT stock_status FROM products WHERE id=:id"), {"id": product_id})
-    status = row.scalar()
-    if status == 'untracked':
-        return True
     if warehouse_id:
         wh_row = await db.execute(sqlt(
             "SELECT status FROM warehouse_product_status WHERE product_id=:pid AND warehouse_id=:wid"
         ), {"pid": product_id, "wid": warehouse_id})
         wh_status = wh_row.scalar()
-        if wh_status is None or wh_status == 'untracked':
-            return True
-    return False
+        if wh_status is not None:
+            return wh_status != 'tracked'
+        return True
+    row = await db.execute(sqlt("SELECT stock_status FROM products WHERE id=:id"), {"id": product_id})
+    return row.scalar() != 'tracked'
 
 async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
     """Create a quotation (عرض سعر) — no stock deduction, status=quotation."""

@@ -23,7 +23,7 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
       {todayLedger ? (
         <div className="space-y-3">
           {/* Summary */}
-          <div className="grid grid-cols-8 gap-2 text-center text-xs">
+          <div className="grid grid-cols-9 gap-2 text-center text-xs">
             {[
               { label: 'الرصيد الافتتاحي', val: todayLedger.summary.opening_balance, color: '#6b7280' },
               { label: 'إجمالي المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
@@ -31,8 +31,9 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
               { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
               { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
               { label: 'الدواخل', val: todayLedger.summary.total_deposits, color: '#2563eb' },
+              { label: 'توريد إيرادات', val: todayLedger.summary.total_revenue_delivery ?? 0, color: '#9333ea' },
               { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
-              { label: 'الدرج', val: todayLedger.summary.closing, color: '#7c3aed' },
+              { label: 'الدرج (نقدي)', val: todayLedger.summary.cash_closing ?? todayLedger.summary.closing, color: '#7c3aed' },
             ].map(({ label, val, color }) => (
               <div key={label} className="bg-slate-50 rounded-lg p-2">
                 <p className="text-slate-400 mb-0.5">{label}</p>

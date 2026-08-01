@@ -1,1 +1,0 @@
-{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmMDBkMDM5Yy1jYWE3LTViMDAtYWRiYS0zNjVlZDkwYzVmMTAiLCJyb2xlIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFtbWFyIiwiZXhwIjoxNzc1MzUwODA4fQ.-0iKSnnvHFZEx1S-u90oa1X6lw29TceHLQQv9P0VU5k","token_type":"bearer","user_id":"f00d039c-caa7-5b00-adba-365ed90c5f10","username":"ammar","role":"admin"}

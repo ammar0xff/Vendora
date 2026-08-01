@@ -89,7 +89,8 @@ async def collection_availability(cid: uuid.UUID, warehouse_id: uuid.UUID, db: A
     """How many of this collection can be assembled from current stock in warehouse."""
     await verify_warehouse_access(db, current_user, warehouse_id)
     items = await db.execute(text("""
-        SELECT ci.product_id, ci.qty as needed, p.name, p.stock_status,
+        SELECT ci.product_id, ci.qty as needed, p.name,
+               COALESCE(wps.status, 'untracked') as stock_status,
                COALESCE((
                  SELECT SUM(CASE WHEN sm.movement_type IN ('opening_stock','purchase','return_in','adjustment_in','transfer_in')
                                  THEN sm.qty ELSE -sm.qty END)
@@ -98,6 +99,7 @@ async def collection_availability(cid: uuid.UUID, warehouse_id: uuid.UUID, db: A
                ), 0) as available
         FROM collection_items ci
         JOIN products p ON p.id = ci.product_id
+        LEFT JOIN warehouse_product_status wps ON wps.product_id = ci.product_id AND wps.warehouse_id = :wid
         WHERE ci.collection_id = :cid
     """), {"cid": cid, "wid": warehouse_id})
     rows = [dict(r._mapping) for r in items.fetchall()]

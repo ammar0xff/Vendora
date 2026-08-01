@@ -156,9 +156,44 @@ async def list_products(
     offset = (page - 1) * page_size
     products = (await db.execute(base_q.offset(offset).limit(page_size))).scalars().all()
 
+    from app.models.stock import StockMovement, IN_TYPES, OUT_TYPES
+    from sqlalchemy import func as sa_func
+
     items_out: list[ProductOutWithBalance] = []
     for p in products:
         items_out.append(ProductOutWithBalance.model_validate(p))
+
+    product_ids = [p.id for p in products]
+    if product_ids:
+        # Compute current balance per product (warehouse-scoped or company-wide)
+        bal_q = select(
+            StockMovement.product_id,
+            sa_func.coalesce(
+                sa_func.sum(sa_case(
+                    (StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty),
+                    else_=-StockMovement.qty,
+                )), 0
+            ).label("qty"),
+        ).where(StockMovement.product_id.in_(product_ids))
+        if warehouse_id:
+            bal_q = bal_q.where(StockMovement.warehouse_id == warehouse_id)
+        bal_q = bal_q.group_by(StockMovement.product_id)
+        bal_rows = (await db.execute(bal_q)).all()
+        bal_map = {str(r[0]): float(r[1]) for r in bal_rows}
+
+        # Per-warehouse tracking status (only applies in warehouse scope)
+        wh_status: dict[str, str] = {}
+        if warehouse_id:
+            from sqlalchemy import text as sqlt
+            wh_rows = (await db.execute(sqlt(
+                "SELECT product_id, status FROM warehouse_product_status WHERE warehouse_id = :wid"
+            ), {"wid": warehouse_id})).fetchall()
+            wh_status = {str(r[0]): str(r[1]) for r in wh_rows}
+
+        for po in items_out:
+            po.current_qty = Decimal(str(bal_map.get(str(po.id), 0)))
+            if warehouse_id:
+                po.stock_status = wh_status.get(str(po.id), 'untracked')
 
     return Page(items=items_out, total=total, page=page, size=page_size, pages=pages)
 

@@ -27,8 +27,8 @@ export default function CategoryCardBrowser({
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: subcategoriesApi.list })
 
   const { data: productsRaw, isLoading: loadingProducts } = useQuery({
-    queryKey: ['card-products', selectedSubId],
-    queryFn: () => productsApi.list({ subcategory_id: selectedSubId! }),
+    queryKey: ['card-products', selectedSubId, warehouseId],
+    queryFn: () => productsApi.list({ subcategory_id: selectedSubId!, ...(warehouseId ? { warehouse_id: warehouseId } : {}) }),
     enabled: !!selectedSubId,
   })
   const products = Array.isArray(productsRaw) ? productsRaw : (productsRaw?.items ?? [])

@@ -335,12 +335,13 @@ export default function POSPage() {
   })
 
   const { data: productsPage, isLoading } = useQuery({
-    queryKey: ['products', debouncedSearch, selectedCat, selectedSub, productPage],
+    queryKey: ['products', debouncedSearch, selectedCat, selectedSub, productPage, mainWh?.id],
     queryFn: () => productsApi.listPage({ 
       page: productPage, 
       page_size: 24,
       ...(debouncedSearch ? { search: debouncedSearch } : {}), 
-      ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}) 
+      ...(selectedSub ? { subcategory_id: selectedSub } : selectedCat ? { category_id: selectedCat } : {}),
+      ...(mainWh?.id ? { warehouse_id: mainWh?.id } : {}) 
     }),
     staleTime: 30_000,
   })

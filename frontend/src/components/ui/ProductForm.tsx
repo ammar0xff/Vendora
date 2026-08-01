@@ -111,12 +111,10 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
         </div>
       </div>
 
-      {!isEditing && (
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">الباركود</label>
-          <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
-        </div>
-      )}
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-1">الباركود</label>
+        <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
+      </div>
 
       {isEditing && product?.barcodes && (
         <div className="border-t pt-4">
