@@ -22,7 +22,33 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 
 ---
 
-## Latest Session: 2026-07-17
+## Latest Session: 2026-08-04 (session 2)
+
+### What Was Done
+
+1. **Fixed admin warehouse-access bug blocking quotation confirm + shift open:**
+   - Reported bug: confirming a quotation (عرض سعر) showed "ليس لديك صلاحية الوصول إلى هذا الفرع"; refreshing hid the open shift; opening a new shift in any branch returned "لديك وردية مفتوحة بالفعل في هذا الفرع"
+   - Root cause: `verify_warehouse_access` (dependencies.py:112) only granted full access when `is_manager=True`, ignoring the `admin`/`manager` roles. `ammar`/`nada` are `role='admin'` with `is_manager=False`, so they were denied on any warehouse not explicitly in `user_warehouses` (e.g. البادروم الكبير, مخزن النواكل)
+   - This 403 fired on `POST /stock/balance/bulk` (called by QuotationsPage `precheckAndConfirm` and by `/shifts/current`), so the quotation pre-check failed AND the current open shift (212effcc at معرض المؤمن) was invisible → "no open shift" → opening a duplicate was rejected
+   - Fix: `verify_warehouse_access` now treats `is_manager OR role in ('admin', 'manager')` as full access — matching the existing `is_privileged` logic in shifts.py:97
+   - Backend rebuilt + redeployed; verified: `/shifts/current` returns ammar's open shift; `balanceBulk` on unassigned warehouse returns OK (no 403)
+
+2. **Previous session (2026-08-04): Purchase-flow E2E verification** — see below.
+
+### Previous Session: 2026-08-04
+
+### What Was Done
+
+1. **Purchase-flow E2E verification (production):**
+   - Confirmed the user's concern is **already handled**: the NewPOForm product picker shows "إضافة X كمنتج جديد" when a name has no match, which opens the full `ProductForm` modal that **requires category + subcategory** (validate blocks empty subcategory with "التصنيف الفرعي مطلوب", ProductForm.tsx:22) and collects unit, company, shelf, cost/retail/wholesale, barcode, stock toggle
+   - Save path calls `productsApi.create` → `POST /products` → `create_product`, which **requires `subcategory_id`** (ProductCreate schema, product.py:31) — so new products always get a category
+   - Found dead code: `POST /purchases/quick-add-product` (purchases.py:285) silently auto-assigns a default subcategory but the frontend **never calls it** — unused
+   - Ran live E2E test on prod: create new product via `POST /products` → create PO referencing it → verify searchable → receive PO → stock movement recorded + cost_price updated (25.5) + promoted to `tracked` (global + per-warehouse) + `purchase_price_history` row → all confirmed in DB
+   - **Found + fixed bug:** `GET /products/{product_id}/movements` returned raw ORM `StockMovement` objects → `PydanticSerializationError` 500. Rewrote to raw SQL + `dict(r._mapping)` (matches working `stock.py:list_movements` pattern), added `datetime` import at top of products.py
+   - Backend image rebuilt + redeployed; movements endpoint re-tested OK
+   - **All test data cleaned up** (product, PO, PO items, movement, warehouse status, price history, archive doc — 7 rows, verified 0 remnants)
+
+### Previous Session: 2026-07-17
 
 ### What Was Done
 
@@ -62,7 +88,7 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 
 ### Current State
 
-- **104 issues fixed** across all sessions, **0 remaining**
+- **106 issues fixed** across all sessions, **0 remaining**
 - `npx tsc --noEmit` passes clean
 - All migrations applied to production ✓
 - All 4 Docker containers healthy ✓
@@ -97,7 +123,8 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 | `backend/migrations/migrate_hr_payroll.sql` | Migrate 18 rows from flat hr_payroll to normalized tables |
 | `backend/migrations/drop_orphan_tables.sql` | Drop legacy payroll_periods + payroll_entries tables |
 | `backend/app/api/routers/settings.py` | `upload_logo` (PWA icon generation), `pwa_manifest` |
-| `backend/app/api/routers/sales.py` | `get_sale` — returns `payment_history`, `returns_total`, `remaining` |
+| `backend/app/api/routers/purchases.py` | `receive_purchase` (stock + cost_price + price history + archive), dead `quick-add-product` (never called by frontend) |
+| `frontend/src/pages/purchases/PurchasesPage.tsx` | `NewPOForm` — picker with "إضافة كمنتج جديد" → ProductForm modal (requires category/subcategory) || `backend/app/api/routers/sales.py` | `get_sale` — returns `payment_history`, `returns_total`, `remaining` |
 | `backend/app/api/routers/parties.py` | `add_payment` — accepts `sale_id`, updates `sales.paid_amount` |
 | `backend/app/services/sale_service.py` | `partial_return_sale` / `return_sale` — track `returns_total` |
 | `backend/app/models/customer_payment.py` | Added `sale_id` column |

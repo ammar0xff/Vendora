@@ -109,7 +109,8 @@ async def verify_warehouse_access(
     """Check if user has access to a warehouse. Returns warehouse_id if valid."""
     if warehouse_id is None:
         return None
-    if current_user.is_manager:
+    # Managers and admins have full access to all warehouses.
+    if current_user.is_manager or current_user.role in ("admin", "manager"):
         return warehouse_id
     result = await db.execute(
         select(user_warehouses.c.warehouse_id).where(

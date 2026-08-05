@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
@@ -268,25 +269,39 @@ async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_d
 @router.get("/products/{product_id}/movements")
 async def product_movements(product_id: uuid.UUID, from_date: str | None = None, to_date: str | None = None, page: int = Query(1, ge=1), page_size: int = Query(100, ge=1, le=1000), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Per-product movement log — used in product analytics."""
-    from app.models.stock import StockMovement
-    from datetime import datetime
-    from sqlalchemy import func as sqla_func
-    base = select(StockMovement).where(StockMovement.product_id == product_id)
+    from sqlalchemy import text as sqlt
+    from math import ceil
+    conditions = ["sm.product_id = :product_id"]
+    params: dict = {"product_id": product_id}
     if from_date:
         try:
-            base = base.where(StockMovement.created_at >= datetime.fromisoformat(from_date))
+            params["from_date"] = datetime.fromisoformat(from_date)
+            conditions.append("sm.created_at >= :from_date")
         except ValueError:
             raise HTTPException(400, f"Invalid from_date format: {from_date}")
     if to_date:
         try:
-            base = base.where(StockMovement.created_at <= datetime.fromisoformat(to_date))
+            params["to_date"] = datetime.fromisoformat(to_date)
+            conditions.append("sm.created_at <= :to_date")
         except ValueError:
             raise HTTPException(400, f"Invalid to_date format: {to_date}")
-    total = await db.scalar(select(sqla_func.count()).select_from(StockMovement).where(base.whereclause))
-    q = base.order_by(StockMovement.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
-    result = await db.execute(q)
-    items = result.scalars().all()
-    return Page(items=items, total=total or 0, page=page, size=page_size, pages=max(1, (total + page_size - 1) // page_size))
+    where_sql = " AND ".join(conditions)
+    total = (await db.execute(sqlt(f"SELECT COUNT(*) FROM stock_movements sm WHERE {where_sql}"), params)).scalar() or 0
+    pages = max(1, ceil(total / page_size))
+    params["limit"] = page_size
+    params["offset"] = (page - 1) * page_size
+    rows = await db.execute(sqlt(f"""
+        SELECT sm.*, p.name as product_name, w.name as warehouse_name,
+               u.full_name as created_by_name
+        FROM stock_movements sm
+        LEFT JOIN products p ON p.id = sm.product_id
+        LEFT JOIN warehouses w ON w.id = sm.warehouse_id
+        LEFT JOIN users u ON u.id = sm.created_by
+        WHERE {where_sql}
+        ORDER BY sm.created_at DESC LIMIT :limit OFFSET :offset
+    """), params)
+    items = [dict(r._mapping) for r in rows.fetchall()]
+    return {"items": items, "total": total, "page": page, "size": page_size, "pages": pages}
 
 @router.put("/products/{product_id}", response_model=ProductOut)
 async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("inventory"))):
