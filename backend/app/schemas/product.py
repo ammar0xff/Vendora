@@ -7,29 +7,34 @@ from pydantic import BaseModel, Field, field_validator
 
 class CategoryCreate(BaseModel):
     name: str
+    code: Optional[str] = None
 
 
 class CategoryOut(BaseModel):
     id: uuid.UUID
     name: str
+    code: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
 class SubcategoryCreate(BaseModel):
     category_id: uuid.UUID
     name: str
+    code: Optional[str] = None
 
 
 class SubcategoryOut(BaseModel):
     id: uuid.UUID
     category_id: uuid.UUID
     name: str
+    code: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
 class ProductCreate(BaseModel):
     subcategory_id: uuid.UUID
     name: str
+    code: Optional[str] = None
     barcode: Optional[str] = None
     unit: str = "عدد"
     retail_price: Decimal = Field(default=Decimal("0"), ge=0)
@@ -47,6 +52,7 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
+    code: Optional[str] = None
     barcode: Optional[str] = None
     unit: Optional[str] = None
     retail_price: Optional[Decimal] = None
@@ -75,6 +81,7 @@ class ProductOut(BaseModel):
     id: uuid.UUID
     subcategory_id: uuid.UUID
     name: str
+    code: Optional[str] = None
     barcode: Optional[str]
     unit: str
     retail_price: Decimal

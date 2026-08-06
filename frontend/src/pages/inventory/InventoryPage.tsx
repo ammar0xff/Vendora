@@ -179,6 +179,7 @@ export default function InventoryPage() {
                     style={isCatActive ? { background: '#1e3a5f' } : {}}
                   >
                     <Tag size={12} className="flex-shrink-0 opacity-60" />
+                    {cat.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{cat.code}</span> : null}
                     <span className="truncate leading-tight">{cat.name}</span>
                   </button>
                   {subs.length > 0 && (
@@ -201,6 +202,7 @@ export default function InventoryPage() {
                       style={isSubActive ? { background: '#2d5a8e' } : {}}
                     >
                       <Layers size={10} className="flex-shrink-0 opacity-50" />
+                      {sub.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{sub.code}</span> : null}
                       <span className="truncate leading-tight">{sub.name}</span>
                     </button>
                   )
@@ -265,7 +267,9 @@ export default function InventoryPage() {
                     </div>
                   )}
                   <div>
-                    <p className="font-bold text-slate-800">{p.name}</p>
+                    <p className="font-bold text-slate-800">
+                      {p.code ? <span className="font-mono text-xs font-bold text-slate-400 ml-1.5" dir="ltr">{p.code}</span> : null}{p.name}
+                    </p>
                     {p.company && <p className="text-xs text-slate-400">{p.company}</p>}
                   </div>
                 </div>
@@ -322,15 +326,22 @@ export default function InventoryPage() {
 
       {/* Modals */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة منتج جديد" size="lg">
-        <ProductForm onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
+        {showAdd && (
+          <ProductForm key="add" onSave={(d: any) => createMut.mutate(d)} onClose={() => setShowAdd(false)} />
+        )}
       </Modal>
       <Modal open={!!editProduct} onClose={() => setEditProduct(null)} title="تعديل المنتج" size="lg">
-        {editProduct && (
-          <ProductForm
-            product={editProductFull || editProduct}
-            onSave={(d: any) => updateMut.mutate({ id: editProduct.id, data: d })}
-            onClose={() => setEditProduct(null)}
-          />
+        {editProduct && !editProductFull ? (
+          <div className="flex items-center justify-center py-12 text-slate-400 text-sm animate-pulse">جاري تحميل بيانات المنتج...</div>
+        ) : (
+          editProductFull && (
+            <ProductForm
+              key={editProductFull.id}
+              product={editProductFull}
+              onSave={(d: any) => updateMut.mutate({ id: editProduct.id, data: d })}
+              onClose={() => setEditProduct(null)}
+            />
+          )
         )}
       </Modal>
       <Modal open={!!viewMovements} onClose={() => setViewMovements(null)} title={`حركات: ${viewMovements?.name}`} size="xl">

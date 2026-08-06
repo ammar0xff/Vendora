@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from sqlalchemy import select
+from sqlalchemy import or_
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from app.db.base import get_db
@@ -25,15 +27,18 @@ from app.services.audit_service import log as audit_log
 router = APIRouter(tags=["products"])
 
 
+
 # ── Categories ──────────────────────────────────────────────────────────────
 @router.get("/categories", response_model=list[CategoryOut])
 async def list_categories(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    return (await db.execute(select(Category))).scalars().all()
+    return (await db.execute(
+        select(Category).order_by(func.nullif(Category.code, '').asc().nullslast(), Category.name)
+    )).scalars().all()
 
 
 @router.post("/categories", response_model=CategoryOut)
 async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
-    cat = Category(name=data.name)
+    cat = Category(name=data.name, code=data.code or None)
     db.add(cat)
     await db.commit()
     await db.refresh(cat)
@@ -47,6 +52,7 @@ async def update_category(cat_id: uuid.UUID, data: CategoryCreate, db: AsyncSess
     if not cat:
         raise NotFoundError()
     cat.name = data.name
+    cat.code = data.code or None
     await db.commit()
     await db.refresh(cat)
     return cat
@@ -60,6 +66,7 @@ async def update_subcategory(sub_id: uuid.UUID, data: SubcategoryCreate, db: Asy
         raise NotFoundError()
     sub.name = data.name
     sub.category_id = data.category_id
+    sub.code = data.code or None
     await db.commit()
     await db.refresh(sub)
     return sub
@@ -110,12 +117,13 @@ async def list_subcategories(category_id: uuid.UUID | None = None, db: AsyncSess
     q = select(Subcategory)
     if category_id:
         q = q.where(Subcategory.category_id == category_id)
+    q = q.order_by(func.nullif(Subcategory.code, '').asc().nullslast(), Subcategory.name)
     return (await db.execute(q)).scalars().all()
 
 
 @router.post("/subcategories", response_model=SubcategoryOut)
 async def create_subcategory(data: SubcategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
-    sub = Subcategory(category_id=data.category_id, name=data.name)
+    sub = Subcategory(category_id=data.category_id, name=data.name, code=data.code or None)
     db.add(sub)
     await db.commit()
     await db.refresh(sub)
@@ -143,14 +151,16 @@ async def list_products(
 
     if search:
         like = f"%{search}%"
-        base_q = base_q.where(Product.name.ilike(like))
-        count_q = count_q.where(Product.name.ilike(like))
+        base_q = base_q.where(or_(Product.name.ilike(like), Product.code.ilike(like)))
+        count_q = count_q.where(or_(Product.name.ilike(like), Product.code.ilike(like)))
     if subcategory_id:
         base_q = base_q.where(Product.subcategory_id == subcategory_id)
         count_q = count_q.where(Product.subcategory_id == subcategory_id)
     if category_id:
         base_q = base_q.join(Subcategory).where(Subcategory.category_id == category_id)
         count_q = count_q.join(Subcategory).where(Subcategory.category_id == category_id)
+
+    base_q = base_q.order_by(func.nullif(Product.code, '').asc().nullslast(), Product.name)
 
     total = (await db.execute(count_q)).scalar_one() or 0
     pages = max(1, (total + page_size - 1) // page_size)
@@ -201,7 +211,10 @@ async def list_products(
 
 @router.post("/products", response_model=ProductOut)
 async def create_product(data: ProductCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
-    p = Product(**data.model_dump())
+    payload = data.model_dump()
+    if not payload.get("code"):
+        payload["code"] = None
+    p = Product(**payload)
     db.add(p)
     await db.commit()
     await db.refresh(p)
@@ -310,6 +323,8 @@ async def update_product(product_id: uuid.UUID, data: ProductUpdate, db: AsyncSe
     if not p:
         raise NotFoundError()
     payload = data.model_dump(exclude_none=True)
+    if "code" in payload and not payload["code"]:
+        payload["code"] = None
     for k, v in payload.items():
         setattr(p, k, v)
     await audit_log(db, "product", "update", current_user.id, current_user.full_name, product_id, data.model_dump(mode="json", exclude_none=True), "تعديل المنتج")

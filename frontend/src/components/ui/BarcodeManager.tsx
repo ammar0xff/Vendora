@@ -37,13 +37,20 @@ export default function BarcodeManager({ productId, barcodes = [] }: any) {
     },
   })
 
-  const handleAdd = (e: any) => {
-    e.preventDefault()
+  const handleAdd = () => {
     if (!newBarcode.trim()) {
       toast.error('أدخل رمز شريطي')
       return
     }
     addMut.mutate({ barcode: newBarcode, is_primary: barcodes.length === 0 })
+  }
+
+  const handleKey = (e: any) => {
+    e.stopPropagation()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleAdd()
+    }
   }
 
   return (
@@ -60,22 +67,23 @@ export default function BarcodeManager({ productId, barcodes = [] }: any) {
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAdd} className="flex gap-2">
+        <div className="flex gap-2">
           <input
             type="text"
             value={newBarcode}
             onChange={e => setNewBarcode(e.target.value)}
+            onKeyDown={handleKey}
             placeholder="أدخل الرمز الشريطي..."
             className="input flex-1"
             autoFocus
           />
-          <button type="submit" disabled={addMut.isPending} className="px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium">
+          <button type="button" onClick={handleAdd} disabled={addMut.isPending} className="px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium">
             {addMut.isPending ? '...' : 'إضافة'}
           </button>
           <button type="button" onClick={() => { setIsAdding(false); setNewBarcode('') }} className="px-3 py-2 bg-slate-200 text-slate-600 rounded text-sm font-medium">
             إلغاء
           </button>
-        </form>
+        </div>
       )}
 
       {barcodes.length === 0 ? (

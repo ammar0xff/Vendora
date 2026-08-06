@@ -36,15 +36,15 @@ export const productsApi = {
 
 export const categoriesApi = {
   list: () => api.get('/categories').then(r => r.data),
-  create: (name: string) => api.post('/categories', { name }).then(r => r.data),
-  update: (id: string, name: string) => api.put(`/categories/${id}`, { name }).then(r => r.data),
+  create: (name: string, code?: string) => api.post('/categories', { name, code }).then(r => r.data),
+  update: (id: string, name: string, code?: string) => api.put(`/categories/${id}`, { name, code }).then(r => r.data),
   delete: (id: string) => api.delete(`/categories/${id}`),
 }
 
 export const subcategoriesApi = {
   list: (category_id?: string) => api.get('/subcategories', { params: category_id ? { category_id } : {} }).then(r => r.data),
-  create: (category_id: string, name: string) => api.post('/subcategories', { category_id, name }).then(r => r.data),
-  update: (id: string, category_id: string, name: string) => api.put(`/subcategories/${id}`, { category_id, name }).then(r => r.data),
+  create: (category_id: string, name: string, code?: string) => api.post('/subcategories', { category_id, name, code }).then(r => r.data),
+  update: (id: string, category_id: string, name: string, code?: string) => api.put(`/subcategories/${id}`, { category_id, name, code }).then(r => r.data),
   delete: (id: string) => api.delete(`/subcategories/${id}`),
 }
 

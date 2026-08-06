@@ -22,7 +22,59 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 
 ---
 
-## Latest Session: 2026-08-04 (session 2)
+## Latest Session: 2026-08-06
+
+### What Was Done
+
+1. **Fixed product/category/subcategory `code` ordering — empty-string codes pushed to top:**
+   - Reported: product "بكرة شيكرتون" got `code='1'` but did NOT appear first in the inventory list
+   - Root causes (two bugs stacking):
+     - **Client:** InventoryPage DataTable had `defaultSort={{ key: 'name', dir: 'asc' }}` (line 259) — re-sorted products alphabetically by name on load, overriding backend code order. Removed it; DataTable now respects the backend order by default (still sorts on header click)
+     - **Server/DB:** editing a product without a code saved `code=''` (empty string) instead of NULL, because the edit form always sends `code`, and `update_product` uses `exclude_none=True` (keeps `''`). With `Product.code.asc().nullslast()`, `''` sorts **before** `'1'` and `nullslast()` only moves NULL to the end → every edited-but-uncoded product outranked بكرة شيكرتون
+   - Fixes:
+     - `products.py`: all code ordering now `func.nullif(code, '').asc().nullslast()` for products (line 162), categories (line 34), subcategories (line 119); same in `reports.py:90`; added `from sqlalchemy import func`
+     - `products.py`: create/update for products, categories, subcategories normalize empty code → `None` (`code or None`)
+     - DB backfill: `UPDATE products SET code = NULL WHERE code = ''` (4 rows) — done on prod
+   - Verified live: `GET /products` returns بكرة شيكرتون (code `1`) first, uncoded products follow alphabetically
+   - Also verified via Playwright: edit form for بكرة شيكرتون now shows code field = `1` (was empty before because the deployed frontend container predated the fixes — old bundle had `defaultSort` + stale edit form)
+   - Both frontend and backend rebuilt + redeployed; `/health` OK
+
+2. **Fixed "adding barcode doesn't save" — nested `<form>` bug:**
+   - Reported: clicking إضافة in the barcode manager showed no saved barcode / no list update
+   - Root cause: `ProductForm.tsx` wraps the whole modal in `<form>` (line 53), and `BarcodeManager.tsx` rendered its **own nested `<form onSubmit={handleAdd}>`** (line 63). Nested forms are invalid HTML — browsers drop the inner `<form>`, so the submit button never invoked `handleAdd` → **no POST ever fired** (confirmed via Playwright network log: only 1 input + submit button present, zero requests)
+   - Fix (`frontend/src/components/ui/BarcodeManager.tsx`): replaced the inner `<form>` with a plain `<div>`; submit button changed to `type="button"` calling `handleAdd` directly; Enter key handled via `onKeyDown` with `e.stopPropagation()` + `e.preventDefault()` so it adds the barcode without submitting the outer product form
+   - Verified live via Playwright: clicking إضافة now fires `POST /api/products/{id}/barcodes` and the new barcode (`7777777777777`) appears in the list immediately; test barcode deleted afterward (0 remaining)
+   - Frontend rebuilt + redeployed; `npx tsc --noEmit` passes
+
+2. **Added manual editable `code` (كود) to categories, subcategories, and products:**
+   - User chose option: a short manual code that displays beside the name, is hand-editable, sorts categories/subcategories, and (for products) is searchable
+   - **DB:** `backend/migrations/add_category_codes.sql` (already applied prior) + new `backend/migrations/add_product_codes.sql` — `ALTER TABLE products ADD COLUMN IF NOT EXISTS code VARCHAR(32) NULL;` + `CREATE INDEX idx_products_code`. Applied to prod (ALTER TABLE + CREATE INDEX OK)
+   - **Backend:** `Product.code` column (String(32), index, nullable) in product.py; schemas add optional `code` to `ProductCreate`/`ProductUpdate`/`ProductOut`; `list_products` search now matches `name OR code` (`or_(Product.name.ilike, Product.code.ilike)`); categories/subcategories already ordered by `code.asc().nullslast()`
+   - **Frontend:** `Product.code`/`ProductCreate.code` in types.ts (callers pass full form object → `code` auto-sent); ProductForm has a "الكود (اختياري)" input (also moved الشركة field up into the same 2-col grid, removed old duplicate); code badge shown next to product names in InventoryPage DataTable + POS CategoryCardBrowser cards, and in SettingsPage category/subcategory lists + their 4 modals (new/edit × category/subcategory) all accept code
+   - Both images rebuilt + redeployed; `/health` OK
+   - **Verified live via /api proxy:** create product with `code=X-77` → update to `Q-88` → `GET /products?search=Q-88` returns it → delete → 0 remnants
+   - Note: `ProductUpdate` uses `exclude_none=True`, so clearing a code sends `''` (empty string) not NULL — acceptable
+   - Reported: repeated `api/suppliers` 500 on `eg-co.duckdns.org`
+   - Root cause: `create_supplier` (suppliers.py:46) used a raw `INSERT INTO suppliers (...)` **without an `id`** column, but `suppliers.id` has **no DB default** (only the ORM `default=uuid.uuid4`) → `NotNullViolationError` whenever adding a new supplier
+   - Fix: added `gen_random_uuid()` for the `id` in the raw INSERT; verified create + soft-delete via API, then hard-deleted the test row
+   - CSP: `eg-co.duckdns.org` now returns the fixed header (fonts.googleapis.com + fonts.gstatic.com allowed); the earlier report predates the deploy (browser cache) — header confirmed live on both domains
+   - Backend image rebuilt + redeployed; `/health` OK; `GET /suppliers` OK; create + cleanup verified
+
+### Previous Session: 2026-08-05
+
+### What Was Done
+
+1. **Fixed ledger 500 (`GET /reports/ledger`) + Google Fonts CSP:**
+   - Reported: `api/reports/ledger` returned 500 on Dashboard/POS (with warehouse_id)
+   - Root cause: `ledger.py` cash-drawer query used `dt.type IN ('sale','return')` but `drawer_transactions.type` is the `drawer_tx_type_enum` whose return value is **`return_`** (not `return`) → `InvalidTextRepresentationError` 500
+   - Fix: ledger.py:214 → `'return_'`, ledger.py:226 → `r.type == 'return_'`; verified `OK nett=0`
+   - Google Fonts: CSP in `frontend/nginx.conf` blocked `fonts.googleapis.com`/`fonts.gstatic.com` (stylesheets failed to load). Added both domains to `style-src`/`font-src`; verified header reflects the change
+   - Both images rebuilt + redeployed; `/health` OK
+   - Note: `api/shifts/current?warehouse_id=dc59d83b` 404 in the report is normal — ammar's open shift is at معرض المؤمن (122f5b3b), not معرض العبور
+
+2. **Previous session (2026-08-04 session 2): admin warehouse-access fix** — see below.
+
+### Previous Session: 2026-08-04 (session 2)
 
 ### What Was Done
 
@@ -88,7 +140,7 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 
 ### Current State
 
-- **106 issues fixed** across all sessions, **0 remaining**
+- **108 issues fixed** across all sessions, **0 remaining**
 - `npx tsc --noEmit` passes clean
 - All migrations applied to production ✓
 - All 4 Docker containers healthy ✓
@@ -119,6 +171,8 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 | File | Role |
 |------|------|
 | `backend/migrations/typed_fk_columns.sql` | Typed FK columns (idempotent) |
+| `backend/migrations/add_category_codes.sql` | Add `code` to categories/subcategories (idempotent, applied) |
+| `backend/migrations/add_product_codes.sql` | Add `code` to products (idempotent, applied) |
 | `backend/migrations/cleanup_and_indexes.sql` | Duplicate FK cleanup + 53 missing indexes |
 | `backend/migrations/migrate_hr_payroll.sql` | Migrate 18 rows from flat hr_payroll to normalized tables |
 | `backend/migrations/drop_orphan_tables.sql` | Drop legacy payroll_periods + payroll_entries tables |

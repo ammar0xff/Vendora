@@ -72,7 +72,10 @@ export default function CategoryCardBrowser({
           <div className="text-xs text-slate-400">/</div>
           <span className="text-xs font-bold text-slate-600">{selectedCat?.name}</span>
           <div className="text-xs text-slate-400">/</div>
-          <span className="text-xs font-bold text-slate-800">{selectedSub?.name || 'الكل'}</span>
+          <span className="text-xs font-bold text-slate-800">
+            {selectedSub?.name || 'الكل'}
+            {selectedSub?.code ? <span className="font-mono font-bold text-slate-400 ml-1" dir="ltr">{selectedSub.code}</span> : null}
+          </span>
         </div>
 
         {loadingProducts ? (
@@ -102,7 +105,9 @@ export default function CategoryCardBrowser({
                         }`}>{qty}</span>
                       )}
                     </div>
-                    <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
+                    <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">
+                      {p.code ? <span className="font-mono text-[10px] font-bold text-slate-400 ml-1" dir="ltr">{p.code}</span> : null}{p.name}
+                    </p>
                     {p.company && <p className="text-[10px] text-slate-400 mb-1.5">{p.company}</p>}
                     {p.shelf_number && <p className="text-[10px] font-bold text-indigo-500 mb-1.5">الرف: {p.shelf_number}</p>}
                     <div className="mt-auto">
@@ -130,6 +135,7 @@ export default function CategoryCardBrowser({
           </button>
           <div className="text-xs text-slate-400">/</div>
           <span className="text-xs font-bold text-slate-800">{selectedCat?.name}</span>
+          {selectedCat?.code ? <span className="font-mono text-[10px] font-bold text-slate-400" dir="ltr">{selectedCat.code}</span> : null}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -140,7 +146,10 @@ export default function CategoryCardBrowser({
                 <div className={`w-12 h-12 mx-auto rounded-xl bg-gradient-to-br ${catColor(i)} flex items-center justify-center mb-2`}>
                   <Layers size={18} className="text-white" />
                 </div>
-                <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-2">{sub.name}</p>
+                <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-2">
+                  {sub.name}
+                  {sub.code ? <span className="font-mono text-[10px] font-bold text-slate-400 ml-1" dir="ltr">{sub.code}</span> : null}
+                </p>
               </button>
             ))}
           </div>
@@ -161,7 +170,10 @@ export default function CategoryCardBrowser({
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${catColor(i)} flex items-center justify-center mb-2`}>
                   <Grid3X3 size={18} className="text-white" />
                 </div>
-                <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-2 mb-0.5">{cat.name}</p>
+                <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-2 mb-0.5">
+                  {cat.name}
+                  {cat.code ? <span className="font-mono text-[10px] font-bold text-slate-400 ml-1" dir="ltr">{cat.code}</span> : null}
+                </p>
                 <p className="text-[10px] text-slate-400">{subs.length || 0} قسم</p>
               </button>
             )

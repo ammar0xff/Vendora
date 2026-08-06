@@ -7,17 +7,20 @@ export interface Warehouse {
 export interface Category {
   id: string
   name: string
+  code?: string | null
 }
 
 export interface Subcategory {
   id: string
   name: string
   category_id: string
+  code?: string | null
 }
 
 export interface Product {
   id: string
   name: string
+  code?: string | null
   unit: string
   retail_price: number
   wholesale_price: number
@@ -117,6 +120,7 @@ export interface Collection {
 
 export interface ProductCreate {
   name: string
+  code?: string
   unit?: string
   retail_price?: number
   wholesale_price?: number

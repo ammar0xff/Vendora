@@ -87,7 +87,7 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
         .join(Category, Subcategory.category_id == Category.id)
         .outerjoin(balance_subq, Product.id == balance_subq.c.product_id)
         .where(Product.is_active)
-        .order_by(Category.name, Subcategory.name, Product.name)
+        .order_by(func.nullif(Category.code, '').asc().nullslast(), Category.name, func.nullif(Subcategory.code, '').asc().nullslast(), Subcategory.name, func.nullif(Product.code, '').asc().nullslast(), Product.name)
     )
     settings = {r.key: r.value for r in (await db.execute(select(StoreSetting))).scalars().all()}
 

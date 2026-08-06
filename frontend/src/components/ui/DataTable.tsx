@@ -19,6 +19,7 @@ interface Props<T> {
   rowKey: (row: T) => string
   onRowClick?: (row: T) => void
   maxHeight?: string
+  defaultSort?: { key: string; dir: 'asc' | 'desc' }
 }
 
 function SkeletonRow({ cols, index }: { cols: number; index: number }) {
@@ -47,9 +48,9 @@ function SkeletonRow({ cols, index }: { cols: number; index: number }) {
   )
 }
 
-export default function DataTable<T>({ columns, data, loading, emptyMessage = 'لا توجد بيانات', emptyIcon = '📭', emptyAction, rowKey, onRowClick, maxHeight }: Props<T>) {
-  const [sortKey, setSortKey] = useState<string | null>(null)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+export default function DataTable<T>({ columns, data, loading, emptyMessage = 'لا توجد بيانات', emptyIcon = '📭', emptyAction, rowKey, onRowClick, maxHeight, defaultSort }: Props<T>) {
+  const [sortKey, setSortKey] = useState<string | null>(defaultSort?.key ?? null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultSort?.dir ?? 'desc')
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

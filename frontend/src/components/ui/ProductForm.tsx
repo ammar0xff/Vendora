@@ -12,7 +12,7 @@ interface ProductFormProps {
 }
 
 const INITIAL = {
-  name: '', unit: 'عدد', retail_price: 0, wholesale_price: 0,
+  name: '', code: '', unit: 'عدد', retail_price: 0, wholesale_price: 0,
   cost_price: 0, barcode: '', subcategory_id: '', company: '',
   shelf_number: '', stock_status: 'untracked',
 }
@@ -63,17 +63,28 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
 
       <div className="grid grid-cols-2 gap-3">
         <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">الكود (اختياري — للتمييز والبحث)</label>
+          <input className="input font-mono" dir="ltr" value={form.code || ''} onChange={e => set('code', e.target.value)} placeholder="مثال: P-100" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">الشركة</label>
+          <input className="input" value={form.company || ''} onChange={e => set('company', e.target.value)} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">التصنيف الرئيسي *</label>
           <select className="input" value={effectiveCategoryId} onChange={e => { setCategoryId(e.target.value); set('subcategory_id', '') }} required>
             <option value="">اختر التصنيف...</option>
-            {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {categories?.map(c => <option key={c.id} value={c.id}>{c.code ? `[${c.code}] ${c.name}` : c.name}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">التصنيف الفرعي *</label>
           <select className="input" value={form.subcategory_id} onChange={e => set('subcategory_id', e.target.value)} required disabled={!effectiveCategoryId}>
             <option value="">{effectiveCategoryId ? 'اختر...' : 'اختر التصنيف الرئيسي أولاً'}</option>
-            {filteredSubs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {filteredSubs.map(s => <option key={s.id} value={s.id}>{s.code ? `[${s.code}] ${s.name}` : s.name}</option>)}
           </select>
         </div>
       </div>
@@ -84,10 +95,6 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
           <select className="input" value={form.unit} onChange={e => set('unit', e.target.value)}>
             {['عدد', 'كيلو', 'متر', 'ماسورة', 'طقم', 'علبة', 'كرتونة'].map(u => <option key={u}>{u}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">الشركة</label>
-          <input className="input" value={form.company || ''} onChange={e => set('company', e.target.value)} />
         </div>
       </div>
 
@@ -111,14 +118,16 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">الباركود</label>
-        <input className="input" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختياري" />
-      </div>
+      {!isEditing && (
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">الباركود (اختياري)</label>
+          <input className="input font-mono" dir="ltr" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختاري" />
+        </div>
+      )}
 
-      {isEditing && product?.barcodes && (
+      {isEditing && (
         <div className="border-t pt-4">
-          <BarcodeManager productId={product.id} barcodes={product.barcodes} />
+          <BarcodeManager productId={product.id} barcodes={product.barcodes || []} />
         </div>
       )}
 

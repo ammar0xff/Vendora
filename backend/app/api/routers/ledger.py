@@ -211,7 +211,7 @@ async def ledger(
         SELECT type, SUM(amount) as total
         FROM drawer_transactions dt
         JOIN shifts sh ON sh.id = dt.shift_id
-        WHERE dt.type IN ('sale','return')
+        WHERE dt.type IN ('sale','return_')
           AND (dt.payment_method IS NULL OR dt.payment_method = '' OR dt.payment_method = 'cash')
           AND dt.created_at BETWEEN :start AND :end
           {{wh}}
@@ -223,7 +223,7 @@ async def ledger(
     for r in cash_drawer_rows.fetchall():
         if r.type == 'sale':
             cash_drawer_sales = float(r.total or 0)
-        elif r.type == 'return':
+        if r.type == 'return_':
             cash_drawer_returns = float(r.total or 0)
 
     sale_pages = (total_sale_items + page_size - 1) // page_size

@@ -44,7 +44,7 @@ async def list_suppliers(type: Optional[str] = None, page: int = 1, page_size: i
 @router.post("", status_code=201)
 async def create_supplier(data: SupplierIn, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory", "purchases"))):
     r = await db.execute(text(
-        "INSERT INTO suppliers (name,phone,address,type,notes,balance) VALUES (:name,:phone,:address,:type,:notes,0) RETURNING id,name,phone,address,type,balance,notes,created_at"
+        "INSERT INTO suppliers (id,name,phone,address,type,notes,balance) VALUES (gen_random_uuid(),:name,:phone,:address,:type,:notes,0) RETURNING id,name,phone,address,type,balance,notes,created_at"
     ), data.model_dump())
     await db.commit()
     return dict(r.fetchone()._mapping)

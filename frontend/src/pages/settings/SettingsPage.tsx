@@ -94,37 +94,41 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
   const [confirmDelSub, setConfirmDelSub] = useState<{ id: string; name: string } | null>(null)
   const [newSubCatId, setNewSubCatId] = useState<string | null>(null)
   const [newSubName, setNewSubName] = useState('')
+  const [newSubCode, setNewSubCode] = useState('')
   const [showNewCat, setShowNewCat] = useState(false)
   const [newCatName, setNewCatName] = useState('')
-  const [editCatId, setEditCatId] = useState<{ id: string; name: string } | null>(null)
+  const [newCatCode, setNewCatCode] = useState('')
+  const [editCatId, setEditCatId] = useState<{ id: string; name: string; code: string } | null>(null)
   const [editCatName, setEditCatName] = useState('')
-  const [editSubId, setEditSubId] = useState<{ id: string; catId: string; name: string } | null>(null)
+  const [editCatCode, setEditCatCode] = useState('')
+  const [editSubId, setEditSubId] = useState<{ id: string; catId: string; name: string; code: string } | null>(null)
   const [editSubName, setEditSubName] = useState('')
+  const [editSubCode, setEditSubCode] = useState('')
 
   const toggle = (id: string) => setExpanded(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const getSubs = (catId: string) => subcategories.filter((s: any) => s.category_id === catId)
 
   const addCatMut = useMutation({
-    mutationFn: () => categoriesApi.create(newCatName),
-    onSuccess: () => { toast.success('تمت الإضافة'); setShowNewCat(false); setNewCatName(''); qc.invalidateQueries({ queryKey: ['categories'] }) },
+    mutationFn: () => categoriesApi.create(newCatName, newCatCode),
+    onSuccess: () => { toast.success('تمت الإضافة'); setShowNewCat(false); setNewCatName(''); setNewCatCode(''); qc.invalidateQueries({ queryKey: ['categories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
   const editCatMut = useMutation({
-    mutationFn: () => categoriesApi.update(editCatId!.id, editCatName),
+    mutationFn: () => categoriesApi.update(editCatId!.id, editCatName, editCatCode),
     onSuccess: () => { toast.success('تم التعديل'); setEditCatId(null); qc.invalidateQueries({ queryKey: ['categories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
   const editSubMut = useMutation({
-    mutationFn: () => subcategoriesApi.update(editSubId!.id, editSubId!.catId, editSubName),
+    mutationFn: () => subcategoriesApi.update(editSubId!.id, editSubId!.catId, editSubName, editSubCode),
     onSuccess: () => { toast.success('تم التعديل'); setEditSubId(null); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
   const addSubMut = useMutation({
-    mutationFn: () => subcategoriesApi.create(newSubCatId!, newSubName),
-    onSuccess: () => { toast.success('تمت الإضافة'); setNewSubCatId(null); setNewSubName(''); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
+    mutationFn: () => subcategoriesApi.create(newSubCatId!, newSubName, newSubCode),
+    onSuccess: () => { toast.success('تمت الإضافة'); setNewSubCatId(null); setNewSubName(''); setNewSubCode(''); qc.invalidateQueries({ queryKey: ['subcategories'] }) },
     onError: () => toast.error('فشل الحفظ'),
   })
 
@@ -187,13 +191,15 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                       <Tag size={15} />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm text-slate-900 leading-tight">{cat.name}</p>
+                      <p className="font-semibold text-sm text-slate-900 leading-tight">
+                        {cat.code ? <span className="text-xs font-mono font-bold text-slate-400 ml-1.5" dir="ltr">{cat.code}</span> : null}{cat.name}
+                      </p>
                       <p className="text-xs text-slate-400">{subs.length} تصنيف فرعي</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <ActBtn onClick={() => { setEditCatId({ id: cat.id, name: cat.name }); setEditCatName(cat.name) }}
-                      color="#d97706" hoverColor="#d97706" title="تعديل الاسم"><Pencil size={14} /></ActBtn>
+                    <ActBtn onClick={() => { setEditCatId({ id: cat.id, name: cat.name, code: cat.code || '' }); setEditCatName(cat.name); setEditCatCode(cat.code || '') }}
+                      color="#d97706" hoverColor="#d97706" title="تعديل"><Pencil size={14} /></ActBtn>
                     <ActBtn onClick={() => setConfirmDelCat({ id: cat.id, name: cat.name, subsCount: subs.length })}
                       color="#ef4444" hoverColor="#ef4444" title="حذف"><Trash2 size={14} /></ActBtn>
                   </div>
@@ -203,15 +209,16 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
                   <div className="mt-3 flex flex-wrap gap-2">
                     {subs.map((sub: any) => (
                       <span key={sub.id} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                        {sub.code ? <span className="text-[10px] font-mono font-bold text-slate-400" dir="ltr">{sub.code}</span> : null}
                         <span className="font-medium">{sub.name}</span>
-                        <button onClick={() => { setEditSubId({ id: sub.id, catId: sub.category_id, name: sub.name }); setEditSubName(sub.name) }} className="text-slate-400 hover:text-slate-600"><Pencil size={12} /></button>
+                        <button onClick={() => { setEditSubId({ id: sub.id, catId: sub.category_id, name: sub.name, code: sub.code || '' }); setEditSubName(sub.name); setEditSubCode(sub.code || '') }} className="text-slate-400 hover:text-slate-600"><Pencil size={12} /></button>
                         <button onClick={() => setConfirmDelSub({ id: sub.id, name: sub.name })} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
                       </span>
                     ))}
                   </div>
                 )}
 
-                <button onClick={() => { setNewSubCatId(cat.id); setNewSubName('') }}
+                <button onClick={() => { setNewSubCatId(cat.id); setNewSubName(''); setNewSubCode('') }}
                   className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border border-dashed"
                   style={{ color: '#2563eb', borderColor: '#93c5fd', background: '#eff6ff' }}>
                   إضافة تصنيف فرعي
@@ -225,9 +232,17 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
       {/* New Category Modal */}
       <Modal open={showNewCat} onClose={() => setShowNewCat(false)} title="إضافة فئة جديدة">
         <div className="space-y-4">
-          <input className="input" value={newCatName} onChange={e => setNewCatName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) addCatMut.mutate() }}
-            placeholder="اكتب اسم الفئة..." autoFocus />
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">اسم الفئة</label>
+            <input className="input" value={newCatName} onChange={e => setNewCatName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) addCatMut.mutate() }}
+              placeholder="اكتب اسم الفئة..." autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">الكود (اختياري — للترتيب والتمييز)</label>
+            <input className="input font-mono" dir="ltr" value={newCatCode} onChange={e => setNewCatCode(e.target.value)}
+              placeholder="مثال: CAT-01" />
+          </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowNewCat(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => addCatMut.mutate()} disabled={!newCatName.trim() || addCatMut.isPending}
@@ -239,11 +254,19 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
       </Modal>
 
       {/* Edit Category Modal */}
-      <Modal open={!!editCatId} onClose={() => setEditCatId(null)} title="تعديل اسم الفئة">
+      <Modal open={!!editCatId} onClose={() => setEditCatId(null)} title="تعديل الفئة">
         <div className="space-y-4">
-          <input className="input" value={editCatName} onChange={e => setEditCatName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && editCatName.trim()) editCatMut.mutate() }}
-            placeholder="اكتب الاسم..." autoFocus />
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">اسم الفئة</label>
+            <input className="input" value={editCatName} onChange={e => setEditCatName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && editCatName.trim()) editCatMut.mutate() }}
+              placeholder="اكتب الاسم..." autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">الكود (اختياري — للترتيب والتمييز)</label>
+            <input className="input font-mono" dir="ltr" value={editCatCode} onChange={e => setEditCatCode(e.target.value)}
+              placeholder="مثال: CAT-01" />
+          </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setEditCatId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => editCatMut.mutate()} disabled={!editCatName.trim() || editCatMut.isPending}
@@ -255,11 +278,19 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
       </Modal>
 
       {/* Edit Subcategory Modal */}
-      <Modal open={!!editSubId} onClose={() => setEditSubId(null)} title="تعديل اسم التصنيف الفرعي">
+      <Modal open={!!editSubId} onClose={() => setEditSubId(null)} title="تعديل التصنيف الفرعي">
         <div className="space-y-4">
-          <input className="input" value={editSubName} onChange={e => setEditSubName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && editSubName.trim()) editSubMut.mutate() }}
-            placeholder="اكتب الاسم..." autoFocus />
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">اسم التصنيف الفرعي</label>
+            <input className="input" value={editSubName} onChange={e => setEditSubName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && editSubName.trim()) editSubMut.mutate() }}
+              placeholder="اكتب الاسم..." autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">الكود (اختياري — للترتيب والتمييز)</label>
+            <input className="input font-mono" dir="ltr" value={editSubCode} onChange={e => setEditSubCode(e.target.value)}
+              placeholder="مثال: SUB-05" />
+          </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setEditSubId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => editSubMut.mutate()} disabled={!editSubName.trim() || editSubMut.isPending}
@@ -282,6 +313,11 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
             <input className="input" value={newSubName} onChange={e => setNewSubName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newSubName.trim()) addSubMut.mutate() }}
               placeholder="اكتب الاسم..." autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">الكود (اختياري — للترتيب والتمييز)</label>
+            <input className="input font-mono" dir="ltr" value={newSubCode} onChange={e => setNewSubCode(e.target.value)}
+              placeholder="مثال: SUB-05" />
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setNewSubCatId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
