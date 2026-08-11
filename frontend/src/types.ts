@@ -26,7 +26,7 @@ export interface Product {
   wholesale_price: number
   cost_price: number
   barcode: string | null
-  subcategory_id: string
+  subcategory_id: string | null
   image_url: string | null
   company?: string
   shelf_number?: string

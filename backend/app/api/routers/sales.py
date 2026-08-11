@@ -4,7 +4,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 from app.db.base import get_db
-from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate, UpdateSale, PartialReturnRequest
+from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate, UpdateSale, PartialReturnRequest, ConfirmQuotationRequest
 from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.product import Product
 from app.services import sale_service
@@ -131,10 +131,14 @@ async def create_quotation(data: SaleCreate, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/{sale_id}/confirm-quotation", response_model=SaleOut)
-async def confirm_quotation(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations", "sales"))):
-    """تحويل عرض السعر إلى فاتورة مبيعات مؤكدة."""
-    sale = await sale_service.confirm_quotation(db, sale_id, current_user.id)
-    await audit_log(db, "quotation", "confirm", current_user.id, current_user.full_name, sale_id, {}, "تأكيد عرض السعر")
+async def confirm_quotation(sale_id: uuid.UUID, data: ConfirmQuotationRequest | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("quotations", "sales"))):
+    """تحويل عرض السعر إلى فاتورة مبيعات مؤكدة — المقبوض يذهب إلى درج أو خزنة."""
+    sale = await sale_service.confirm_quotation(
+        db, sale_id, current_user.id,
+        destination=data.destination if data else "drawer",
+        safe_id=data.safe_id if data else None,
+    )
+    await audit_log(db, "quotation", "confirm", current_user.id, current_user.full_name, sale_id, {"destination": data.destination if data else "drawer"}, "تأكيد عرض السعر")
     return sale
 
 

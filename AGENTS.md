@@ -22,7 +22,46 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 
 ---
 
-## Latest Session: 2026-08-06
+## Latest Session: 2026-08-09
+
+### What Was Done
+
+1. **Fixed "deleting empty subcategory shows 'related to products' error":**
+   - Reported: subcategory "قطع 3/4 * 1/2" (المصرية الالمانية بولي) looked empty but deletion failed with "فشل الحذف — قد يكون التصنيف مرتبطاً بمنتجات"
+   - **Root cause:** `delete_subcategory` counted **only active products** (`is_active = true`); when 0 → deleted the subcategory, but `products.subcategory_id` was `NOT NULL` + FK `RESTRICT` → **soft-deleted products (`is_active=false`) still held the FK and blocked the underlying DB delete**, even though the UI showed the subcategory as empty (ProductForm deletes hide inactive products)
+   - Same bug in `delete_category` (counted active across joined subcategories)
+   - **Fix:**
+     - `backend/migrations/allow_null_subcategory.sql`: `ALTER TABLE products ALTER COLUMN subcategory_id DROP NOT NULL;` (applied to prod)
+     - `models/product.py`: `subcategory_id` → `Mapped[uuid.UUID | None]` + `nullable=True`
+     - `schemas/product.py`: `ProductOut.subcategory_id` → `Optional[uuid.UUID] = None`; `frontend/src/types.ts` `Product.subcategory_id` → `string | null`
+     - `products.py` `delete_subcategory` + `delete_category`: keep the active-count guard (blocks when active products exist), but **before deleting, detach inactive products** — `UPDATE products SET subcategory_id = NULL WHERE subcategory_id = :id AND is_active = false` (subcategory) / joined through subcategories for category
+   - Backend rebuilt + redeployed; `/health` OK
+   - **Verified live:** DELETE `/api/subcategories/6e264538-...` (قطع 1/2 * 3/4, 0 active / 18 inactive) → **204**; confirmed subcategory gone (0 rows), 0 products still linked, 18 detached inactive products retained. Guard still works: DELETE on "قطع 1 بوصة" (23 active) → **400** and subcategory intact
+   - `npx tsc --noEmit` passes (frontend types only; no frontend rebuild needed since detached products are inactive → never rendered)
+
+### Previous Session: 2026-08-08
+
+### What Was Done
+
+1. **Quotation confirm now asks where the money goes (درج أو خزنة):**
+   - User request: "لما أأكد عرض سعر عايز يسألني الفلوس تروح أي درج أو أي خزنة" — before confirming a quotation, prompt for the cash destination
+   - Chosen UX (asked user): prompt **before** confirm; "drawer" = the **user's own open shift** in the quotation's warehouse
+   - **Backend:**
+     - `schemas/sale.py`: added `ConfirmQuotationRequest { destination: Literal["drawer","safe"] = "drawer", safe_id: uuid | None }`
+     - `app/api/routers/sales.py:133`: `confirm-quotation` now accepts optional body → passes destination+safe_id to service
+     - `sale_service.confirm_quotation(db, sale_id, user_id, destination, safe_id)`: after converting quote → confirmed sale (deducts stock + archives), records the money:
+       - **drawer**: `DrawerTransaction(type=sale, amount=net_total, ref_id=sale.id, shift_id=<user's open shift in sale.warehouse_id>)` — errors if no open shift for user in that warehouse
+       - **safe**: deposits into the selected safe — `safe_deposits` row (DEP-{seq}), increments `safes.balance`, `safe_transactions` (tx_type=deposit), plus an `ArchivedDocument(doc_type=safe_deposit)`
+       - Credits are skipped (`if sale.net_total and not sale.is_credit`); `sale.paid_amount` set to net_total
+     - Uses `text` now imported at module level in sale_service.py (was only local)
+   - **Frontend:**
+     - New `frontend/src/pages/quotations/QuoteDestinationModal.tsx` — shows quote amount, two option cards (الدرج=ورديتي المفتوحة / الخزنة) + safe selector; drawer disabled when user has no open shift; defaults to drawer when shift exists, safe otherwise
+     - `quotations/QuotationsPage.tsx` — precheck passes → `setDestQuote(detail)` opens the destination modal instead of confirming directly; `confirmMut` now posts `{ destination, safe_id }` and only includes `safe_id` when destination==='safe' (important: empty string safe_id caused 422 uuid_parsing)
+     - Fetches `current-shift` (shiftsApi.current) + `safes` when the modal is open; invalidates `safes`/`shifts` after confirm
+   - Unit build germ: QuoteDestinationModal's `Modal` import was `../../../components/ui/Modal` (wrong depth for pages/quotations) → vite unresolved import → fixed to `../../components/ui/Modal`
+   - **Verified live (Playwright + API):** drawer path → drawer tx (sale, 77ج) in ammar's shift 212effcc; safe path → safe balance 18672.50→18727.50 + DEP doc + safe_transactions entry; confirmed sales status confirmed + paid_amount=net_total. Both flows confirmed through the deployed UI (modal visible, options & amount correct). All test rows deleted incl. safe balance revert (18672.50 restored)
+
+### Previous Session: 2026-08-06
 
 ### What Was Done
 
@@ -171,6 +210,7 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 | File | Role |
 |------|------|
 | `backend/migrations/typed_fk_columns.sql` | Typed FK columns (idempotent) |
+| `backend/migrations/allow_null_subcategory.sql` | `DROP NOT NULL` on products.subcategory_id so soft-deleted products can be detached before subcategory/category deletion (applied) |
 | `backend/migrations/add_category_codes.sql` | Add `code` to categories/subcategories (idempotent, applied) |
 | `backend/migrations/add_product_codes.sql` | Add `code` to products (idempotent, applied) |
 | `backend/migrations/cleanup_and_indexes.sql` | Duplicate FK cleanup + 53 missing indexes |
@@ -186,6 +226,8 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 | `frontend/src/pages/sales/SalesPage.tsx` | Clickable rows, detail modal with financial summary + pay |
 | `frontend/src/api/endpoints.ts` | `addPayment` with optional `sale_id` |
 | `backend/app/api/routers/ledger.py` | Daily ledger endpoint |
+| `frontend/src/pages/quotations/QuoteDestinationModal.tsx` | Destination picker (درج/خزنة) before quotation confirm |
+| `backend/app/schemas/sale.py` | `ConfirmQuotationRequest` (destination/safe_id) |
 | `frontend/src/App.tsx` | `FaviconUpdater` — updates all icon types |
 | `frontend/nginx.conf` | Rewrite rules for `/manifest.*` → backend |
 | `docker-compose.yml` | 4 services: db, backend, frontend, nginxpm |

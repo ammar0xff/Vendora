@@ -73,8 +73,8 @@ async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 @router.post("/balance/bulk")
 async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """POST body: list of product UUIDs. Returns {product_id: qty}."""
-    from sqlalchemy import func, case as sa_case
+    """POST body: list of product UUIDs. Returns {product_id: qty} plus a __tracked__ map."""
+    from sqlalchemy import func, case as sa_case, text as sqlt
     await verify_warehouse_access(db, current_user, warehouse_id)
     if not product_ids:
         return {}
@@ -88,7 +88,13 @@ async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID]
         .where(StockMovement.warehouse_id == warehouse_id, StockMovement.product_id.in_(product_ids))
         .group_by(StockMovement.product_id)
     )
-    return {str(row.product_id): float(row.qty) for row in result.all()}
+    out = {str(row.product_id): float(row.qty) for row in result.all()}
+    st_rows = (await db.execute(sqlt(
+        "SELECT product_id FROM warehouse_product_status WHERE warehouse_id=:wid AND status='tracked' AND product_id = ANY(:ids)"
+    ), {"wid": warehouse_id, "ids": list(product_ids)})).fetchall()
+    raised = {str(r[0]) for r in st_rows}
+    out["__tracked__"] = {str(pid): str(pid) in raised for pid in product_ids}
+    return out
 
 
 @router.post("/balance/total")

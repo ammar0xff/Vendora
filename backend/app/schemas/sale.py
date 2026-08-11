@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
-from typing import List
+from typing import List, Literal
 
 
 class SaleItemCreate(BaseModel):
@@ -72,6 +72,12 @@ class UpdateSale(BaseModel):
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
     notes: str | None = None
     customer_id: uuid.UUID | None = None
+
+
+class ConfirmQuotationRequest(BaseModel):
+    """وجهة فلوس عرض السعر عند التأكيد — درج (وردية مفتوحة) أو خزنة."""
+    destination: Literal["drawer", "safe"] = "drawer"
+    safe_id: uuid.UUID | None = None
 
 
 class PartialReturnItem(BaseModel):

@@ -106,7 +106,11 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
         "SELECT COUNT(*) FROM products p JOIN subcategories s ON s.id = p.subcategory_id WHERE s.category_id = :id AND p.is_active = true"
     ), {"id": cat_id})
     if count and count > 0:
-        raise BusinessError(f"لا يمكن حذف التصنيف — يوجد {count} منتج مرتبط به")
+        raise BusinessError(f"لا يمكن حذف التصنيف — يوجد {count} منتج نشط مرتبط به")
+    # Detach soft-deleted (inactive) products so FK RESTRICT doesn't block deletion
+    await db.execute(sqlt(
+        "UPDATE products p SET p.subcategory_id = NULL FROM subcategories s WHERE s.category_id = :id AND p.subcategory_id = s.id AND p.is_active = false"
+    ), {"id": cat_id})
     await db.delete(cat)
     await db.commit()
 
@@ -275,6 +279,8 @@ async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_d
     count = await db.scalar(sqlt("SELECT COUNT(*) FROM products WHERE subcategory_id = :id AND is_active = true"), {"id": sub_id})
     if count and count > 0:
         raise BusinessError(f"لا يمكن حذف التصنيف الفرعي — يوجد {count} منتج نشط مرتبط به")
+    # Detach soft-deleted (inactive) products so FK RESTRICT doesn't block deletion
+    await db.execute(sqlt("UPDATE products SET subcategory_id = NULL WHERE subcategory_id = :id AND is_active = false"), {"id": sub_id})
     await db.delete(sub)
     await db.commit()
 

@@ -79,7 +79,7 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(BaseModel):
     id: uuid.UUID
-    subcategory_id: uuid.UUID
+    subcategory_id: Optional[uuid.UUID] = None
     name: str
     code: Optional[str] = None
     barcode: Optional[str]

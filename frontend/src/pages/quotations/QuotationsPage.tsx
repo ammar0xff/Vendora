@@ -7,6 +7,8 @@ import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
 import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, TrendingUp, Edit2, Trash2 } from 'lucide-react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import QuoteDestinationModal from './QuoteDestinationModal'
+import { shiftsApi } from '../../api/endpoints'
 import { useAuthStore } from '../../store/auth'
 
 // ── Profit helpers ────────────────────────────────────────────────────────────
@@ -332,6 +334,7 @@ export default function QuotationsPage() {
   const [editItem, setEditItem] = useState<any>(null)
   const [search, setSearch] = useState('')
   const [confirmQuote, setConfirmQuote] = useState<any>(null)
+  const [destQuote, setDestQuote] = useState<any>(null)
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
   const qc = useQueryClient()
 
@@ -340,12 +343,31 @@ export default function QuotationsPage() {
     queryFn: () => salesApi.list({ status: 'quotation', limit: 100 }),
   })
 
+  const destWarehouseId = destQuote?.warehouse_id
+
+  const { data: currentShift } = useQuery({
+    queryKey: ['current-shift', destWarehouseId],
+    queryFn: () => shiftsApi.current(destWarehouseId!),
+    enabled: !!destWarehouseId,
+    retry: false,
+    throwOnError: false,
+  })
+
+  const { data: safes, isLoading: loadingSafes } = useQuery({
+    queryKey: ['safes'],
+    queryFn: () => api.get('/safes').then(r => r.data),
+    enabled: !!destQuote,
+  })
+
   const confirmMut = useMutation({
-    mutationFn: (id: string) => api.post(`/sales/${id}/confirm-quotation`).then(r => r.data),
+    mutationFn: (payload: { id: string; destination?: string; safe_id?: string }) =>
+      api.post(`/sales/${payload.id}/confirm-quotation`, { destination: payload.destination || 'drawer', safe_id: payload.safe_id }).then(r => r.data),
     onSuccess: (data) => {
       toast.success(`✅ تم تحويل عرض السعر إلى فاتورة ${data.invoice_number}`)
       qc.invalidateQueries({ queryKey: ['quotations'] })
       qc.invalidateQueries({ queryKey: ['sales'] })
+      qc.invalidateQueries({ queryKey: ['safes'] })
+      qc.invalidateQueries({ queryKey: ['shifts'] })
     },
     onError: (e: any) => {
       const detail = e.response?.data?.detail || 'فشل'
@@ -377,15 +399,16 @@ export default function QuotationsPage() {
         return
       }
       const balances = await stockApi.balanceBulk(warehouseId, productIds)
+      const trackedMap = (balances as any).__tracked__ || {}
       const insufficient = items.find((it: any) => {
         const bal = Number(balances?.[it.product_id] ?? 0)
-        return bal < Number(it.qty)
+        return trackedMap[it.product_id] !== false && bal < Number(it.qty)
       })
       if (insufficient) {
         toast.error(`⚠️ كمية غير كافية: ${insufficient.product_name || insufficient.name || 'صنف'} — متاح ${Number(balances?.[insufficient.product_id] ?? 0)}`)
         return
       }
-      confirmMut.mutate(id)
+      setDestQuote(detail)
     } catch (e: any) {
       toast.error(e.response?.data?.detail || 'فشل فحص المخزون')
     }
@@ -494,6 +517,19 @@ export default function QuotationsPage() {
         onConfirm={() => { if (confirmQuote) precheckAndConfirm(confirmQuote); setConfirmQuote(null) }}
         message="تحويل إلى فاتورة مؤكدة؟ سيتم خصم الكميات."
         confirmText="تحويل"
+      />
+      <QuoteDestinationModal
+        quote={destQuote}
+        show={!!destQuote}
+        onClose={() => setDestQuote(null)}
+        currentShift={currentShift}
+        safes={safes}
+        loadingSafes={loadingSafes}
+        isPending={confirmMut.isPending}
+        onConfirm={(destination, safeId) => {
+          if (destQuote?.id) confirmMut.mutate({ id: destQuote.id, destination, safe_id: destination === 'safe' ? safeId : undefined })
+          setDestQuote(null)
+        }}
       />
       <ConfirmDialog
         open={!!confirmDelete}

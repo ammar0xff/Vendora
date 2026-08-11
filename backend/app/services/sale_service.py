@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.shift import Shift, DrawerTransaction, DrawerTxType
@@ -71,8 +71,9 @@ async def create_quotation(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sal
     return result.scalar_one()
 
 
-async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
-    """Convert a quotation to a confirmed sale — deducts stock."""
+async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID,
+                            destination: str = "drawer", safe_id: uuid.UUID | None = None) -> Sale:
+    """Convert a quotation to a confirmed sale — deducts stock and records the cash destination (drawer/safe)."""
     result = await db.execute(select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
     if not sale:
@@ -113,6 +114,61 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
         created_by=user_id,
     )
     db.add(doc)
+
+    # ── Cash destination: drawer (user's open shift) or safe ─────────────
+    if sale.net_total and not sale.is_credit:
+        from app.models.shift import ShiftStatus
+        if destination == "safe":
+            if not safe_id:
+                raise BusinessError("يجب اختيار خزنة لإيداع المقبوضات")
+            safe = (await db.execute(
+                text("SELECT * FROM safes WHERE id=:id AND is_active=true FOR UPDATE"), {"id": safe_id}
+            )).one_or_none()
+            if not safe:
+                raise BusinessError("الخزنة غير موجودة")
+            seq = (await db.execute(text("SELECT nextval('invoice_seq')"))).scalar()
+            dep_doc = f"DEP-{seq:06d}"
+            await db.execute(text("""
+                INSERT INTO safe_deposits
+                    (safe_id, shift_id, warehouse_id, amount, deposited_by, deposited_by_name, notes, doc_number)
+                VALUES (:sid, :shift, :wh, :amt, :uid, :uname, :note, :doc)
+            """), {
+                "sid": safe_id, "shift": sale.shift_id, "wh": sale.warehouse_id,
+                "amt": float(sale.net_total), "uid": user_id,
+                "uname": (await db.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": user_id})).scalar() or "",
+                "note": f"تأكيد عرض سعر {sale.invoice_number}",
+                "doc": dep_doc,
+            })
+            await db.execute(text(
+                "UPDATE safes SET balance = balance + :amt WHERE id = :id"
+            ), {"amt": float(sale.net_total), "id": safe_id})
+            new_safe_balance = (await db.execute(text("SELECT balance FROM safes WHERE id=:id"), {"id": safe_id})).scalar()
+            await db.execute(text("""
+                INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
+                VALUES (:sid, 'deposit', :amt, :bal, :note, :uid)
+            """), {"sid": safe_id, "amt": float(sale.net_total), "bal": new_safe_balance,
+                    "note": f"تأكيد عرض سعر {sale.invoice_number}", "uid": user_id})
+            db.add(ArchivedDocument(
+                doc_type=DocType.safe_deposit,
+                doc_number=dep_doc, amount=sale.net_total, ref_id=sale.id, created_by=user_id))
+        else:
+            # drawer → user's own open shift in this warehouse
+            shift = (await db.execute(
+                select(Shift).where(
+                    Shift.warehouse_id == sale.warehouse_id,
+                    Shift.cashier_id == user_id,
+                    Shift.status == ShiftStatus.open,
+                ).order_by(Shift.started_at.desc()).limit(1)
+            )).scalar_one_or_none()
+            if not shift:
+                raise BusinessError("لا توجد وردية مفتوحة لك في هذا الفرع")
+            db.add(DrawerTransaction(
+                shift_id=shift.id, type=DrawerTxType.sale,
+                amount=sale.net_total, ref_id=sale.id, created_by=user_id,
+                note=f"تأكيد عرض سعر {sale.invoice_number}",
+            ))
+        sale.paid_amount = sale.net_total
+
     await db.commit()
     await db.refresh(sale)
     return sale
