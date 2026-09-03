@@ -30,11 +30,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("setup")
 
-REPO_ROOT = Path(__file__).parent.resolve()
+REPO_ROOT = Path(__file__).parent.parent.resolve()
 
 COMPOSE_FILE = REPO_ROOT / "docker-compose.yml"
-INIT_SQL = REPO_ROOT / "init_data.sql"
-DB_DUMP = REPO_ROOT / "eg_co_erp_db.dump"
+INIT_SQL = REPO_ROOT / "data" / "sql" / "init_data.sql"
+DB_DUMP = REPO_ROOT / "data" / "sql" / "eg_co_erp_db.dump"
 
 
 def check_prereqs() -> None:

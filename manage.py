@@ -71,8 +71,8 @@ class Settings:
     db_name: str = "inventory_db"
     db_user: str = "postgres"
     health_url: str = "http://localhost:8080/api/health"
-    init_sql: Path = field(default_factory=lambda: Path(__file__).parent / "init_data.sql")
-    migrate_py: Path = field(default_factory=lambda: Path(__file__).parent / "migrate.py")
+    init_sql: Path = field(default_factory=lambda: Path(__file__).parent / "data" / "sql" / "init_data.sql")
+    migrate_py: Path = field(default_factory=lambda: Path(__file__).parent / "scripts" / "migrate.py")
     frontend_dir: Path = field(default_factory=lambda: Path(__file__).parent / "frontend")
     verbose: bool = False
 
