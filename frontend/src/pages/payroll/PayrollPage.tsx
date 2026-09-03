@@ -229,6 +229,9 @@ function CsvImportSection() {
   return (
     <div className="card mb-5">
       <h3 className="font-bold text-slate-700 mb-3">📥 استيراد حضور من CSV</h3>
+      <p className="text-xs text-slate-400 mb-3" dir="rtl">
+        يدعم ملفات Jibble (Member / Date / Start time / End time) — يتطابق مع اسم الموظف تلقائياً
+      </p>
       <div className="flex items-center gap-3 flex-wrap">
         <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="text-sm" />
         <button onClick={doImport} disabled={!file || importing}

@@ -22,7 +22,23 @@ EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building suppli
 
 ---
 
-## Latest Session: 2026-08-09
+## Latest Session: 2026-08-11
+
+### What Was Done
+
+1. **Jibble attendance CSV import (free tier, no paid API):**
+   - User wants Jibble for attendance tracking but its **REST API requires a paid plan** — chose the free route: Jibble's timesheet **CSV export** → existing `POST /hr/attendance/import-csv`
+   - Upgraded the importer (`backend/app/api/routers/hr.py`):
+     - **Name-based matching**: Jibble exports `Member` full names (no codes). When no code column, matches `hr_employees.name` (case-insensitive, whitespace-stripped). Still supports `emp_code`/`employee code`/`uid`/`id` columns
+     - **Jibble-style headers** mapped: `member`/`name`/`full name`/`person` → emp_name; `start time`/`begin` and `end time`/`finish` → check_in/check_out (plus existing `check in`/`clock in`/`in`); `date`/`work date`/`start date`/`end date`; `status`/`state`. Header normalization strips `_`, `(`, `)`
+     - **Robust time parsing** `_parse_time()`: ISO with `Z`/`UTC`/offset, date+time formats, 12h `AM/PM` (`%I:%M %p`), 24h `%H:%M:%S`/`%H:%M`, and strict (Y|d/m) date formats
+   - **Fixed latent bug:** the insert used a `created_by` column that doesn't exist on `hr_attendance` → `UndefinedColumnError` 500. Removed it (table has no such column)
+   - Frontend: added hint under the CSV import card — "يدعم ملفات Jibble (Member / Date / Start time / End time) — يتطابق مع اسم الموظف تلقائياً"
+   - Backend + frontend rebuilt + redeployed; `/health` OK
+   - **Verified live:** imported a Jibble-style CSV (`Member,Date,Start Time,End Time,Duration`) for Ammar → `added:3`; rows stored with correct dates/times; also tested 12h `9:02:00 AM`/`5:31:00 PM` → parsed 09:02/17:31. All 4 test rows deleted afterward
+   - `npx tsc --noEmit` passes
+
+### Previous Session: 2026-08-09
 
 ### What Was Done
 

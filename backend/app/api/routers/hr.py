@@ -172,20 +172,26 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
 
     col_map = {}
     for h in reader.fieldnames:
-        hl = h.lower().strip()
-        if hl in ('employee_code', 'emp_code', 'uid', 'employee id', 'employee_id', 'emp id'):
+        hl = h.lower().strip().replace('_', ' ').replace('(', '').replace(')', '')
+        if hl in ('employee code', 'emp code', 'uid', 'employee id', 'employee', 'emp id', 'code', 'id', 'user id'):
             col_map[h] = 'emp_code'
-        elif hl in ('date', 'work_date', 'attendance_date', 'day'):
+        elif hl in ('member', 'name', 'employee name', 'full name', 'fullname', 'person'):
+            col_map[h] = 'emp_name' if 'emp_code' not in col_map.values() else 'note'
+        elif hl in ('date', 'work date', 'attendance date', 'day', 'clock in date', 'clock out date', 'start date', 'end date', 'workday'):
             col_map[h] = 'date'
-        elif hl in ('check_in', 'clock_in', 'time_in', 'in', 'checkin'):
+        elif hl in ('check in', 'clock in', 'time in', 'in', 'checkin', 'start time', 'start', 'begin'):
             col_map[h] = 'check_in'
-        elif hl in ('check_out', 'clock_out', 'time_out', 'out', 'checkout'):
+        elif hl in ('check out', 'clock out', 'time out', 'out', 'checkout', 'end time', 'end', 'finish'):
             col_map[h] = 'check_out'
-        elif hl in ('status', 'attendance_status'):
+        elif hl in ('status', 'attendance status', 'state'):
             col_map[h] = 'status'
 
-    if 'emp_code' not in col_map.values() or 'date' not in col_map.values():
-        raise HTTPException(400, f"CSV must have employee_code and date columns. Found: {reader.fieldnames}")
+    has_code = 'emp_code' in col_map.values()
+    has_name = 'emp_name' in col_map.values()
+    if 'date' not in col_map.values():
+        raise HTTPException(400, f"CSV must have a date column. Found: {reader.fieldnames}")
+    if not has_code and not has_name:
+        raise HTTPException(400, f"CSV must have an employee code or member name column. Found: {reader.fieldnames}")
 
     from datetime import date as _date, datetime as _dt
 
@@ -194,7 +200,8 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
 
     for row in reader:
         try:
-            emp_code = str(row.get([k for k, v in col_map.items() if v == 'emp_code'][0], '')).strip()
+            emp_code_raw = str(row.get([k for k, v in col_map.items() if v == 'emp_code'][0], '')).strip() if has_code else ''
+            emp_name_raw = str(row.get([k for k, v in col_map.items() if v == 'emp_name'][0], '')).strip() if has_name else ''
             date_str = str(row.get([k for k, v in col_map.items() if v == 'date'][0], '')).strip()
             check_in_raw = row.get([k for k, v in col_map.items() if v == 'check_in'][0], '').strip() if 'check_in' in col_map.values() else ''
             check_out_raw = row.get([k for k, v in col_map.items() if v == 'check_out'][0], '').strip() if 'check_out' in col_map.values() else ''
@@ -203,44 +210,77 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
             skipped += 1
             continue
 
-        if not emp_code or not date_str:
+        if not (emp_code_raw or emp_name_raw) or not date_str:
             skipped += 1
             continue
 
-        emp = (await db.execute(text("SELECT id FROM hr_employees WHERE emp_code=:code"), {"code": emp_code})).fetchone()
+        emp = None
+        if emp_code_raw:
+            emp = (await db.execute(text("SELECT id FROM hr_employees WHERE emp_code=:code"), {"code": emp_code_raw})).fetchone()
+        if not emp and emp_name_raw:
+            emp = (await db.execute(text(
+                "SELECT id FROM hr_employees WHERE is_active=TRUE AND LOWER(REPLACE(name,' ',''))=LOWER(REPLACE(:n,' ',''))"
+            ), {"n": emp_name_raw})).fetchone()
         if not emp:
-            errors.append(f"رمز '{emp_code}' غير موجود")
+            errors.append(f"الموظف غير موجود: {emp_name_raw or emp_code_raw}")
             skipped += 1
             continue
 
         try:
             work_date = _date.fromisoformat(date_str[:10])
         except ValueError:
-            errors.append(f"تاريخ غير صالح '{date_str}'")
-            skipped += 1
-            continue
-
-        check_in = None
-        if check_in_raw:
-            try:
-                check_in = _dt.fromisoformat(check_in_raw.replace('Z', '+00:00').replace(' ', 'T')).replace(tzinfo=None)
-            except ValueError:
+            parsed_d = None
+            for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%b %d %Y", "%d %b %Y", "%b %d, %Y", "%d %b, %Y", "%Y/%m/%d"):
                 try:
-                    check_in = _dt.strptime(check_in_raw.strip(), '%H:%M').time()
-                    check_in = _dt.combine(work_date, check_in)
+                    parsed_d = _dt.strptime(date_str.strip(), fmt).date()
+                    break
                 except ValueError:
-                    errors.append(f"وقت غير صالح '{check_in_raw}'")
+                    continue
+            if not parsed_d:
+                errors.append(f"تاريخ غير صالح '{date_str}'")
+                skipped += 1
+                continue
+            work_date = parsed_d
 
-        check_out = None
-        if check_out_raw:
+        def _parse_time(raw: str):
+            """Jibble/CSV times come in many shapes: ISO, %H:%M, %H:%M:%S, 12h AM/PM. Returns tz-naive datetime or None."""
+            s = str(raw).strip()
+            if not s:
+                return None
+            # Strip UTC designators / timezone offsets for ISO parsing
+            c = s.replace('Z', '+00:00').replace('UTC', '+00:00')
+            c = c.replace(' (UTC)', '').replace('(UTC)', '')
+            if 'T' not in c:
+                parts = c.split(' ')
+                if any((':' in p and any(ch.isdigit() for ch in p[:2])) for p in parts[1:]) or (len(parts) == 1 and ':' in c):
+                    if len(parts) >= 2 and ':' not in parts[0]:
+                        c = parts[0] + 'T' + ' '.join(parts[1:])
             try:
-                check_out = _dt.fromisoformat(check_out_raw.replace('Z', '+00:00').replace(' ', 'T')).replace(tzinfo=None)
+                return _dt.fromisoformat(c).replace(tzinfo=None)
             except ValueError:
+                pass
+            # Date-time formats
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
+                        "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M"):
                 try:
-                    check_out = _dt.strptime(check_out_raw.strip(), '%H:%M').time()
-                    check_out = _dt.combine(work_date, check_out)
+                    return _dt.strptime(s, fmt)
                 except ValueError:
-                    errors.append(f"وقت غير صالح '{check_out_raw}'")
+                    continue
+            # Time-only formats → combine with work_date
+            for fmt in ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%I:%M:%S%p", "%I:%M%p"):
+                try:
+                    parsed = _dt.strptime(s, fmt)
+                    return _dt.combine(work_date, parsed.time())
+                except ValueError:
+                    continue
+            return None
+
+        check_in = _parse_time(check_in_raw) if check_in_raw else None
+        check_out = _parse_time(check_out_raw) if check_out_raw else None
+        if check_in_raw and check_in is None:
+            errors.append(f"وقت غير صالح '{check_in_raw}'")
+        if check_out_raw and check_out is None:
+            errors.append(f"وقت غير صالح '{check_out_raw}'")
 
         status = status_raw.lower() if status_raw else 'present'
 
@@ -258,8 +298,8 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
             updated += 1
         else:
             await db.execute(text(
-                "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status, created_by) VALUES (:e,:d,:ci,:co,:st,:by)"
-            ), {"e": emp[0], "d": work_date, "ci": check_in, "co": check_out, "st": status, "by": current_user.id})
+                "INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status) VALUES (:e,:d,:ci,:co,:st)"
+            ), {"e": emp[0], "d": work_date, "ci": check_in, "co": check_out, "st": status})
             added += 1
 
     await db.commit()
