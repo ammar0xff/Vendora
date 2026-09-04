@@ -1,4 +1,4 @@
-# EG-CO ERP — نظام إدارة متجر سباكة ومواد بناء
+# Vendora — نظام إدارة متجر سباكة ومواد بناء
 
 نظام ERP متكامل **متعدد الفروع** لمتجر سباكة ومواد بناء، يشمل **POS**, **مخزون**, **مبيعات**, **مشتريات**, **مالية/محاسبة**, **HR ورواتب**, و **ورديات** لكل فرع.
 
@@ -38,7 +38,7 @@
 
 ```bash
 # 1. أدخل الدليل
-cd eg-co-erp
+cd Vendora
 
 # 2. شغّل النظام بالكامل (db + backend + frontend)
 docker compose up -d --build
@@ -72,7 +72,7 @@ bash install.sh
 ## 📁 Structure
 
 ```
-eg-co-erp/
+Vendora/
 ├── backend/                  # FastAPI server
 │   ├── app/
 │   │   ├── api/routers/      # 27 endpoint files

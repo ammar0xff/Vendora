@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default capabilities for EG-CO ERP",
+  "description": "Default capabilities for Vendora",
   "windows": ["main"],
   "permissions": [
     "core:default",

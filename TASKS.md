@@ -1,4 +1,4 @@
-# EG-CO ERP — Tasks & Status
+# Vendora — Tasks & Status
 
 > آخر تحديث: 2026-05-21 (جلسة Offline + Android + Desktop)
 > Stack: FastAPI · PostgreSQL · React 19 · TypeScript · Tailwind · Vite · Docker

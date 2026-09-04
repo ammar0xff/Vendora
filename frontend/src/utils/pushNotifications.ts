@@ -46,7 +46,7 @@ export async function registerForPushNotifications(): Promise<void> {
       if (Capacitor.getPlatform() === 'android') {
         PushNotifications.createChannel({
           id: 'egco-erp',
-          name: 'EG-CO ERP',
+          name: 'Vendora',
           importance: 4,
           vibration: true,
         });

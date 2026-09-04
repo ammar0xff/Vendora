@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "EG-CO ERP",
+  "productName": "Vendora",
   "version": "0.1.0",
   "identifier": "com.egco.erp",
   "build": {
@@ -9,7 +9,7 @@
   "app": {
     "windows": [
       {
-        "title": "EG-CO ERP",
+        "title": "Vendora",
         "width": 1280,
         "height": 800,
         "resizable": true,

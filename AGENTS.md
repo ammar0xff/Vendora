@@ -6,7 +6,7 @@
 
 ## Project Overview
 
-EG-CO ERP — POS + Inventory + Accounting system for a plumbing/building supplies store.
+Vendora — POS + Inventory + Accounting system for a plumbing/building supplies store.
 - **Stack:** FastAPI (Python 3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind CSS · Vite · Docker
 - **Platforms:** Web PWA + Android (Capacitor) + Desktop (Tauri)
 - **Deployment:** Docker Compose (db, backend, frontend:8080, nginxpm:80/443/81)

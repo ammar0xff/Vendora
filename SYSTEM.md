@@ -1,4 +1,4 @@
-# EG-CO ERP — خريطة النظام الكاملة
+# Vendora — خريطة النظام الكاملة
 
 > تاريخ: 2026-06-24  
 > Stack: FastAPI (Python 3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind CSS · Vite · Docker  

@@ -329,7 +329,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {/* Sidebar footer */}
             <div className="border-t border-slate-100 p-3">
               <div className="text-[10px] text-slate-400 text-center">
-                EG-CO ERP v1.0
+                Vendora v1.0
               </div>
             </div>
           </aside>

@@ -358,7 +358,7 @@ console.debug('FCM token registered length:', token.value.length)
 // Create channel once during init.
 if (Capacitor.getPlatform() === 'android') {
   PushNotifications.createChannel({
-    id: 'egco-erp', name: 'EG-CO ERP', importance: 4, vibration: true,
+    id: 'egco-erp', name: 'Vendora', importance: 4, vibration: true,
   }).catch(() => {})
 }
 ```

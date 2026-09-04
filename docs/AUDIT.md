@@ -1,4 +1,4 @@
-# EG-CO ERP — Full Repository Audit Report
+# Vendora — Full Repository Audit Report
 
 > **Date:** 2026-07-19 (latest update)
 > **Scope:** Full codebase audit — correctness, performance, security, business logic, DX

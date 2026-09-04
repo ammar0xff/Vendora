@@ -2,7 +2,7 @@
 inclusion: always
 ---
 
-# EG-CO ERP — Project Context
+# Vendora — Project Context
 
 ## Stack
 - **Backend**: FastAPI (Python 3.13) + SQLAlchemy async + PostgreSQL 16 + Alembic
