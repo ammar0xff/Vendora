@@ -94,6 +94,21 @@ function mockUseQuery(impl: (opts: { queryKey: unknown[] }) => QueryResult) {
   _useQueryImpl = impl
 }
 
+/**
+ * Match an element whose full textContent (including nested spans) contains the
+ * given price amount plus the EGP currency symbol. The on-screen price renders
+ * as "<amount> <span>ج.م</span>", so the amount and symbol live in different
+ * DOM nodes — RTL's default `content` only sees direct text, hence the
+ * `textContent`-based matcher scoped to the price <p>.
+ */
+function priceTextMatcher(amount: string) {
+  return (_content: string, element: Element | null) => {
+    if (!element || element.tagName !== 'P') return false
+    const text = element.textContent ?? ''
+    return text.includes(amount) && text.includes('ج.م')
+  }
+}
+
 vi.mock('@tanstack/react-query', () => ({
   useQuery: (opts: { queryKey: unknown[] }) => _useQueryImpl(opts),
 }))
@@ -521,9 +536,9 @@ describe('Back navigation Level 3 → Level 2', () => {
     expect(screen.getByText('منتج 3')).toBeTruthy()
 
     // Subcategory buttons are gone
-    expect(screen.queryByText('فرعي أ1')).toBeNull()
-    expect(screen.queryByText('فرعي أ2')).toBeNull()
-    expect(screen.queryByText('فرعي أ3')).toBeNull()
+    expect(screen.queryByRole('button', { name: /فرعي أ1/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /فرعي أ2/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /فرعي أ3/ })).toBeNull()
 
     // Level 3 breadcrumb shows category name in the first breadcrumb slot
     // <span className="text-xs font-bold text-slate-600">{selectedCat?.name}</span>
@@ -674,11 +689,11 @@ describe('Price display — respects mode prop', () => {
 
     // retail_price = 100 → rendered as ar-EG locale string + ج.م
     const expectedPrice = (100).toLocaleString('ar-EG')
-    expect(screen.getByText((content) => content.includes(expectedPrice) && content.includes('ج.م'))).toBeTruthy()
+    expect(screen.getByText(priceTextMatcher(expectedPrice))).toBeTruthy()
 
     // wholesale_price = 75 should NOT appear
     const unexpectedPrice = (75).toLocaleString('ar-EG')
-    const priceEl = screen.queryByText((content) => content.includes(unexpectedPrice) && content.includes('ج.م'))
+    const priceEl = screen.queryByText(priceTextMatcher(unexpectedPrice))
     expect(priceEl).toBeNull()
   })
 
@@ -692,11 +707,11 @@ describe('Price display — respects mode prop', () => {
 
     // wholesale_price = 75 → rendered as ar-EG locale string + ج.م
     const expectedPrice = (75).toLocaleString('ar-EG')
-    expect(screen.getByText((content) => content.includes(expectedPrice) && content.includes('ج.م'))).toBeTruthy()
+    expect(screen.getByText(priceTextMatcher(expectedPrice))).toBeTruthy()
 
     // retail_price = 100 should NOT appear as a price (it would only show if fallback kicked in)
     const unexpectedPrice = (100).toLocaleString('ar-EG')
-    const priceEl = screen.queryByText((content) => content.includes(unexpectedPrice) && content.includes('ج.م'))
+    const priceEl = screen.queryByText(priceTextMatcher(unexpectedPrice))
     expect(priceEl).toBeNull()
   })
 
@@ -710,6 +725,6 @@ describe('Price display — respects mode prop', () => {
 
     // wholesale_price = 0 → falsy → falls back to retail_price = 200
     const expectedPrice = (200).toLocaleString('ar-EG')
-    expect(screen.getByText((content) => content.includes(expectedPrice) && content.includes('ج.م'))).toBeTruthy()
+    expect(screen.getByText(priceTextMatcher(expectedPrice))).toBeTruthy()
   })
 })
