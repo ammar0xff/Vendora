@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost",
         "https://eg-co.duckdns.org",
+        "https://ammar0xff.github.io",
     ]
     IS_PRODUCTION: bool = False
     # ⚠️ CORS_ORIGINS must NOT contain wildcard ("*") when credentials are enabled

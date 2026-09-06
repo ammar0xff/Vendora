@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: process.env.VITE_BASE || '/',
   build: { sourcemap: !process.env.CI },
   test: {
     environment: 'jsdom',

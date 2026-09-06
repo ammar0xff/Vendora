@@ -1,12 +1,12 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 
-const isNative = typeof window !== 'undefined' &&
-  (window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:')
-
-const BASE_URL = isNative
-  ? (import.meta.env.VITE_API_URL || '') + '/api'
-  : '/api'
+// VITE_API_URL (no trailing slash) drives the API root when provided; otherwise
+// keep the same-origin reverse-proxy path (/api) used by the self-hosted nginx
+// and native Capacitor builds (server.url points at the backend). This lets a
+// pure-static GitHub Pages build target a separate backend without a proxy.
+const apiRoot = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+const BASE_URL = apiRoot ? `${apiRoot}/api` : '/api'
 
 const api = axios.create({
   baseURL: BASE_URL,
