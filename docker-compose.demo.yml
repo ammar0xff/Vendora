@@ -1,0 +1,66 @@
+# Vendora Beta demo compose — builds from source (used by Codespaces devcontainer).
+#
+#   docker compose -f docker-compose.demo.yml up -d
+#
+# Runs db + backend + frontend with seeded demo data and omits nginx-proxy-manager.
+# Uses a fixed demo SECRET_KEY — for evaluation/demo only, not production.
+#
+# A prebuilt-image variant lives in docker-compose.beta.yml (pulls ghcr io images).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - demo_pgdata:/var/lib/postgresql/data
+      - ./data/sql/init_data.sql:/docker-entrypoint-initdb.d/init_data.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/inventory_db
+      SECRET_KEY: ${SECRET_KEY:-demo-beta-change-this-key-00000000000000000000}
+    volumes:
+      - demo_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  demo_pgdata:
+  demo_uploads:

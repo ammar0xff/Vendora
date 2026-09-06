@@ -1,5 +1,7 @@
 # Vendora
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ammar0xff/Vendora)
+
 Multi-branch ERP for a plumbing and building-supplies business: point of sale, inventory, sales and quotations,
 purchasing, accounting, HR/payroll, and per-branch shift management.
 
@@ -60,6 +62,58 @@ open http://localhost:8080
 ```
 
 On first boot, PostgreSQL runs `data/sql/init_data.sql`, which seeds the default users, roles, and categories.
+
+## Try the beta
+
+Three ways to evaluate a live beta build.
+
+### 1. GitHub Codespaces (zero-setup web demo)
+
+Open this repository on GitHub and click **Code → Codespaces → Create codespace on main** (or open
+<https://github.com/ammar0xff/Vendora> and press `.`). The Codespaces devcontainer boots `db + backend + frontend`,
+seeds the demo data, and auto-forwards port **8080** — no Docker or installs on your machine.
+
+Open <http://localhost:8080> when the codespace is ready and log in with the demo credentials below.
+
+### 2. Prebuilt beta Docker images (self-host)
+
+Every push to `main` builds and pushes `vendora-backend:beta` and `vendora-frontend:beta` to GitHub Container
+Registry (`ghcr.io/ammar0xff`). Run the demo without building anything:
+
+```bash
+git clone https://github.com/ammar0xff/Vendora.git
+cd Vendora
+docker compose -f docker-compose.beta.yml up -d
+# open http://localhost:8080  — login with demo credentials below
+```
+
+> First push: set `ghcr.io/ammar0xff/vendora-backend` and `.../vendora-frontend` to **Public** on
+> `github.com/ammar0xff/packages` once — otherwise pulling the beta images requires `docker login ghcr.io`.
+
+To build from source instead of pulling images, use the demo compose:
+
+```bash
+docker compose -f docker-compose.demo.yml up -d --build
+```
+
+### 3. GitHub Release installers (desktop + Android)
+
+Tag a version on `main` and CI builds the desktop installers (Linux `.deb/.AppImage`, Windows `.exe/.msi`,
+macOS `.dmg`) and an Android APK, then attaches them to a GitHub Release (always created as pre-release for a beta):
+
+```bash
+git tag v0.9.0-beta.1
+git push origin v0.9.0-beta.1
+```
+
+Download the installers from the resulting **Releases** page.
+
+### Demo login
+
+Same seeded credentials everywhere (Codespaces, beta images, installers) — see the [Default login](#default-login) table below.
+
+> Reset the demo database by deleting the compose volume (`docker compose -f docker-compose.beta.yml down -v`).
+> These are demo builds with a fixed `SECRET_KEY` — never publish the beta images for production use.
 
 ### Default login
 
@@ -199,8 +253,10 @@ The stack runs as four containers: `db`, `backend` (internal :8000), `frontend` 
 1. **Frontend CI** - `tsc --noEmit`, ESLint, Vitest unit tests, production build.
 2. **Backend CI** - byte-compiles all Python, `ruff` lint.
 3. **Manage check** - imports `manage.py` and renders `--help`.
-4. On `v*` tags only: Tauri desktop builds (Linux / Windows / macOS), Android APK via Gradle, and Docker images push to
-   Docker Hub.
+4. On **every `main`/`master` push**: builds `vendora-backend:beta` / `vendora-frontend:beta` and pushes them to
+   GitHub Container Registry (`ghcr.io`) for the self-host beta demo.
+5. On **`v*` tags only**: Tauri desktop builds (Linux / Windows / macOS), Android APK via Gradle, and stable Docker
+   images pushed to Docker Hub.
 
 ## Testing
 
