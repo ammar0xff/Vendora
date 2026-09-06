@@ -1,4 +1,4 @@
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[tauri::command]
 fn is_online() -> bool {
