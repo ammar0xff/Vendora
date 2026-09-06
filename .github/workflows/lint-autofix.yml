@@ -16,9 +16,14 @@ jobs:
       - name: Install ruff
         working-directory: backend
         run: pip install ruff==0.16.6
-      - name: Run ruff safe autofix
+      - name: Run ruff safe autofix (non-fatal)
         working-directory: backend
-        run: ruff check . --fix
+        run: ruff check . --fix || true
+      - name: Capture remaining-error statistics
+        working-directory: backend
+        run: |
+          ruff check . --statistics 2>&1 | tail -30 || true
+          echo "REMSTAT_DONE"
       - name: Commit and push
         run: |
           git config user.name 'github-actions[bot]'
