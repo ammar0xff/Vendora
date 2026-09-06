@@ -1,0 +1,19 @@
+target-version = "py312"
+line-length = 120
+
+[lint]
+select = ["E", "F", "W", "B", "I", "UP", "C4", "SIM", "RUF"]
+ignore = ["BLE001", "RUF013"]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.File",
+    "fastapi.Body",
+    "app.dependencies.require_perm",
+    "app.schemas.purchase.PurchaseReceive",
+]
+
+[lint.isort]
+known-first-party = ["app"]

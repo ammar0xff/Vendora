@@ -242,7 +242,7 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
                 continue
             work_date = parsed_d
 
-        def _parse_time(raw: str):
+        def _parse_time(raw: str, work_date):
             """Jibble/CSV times come in many shapes: ISO, %H:%M, %H:%M:%S, 12h AM/PM. Returns tz-naive datetime or None."""
             s = str(raw).strip()
             if not s:
@@ -275,8 +275,8 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
                     continue
             return None
 
-        check_in = _parse_time(check_in_raw) if check_in_raw else None
-        check_out = _parse_time(check_out_raw) if check_out_raw else None
+        check_in = _parse_time(check_in_raw, work_date) if check_in_raw else None
+        check_out = _parse_time(check_out_raw, work_date) if check_out_raw else None
         if check_in_raw and check_in is None:
             errors.append(f"وقت غير صالح '{check_in_raw}'")
         if check_out_raw and check_out is None:
@@ -701,6 +701,7 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     if '/app' not in sys.path:
         sys.path.insert(0, '/app')
     from report_generator import ReportGenerator
+    from models import Employee, Attendance
     from app.services.payroll_engine import calculate_payroll
 
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}

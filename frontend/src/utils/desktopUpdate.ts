@@ -28,11 +28,12 @@ export async function checkForDesktopUpdates(): Promise<void> {
             contentLength = event.data.contentLength || 0;
             console.log(`Downloading update (${contentLength} bytes)...`);
             break;
-          case 'Progress':
+          case 'Progress': {
             downloaded += event.data.chunkLength;
             const pct = contentLength ? Math.round(downloaded / contentLength * 100) : 0;
             console.log(`Download progress: ${pct}%`);
             break;
+          }
           case 'Finished':
             console.log('Download complete, installing...');
             break;

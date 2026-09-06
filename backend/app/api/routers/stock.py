@@ -148,6 +148,7 @@ async def reset_warehouse_stock(
 ):
     """Delete all stock movements for a warehouse (reset inventory)."""
     from sqlalchemy import text as sqlt
+    from app.core.exceptions import BusinessError
     count = (await db.execute(sqlt("SELECT COUNT(*) FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})).scalar() or 0
     if count > 1000:
         raise BusinessError(f"لا يمكن إعادة تعيين {count} حركة — تجاوز الحد الأقصى")

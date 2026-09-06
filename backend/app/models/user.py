@@ -1,10 +1,13 @@
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, Boolean, DateTime, func, ForeignKey, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.warehouse import Warehouse
 
 
 user_warehouses = Table(

@@ -576,6 +576,7 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
     from app.models.archive import ArchivedDocument, DocType
     from app.models.shift import DrawerTransaction, DrawerTxType
     from datetime import datetime, timezone
+    from sqlalchemy import text as sqlt
 
     orig = (await db.execute(select(Sale).options(sil(Sale.items)).where(Sale.id == sale_id).with_for_update())).scalar_one_or_none()
     if not orig:

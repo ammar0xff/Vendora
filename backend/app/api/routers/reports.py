@@ -14,7 +14,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 
 
 @router.get("/sales/daily")
-async def daily_sales(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def daily_sales(target_date: date = Query(default_factory=date.today), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     return await report_service.daily_sales(db, target_date, warehouse_id=warehouse_id)
 
@@ -111,7 +111,7 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
 
 
 @router.get("/ledger/daily-items")
-async def daily_items(target_date: date = Query(default=date.today()), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def daily_items(target_date: date = Query(default_factory=date.today), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Daily ledger: each product sold with qty, price, total, returns, expenses."""
     from datetime import datetime
     from sqlalchemy import text as sqlt

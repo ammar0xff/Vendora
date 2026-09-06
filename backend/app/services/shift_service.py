@@ -2,10 +2,14 @@ import uuid
 import json
 from decimal import Decimal
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text as sqlt
 from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
 from app.core.exceptions import BusinessError, NotFoundError, ForbiddenError
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 async def _find_employee_by_user_id(db: AsyncSession, user_id: uuid.UUID):
