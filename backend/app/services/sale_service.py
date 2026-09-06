@@ -1,14 +1,17 @@
 import uuid
+from datetime import UTC
 from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+from app.core.exceptions import BusinessError
 from app.models.sale import Sale, SaleItem, SaleStatus
-from app.models.shift import Shift, DrawerTransaction, DrawerTxType
+from app.models.shift import DrawerTransaction, DrawerTxType, Shift
 from app.models.stock import MovementType, StockMovement
 from app.schemas.stock import StockMovementCreate
-from app.services.stock_service import record_movement, get_balance
-from app.core.exceptions import BusinessError
+from app.services.stock_service import get_balance, record_movement
 
 
 async def _invoice_number(db) -> str:
@@ -504,7 +507,7 @@ async def return_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
 async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) -> Sale:
     from sqlalchemy import text as sqlt
-    from app.models.payment_wallet import PaymentWallet
+
 
     result = await db.execute(select(Sale).where(Sale.id == sale_id).with_for_update())
     sale = result.scalar_one_or_none()
@@ -569,14 +572,16 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
 
 
 async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, current_user_id: uuid.UUID) -> dict:
+    from datetime import datetime
+
+    from sqlalchemy import text as sqlt
     from sqlalchemy.orm import selectinload as sil
-    from app.models.stock import MovementType, StockMovement
-    from app.schemas.stock import StockMovementCreate
-    from app.services.stock_service import record_movement
+
     from app.models.archive import ArchivedDocument, DocType
     from app.models.shift import DrawerTransaction, DrawerTxType
-    from datetime import datetime, timezone
-    from sqlalchemy import text as sqlt
+    from app.models.stock import MovementType
+    from app.schemas.stock import StockMovementCreate
+    from app.services.stock_service import record_movement
 
     orig = (await db.execute(select(Sale).options(sil(Sale.items)).where(Sale.id == sale_id).with_for_update())).scalar_one_or_none()
     if not orig:
@@ -599,7 +604,7 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
     for pr in prior_returns:
         already_returned[str(pr.product_id)] = Decimal(str(pr.ret_qty))
 
-    ret = Sale(invoice_number="RET-" + datetime.now(timezone.utc).strftime('%m%d%H%M%S'),
+    ret = Sale(invoice_number="RET-" + datetime.now(UTC).strftime('%m%d%H%M%S'),
                customer_id=orig.customer_id, warehouse_id=orig.warehouse_id,
                cashier_id=current_user_id, shift_id=data.get("shift_id") or orig.shift_id,
                sale_mode=orig.sale_mode, status=SaleStatus.returned,
@@ -675,8 +680,9 @@ async def partial_return_sale(db: AsyncSession, sale_id: uuid.UUID, data: dict, 
 
 async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.UUID, data, current_user_id: uuid.UUID, current_user_full_name: str) -> dict:
     from sqlalchemy import text as sqlt
-    from app.models.shift import DrawerTransaction, DrawerTxType
+
     from app.core.exceptions import NotFoundError
+    from app.models.shift import DrawerTransaction, DrawerTxType
 
     new_qty = data.qty
 
@@ -739,8 +745,9 @@ async def update_sale_item_qty(db: AsyncSession, sale_id: uuid.UUID, item_id: uu
 
 async def delete_sale_item(db: AsyncSession, sale_id: uuid.UUID, item_id: uuid.UUID, current_user_id: uuid.UUID) -> dict:
     from sqlalchemy import text as sqlt
-    from app.models.shift import DrawerTransaction, DrawerTxType
+
     from app.core.exceptions import NotFoundError
+    from app.models.shift import DrawerTransaction, DrawerTxType
 
     item_row = await db.execute(sqlt(
         "SELECT si.*, s.warehouse_id, s.shift_id, s.status as sale_status, p.stock_status FROM sale_items si "

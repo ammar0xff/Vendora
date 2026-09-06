@@ -1,12 +1,15 @@
+import uuid
+from datetime import datetime
+
 from fastapi import Depends
 from fastapi.responses import HTMLResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
 from app.dependencies import get_print_user
-from . import router, get_settings, _make_pdf, wrap, top_band, ar_egp, ar_num, fmt_date, fmt_dt
-from datetime import datetime
-import uuid
+
+from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, router, top_band, wrap
 
 
 @router.get("/sale/{sale_id}", response_class=HTMLResponse)

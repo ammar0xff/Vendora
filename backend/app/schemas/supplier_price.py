@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -11,15 +11,15 @@ class SupplierPriceCreate(BaseModel):
     price: Decimal = Field(gt=0)
     currency: str = "EGP"
     min_qty: Decimal = Field(default=1, ge=1)
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class SupplierPriceUpdate(BaseModel):
-    price: Optional[Decimal] = Field(None, gt=0)
-    currency: Optional[str] = None
-    min_qty: Optional[Decimal] = Field(None, ge=1)
-    notes: Optional[str] = None
-    is_active: Optional[bool] = None
+    price: Decimal | None = Field(None, gt=0)
+    currency: str | None = None
+    min_qty: Decimal | None = Field(None, ge=1)
+    notes: str | None = None
+    is_active: bool | None = None
 
 
 class SupplierPriceOut(BaseModel):
@@ -29,8 +29,8 @@ class SupplierPriceOut(BaseModel):
     price: Decimal
     currency: str
     min_qty: Decimal
-    last_purchase_date: Optional[datetime]
-    notes: Optional[str]
+    last_purchase_date: datetime | None
+    notes: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime

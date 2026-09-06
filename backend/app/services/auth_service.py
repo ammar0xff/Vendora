@@ -1,8 +1,9 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models.user import User
-from app.core.security import verify_password, create_access_token, hash_password
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import create_access_token, hash_password, verify_password
+from app.models.user import User
 
 
 async def authenticate(db: AsyncSession, username: str, password: str) -> User:
@@ -20,9 +21,10 @@ def issue_token(user: User) -> dict:
 
 
 async def create_user(db: AsyncSession, data) -> User:
-    from app.core.roles import ROLE_DEFAULT_PERMISSIONS
-    from sqlalchemy.exc import IntegrityError
     from fastapi import HTTPException
+    from sqlalchemy.exc import IntegrityError
+
+    from app.core.roles import ROLE_DEFAULT_PERMISSIONS
     if len(data.password) < 8:
         raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 8 أحرف على الأقل")
     user = User(

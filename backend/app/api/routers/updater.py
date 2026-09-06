@@ -1,10 +1,10 @@
 import json
 import os
 from pathlib import Path
-from packaging.version import Version
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from packaging.version import Version
 
 router = APIRouter(prefix="/updater", tags=["updater"])
 
@@ -15,7 +15,7 @@ def _load_manifest():
     manifest_path = UPDATES_DIR / "manifest.json"
     if not manifest_path.exists():
         raise HTTPException(status_code=404, detail="No updates available")
-    with open(manifest_path, "r", encoding="utf-8") as f:
+    with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
 
 

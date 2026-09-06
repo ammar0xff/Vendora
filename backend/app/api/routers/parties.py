@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from decimal import Decimal
-from app.db.base import get_db
-from app.models.party import Customer
-from app.models.sale import Sale, SaleItem, SaleStatus
-from app.models.customer_payment import CustomerPayment
-from app.dependencies import get_current_user, require_perm
-from app.models.user import User
-from app.core.exceptions import NotFoundError
-from app.services.audit_service import log as audit_log
-from app.schemas.party import CustomerCreate, CustomerUpdate, CustomerPaymentCreate, SetBalanceRequest
 import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import NotFoundError
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_perm
+from app.models.customer_payment import CustomerPayment
+from app.models.party import Customer
+from app.models.sale import Sale, SaleStatus
+from app.models.user import User
+from app.schemas.party import CustomerCreate, CustomerPaymentCreate, CustomerUpdate, SetBalanceRequest
+from app.services.audit_service import log as audit_log
 
 router = APIRouter(tags=["parties"])
 
@@ -233,7 +234,7 @@ async def add_payment(cid: uuid.UUID, data: CustomerPaymentCreate, db: AsyncSess
 
     # Also record in the cash drawer if the user has an open shift
     # Use the sale's warehouse to pick the correct shift when sale_id is provided
-    from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
+    from app.models.shift import DrawerTransaction, DrawerTxType, Shift, ShiftStatus
     shift_query = select(Shift).where(
         Shift.cashier_id == current_user.id,
         Shift.status == ShiftStatus.open,

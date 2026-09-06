@@ -1,14 +1,16 @@
-from datetime import date, datetime, timezone
+import uuid
+from datetime import UTC, date, datetime
+
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
 from app.db.base import get_db
+from app.dependencies import get_current_user, verify_warehouse_access
 from app.models.sale import Sale, SaleItem
 from app.models.stock import IN_TYPES
-from app.services import report_service
-from app.dependencies import get_current_user, verify_warehouse_access
 from app.models.user import User
-import uuid
+from app.services import report_service
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -33,6 +35,7 @@ async def top_products(from_date: str, to_date: str, limit: int = 10, db: AsyncS
 @router.get("/sales/by-cashier")
 async def sales_by_cashier(from_date: str, to_date: str, warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     from datetime import datetime
+
     from app.models.user import User as UserModel
     await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
     start = datetime.fromisoformat(from_date)
@@ -65,11 +68,12 @@ async def profit(from_date: str, to_date: str, warehouse_id: str | None = None, 
 @router.get("/inventory/print")
 async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """تقرير المخزون الكامل للطباعة."""
-    from app.models.product import Product, Subcategory, Category
+    from sqlalchemy import case as sa_case
+
+    from app.models.product import Category, Product, Subcategory
+    from app.models.settings import StoreSetting
     from app.models.stock import StockMovement
     from app.models.warehouse import Warehouse
-    from app.models.settings import StoreSetting
-    from sqlalchemy import case as sa_case
     await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id))
 
     wh_id = uuid.UUID(warehouse_id)
@@ -104,7 +108,7 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
     return {
         "store": {"name": settings.get("store_name",""), "address": settings.get("store_address",""), "phone": settings.get("store_phone","")},
         "warehouse": wh.name if wh else warehouse_id,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "items": items,
         "summary": {"total_products": len(items), "total_cost_value": total_cost, "total_retail_value": total_retail},
     }
@@ -114,6 +118,7 @@ async def inventory_print_report(warehouse_id: str, db: AsyncSession = Depends(g
 async def daily_items(target_date: date = Query(default_factory=date.today), warehouse_id: str | None = None, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Daily ledger: each product sold with qty, price, total, returns, expenses."""
     from datetime import datetime
+
     from sqlalchemy import text as sqlt
     wh_uuid = uuid.UUID(warehouse_id) if warehouse_id else None
     await verify_warehouse_access(db, current_user, wh_uuid)
@@ -232,8 +237,9 @@ async def cash_flow(
     current_user: User = Depends(get_current_user),
 ):
     """Formal cash flow: incoming (sales, collections) vs outgoing (purchases, expenses, payroll)."""
-    from sqlalchemy import text as sqlt
     from datetime import datetime
+
+    from sqlalchemy import text as sqlt
     await verify_warehouse_access(db, current_user, uuid.UUID(warehouse_id) if warehouse_id else None)
 
     start = datetime.fromisoformat(from_date)
@@ -368,8 +374,10 @@ async def aging_report(
     _=Depends(get_current_user),
 ):
     """Aging report: customer and supplier debts split into 0-30 / 30-60 / 60-90 / 90+ day buckets."""
+    from datetime import date as dt_date
+    from datetime import datetime, timedelta
+
     from sqlalchemy import text as sqlt
-    from datetime import datetime, timedelta, date as dt_date
 
     as_of_date = dt_date.fromisoformat(as_of) if as_of else dt_date.today()
     d30 = as_of_date - timedelta(days=30)

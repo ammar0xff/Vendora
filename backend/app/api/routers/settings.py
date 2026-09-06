@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-from app.db.base import get_db
-from app.dependencies import get_current_user, require_perm
-from pydantic import BaseModel
-from typing import Any
 import logging
 import re
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_perm
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +24,12 @@ class SettingsUpdate(BaseModel):
 
 @router.post("/upload-logo")
 async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
-    import os, io
-    from app.core.config import settings as cfg
+    import io
+    import os
+
     from PIL import Image
+
+    from app.core.config import settings as cfg
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(400, "نوع الملف غير مدعوم. الأنواع المسموحة: JPEG, PNG, GIF, WebP")
     contents = await file.read()
@@ -87,6 +92,7 @@ async def pwa_manifest(db: AsyncSession = Depends(get_db)):
 async def get_settings(db: AsyncSession = Depends(get_db)):
     """Public endpoint — returns store settings for login page and app."""
     import json as _json
+
     from app.models.settings import StoreSetting
     result = await db.execute(select(StoreSetting))
     out = {}
@@ -102,6 +108,7 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 @router.put("")
 async def update_settings(data: SettingsUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     import json as _json
+
     from app.models.settings import StoreSetting
     for key, value in data.settings.items():
         # Store lists/dicts as JSON string
@@ -119,8 +126,9 @@ async def update_settings(data: SettingsUpdate, db: AsyncSession = Depends(get_d
 @router.get("/product-options")
 async def get_product_options(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Return sizes, companies, materials, units lists."""
-    from app.models.settings import StoreSetting
     import json as _json
+
+    from app.models.settings import StoreSetting
     keys = ["product_options_sizes", "product_options_companies", "product_options_materials", "product_options_units"]
     result = await db.execute(select(StoreSetting).where(StoreSetting.key.in_(keys)))
     rows = {r.key: r.value for r in result.scalars().all()}
@@ -135,8 +143,9 @@ async def get_product_options(db: AsyncSession = Depends(get_db), _=Depends(get_
 @router.put("/product-options")
 async def update_product_options(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     """Update one or more option lists. Pass {sizes:[...], companies:[...], ...}"""
-    from app.models.settings import StoreSetting
     import json as _json
+
+    from app.models.settings import StoreSetting
     mapping = {"sizes": "product_options_sizes", "companies": "product_options_companies",
                "materials": "product_options_materials", "units": "product_options_units"}
     for field, db_key in mapping.items():

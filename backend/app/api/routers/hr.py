@@ -1,20 +1,29 @@
 """HR / Payroll router"""
-import json
 import asyncio
+import json
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, date
 from functools import partial
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from datetime import date
-from typing import Optional
+
+from app.core.exceptions import BusinessError, NotFoundError
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm
 from app.models.user import User
-from app.core.exceptions import NotFoundError, BusinessError
-from app.schemas.hr import EmployeeCreate, EmployeeUpdate, AttendanceCreate, PayrollCalculate, PayrollUpdate, AdvanceCreate, ShiftCreate, HRSettingsUpdate
-from sqlalchemy import text
-import uuid
+from app.schemas.hr import (
+    AdvanceCreate,
+    AttendanceCreate,
+    EmployeeCreate,
+    EmployeeUpdate,
+    HRSettingsUpdate,
+    PayrollCalculate,
+    PayrollUpdate,
+    ShiftCreate,
+)
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
@@ -128,7 +137,7 @@ async def delete_employee(emp_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 # ── Attendance ─────────────────────────────────────────────────────────────
 @router.get("/attendance")
-async def list_attendance(employee_id: Optional[str] = None, month: Optional[str] = None,
+async def list_attendance(employee_id: str | None = None, month: str | None = None,
                           db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     q = "SELECT a.*, e.name as emp_name FROM hr_attendance a JOIN hr_employees e ON a.employee_id=e.id WHERE 1=1"
     params = {}
@@ -193,7 +202,8 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
     if not has_code and not has_name:
         raise HTTPException(400, f"CSV must have an employee code or member name column. Found: {reader.fieldnames}")
 
-    from datetime import date as _date, datetime as _dt
+    from datetime import date as _date
+    from datetime import datetime as _dt
 
     added = updated = skipped = 0
     errors = []
@@ -314,7 +324,7 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
 
 # ── Payroll ────────────────────────────────────────────────────────────────
 @router.get("/payroll")
-async def list_payroll(month: Optional[str] = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_payroll(month: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     q = "SELECT p.*, e.name as emp_name, e.position FROM hr_payroll p JOIN hr_employees e ON p.employee_id=e.id WHERE 1=1"
     params = {}
     if month:
@@ -329,8 +339,9 @@ async def list_payroll(month: Optional[str] = None, db: AsyncSession = Depends(g
 @router.post("/payroll/calculate")
 async def calculate_payroll(data: PayrollCalculate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
     """Calculate payroll for all (or one) employee using the full engine."""
-    from app.services.payroll_engine import calculate_payroll as calc
     import json as _json
+
+    from app.services.payroll_engine import calculate_payroll as calc
 
     month = data.month  # YYYY-MM
 
@@ -575,7 +586,7 @@ async def update_payroll(payroll_id: uuid.UUID, data: PayrollUpdate, db: AsyncSe
 
 # ── Advances ───────────────────────────────────────────────────────────────
 @router.get("/advances")
-async def list_advances(employee_id: Optional[str] = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_advances(employee_id: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     q = "SELECT a.*, e.name as emp_name FROM hr_advances a JOIN hr_employees e ON a.employee_id=e.id WHERE 1=1"
     params = {}
     if employee_id:
@@ -608,9 +619,10 @@ async def add_advance(data: AdvanceCreate, db: AsyncSession = Depends(get_db), c
 
 async def _report_auth(request: Request, token: str | None = None, db: AsyncSession = Depends(get_db)):
     """Accept JWT as query param or httpOnly cookie for browser-opened HTML reports."""
+    import uuid
+
     from app.core.security import decode_token
     from app.models.user import User
-    import uuid
     # Try cookie first, then query param
     t = request.cookies.get("access_token") or token
     if not t:
@@ -628,8 +640,8 @@ async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db),
     import sys
     if '/app' not in sys.path:
         sys.path.insert(0, '/app')
-    from report_generator import ReportGenerator
     from app.services.payroll_engine import calculate_payroll
+    from report_generator import ReportGenerator
 
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
     shifts_map = {r[0]: {'id': r[0], 'name': r[1], 'start_time': r[2], 'end_time': r[3]}
@@ -700,9 +712,9 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     import sys
     if '/app' not in sys.path:
         sys.path.insert(0, '/app')
-    from report_generator import ReportGenerator
-    from models import Employee, Attendance
     from app.services.payroll_engine import calculate_payroll
+    from models import Attendance, Employee
+    from report_generator import ReportGenerator
 
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
     shifts_map = {r[0]: {'id': r[0], 'name': r[1], 'start_time': r[2], 'end_time': r[3]}
@@ -777,7 +789,8 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
             ci = ci.replace(tzinfo=None)
         elif wd:
             # No check_in recorded — use work_date at midnight so the day appears in report
-            from datetime import datetime as _dt2, date as _d2
+            from datetime import date as _d2
+            from datetime import datetime as _dt2
             ci = _dt2.combine(wd if isinstance(wd, _d2) else _d2.fromisoformat(str(wd)), _dt2.min.time())
         if co and hasattr(co, 'replace'):
             co = co.replace(tzinfo=None)
@@ -852,7 +865,8 @@ async def get_sync_log(db: AsyncSession = Depends(get_db), _=Depends(require_per
 async def attendance_from_device(data: dict, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     """Accept a single attendance record from the host-side zk_sync.py script."""
     uid = str(data.get('emp_id', ''))
-    from datetime import date as _date, datetime as _dt
+    from datetime import date as _date
+    from datetime import datetime as _dt
     check_in_raw = data.get('check_in')
     check_out_raw = data.get('check_out')
     date_str = str(check_in_raw or '')[:10]
@@ -926,12 +940,11 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
         raise HTTPException(502, f"Device connection failed: {e}")
 
     from collections import defaultdict
-    from datetime import timezone
     groups: dict = defaultdict(list)
     for p in punches:
         dt = p.timestamp
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         groups[(str(p.user_id), dt.date())].append(dt)
 
     emp_rows = (await db.execute(text("SELECT id, emp_code FROM hr_employees WHERE emp_code IS NOT NULL"))).fetchall()

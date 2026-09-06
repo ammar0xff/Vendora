@@ -1,10 +1,12 @@
 from fastapi import Depends
 from fastapi.responses import HTMLResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
 from app.dependencies import get_print_user
-from . import router, get_settings, _make_pdf, wrap, top_band, ar_num, fmt_date
+
+from . import _make_pdf, ar_num, fmt_date, get_settings, router, top_band, wrap
 
 
 @router.get("/dispatch/{doc_number}", response_class=HTMLResponse)

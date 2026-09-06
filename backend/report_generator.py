@@ -1,8 +1,9 @@
-from datetime import datetime
-from typing import List, Dict
-from models import Employee, Attendance
 import html as _html
 import os
+from datetime import datetime
+
+from models import Attendance, Employee
+
 
 class ReportGenerator:
     @staticmethod
@@ -26,11 +27,11 @@ class ReportGenerator:
         return s
 
     @staticmethod
-    def generate_payroll_report(employees_payroll: List[Dict], month: str = None) -> str:
+    def generate_payroll_report(employees_payroll: list[dict], month: str = None) -> str:
         """Generate an HTML payroll report in landscape format with detailed totals"""
         if not month:
             month = datetime.now().strftime("%Y-%m")
-        
+
         # Calculate comprehensive totals
         total_employees = len(employees_payroll)
         total_base_salary = sum(p['base_salary'] for p in employees_payroll)
@@ -48,7 +49,7 @@ class ReportGenerator:
         total_other_bonus = sum(p['bonus'] for p in employees_payroll)
         total_deductions = sum(p['deduction'] for p in employees_payroll)
         total_final_salary = sum(p['final_salary'] for p in employees_payroll)
-        
+
         html = f"""
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -312,22 +313,22 @@ class ReportGenerator:
                 </thead>
                 <tbody>
 """
-        
+
         # Add employee rows
         for payroll in employees_payroll:
             # Format display values
             late_mins = payroll['lateness_minutes']
             late_display = str(late_mins) if late_mins > 0 else "-"
-            
+
             early_mins = payroll.get('early_leave_minutes', 0)
             early_display = str(early_mins) if early_mins > 0 else "-"
-            
+
             missing_scan = payroll.get('missing_scan_minutes', 0)
             missing_display = str(missing_scan) if missing_scan > 0 else "-"
-            
+
             ot_hours = payroll['overtime_hours']
             ot_display = f"{ot_hours:.1f}" if ot_hours > 0 else "-"
-            
+
             html += f"""
                     <tr>
                         <td><strong>{_html.escape(str(payroll['emp_name']))}</strong><br><small>{_html.escape(str(payroll['emp_id']))} - {_html.escape(str(payroll['position']))}</small></td>
@@ -347,10 +348,10 @@ class ReportGenerator:
                         <td class="salary-cell">{payroll['final_salary']:,.2f}</td>
                     </tr>
 """
-        
+
         # Add totals row
         total_ot_display = f"{total_overtime_hours:.1f}" if total_overtime_hours > 0 else "-"
-        
+
         html += f"""
                     <tr class="total-row">
                         <td><strong>المجموع الكلي</strong></td>
@@ -386,9 +387,9 @@ class ReportGenerator:
 </html>
 """
         return html
-    
+
     @staticmethod
-    def generate_employee_report(employee: Employee, attendances: List[Attendance], payroll: Dict, sections: List[str] = None, finances: List[Dict] = None) -> str:
+    def generate_employee_report(employee: Employee, attendances: list[Attendance], payroll: dict, sections: list[str] = None, finances: list[dict] = None) -> str:
         """Generate an individual employee report.
         sections: list of sections to include ('info', 'calc', 'summary', 'breakdown', 'attendance'). 
                   If None, include all.
@@ -398,7 +399,7 @@ class ReportGenerator:
             sections = ['info', 'calc', 'summary', 'breakdown', 'attendance']
         if finances is None:
             finances = []
-        
+
         # Helper to safely format numbers
         def fmt(val, decimals=2):
             try:
@@ -663,7 +664,7 @@ class ReportGenerator:
                 if not d.get('date'):
                     continue
                 date_str = datetime.fromisoformat(d.get('date')).strftime('%Y-%m-%d')
-                
+
                 status_raw = d.get('status', 'regular')
                 status_map = {
                     'regular': 'عمل عادي',
@@ -677,14 +678,14 @@ class ReportGenerator:
 
                 time_in = ReportGenerator._format_time_12(d.get('check_in')) if d.get('check_in') else '-'
                 time_out = ReportGenerator._format_time_12(d.get('check_out')) if d.get('check_out') else '-'
-                
+
                 # Late minutes display
                 late_mins = int(d.get('late_minutes', 0))
                 if late_mins > 0:
                     late_display = f"<span style='color:red'>{late_mins}</span>"
                 else:
                     late_display = "-"
-                
+
                 # Overtime display
                 ot_hours = float(d.get('overtime_hours', 0))
                 if ot_hours > 0:
@@ -698,7 +699,7 @@ class ReportGenerator:
                     early_display = f"<span style='color:orange'>{early_mins}</span>"
                 else:
                     early_display = "-"
-                
+
                 rows_html += f"""
                         <tr>
                             <td>{date_str}</td>
@@ -712,7 +713,7 @@ class ReportGenerator:
                             <td style="font-size: 0.8em; color: #666;">{_html.escape(str(d.get('note', '')))}</td>
                         </tr>
                 """
-            
+
             html_attendance = f"""
             <div class="section">
                 <h2 class="section-title"><span>4</span> تفاصيل الحضور اليومي</h2>
@@ -960,7 +961,7 @@ class ReportGenerator:
         return html
 
     @staticmethod
-    def generate_payslip_ticket(employee: Employee, payroll: Dict, finances: List[Dict] = None) -> str:
+    def generate_payslip_ticket(employee: Employee, payroll: dict, finances: list[dict] = None) -> str:
         """Generate a compact, beautiful receipt/ticket style payslip."""
         if finances is None:
             finances = []
@@ -1257,7 +1258,7 @@ body{{
         return filepath
 
     @staticmethod
-    def generate_attendance_report(rows: List[Dict], month: str = None, title: str = "تقرير الحضور") -> str:
+    def generate_attendance_report(rows: list[dict], month: str = None, title: str = "تقرير الحضور") -> str:
         """Generate a comprehensive attendance HTML report in landscape format with statistics."""
         if month is None:
             month = datetime.now().strftime("%Y-%m")
@@ -1268,15 +1269,15 @@ body{{
         sum(int(r.get('rec_count', 0)) for r in rows if r.get('rec_count'))
         sum(1 for r in rows if r.get('checkin'))
         records_complete = sum(1 for r in rows if r.get('checkin') and r.get('checkout'))
-        
+
         # New: Work days vs Weekends (Assuming Fri/Sat are weekends)
         work_days_count = 0
         weekend_days_count = 0
         total_worked_hours = 0
         fmt = '%Y-%m-%d %H:%M:%S'
-        
+
         ar_days = {
-            0: "الإثنين", 1: "الثلاثاء", 2: "الأربعاء", 3: "الخميس", 
+            0: "الإثنين", 1: "الثلاثاء", 2: "الأربعاء", 3: "الخميس",
             4: "الجمعة", 5: "السبت", 6: "الأحد"
         }
 
@@ -1371,17 +1372,17 @@ body{{
 
             ci = r.get('checkin') or ''
             co = r.get('checkout') or ''
-            
+
             try:
                 ci_disp = f'<span class="time-badge check-in">{ReportGenerator._format_time_12(ci)}</span>' if ci else '-'
             except Exception:
                 ci_disp = f'<span class="time-badge check-in">{ci}</span>' if ci else '-'
-            
+
             try:
                 co_disp = f'<span class="time-badge check-out">{ReportGenerator._format_time_12(co)}</span>' if co else '-'
             except Exception:
                 co_disp = f'<span class="time-badge check-out">{co}</span>' if co else '-'
-            
+
             duration_disp = "-"
             if ci and co:
                 try:
@@ -1396,7 +1397,7 @@ body{{
             status = '<span style="color: green;">✓ كامل</span>' if ci and co else '<span style="color: orange;">⚠ ناقص</span>'
             row_class = "weekend" if is_weekend else ""
             day_tag_class = "day-tag weekend-tag" if is_weekend else "day-tag"
-            
+
             rows_html += f"""
                 <tr class="{row_class}">
                     <td><span class="{day_tag_class}">{day_name}</span> {date_str}</td>

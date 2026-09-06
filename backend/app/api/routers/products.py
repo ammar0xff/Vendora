@@ -1,27 +1,34 @@
-from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy import or_
-from sqlalchemy import func
-from sqlalchemy.orm import selectinload
-from decimal import Decimal
-from app.db.base import get_db
-from app.core.pagination import Page
-from app.schemas.product import (
-    CategoryCreate, CategoryOut, SubcategoryCreate, SubcategoryOut, 
-    ProductCreate, ProductUpdate, ProductOut,
-    ProductBarcodeCreate, ProductBarcodeOut, ProductWithBarcodes,
-    MoveProduct,
-)
-from app.models.product import Category, Subcategory, Product, ProductBarcode
-from app.models.user import User
-from app.dependencies import get_current_user, require_perm, verify_warehouse_access
-from app.core.config import settings
-import uuid
 import os
 import re
-from app.core.exceptions import NotFoundError, BusinessError
+import uuid
+from datetime import datetime
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.config import settings
+from app.core.exceptions import BusinessError, NotFoundError
+from app.core.pagination import Page
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_perm, verify_warehouse_access
+from app.models.product import Category, Product, ProductBarcode, Subcategory
+from app.models.user import User
+from app.schemas.product import (
+    CategoryCreate,
+    CategoryOut,
+    MoveProduct,
+    ProductBarcodeCreate,
+    ProductBarcodeOut,
+    ProductCreate,
+    ProductOut,
+    ProductUpdate,
+    ProductWithBarcodes,
+    SubcategoryCreate,
+    SubcategoryOut,
+)
 from app.services.audit_service import log as audit_log
 
 router = APIRouter(tags=["products"])
@@ -81,7 +88,7 @@ async def move_product(product_id: uuid.UUID, data: MoveProduct, db: AsyncSessio
         raise NotFoundError()
 
     new_subcategory_id = data.subcategory_id
-    
+
     # Validate new subcategory exists
     sub_result = await db.execute(select(Subcategory).where(Subcategory.id == new_subcategory_id))
     if not sub_result.scalar_one_or_none():
@@ -96,8 +103,9 @@ async def move_product(product_id: uuid.UUID, data: MoveProduct, db: AsyncSessio
 
 @router.delete("/categories/{cat_id}", status_code=204)
 async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
-    from app.core.exceptions import BusinessError
     from sqlalchemy import text as sqlt
+
+    from app.core.exceptions import BusinessError
     result = await db.execute(select(Category).where(Category.id == cat_id))
     cat = result.scalar_one_or_none()
     if not cat:
@@ -146,8 +154,10 @@ async def list_products(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from sqlalchemy import func, text as sqlt, case as sa_case
-    from app.models.user import User
+    from sqlalchemy import case as sa_case
+    from sqlalchemy import func
+    from sqlalchemy import text as sqlt
+
     from app.schemas.product import ProductOutWithBalance
     await verify_warehouse_access(db, current_user, warehouse_id)
     base_q = select(Product).where(Product.is_active)
@@ -171,8 +181,9 @@ async def list_products(
     offset = (page - 1) * page_size
     products = (await db.execute(base_q.offset(offset).limit(page_size))).scalars().all()
 
-    from app.models.stock import StockMovement, IN_TYPES, OUT_TYPES
     from sqlalchemy import func as sa_func
+
+    from app.models.stock import IN_TYPES, StockMovement
 
     items_out: list[ProductOutWithBalance] = []
     for p in products:
@@ -270,8 +281,9 @@ async def delete_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_d
 
 @router.delete("/subcategories/{sub_id}", status_code=204)
 async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("inventory"))):
-    from app.core.exceptions import BusinessError
     from sqlalchemy import text as sqlt
+
+    from app.core.exceptions import BusinessError
     result = await db.execute(select(Subcategory).where(Subcategory.id == sub_id))
     sub = result.scalar_one_or_none()
     if not sub:
@@ -288,8 +300,9 @@ async def delete_subcategory(sub_id: uuid.UUID, db: AsyncSession = Depends(get_d
 @router.get("/products/{product_id}/movements")
 async def product_movements(product_id: uuid.UUID, from_date: str | None = None, to_date: str | None = None, page: int = Query(1, ge=1), page_size: int = Query(100, ge=1, le=1000), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Per-product movement log — used in product analytics."""
-    from sqlalchemy import text as sqlt
     from math import ceil
+
+    from sqlalchemy import text as sqlt
     conditions = ["sm.product_id = :product_id"]
     params: dict = {"product_id": product_id}
     if from_date:
@@ -370,9 +383,9 @@ async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(..
 # ── Product Barcodes ────────────────────────────────────────────────────────
 @router.post("/products/{product_id}/barcodes", response_model=ProductBarcodeOut)
 async def add_barcode(
-    product_id: uuid.UUID, 
-    data: ProductBarcodeCreate, 
-    db: AsyncSession = Depends(get_db), 
+    product_id: uuid.UUID,
+    data: ProductBarcodeCreate,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_perm("inventory"))
 ):
     """Add a barcode to a product."""
@@ -381,14 +394,14 @@ async def add_barcode(
     p = result.scalar_one_or_none()
     if not p:
         raise NotFoundError()
-    
+
     # Check barcode doesn't already exist (including in products.barcode)
     existing = await db.execute(
         select(ProductBarcode).where(ProductBarcode.barcode == data.barcode)
     )
     if existing.scalar_one_or_none():
         raise BusinessError(f"الرمز الشريطي '{data.barcode}' موجود بالفعل")
-    
+
     # If marking as primary, unmark all other barcodes for this product
     if data.is_primary:
         for other in (
@@ -399,7 +412,7 @@ async def add_barcode(
             )
         ).scalars().all():
             other.is_primary = False
-    
+
     bc = ProductBarcode(product_id=product_id, barcode=data.barcode, is_primary=data.is_primary)
     db.add(bc)
     await audit_log(db, "product", "barcode_add", current_user.id, current_user.full_name, product_id, {"barcode": data.barcode}, "إضافة رمز شريطي")
@@ -420,7 +433,7 @@ async def update_barcode(
     bc = result.scalar_one_or_none()
     if not bc:
         raise NotFoundError()
-    
+
     # If changing barcode string, check new one doesn't exist
     if data.barcode != bc.barcode:
         existing = await db.execute(
@@ -428,7 +441,7 @@ async def update_barcode(
         )
         if existing.scalar_one_or_none():
             raise BusinessError(f"الرمز الشريطي '{data.barcode}' موجود بالفعل")
-    
+
     # If marking as primary, unmark all other barcodes for this product
     if data.is_primary and not bc.is_primary:
         for other_bc in (await db.execute(
@@ -437,7 +450,7 @@ async def update_barcode(
             .where(ProductBarcode.is_primary)
         )).scalars().all():
             other_bc.is_primary = False
-    
+
     old_barcode = bc.barcode
     bc.barcode = data.barcode
     bc.is_primary = data.is_primary
@@ -458,7 +471,7 @@ async def delete_barcode(
     bc = result.scalar_one_or_none()
     if not bc:
         raise NotFoundError()
-    
+
     product_id = bc.product_id
     barcode_str = bc.barcode
     await db.delete(bc)

@@ -1,15 +1,16 @@
 """Financial categories + permissions + shift close with manager"""
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import BusinessError
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm, verify_warehouse_access
 from app.models.user import User
 from app.schemas.finance import FinancialCategoryCreate, FinancialCategoryUpdate, PermissionsUpdate
-from app.core.exceptions import BusinessError
-from fastapi import HTTPException
-from datetime import datetime
-import uuid
 
 router = APIRouter(tags=["finance"])
 

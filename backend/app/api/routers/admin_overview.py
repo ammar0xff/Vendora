@@ -1,7 +1,8 @@
 """Admin overview endpoint — company-wide financial summary."""
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
 from app.dependencies import require_perm
 

@@ -1,9 +1,11 @@
 """Accounting periods — month-end closing."""
-from sqlalchemy import Column, String, DateTime, ForeignKey
+import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+
 from app.db.base import Base
-import uuid
 
 
 class AccountingPeriod(Base):

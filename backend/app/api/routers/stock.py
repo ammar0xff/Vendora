@@ -1,17 +1,19 @@
-from fastapi import APIRouter, Depends, Query, Body
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+import uuid
 from decimal import Decimal
+
+from fastapi import APIRouter, Body, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
+from app.dependencies import get_current_user, require_open_period, require_perm, verify_warehouse_access
+from app.models.stock import IN_TYPES, StockMovement
+from app.models.user import User
+from app.models.warehouse import Warehouse
 from app.schemas.stock import StockMovementCreate, StockMovementOut, TransferRequest
 from app.schemas.warehouse import WarehouseCreate, WarehouseUpdate
-from app.models.stock import StockMovement, IN_TYPES
-from app.models.warehouse import Warehouse
 from app.services import stock_service
-from app.dependencies import get_current_user, require_perm, require_open_period, verify_warehouse_access
-from app.models.user import User
 from app.services.audit_service import log as audit_log
-import uuid
 
 router = APIRouter(prefix="/stock", tags=["stock"])
 
@@ -48,25 +50,26 @@ async def update_warehouse(wh_id: uuid.UUID, data: WarehouseUpdate, db: AsyncSes
 @router.delete("/warehouses/{wh_id}", status_code=204)
 async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     from sqlalchemy import text as sqlt
+
     from app.core.exceptions import BusinessError
-    
+
     result = await db.execute(select(Warehouse).where(Warehouse.id == wh_id))
     w = result.scalar_one_or_none()
     if not w:
         from app.core.exceptions import NotFoundError
         raise NotFoundError()
-    
+
     # Check for linked records
     movements_count = await db.scalar(sqlt("SELECT COUNT(*) FROM stock_movements WHERE warehouse_id = :id"), {"id": wh_id})
     sales_count = await db.scalar(sqlt("SELECT COUNT(*) FROM sales WHERE warehouse_id = :id"), {"id": wh_id})
     shifts_count = await db.scalar(sqlt("SELECT COUNT(*) FROM shifts WHERE warehouse_id = :id"), {"id": wh_id})
-    
+
     total_linked = (movements_count or 0) + (sales_count or 0) + (shifts_count or 0)
     if total_linked > 0:
         raise BusinessError(
             f"لا يمكن حذف هذا المخزن — يحتوي على {movements_count or 0} حركة مخزون، {sales_count or 0} فاتورة بيع، و{shifts_count or 0} شيفت. يرجى حذف البيانات المرتبطة أولاً."
         )
-    
+
     w.is_active = False
     await db.commit()
 
@@ -74,7 +77,9 @@ async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 @router.post("/balance/bulk")
 async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """POST body: list of product UUIDs. Returns {product_id: qty} plus a __tracked__ map."""
-    from sqlalchemy import func, case as sa_case, text as sqlt
+    from sqlalchemy import case as sa_case
+    from sqlalchemy import func
+    from sqlalchemy import text as sqlt
     await verify_warehouse_access(db, current_user, warehouse_id)
     if not product_ids:
         return {}
@@ -100,7 +105,8 @@ async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID]
 @router.post("/balance/total")
 async def get_total_balance_bulk(product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Total stock across ALL warehouses. POST body: list of product UUIDs."""
-    from sqlalchemy import func, case as sa_case
+    from sqlalchemy import case as sa_case
+    from sqlalchemy import func
     if not product_ids:
         return {}
     result = await db.execute(
@@ -148,6 +154,7 @@ async def reset_warehouse_stock(
 ):
     """Delete all stock movements for a warehouse (reset inventory)."""
     from sqlalchemy import text as sqlt
+
     from app.core.exceptions import BusinessError
     count = (await db.execute(sqlt("SELECT COUNT(*) FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})).scalar() or 0
     if count > 1000:
@@ -172,8 +179,9 @@ async def list_movements(
     current_user: User = Depends(get_current_user),
 ):
     await verify_warehouse_access(db, current_user, warehouse_id)
-    from sqlalchemy import text as sqlt
     from math import ceil
+
+    from sqlalchemy import text as sqlt
     conditions = ["1=1"]
     params: dict = {}
     if product_id:

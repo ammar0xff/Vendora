@@ -1,10 +1,12 @@
-from decimal import Decimal
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Numeric, Boolean, DateTime, func
-from app.db.base import Base
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import Boolean, DateTime, Numeric, String, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base
 
 
 class PaymentWallet(Base):

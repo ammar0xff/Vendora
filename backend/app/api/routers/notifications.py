@@ -4,17 +4,18 @@ notifications.py — Push notification infrastructure (FCM)
 - Send push notifications to users
 Requires: FIREBASE_CREDENTIALS env var pointing to service account JSON
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from pydantic import BaseModel
-from typing import Optional
-from app.db.base import get_db
-from app.models.device_token import DeviceToken
-from app.dependencies import get_current_user, require_perm
-from app.models.user import User
-import os
 import logging
+import os
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_perm
+from app.models.device_token import DeviceToken
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -49,14 +50,14 @@ def _get_firebase_app():
 class RegisterTokenRequest(BaseModel):
     token: str
     platform: str = "android"
-    device_name: Optional[str] = None
+    device_name: str | None = None
 
 
 class SendNotificationRequest(BaseModel):
     user_id: str
     title: str
     body: str
-    data: Optional[dict] = None
+    data: dict | None = None
 
 
 @router.post("/register")

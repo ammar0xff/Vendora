@@ -1,18 +1,20 @@
 """Export endpoints — Excel download for accounting tables."""
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from app.db.base import get_db
-from app.dependencies import get_current_user, require_perm
-from fastapi.responses import StreamingResponse
 import io
+
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.base import get_db
+from app.dependencies import require_perm
 
 router = APIRouter(prefix="/export", tags=["export"])
 
 
 async def _to_excel(rows: list[dict], sheet_name: str = "Sheet1") -> bytes:
     import openpyxl
-    from openpyxl.styles import Font, Alignment, PatternFill
+    from openpyxl.styles import Alignment, Font, PatternFill
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = sheet_name

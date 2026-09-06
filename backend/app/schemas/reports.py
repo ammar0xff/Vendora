@@ -1,6 +1,5 @@
-import uuid
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel
 
 
@@ -16,7 +15,7 @@ class MonthlySalesReport(BaseModel):
     month: int
     total_sales: Decimal
     invoice_count: int
-    by_day: List[DailySalesReport] = []
+    by_day: list[DailySalesReport] = []
 
 
 class TopProduct(BaseModel):

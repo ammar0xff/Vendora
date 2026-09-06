@@ -1,12 +1,14 @@
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Text, Enum as SAEnum, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
-import enum
 
 
 class SaleMode(str, enum.Enum):
@@ -30,7 +32,7 @@ class Sale(Base):
     customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
     warehouse_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
     cashier_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
-    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     shift_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shifts.id", ondelete="SET NULL"), nullable=True, index=True)
     sale_mode: Mapped[SaleMode] = mapped_column(SAEnum(SaleMode, name="sale_mode_enum"), default=SaleMode.retail)
     status: Mapped[SaleStatus] = mapped_column(SAEnum(SaleStatus, name="sale_status_enum"), default=SaleStatus.confirmed)
@@ -40,7 +42,7 @@ class Sale(Base):
     paid_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True, default=0)
     is_credit: Mapped[bool] = mapped_column(Boolean, default=False)
     payment_method: Mapped[str] = mapped_column(String(32), default="cash")
-    wallet_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("payment_wallets.id", ondelete="SET NULL"), nullable=True)
+    wallet_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("payment_wallets.id", ondelete="SET NULL"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     returns_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True, default=0)
     last_paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

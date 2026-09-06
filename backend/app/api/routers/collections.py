@@ -1,13 +1,15 @@
 """Product Collections — packages of multiple products sold as one unit."""
+import uuid
+
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, text
+
+from app.core.pagination import Page
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_perm, verify_warehouse_access
 from app.models.user import User
 from app.schemas.collection import CollectionCreate, CollectionUpdate
-from app.core.pagination import Page
-import uuid
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 

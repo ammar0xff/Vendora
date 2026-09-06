@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, delete as sqldelete
-from app.db.base import get_db
-from app.schemas.user import UserCreate, UserOut, PasswordReset, UserUpdate, SetUserWarehouses
-from app.services import auth_service
-from app.dependencies import require_perm, get_current_user
-from app.models.user import User, user_warehouses
-from app.core.exceptions import NotFoundError
 import uuid
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import delete as sqldelete
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import NotFoundError
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_perm
+from app.models.user import User, user_warehouses
+from app.schemas.user import PasswordReset, SetUserWarehouses, UserCreate, UserOut, UserUpdate
+from app.services import auth_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -77,8 +80,9 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, db: AsyncSession = D
 
 @router.post("/{user_id}/reset-password", status_code=204)
 async def reset_password(user_id: uuid.UUID, data: PasswordReset, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("users"))):
-    from app.core.security import hash_password
     from sqlalchemy import text as sqlt
+
+    from app.core.security import hash_password
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

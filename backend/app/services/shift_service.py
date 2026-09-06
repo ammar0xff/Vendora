@@ -1,12 +1,15 @@
-import uuid
 import json
+import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
+
+from sqlalchemy import func, select
+from sqlalchemy import text as sqlt
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text as sqlt
-from app.models.shift import Shift, ShiftStatus, DrawerTransaction, DrawerTxType
-from app.core.exceptions import BusinessError, NotFoundError, ForbiddenError
+
+from app.core.exceptions import BusinessError, ForbiddenError, NotFoundError
+from app.models.shift import DrawerTransaction, DrawerTxType, Shift, ShiftStatus
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -98,7 +101,7 @@ async def close_shift(db: AsyncSession, shift_id: uuid.UUID, closing_balance: De
     shift.next_day_drawer = next_day_drawer if next_day_drawer is not None else closing_balance
     shift.notes = notes
     shift.closed_by = closed_by
-    shift.closed_at = datetime.now(timezone.utc)
+    shift.closed_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(shift)
@@ -144,7 +147,7 @@ async def close_shift_with_manager(db: AsyncSession, shift_id: uuid.UUID, data, 
     shift.closed_by = current_user_id
     shift.deposit_received_by = data.manager_id
     shift.deposit_amount = deposit_amount
-    shift.closed_at = datetime.now(timezone.utc)
+    shift.closed_at = datetime.now(UTC)
 
     # Apply variance to payroll as deduction/bonus
     await _record_payroll_variance(db, shift_id, difference, current_user_id, current_user_id)
@@ -290,7 +293,7 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
     shift.closing_balance = amount
     shift.next_day_drawer = amount
     shift.closed_by = actor
-    shift.closed_at = datetime.now(timezone.utc)
+    shift.closed_at = datetime.now(UTC)
     shift.notes = f"تسليم عهدة إلى {to_user_id}. {notes or ''}"
     # Compute and store expected_balance for audit trail
     summary = await compute_summary(db, shift_id)
@@ -327,7 +330,7 @@ async def transfer_drawer(db: AsyncSession, shift_id: uuid.UUID, to_user_id: uui
     from app.models.user import User
     from_user = (await db.execute(select(User.full_name).where(User.id == from_user_id))).scalar()
     to_user = (await db.execute(select(User.full_name).where(User.id == to_user_id))).scalar()
-    doc_number = f"HND-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}-{uuid.uuid4().hex[:4]}"
+    doc_number = f"HND-{datetime.now(UTC).strftime('%m%d%H%M%S')}-{uuid.uuid4().hex[:4]}"
     db.add(ArchivedDocument(
         doc_number=doc_number,
         doc_type=DocType.shift_handover,

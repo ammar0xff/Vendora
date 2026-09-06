@@ -1,13 +1,15 @@
 """Safes (خزنات) — treasury management."""
 import json
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_perm, require_is_manager
+from app.dependencies import get_current_user, require_is_manager, require_perm
 from app.models.user import User
-from app.schemas.safe import SafeCreate, SafeUpdate, SafeTransferCreate, SafeDepositCreate, SafeWithdrawCreate
+from app.schemas.safe import SafeCreate, SafeDepositCreate, SafeTransferCreate, SafeUpdate, SafeWithdrawCreate
 from app.services.wallet_service import record_wallet_tx
 
 router = APIRouter(prefix="/safes", tags=["safes"])

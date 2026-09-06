@@ -1,19 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
-from app.db.base import get_db
-from app.schemas.sale import SaleCreate, SaleOut, SaleItemUpdate, UpdateSale, PartialReturnRequest, ConfirmQuotationRequest
-from app.models.sale import Sale, SaleItem, SaleStatus
-from app.models.product import Product
-from app.services import sale_service
-from app.dependencies import get_current_user, require_perm, require_is_manager, require_open_period
-from app.models.user import User
-from app.core.exceptions import NotFoundError, BusinessError
-from app.services.audit_service import log as audit_log
-from decimal import Decimal
 import uuid
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.exceptions import BusinessError, NotFoundError
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_is_manager, require_open_period, require_perm
+from app.models.product import Product
+from app.models.sale import Sale, SaleItem, SaleStatus
+from app.models.user import User
+from app.schemas.sale import (
+    ConfirmQuotationRequest,
+    PartialReturnRequest,
+    SaleCreate,
+    SaleItemUpdate,
+    SaleOut,
+    UpdateSale,
+)
+from app.services import sale_service
+from app.services.audit_service import log as audit_log
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
@@ -77,8 +84,9 @@ async def list_sales(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    from app.models.party import Customer
     from sqlalchemy import text as sqlt
+
+    from app.models.party import Customer
     q = select(Sale, Customer.name.label("customer_name")).outerjoin(Customer, Sale.customer_id == Customer.id)
     q = q.options(selectinload(Sale.items)).order_by(Sale.created_at.desc()).limit(limit).offset(offset)
     if from_date:
@@ -146,8 +154,9 @@ async def confirm_quotation(sale_id: uuid.UUID, data: ConfirmQuotationRequest | 
 async def print_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """بيانات الفاتورة/عرض السعر للطباعة — تشمل بيانات المتجر والعميل والمنتجات."""
     from sqlalchemy import select as sa_select
-    from app.models.product import Product
+
     from app.models.party import Customer
+    from app.models.product import Product
     from app.models.settings import StoreSetting
 
     result = await db.execute(sa_select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id))
@@ -202,6 +211,7 @@ async def print_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=D
 @router.get("/{sale_id}")
 async def get_sale(sale_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     from sqlalchemy import text as sqlt
+
     from app.models.customer_payment import CustomerPayment
     row = await db.execute(sqlt("""
         SELECT s.*, c.name as customer_name,

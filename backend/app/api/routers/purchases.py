@@ -1,25 +1,29 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+import re
+import uuid
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, or_, func
-from datetime import datetime, timezone
+
+from app.core.exceptions import BusinessError, NotFoundError
+from app.core.pagination import Page
 from app.db.base import get_db
-from app.models.purchase import PurchaseOrder, PurchaseOrderItem, POStatus
-from app.models.supplier_price import SupplierPrice
+from app.dependencies import get_current_user, require_open_period, require_perm
 from app.models.product import Product
+from app.models.purchase import POStatus, PurchaseOrder, PurchaseOrderItem
 from app.models.stock import MovementType
+from app.models.supplier_price import SupplierPrice
+from app.models.user import User
+from app.schemas.purchase import PurchaseCreate, PurchaseReceive, PurchaseUpdate, QuickProductCreate
 from app.schemas.stock import StockMovementCreate
-from app.schemas.purchase import PurchaseCreate, PurchaseUpdate, PurchaseReceive, QuickProductCreate
 from app.schemas.supplier_price import (
-    SupplierPriceCreate, SupplierPriceUpdate, SupplierPriceOut, 
-    SupplierPriceComparison
+    SupplierPriceComparison,
+    SupplierPriceCreate,
+    SupplierPriceOut,
+    SupplierPriceUpdate,
 )
 from app.services.stock_service import record_movement
-from app.dependencies import get_current_user, require_perm, require_open_period
-from app.models.user import User
-from app.core.exceptions import NotFoundError, BusinessError
-from app.core.pagination import Page
-import uuid
-import re
 
 router = APIRouter(prefix="/purchases", tags=["purchases"])
 
@@ -186,7 +190,7 @@ async def receive_purchase(po_id: uuid.UUID, data: PurchaseReceive = PurchaseRec
         """), {"pid": item.product_id, "po_id": po_id, "sid": po.supplier_id, "old": old_cost, "new": cost})
 
     po.status = POStatus.received
-    po.received_at = datetime.now(timezone.utc)
+    po.received_at = datetime.now(UTC)
 
     # Auto-update supplier balance
     if po.supplier_id:
@@ -263,7 +267,7 @@ MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 async def upload_invoice_image(po_id: uuid.UUID, file: UploadFile = File(...),
                                 db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     import os
-    import shutil
+
     from app.core.config import settings as cfg
     if file.content_type not in ALLOWED_UPLOAD_TYPES:
         raise HTTPException(400, "نوع الملف غير مدعوم. الأنواع المسموحة: JPEG, PNG, GIF, WebP, PDF")
@@ -285,9 +289,8 @@ async def upload_invoice_image(po_id: uuid.UUID, file: UploadFile = File(...),
 @router.post("/quick-add-product")
 async def quick_add_product(data: QuickProductCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("purchases", "inventory"))):
     """Create a new product inline during purchase entry."""
-    from app.models.product import Product
-    from app.models.product import Subcategory
-    
+    from app.models.product import Product, Subcategory
+
     # If subcategory_id is provided, use it
     if data.subcategory_id:
         sub = await db.scalar(select(Subcategory).where(Subcategory.id == data.subcategory_id))
@@ -310,7 +313,7 @@ async def quick_add_product(data: QuickProductCreate, db: AsyncSession = Depends
             sub = await db.scalar(select(Subcategory).limit(1))
             if not sub:
                 raise BusinessError("لا توجد تصنيفات — أضف تصنيف أولاً")
-    
+
     p = Product(
         name=data.name,
         unit=data.unit or "عدد",
@@ -405,15 +408,16 @@ async def update_supplier_price(
 ):
     """Update supplier price."""
     import uuid
+
     from app.core.exceptions import NotFoundError
-    
+
     sp = await db.scalar(select(SupplierPrice).where(SupplierPrice.id == uuid.UUID(price_id)))
     if not sp:
         raise NotFoundError()
-    
+
     for k, v in data.model_dump(exclude_none=True).items():
         setattr(sp, k, v)
-    
+
     await db.commit()
     await db.refresh(sp)
     return sp
@@ -427,11 +431,12 @@ async def delete_supplier_price(
 ):
     """Soft-delete supplier price."""
     import uuid
+
     from app.core.exceptions import NotFoundError
-    
+
     sp = await db.scalar(select(SupplierPrice).where(SupplierPrice.id == uuid.UUID(price_id)))
     if not sp:
         raise NotFoundError()
-    
+
     sp.is_active = False
     await db.commit()

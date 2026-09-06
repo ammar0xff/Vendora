@@ -1,11 +1,14 @@
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, func, Enum as SAEnum
+
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+
 from app.db.base import Base
-import enum
 
 
 class DocType(str, enum.Enum):

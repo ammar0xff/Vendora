@@ -1,34 +1,36 @@
 import logging
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
-from app.db.base import engine, Base
-from app.api.router import router
-from app.core.config import settings
-import app.models.user
-import app.models.product
-import app.models.warehouse
-import app.models.stock
+
+import app.models.archive
+import app.models.customer_payment
+import app.models.device_token
+import app.models.expense
+import app.models.financial_category
 import app.models.party
 import app.models.payment_wallet
-import app.models.sale
-import app.models.shift
-import app.models.purchase
-import app.models.archive
 import app.models.payroll
-import app.models.settings
-import app.models.customer_payment
-import app.models.expense
 import app.models.period
-import app.models.financial_category
+import app.models.product
+import app.models.purchase
 import app.models.safe
+import app.models.sale
 import app.models.sale_payment
-import app.models.device_token
+import app.models.settings
+import app.models.shift
+import app.models.stock
+import app.models.user
+import app.models.warehouse
+from app.api.router import router
+from app.core.config import settings
+from app.db.base import Base, engine
 
 
 @asynccontextmanager
@@ -77,8 +79,9 @@ app.include_router(router)
 
 @app.get("/health")
 async def health():
-    from app.db.base import AsyncSessionLocal
     from sqlalchemy import text
+
+    from app.db.base import AsyncSessionLocal
     try:
         async with AsyncSessionLocal() as sess:
             await sess.execute(text("SELECT 1"))

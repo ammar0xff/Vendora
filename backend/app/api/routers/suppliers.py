@@ -1,26 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, func
-from app.dependencies import get_db, get_current_user, require_perm
-from app.core.pagination import Page
-from pydantic import BaseModel, field_validator
-from typing import Optional
 import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, field_validator
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.pagination import Page
+from app.dependencies import get_current_user, get_db, require_perm
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
 class SupplierIn(BaseModel):
     name: str
-    phone: Optional[str] = None
-    address: Optional[str] = None
+    phone: str | None = None
+    address: str | None = None
     type: str = "supplier"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 class TxIn(BaseModel):
     amount: float
     type: str  # debit / credit
-    reference_doc: Optional[str] = None
-    notes: Optional[str] = None
+    reference_doc: str | None = None
+    notes: str | None = None
 
     @field_validator("type")
     @classmethod
@@ -30,7 +31,7 @@ class TxIn(BaseModel):
         return v
 
 @router.get("")
-async def list_suppliers(type: Optional[str] = None, page: int = 1, page_size: int = 200, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_suppliers(type: str | None = None, page: int = 1, page_size: int = 200, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     where = "WHERE is_active=true"
     params = {}
     if type:

@@ -1,13 +1,14 @@
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-from app.db.base import get_db
-from app.core.security import decode_token
-from app.models.user import User, user_warehouses
-from datetime import datetime
-from typing import Optional
 import uuid
+from datetime import datetime
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import decode_token
+from app.db.base import get_db
+from app.models.user import User, user_warehouses
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
@@ -21,7 +22,7 @@ def _decode_user_id(payload: dict) -> str:
 
 async def get_current_user(
     request: Request,
-    token: Optional[str] = Depends(oauth2_scheme),
+    token: str | None = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     # 1: Try httpOnly cookie first
@@ -53,7 +54,7 @@ async def get_current_user(
     return user
 
 
-async def get_print_user(request: Request, token: Optional[str] = None, db: AsyncSession = Depends(get_db)) -> User:
+async def get_print_user(request: Request, token: str | None = None, db: AsyncSession = Depends(get_db)) -> User:
     # Accept httpOnly cookie OR query param (frontend sends ?token=... for browser-opened tabs)
     t = request.cookies.get("access_token") or token
     if not t:

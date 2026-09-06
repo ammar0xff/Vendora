@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
-from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import String, Boolean, DateTime, func, ForeignKey, Table, Column
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -27,9 +29,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_manager: Mapped[bool] = mapped_column(Boolean, default=False)
-    permissions: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    default_warehouse_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="SET NULL"), nullable=True)
+    permissions: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    default_warehouse_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    warehouses: Mapped[List["Warehouse"]] = relationship(secondary=user_warehouses, back_populates="users", lazy="selectin")
+    warehouses: Mapped[list["Warehouse"]] = relationship(secondary=user_warehouses, back_populates="users", lazy="selectin")

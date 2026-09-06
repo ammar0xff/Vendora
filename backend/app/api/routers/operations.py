@@ -5,24 +5,25 @@ operations.py — مستندات العمليات
 - طلب نواقص (stock_request): طلب توريد من مخزن
 كل عملية تُسجَّل في stock_movements وتُحفَظ في archived_documents تلقائياً.
 """
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, model_validator
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
-from app.models.stock import StockMovement, MovementType
+from app.dependencies import get_current_user, require_perm
 from app.models.archive import ArchivedDocument, DocType
-from app.models.warehouse import Warehouse
 from app.models.product import Product
 from app.models.settings import StoreSetting
-from app.dependencies import get_current_user, require_perm
+from app.models.stock import MovementType, StockMovement
 from app.models.user import User
-from app.services.stock_service import get_balance
+from app.models.warehouse import Warehouse
 from app.services.audit_service import log as audit_log
-import uuid
+from app.services.stock_service import get_balance
 
 router = APIRouter(prefix="/operations", tags=["operations"])
 
@@ -37,7 +38,7 @@ class OperationItem(BaseModel):
 class DispatchRequest(BaseModel):
     from_warehouse_id: uuid.UUID
     to_warehouse_id: uuid.UUID
-    items: List[OperationItem]
+    items: list[OperationItem]
     notes: str = ""
 
     @model_validator(mode='after')
@@ -50,14 +51,14 @@ class DispatchRequest(BaseModel):
 class GoodsReceiptRequest(BaseModel):
     warehouse_id: uuid.UUID
     supplier_name: str = ""
-    items: List[OperationItem]   # unit_cost = سعر التكلفة من التاجر
+    items: list[OperationItem]   # unit_cost = سعر التكلفة من التاجر
     notes: str = ""
 
 
 class StockRequestRequest(BaseModel):
     from_warehouse_id: uuid.UUID
     to_warehouse_id: uuid.UUID
-    items: List[OperationItem]
+    items: list[OperationItem]
     notes: str = ""
 
     @model_validator(mode='after')
@@ -90,7 +91,7 @@ async def _archive(db: AsyncSession, doc_type: DocType, doc_number: str,
 async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_db),
                          current_user: User = Depends(require_perm("operations"))):
     """إذن صرف — نقل بضاعة من مخزن إلى معرض."""
-    doc_number = f"DSP-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
+    doc_number = f"DSP-{datetime.now(UTC).strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
     total_qty = Decimal("0")
 
@@ -127,7 +128,7 @@ async def dispatch_order(data: DispatchRequest, db: AsyncSession = Depends(get_d
 async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_perm("operations"))):
     """استلام بضاعة من تاجر — يُضاف للمخزن بأسعار التكلفة."""
-    doc_number = f"GR-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
+    doc_number = f"GR-{datetime.now(UTC).strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
     total_cost = Decimal("0")
 
@@ -161,7 +162,7 @@ async def goods_receipt(data: GoodsReceiptRequest, db: AsyncSession = Depends(ge
 async def stock_request(data: StockRequestRequest, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_perm("operations"))):
     """طلب نواقص — مستند طلب توريد بدون حركة مخزون فورية."""
-    doc_number = f"REQ-{datetime.now(timezone.utc).strftime('%m%d%H%M%S')}"
+    doc_number = f"REQ-{datetime.now(UTC).strftime('%m%d%H%M%S')}"
     ref_id = uuid.uuid4()
 
     from_wh = (await db.execute(select(Warehouse).where(Warehouse.id == data.from_warehouse_id))).scalar_one_or_none()

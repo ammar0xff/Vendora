@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 _VALID_ROLES = {"admin", "manager", "cashier"}
@@ -21,10 +21,10 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=1, max_length=128)
-    role: Optional[str] = None
-    is_manager: Optional[bool] = None
-    default_warehouse_id: Optional[str] = None
+    full_name: str | None = Field(None, min_length=1, max_length=128)
+    role: str | None = None
+    is_manager: bool | None = None
+    default_warehouse_id: str | None = None
 
     @field_validator("role")
     @classmethod

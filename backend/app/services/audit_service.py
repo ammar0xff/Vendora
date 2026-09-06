@@ -1,8 +1,9 @@
 """Central audit logging service."""
 import json
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 import uuid
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def log(

@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+
 from pydantic import BaseModel, Field
-from app.models.shift import ShiftStatus, DrawerTxType
+
+from app.models.shift import DrawerTxType, ShiftStatus
 
 
 class ShiftOpen(BaseModel):

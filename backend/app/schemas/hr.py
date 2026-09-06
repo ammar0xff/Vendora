@@ -1,46 +1,47 @@
 from __future__ import annotations
-from decimal import Decimal
-from datetime import date
-from typing import Optional
-from pydantic import BaseModel, Field
+
 import uuid
+from datetime import date
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
 
 
 class EmployeeCreate(BaseModel):
     """Schema for creating an HR employee (hr_employees table).
     Fields match the SQL INSERT in hr.py router.
     """
-    emp_code: Optional[str] = None
-    user_id: Optional[uuid.UUID] = None
+    emp_code: str | None = None
+    user_id: uuid.UUID | None = None
     name: str = Field(..., min_length=1, max_length=128)
-    position: Optional[str] = None
+    position: str | None = None
     monthly_salary: Decimal = Field(default=Decimal("0"), ge=0)
-    shift_schedule: Optional[str] = None
-    hire_date: Optional[date] = None
+    shift_schedule: str | None = None
+    hire_date: date | None = None
 
 
 class EmployeeUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=128)
-    user_id: Optional[uuid.UUID] = None
-    position: Optional[str] = None
-    monthly_salary: Optional[Decimal] = Field(default=None, ge=0)
-    shift_schedule: Optional[str] = None
-    hire_date: Optional[date] = None
-    is_active: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=128)
+    user_id: uuid.UUID | None = None
+    position: str | None = None
+    monthly_salary: Decimal | None = Field(default=None, ge=0)
+    shift_schedule: str | None = None
+    hire_date: date | None = None
+    is_active: bool | None = None
 
 
 class AttendanceCreate(BaseModel):
     employee_id: uuid.UUID
     work_date: date
-    check_in: Optional[str] = None
-    check_out: Optional[str] = None
+    check_in: str | None = None
+    check_out: str | None = None
     status: str = "present"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class PayrollCalculate(BaseModel):
     month: str
-    employee_id: Optional[uuid.UUID] = None
+    employee_id: uuid.UUID | None = None
 
 
 class PayrollUpdate(BaseModel):
@@ -48,14 +49,14 @@ class PayrollUpdate(BaseModel):
     deductions: Decimal = Decimal("0")
     drawer_variance: Decimal = Decimal("0")
     status: str = "draft"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class AdvanceCreate(BaseModel):
     employee_id: uuid.UUID
     amount: Decimal = Field(..., gt=0)
-    date: Optional[date] = None
-    note: Optional[str] = None
+    date: date | None = None
+    note: str | None = None
     record_type: str = "سلفة"
 
 

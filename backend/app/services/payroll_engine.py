@@ -2,10 +2,9 @@
 payroll_engine.py — Full payroll calculation matching the Qt موظفين system.
 Logic ported directly from models.py PayrollCalculator.calculate_payroll()
 """
-from datetime import datetime, timedelta, date
-from typing import List, Optional
-from collections import defaultdict
 import calendar
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 
 # Egypt timezone offset
 LOCAL_TZ_OFFSET = timedelta(hours=2)
@@ -75,7 +74,7 @@ def parse_shift(shift_str: str, shifts_map: dict = None) -> tuple:
     return 9, 21  # fallback
 
 
-def attendance_day(dt: datetime) -> Optional[date]:
+def attendance_day(dt: datetime) -> date | None:
     """5am rollover: timestamps before 5am belong to previous day."""
     if not dt:
         return None
@@ -84,7 +83,7 @@ def attendance_day(dt: datetime) -> Optional[date]:
     return dt.date()
 
 
-def calculate_payroll(employee: dict, attendances: List[dict], settings: dict,
+def calculate_payroll(employee: dict, attendances: list[dict], settings: dict,
                       shifts_map: dict, bonus: float = 0, deduction: float = 0,
                       advance: float = 0, month: str = None) -> dict:
     """

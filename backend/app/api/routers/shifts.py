@@ -1,17 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-from app.db.base import get_db
-from app.schemas.shift import (
-    ShiftOpen, ShiftClose, CloseWithManagerRequest, TransferDrawerRequest,
-    RevenueDeliveryRequest, DrawerTxCreate, DrawerTxOut, ShiftOut, ShiftSummary,
-)
-from app.models.shift import Shift, DrawerTransaction, ShiftStatus
-from app.services import shift_service
-from app.dependencies import get_current_user, require_perm, require_is_manager, verify_warehouse_access
-from app.models.user import User
-from app.core.exceptions import NotFoundError
 import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import NotFoundError
+from app.db.base import get_db
+from app.dependencies import get_current_user, require_is_manager, require_perm, verify_warehouse_access
+from app.models.shift import DrawerTransaction, Shift, ShiftStatus
+from app.models.user import User
+from app.schemas.shift import (
+    CloseWithManagerRequest,
+    DrawerTxCreate,
+    DrawerTxOut,
+    RevenueDeliveryRequest,
+    ShiftClose,
+    ShiftOpen,
+    ShiftOut,
+    ShiftSummary,
+    TransferDrawerRequest,
+)
+from app.services import shift_service
 
 router = APIRouter(prefix="/shifts", tags=["shifts"])
 

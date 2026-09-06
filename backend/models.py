@@ -1,8 +1,7 @@
 import json
 import os
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 SETTINGS = {}
 def load_app_settings():
@@ -10,14 +9,14 @@ def load_app_settings():
     try:
         settings_path = os.path.join(os.path.dirname(__file__), 'settings.json')
         if os.path.exists(settings_path):
-            with open(settings_path, "r", encoding="utf-8") as f:
+            with open(settings_path, encoding="utf-8") as f:
                 SETTINGS = json.load(f)
     except Exception:
         pass
 load_app_settings()
 
 class Employee:
-    def __init__(self, emp_id: str, name: str, position: str, monthly_salary: float, shift: str, 
+    def __init__(self, emp_id: str, name: str, position: str, monthly_salary: float, shift: str,
                  max_lateness_before_overtime_cancellation: int = 30, hire_date: str = None,
                  ignore_lateness: bool = False):
         self.emp_id = emp_id
@@ -28,7 +27,7 @@ class Employee:
         self.max_lateness_before_overtime_cancellation = max_lateness_before_overtime_cancellation
         self.hire_date = hire_date # YYYY-MM-DD
         self.ignore_lateness = ignore_lateness
-        
+
     def to_dict(self):
         return {
             "emp_id": self.emp_id,
@@ -40,7 +39,7 @@ class Employee:
             "hire_date": self.hire_date,
             "ignore_lateness": self.ignore_lateness
         }
-    
+
     @staticmethod
     def from_dict(data):
         # Be tolerant of older or partial records that may miss fields
@@ -71,8 +70,8 @@ def attendance_day(dt: datetime, shift_start_hour: int = 9):
 
 
 class Attendance:
-    def __init__(self, emp_id: str, check_in: datetime = None, check_out: datetime = None, 
-                 edited=False, edited_at=None, edited_by=None, edit_reason=None, 
+    def __init__(self, emp_id: str, check_in: datetime = None, check_out: datetime = None,
+                 edited=False, edited_at=None, edited_by=None, edit_reason=None,
                  status="regular", excuse_no_late=False, excuse_no_early=False, excuse_allow_overtime=False,
                  shift_override=None):
         self.emp_id = emp_id
@@ -90,7 +89,7 @@ class Attendance:
         self.excuse_no_early = excuse_no_early  # Cancel early leave penalty
         self.excuse_allow_overtime = excuse_allow_overtime  # Allow overtime on excuse days
         self.shift_override = shift_override  # Temporary shift for this day (e.g., "09:00-17:00")
-        
+
     def to_dict(self):
         return {
             "emp_id": self.emp_id,
@@ -106,7 +105,7 @@ class Attendance:
             "excuse_allow_overtime": getattr(self, 'excuse_allow_overtime', False),
             "shift_override": getattr(self, 'shift_override', None)
         }
-    
+
     @staticmethod
     def from_dict(data):
         check_in = datetime.fromisoformat(data["check_in"]) if data["check_in"] else None
@@ -132,51 +131,51 @@ class Database:
         self.payroll_file = "data/payroll.json"
         self.shifts_file = "data/shifts.json"
         self._ensure_data_directory()
-        
+
     def _ensure_data_directory(self):
         os.makedirs("data", exist_ok=True)
-        
+
     def _load_json(self, filepath):
         if os.path.exists(filepath):
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding='utf-8') as f:
                 return json.load(f)
         return []
-    
+
     def _save_json(self, filepath, data):
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    
+
     # Employee Management
     def add_employee(self, employee: Employee):
         employees = self._load_json(self.employees_file)
         emp_dict = employee.to_dict()
-        
+
         # Check if employee already exists
         for i, emp in enumerate(employees):
             if emp["emp_id"] == employee.emp_id:
                 employees[i] = emp_dict
                 self._save_json(self.employees_file, employees)
                 return
-        
+
         employees.append(emp_dict)
         self._save_json(self.employees_file, employees)
-    
-    def get_employee(self, emp_id: str) -> Optional[Employee]:
+
+    def get_employee(self, emp_id: str) -> Employee | None:
         employees = self._load_json(self.employees_file)
         for emp in employees:
             if emp["emp_id"] == emp_id:
                 return Employee.from_dict(emp)
         return None
-    
-    def get_all_employees(self) -> List[Employee]:
+
+    def get_all_employees(self) -> list[Employee]:
         employees = self._load_json(self.employees_file)
         return [Employee.from_dict(emp) for emp in employees]
-    
+
     def delete_employee(self, emp_id: str):
         employees = self._load_json(self.employees_file)
         employees = [emp for emp in employees if emp["emp_id"] != emp_id]
         self._save_json(self.employees_file, employees)
-    
+
     # Attendance Management
     def add_attendance(self, attendance: Attendance):
         attendances = self._load_json(self.attendance_file)
@@ -227,17 +226,17 @@ class Database:
                 try:
                     # Existing stored record
                     existing_att = Attendance.from_dict(a)
-                    
+
                     # If this is a manual edit, we should prioritize the incoming values
                     # especially if they were explicitly changed in the dialog.
                     if attendance.edited:
                         # For manual edits, we trust the incoming object completely
                         merged_check_in = attendance.check_in
                         merged_check_out = attendance.check_out
-                        
+
                         merged_att = Attendance(
-                            attendance.emp_id, 
-                            merged_check_in, 
+                            attendance.emp_id,
+                            merged_check_in,
                             merged_check_out,
                             edited=True,
                             edited_at=attendance.edited_at or existing_att.edited_at,
@@ -260,16 +259,16 @@ class Database:
                             all_ts.append(attendance.check_in)
                         if attendance.check_out:
                             all_ts.append(attendance.check_out)
-                        
+
                         # Dedupe and sort
                         all_ts = sorted(list(set(all_ts)))
-                        
+
                         merged_check_in = all_ts[0] if all_ts else None
                         merged_check_out = all_ts[-1] if len(all_ts) > 1 else None
 
                         merged_att = Attendance(
-                            attendance.emp_id, 
-                            merged_check_in, 
+                            attendance.emp_id,
+                            merged_check_in,
                             merged_check_out,
                             edited=existing_att.edited,
                             edited_at=existing_att.edited_at,
@@ -279,7 +278,7 @@ class Database:
                             excuse_allow_overtime=getattr(existing_att, 'excuse_allow_overtime', False),
                             shift_override=getattr(existing_att, 'shift_override', None)
                         )
-                    
+
                     attendances[i] = merged_att.to_dict()
                     replaced = True
                     break
@@ -292,13 +291,13 @@ class Database:
             attendances.append(attendance.to_dict())
 
         self._save_json(self.attendance_file, attendances)
-    
-    def get_employee_attendance(self, emp_id: str) -> List[Attendance]:
+
+    def get_employee_attendance(self, emp_id: str) -> list[Attendance]:
         attendances = self._load_json(self.attendance_file)
         emp_attendances = [att for att in attendances if att["emp_id"] == emp_id]
         return [Attendance.from_dict(att) for att in emp_attendances]
 
-    def get_all_attendances(self) -> List[Attendance]:
+    def get_all_attendances(self) -> list[Attendance]:
         """Return all attendance records as Attendance objects (normalized)."""
         attendances = self._load_json(self.attendance_file)
         result = []
@@ -309,8 +308,8 @@ class Database:
                 # skip malformed entries
                 continue
         return result
-    
-    def get_attendance_by_date(self, emp_id: str, date: datetime) -> Optional[Attendance]:
+
+    def get_attendance_by_date(self, emp_id: str, date: datetime) -> Attendance | None:
         attendances = self.get_employee_attendance(emp_id)
         # The 'date' passed from GUI is already the logical day (e.g. 2026-01-26 00:00:00)
         # We should use its date() part directly as target comparison.
@@ -324,11 +323,11 @@ class Database:
             except Exception:
                 continue
         return None
-    
+
     # Payroll Management
-    def save_payroll(self, emp_id: str, payroll_data: Dict):
+    def save_payroll(self, emp_id: str, payroll_data: dict):
         payrolls = self._load_json(self.payroll_file)
-        
+
         # Check if payroll exists for this month
         month_key = datetime.now().strftime("%Y-%m")
         for i, payroll in enumerate(payrolls):
@@ -338,17 +337,17 @@ class Database:
                 payrolls[i] = payroll_data
                 self._save_json(self.payroll_file, payrolls)
                 return
-        
+
         payroll_data["month"] = month_key
         payroll_data["emp_id"] = emp_id
         payrolls.append(payroll_data)
         self._save_json(self.payroll_file, payrolls)
-    
-    def get_employee_payroll(self, emp_id: str) -> List[Dict]:
+
+    def get_employee_payroll(self, emp_id: str) -> list[dict]:
         payrolls = self._load_json(self.payroll_file)
         return [p for p in payrolls if p.get("emp_id") == emp_id]
-    
-    def get_current_month_payroll(self, emp_id: str) -> Optional[Dict]:
+
+    def get_current_month_payroll(self, emp_id: str) -> dict | None:
         month_key = datetime.now().strftime("%Y-%m")
         payrolls = self._load_json(self.payroll_file)
         for payroll in payrolls:
@@ -357,21 +356,21 @@ class Database:
         return None
 
     # Shift management
-    def load_shifts(self) -> List[Dict]:
+    def load_shifts(self) -> list[dict]:
         return self._load_json(self.shifts_file)
 
-    def save_shifts(self, shifts: List[Dict]):
+    def save_shifts(self, shifts: list[dict]):
         return self._save_json(self.shifts_file, shifts)
 
-    def get_shifts(self) -> List[Dict]:
+    def get_shifts(self) -> list[dict]:
         return self.load_shifts()
 
-    def add_shift(self, shift: Dict):
+    def add_shift(self, shift: dict):
         shifts = self.load_shifts()
         shifts.append(shift)
         self.save_shifts(shifts)
 
-    def update_shift(self, shift_id: str, new_shift: Dict):
+    def update_shift(self, shift_id: str, new_shift: dict):
         shifts = self.load_shifts()
         for i, s in enumerate(shifts):
             if str(s.get('id')) == str(shift_id):
@@ -391,15 +390,15 @@ class Database:
     def _finances_file(self):
         return os.path.join('data', 'finances.json')
 
-    def add_finance(self, record: Dict):
+    def add_finance(self, record: dict):
         finances = self._load_json(self._finances_file())
         finances.append(record)
         self._save_json(self._finances_file(), finances)
 
-    def get_finances(self) -> List[Dict]:
+    def get_finances(self) -> list[dict]:
         return self._load_json(self._finances_file())
 
-    def get_finances_for_emp_month(self, emp_id: str, month: str) -> List[Dict]:
+    def get_finances_for_emp_month(self, emp_id: str, month: str) -> list[dict]:
         # month format: YYYY-MM
         finances = self.get_finances()
         result = []
@@ -451,7 +450,7 @@ class PayrollCalculator:
                 import os
                 shifts_path = os.path.join(os.getcwd(), 'data', 'shifts.json')
                 if os.path.exists(shifts_path):
-                    with open(shifts_path, 'r', encoding='utf-8') as f:
+                    with open(shifts_path, encoding='utf-8') as f:
                         shifts = json.load(f)
                     for s in shifts:
                         if str(s.get('name')) == str(shift_str) or str(s.get('id')) == str(shift_str):
@@ -466,27 +465,27 @@ class PayrollCalculator:
             except Exception:
                 pass
             return 8, 16
-    
+
     @staticmethod
     def calculate_lateness(check_in: datetime, shift: str) -> tuple:
         """Calculate lateness in minutes and return (minutes_late, is_late)"""
         start_h, _ = PayrollCalculator.parse_shift(shift)
         shift_start = check_in.replace(hour=start_h, minute=0, second=0, microsecond=0)
-        
+
         if check_in > shift_start:
             lateness_minutes = int((check_in - shift_start).total_seconds() / 60)
             return lateness_minutes, True
         return 0, False
-    
+
     @staticmethod
     def calculate_overtime(check_in: datetime, check_out: datetime, shift: str) -> float:
         """Calculate overtime hours"""
         start_h, end_h = PayrollCalculator.parse_shift(shift)
-        
+
         shift_end = check_in.replace(hour=end_h, minute=0, second=0, microsecond=0)
         if end_h <= start_h:
             shift_end += timedelta(days=1)
-        
+
         if check_out and check_out > shift_end:
             overtime_seconds = (check_out - shift_end).total_seconds()
             overtime_hours = overtime_seconds / 3600
@@ -497,22 +496,22 @@ class PayrollCalculator:
     def calculate_early_leave(check_in: datetime, check_out: datetime, shift: str) -> int:
         """Calculate early leave in minutes and return minutes_early"""
         start_h, end_h = PayrollCalculator.parse_shift(shift)
-        
+
         shift_end = check_in.replace(hour=end_h, minute=0, second=0, microsecond=0)
         if end_h <= start_h:
             shift_end += timedelta(days=1)
-            
+
         if check_out and check_out < shift_end:
             early_minutes = int((shift_end - check_out).total_seconds() / 60)
             return max(0, early_minutes)
         return 0
-    
+
     @staticmethod
-    def calculate_payroll(employee: Employee, attendances: List[Attendance], 
-                         bonus: float = 0, deduction: float = 0, advance: float = 0) -> Dict:
+    def calculate_payroll(employee: Employee, attendances: list[Attendance],
+                         bonus: float = 0, deduction: float = 0, advance: float = 0) -> dict:
         """Calculate complete payroll for an employee"""
         load_app_settings()
-        
+
         monthly_salary = employee.monthly_salary
         # company policy: month counts as 26 working days
         days_in_month = 26
@@ -539,7 +538,7 @@ class PayrollCalculator:
             ref_ts = att.check_in or att.check_out
             if not ref_ts:
                 continue
-            
+
             # Map to logical day using our fixed rollover
             day = attendance_day(ref_ts)
             if day:
@@ -582,7 +581,7 @@ class PayrollCalculator:
         actual_working_days = 0 # Days physically present or on mission
         vacation_days = 0 # Paid leave days
         daily_breakdown = []
-        
+
         leave_days_count = 0
         now = datetime.now()
 
@@ -592,7 +591,7 @@ class PayrollCalculator:
         if target_date.year == now.year and target_date.month == now.month:
             # For current month, we usually only care about days up to today
             end_date_for_loop = now.date()
-        
+
         # Always start from month_start to handle pre-hiring days in the table
         start_date_for_loop = month_start
         h_dt = None
@@ -642,13 +641,13 @@ class PayrollCalculator:
 
                 # Absent Day
                 is_today = (current_day == now.date())
-                
+
                 # If it's today and shift hasn't potentially ended, use a different note
                 # This avoids definitively marking as "Absent" while shift might be active/syncing
                 absent_note = 'غياب'
                 if is_today:
                     absent_note = 'لم يتم تسجيل حضور اليوم (أو لم يتم المزامنة)'
-                
+
                 daily_breakdown.append({
                     'date': current_day.isoformat(),
                     'check_in': None,
@@ -670,12 +669,12 @@ class PayrollCalculator:
             excuse_no_early = getattr(primary_att, 'excuse_no_early', False)
             excuse_allow_overtime = getattr(primary_att, 'excuse_allow_overtime', False)
             shift_override = getattr(primary_att, 'shift_override', None)
-            
+
             # Determine effective shift for this day
             effective_shift = shift_override if shift_override else employee.shift
             start_h, end_h = PayrollCalculator.parse_shift(effective_shift)
             shift_length = (end_h - start_h) if end_h > start_h else (24 - start_h + end_h)
-            
+
             is_edited = any(getattr(att, 'edited', False) for att in day_items)
             edit_reason = next((getattr(att, 'edit_reason', '') for att in day_items if getattr(att, 'edit_reason', '')), '')
 
@@ -686,18 +685,18 @@ class PayrollCalculator:
                     all_ts.append(item.check_in)
                 if item.check_out:
                     all_ts.append(item.check_out)
-            
+
             # Use extreme timestamps as effective In and Out
             all_ts = sorted(list(set(all_ts)))
             effective_in = all_ts[0] if all_ts else None
             effective_out = all_ts[-1] if len(all_ts) > 1 else None
-            
+
             assumed_penalty_hours = 0
             assumed_note = ''
-            
+
             if shift_override:
                 assumed_note += f'[شيفت مؤقت: {shift_override}] '
-            
+
             work_hours = 0.0
             late_mins = 0
             early_mins = 0
@@ -735,9 +734,9 @@ class PayrollCalculator:
                         shift_start_time = effective_out.replace(hour=start_h, minute=0, second=0, microsecond=0)
                         if start_h > end_h and shift_start_time > effective_out:
                             shift_start_time = shift_start_time - timedelta(days=1)
-                        
+
                         effective_in = shift_start_time
-                        
+
                         # Missing check-in penalty: Track separately
                         assumed_penalty_hours = SETTINGS.get('missing_checkout_penalty_hours', 2)
                         missing_scan_mins += int(assumed_penalty_hours * 60)
@@ -748,7 +747,7 @@ class PayrollCalculator:
                 # Calculate lateness - SKIP for paid leave/mission
                 if effective_in and status not in ('leave', 'mission'):
                     late_mins, is_late = PayrollCalculator.calculate_lateness(effective_in, effective_shift)
-                    
+
                     # Apply Employee Lateness Exclusion
                     if getattr(employee, 'ignore_lateness', False):
                         late_mins = 0
@@ -773,7 +772,7 @@ class PayrollCalculator:
                         shift_end_time = effective_in.replace(hour=end_h, minute=0, second=0, microsecond=0)
                         if end_h <= start_h: # overnight
                             shift_end_time = shift_end_time + timedelta(days=1)
-                        
+
                         # If it's today and we haven't reached shift_end + 2 hours yet, don't penalize
                         if is_today and now < (shift_end_time + timedelta(hours=2)):
                             effective_out = None
@@ -784,64 +783,64 @@ class PayrollCalculator:
                             # We will later separate this penalty from actual early leave
                             penalty_hours = SETTINGS.get('missing_checkout_penalty_hours', 2)
                             effective_out = shift_end_time - timedelta(hours=penalty_hours)
-                            
+
                             # Mark that we have a missing checkout penalty to separate it later
                             missing_scan_mins += int(penalty_hours * 60)
-                            
+
                             assumed_note = (assumed_note + ' / ' if assumed_note else '') + f'افتراض خروج بدري {penalty_hours} ساعة'
                     except Exception:
                         effective_out = None
 
                 if effective_out and effective_in:
                     calculated_hours = (effective_out - effective_in).total_seconds() / 3600
-                    
+
                     # For special paid statuses, take the maximum of assigned or calculated hours
                     if work_hours > 0:
                         work_hours = max(work_hours, calculated_hours)
                     else:
                         work_hours = calculated_hours
-                    
+
                     # Calculate early leave
                     # Calculate GROSS early leave (includes missing checkout penalty if any)
                     calculated_early = PayrollCalculator.calculate_early_leave(effective_in, effective_out, effective_shift)
-                    
+
                     # Separate regular early leave from missing scan penalty
                     # If we have missing_scan_mins from checkout, subtract it from calculated_early to avoid double counting
                     # CAUTION: missing_scan_mins might include check-in penalty which is NOT in calculated_early
                     # We need to only subtract the part related to checkout.
-                    
+
                     # Let's verify:
                     # 1. Missing Check-in: added to missing_scan_mins directly. Not in calculated_early.
                     # 2. Missing Check-out: effective_out adjusted. calculated_early HAS the minutes. missing_scan_mins HAS the minutes.
                     #    So we should take `regular_early = calculated_early - (missing_scan_mins_from_checkout)`
-                    
-                    # Logic: 
+
+                    # Logic:
                     # If we assumed checkout, the calculated_early is fully attributed to missing scan (conceptually).
                     # Any extra early leave on top of assumption? No, because we force-set the time.
-                    
+
                     # Simplification:
                     # If we forced effective_out due to missing checkout, calculated_early IS the missing penalty.
                     # So regular_early should be 0 (or whatever remains).
-                    
+
                     # Re-calculating proper distribution
                     penalty_from_checkout = 0
                     if 'افتراض خروج' in assumed_note: # A bit hacky but we know we set it above
                          penalty_hours = SETTINGS.get('missing_checkout_penalty_hours', 2)
                          penalty_from_checkout = int(penalty_hours * 60)
-                    
+
                     regular_early = max(0, calculated_early - penalty_from_checkout)
                     early_mins += regular_early
-                    
+
                     # Apply excuse_no_early if applicable
                     if status == 'excuse' and excuse_no_early:
                         early_mins = 0
                         assumed_note = (assumed_note + ' / ' if assumed_note else '') + 'عذر (إلغاء الانصراف المبكر)'
-                    
+
                     if SETTINGS.get('overtime_enabled', True):
                         daily_ot = max(0.0, work_hours - shift_length)
                     else:
                         daily_ot = 0.0
-                    
+
                     # Check overtime cancellation rules
                     threshold = getattr(employee, 'max_lateness_before_overtime_cancellation', 30)
                     if threshold >= 0 and late_mins > threshold:
@@ -868,7 +867,7 @@ class PayrollCalculator:
                     vacation_days += 1
                 else:
                     actual_working_days += 1
-            
+
             total_late_minutes += late_mins
             total_early_minutes += early_mins
             total_missing_scan_minutes += missing_scan_mins
@@ -899,13 +898,13 @@ class PayrollCalculator:
         # Lateness & Missing Checkout deduction calculation: Use multiplier from settings
         # EARLY LEAVE is calculated as delay but NOT doubled (multiplier 1.0)
         multiplier = SETTINGS.get('late_penalty_multiplier', 2.0)
-        
+
         # Doubled part: Lateness ONLY
         doubled_penalty_units = (total_late_minutes / 60)
-        
+
         # Single part: Early Leave + Missing Scan
         single_penalty_units = (total_early_minutes / 60) + (total_missing_scan_minutes / 60)
-        
+
         lateness_deduction = (doubled_penalty_units * multiplier + single_penalty_units) * hourly_rate if hourly_rate > 0 else 0
 
         # Overtime payment: treated as normal work hour (no multiplier)
@@ -921,7 +920,7 @@ class PayrollCalculator:
         # Fix: We must subtract overtime hours from total_hours to get "Normal Hours"
         # so that we don't pay for OT twice (once in base, once in OT).
         normal_hours_worked = max(0.0, total_hours - daily_overtime_sum)
-        
+
         if scheduled_month_hours > 0:
             if normal_hours_worked >= scheduled_month_hours:
                 base_pay = monthly_salary

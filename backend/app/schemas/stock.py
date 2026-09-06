@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
+
 from app.models.stock import MovementType
 
 
@@ -13,7 +14,7 @@ class StockMovementCreate(BaseModel):
     qty: Decimal = Field(..., gt=0)
     unit_cost: Decimal = Decimal("0")
     unit_price: Decimal = Decimal("0")
-    note: Optional[str] = None
+    note: str | None = None
 
     @field_validator('note')
     def note_required_for_damage(cls, v, info):
@@ -31,13 +32,13 @@ class StockMovementOut(BaseModel):
     qty: Decimal
     unit_cost: Decimal
     unit_price: Decimal
-    ref_id: Optional[uuid.UUID]
-    ref_type: Optional[str]
-    sale_id: Optional[uuid.UUID] = None
-    purchase_id: Optional[uuid.UUID] = None
-    operation_id: Optional[uuid.UUID] = None
-    note: Optional[str]
-    created_by: Optional[uuid.UUID]
+    ref_id: uuid.UUID | None
+    ref_type: str | None
+    sale_id: uuid.UUID | None = None
+    purchase_id: uuid.UUID | None = None
+    operation_id: uuid.UUID | None = None
+    note: str | None
+    created_by: uuid.UUID | None
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -53,4 +54,4 @@ class TransferRequest(BaseModel):
     from_warehouse_id: uuid.UUID
     to_warehouse_id: uuid.UUID
     qty: Decimal = Field(..., gt=0)
-    note: Optional[str] = None
+    note: str | None = None

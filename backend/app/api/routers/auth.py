@@ -1,16 +1,18 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.ratelimit import RateLimiter
+from app.core.security import create_access_token
 from app.db.base import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.user import UserPasswordUpdate
 from app.services import auth_service
-from app.dependencies import get_current_user
-from app.models.user import User
-from app.core.ratelimit import RateLimiter
-from app.core.security import create_access_token
-from app.core.config import settings
-from datetime import timedelta
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

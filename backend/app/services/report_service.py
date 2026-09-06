@@ -1,9 +1,11 @@
 from datetime import date, datetime
 from decimal import Decimal
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from app.models.sale import Sale, SaleItem
+
 from app.models.product import Product
+from app.models.sale import Sale, SaleItem
 
 
 async def daily_sales(db: AsyncSession, target_date: date, warehouse_id: str | None = None):
@@ -87,6 +89,7 @@ async def top_products(db: AsyncSession, from_date: str, to_date: str, limit: in
 
 async def profit_report(db: AsyncSession, from_date: str, to_date: str, warehouse_id: str | None = None):
     import uuid as _uuid
+
     from sqlalchemy import text as sqlt
     start = datetime.fromisoformat(from_date)
     end   = datetime.fromisoformat(to_date)

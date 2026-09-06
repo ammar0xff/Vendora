@@ -1,9 +1,33 @@
 from fastapi import APIRouter
-from app.api.routers import auth, users, products, stock, sales, shifts, reports, parties, purchases, archive, payroll, settings, operations
+
+from app.api.routers import (
+    admin_overview,
+    archive,
+    auth,
+    expenses,
+    finance,
+    hr,
+    notifications,
+    operations,
+    parties,
+    payroll,
+    periods,
+    print_router,
+    products,
+    purchases,
+    reports,
+    safes,
+    sales,
+    settings,
+    shifts,
+    stock,
+    suppliers,
+    users,
+    wallets,
+)
+from app.api.routers import collections as collections_router
+from app.api.routers import export as export_router
 from app.api.routers import ledger as ledger_router
-from app.api.routers import hr, finance, suppliers, admin_overview, safes, wallets, collections as collections_router
-from app.api.routers import print_router, expenses, periods, export as export_router
-from app.api.routers import notifications
 from app.api.routers import updater as updater_router
 
 router = APIRouter()

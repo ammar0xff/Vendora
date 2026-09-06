@@ -1,14 +1,18 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
+from app.core.exceptions import BusinessError, NotFoundError
 from app.db.base import get_db
-from app.models.payroll import HrEmployee as Employee, HrPayrollPeriod as PayrollPeriod, HrPayrollEntry as PayrollEntry
-from app.schemas.hr import EmployeeCreate
 from app.dependencies import require_perm
+from app.models.payroll import HrEmployee as Employee
+from app.models.payroll import HrPayrollEntry as PayrollEntry
+from app.models.payroll import HrPayrollPeriod as PayrollPeriod
 from app.models.user import User
-from app.core.exceptions import NotFoundError, BusinessError
-import uuid
+from app.schemas.hr import EmployeeCreate
 
 router = APIRouter(prefix="/payroll", tags=["payroll"])
 
@@ -52,8 +56,9 @@ async def list_entries(period_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 
 @router.post("/periods/{period_id}/approve")
 async def approve_period(period_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_perm("payroll"))):
-    from sqlalchemy import text as sqlt
     from decimal import Decimal
+
+    from sqlalchemy import text as sqlt
 
     result = await db.execute(select(PayrollPeriod).where(PayrollPeriod.id == period_id))
     p = result.scalar_one_or_none()

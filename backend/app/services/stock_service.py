@@ -1,10 +1,12 @@
-from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case
-from app.models.stock import StockMovement, MovementType, IN_TYPES, OUT_TYPES
-from app.models.product import Product
-from app.core.exceptions import BusinessError
 import uuid
+from decimal import Decimal
+
+from sqlalchemy import case, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import BusinessError
+from app.models.product import Product
+from app.models.stock import IN_TYPES, MovementType, StockMovement
 
 
 async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID, for_update: bool = False) -> Decimal:

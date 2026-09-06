@@ -1,8 +1,9 @@
 """Wallet service — all wallet balance changes go through here."""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from decimal import Decimal
 import uuid
+from decimal import Decimal
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def record_wallet_tx(

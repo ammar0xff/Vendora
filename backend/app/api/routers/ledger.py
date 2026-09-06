@@ -2,15 +2,17 @@
 GET /reports/ledger
 Returns all sale items + returns + expenses for a date range.
 """
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+import uuid
 from datetime import datetime
 from decimal import Decimal
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.base import get_db
 from app.dependencies import get_current_user, verify_warehouse_access
 from app.models.user import User
-import uuid
 
 router = APIRouter(prefix="/reports/ledger", tags=["ledger"])
 
@@ -102,13 +104,13 @@ async def ledger(
     params.update(wh_p)
 
     # Count: sale items
-    count_sale_sql = text("""
+    count_sale_sql = text(f"""
         SELECT COUNT(*) FROM sale_items si
         JOIN sales s ON s.id = si.sale_id
         WHERE s.status = 'confirmed'
           AND s.created_at BETWEEN :start AND :end
-          {wh}
-    """.format(wh=wh_s))
+          {wh_s}
+    """)
     total_sale_items = (await db.execute(count_sale_sql, params)).scalar()
 
     sale_sql = text(BASE_SELECT.format(wh=wh_s) + " OFFSET :offset LIMIT :limit")
@@ -136,13 +138,13 @@ async def ledger(
     # Returns
     wh_r, wh_rp = wh_clause("s", warehouse_id)
 
-    count_return_sql = text("""
+    count_return_sql = text(f"""
         SELECT COUNT(*) FROM sale_items si
         JOIN sales s ON s.id = si.sale_id
         WHERE s.status = 'returned'
           AND s.created_at BETWEEN :start AND :end
-          {wh}
-    """.format(wh=wh_r))
+          {wh_r}
+    """)
     total_returns_count = (await db.execute(count_return_sql, {**params, **wh_rp})).scalar()
 
     ret_sql = text(BASE_RETURN.format(wh=wh_r) + " OFFSET :offset LIMIT :limit")
@@ -168,13 +170,13 @@ async def ledger(
     # Expenses / deposits / withdrawals
     wh_t, wh_tp = wh_clause("sh", warehouse_id)
 
-    count_tx_sql = text("""
+    count_tx_sql = text(f"""
         SELECT COUNT(*) FROM drawer_transactions dt
         JOIN shifts sh ON sh.id = dt.shift_id
         WHERE dt.type IN ('expense','deposit','withdrawal','revenue_delivery')
           AND dt.created_at BETWEEN :start AND :end
-          {wh}
-    """.format(wh=wh_t))
+          {wh_t}
+    """)
     total_tx_count = (await db.execute(count_tx_sql, {**params, **wh_tp})).scalar()
 
     tx_sql = text(BASE_TX.format(wh=wh_t) + " OFFSET :offset LIMIT :limit")
@@ -214,9 +216,9 @@ async def ledger(
         WHERE dt.type IN ('sale','return_')
           AND (dt.payment_method IS NULL OR dt.payment_method = '' OR dt.payment_method = 'cash')
           AND dt.created_at BETWEEN :start AND :end
-          {{wh}}
+          {wh_t}
         GROUP BY dt.type
-    """.format(wh=wh_t))
+    """)
     cash_drawer_rows = await db.execute(cash_drawer_sql, {**params, **wh_tp})
     cash_drawer_sales = 0
     cash_drawer_returns = 0
@@ -244,9 +246,9 @@ async def ledger(
         LEFT JOIN sale_payments sp ON sp.sale_id = s.id
         WHERE s.status = 'confirmed'
           AND s.created_at BETWEEN :start AND :end
-          {{wh}}
+          {cls_wh}
         GROUP BY s.id
-    """.format(wh=cls_wh)), {**params, **cls_whp})
+    """), {**params, **cls_whp})
     cash_sales = 0.0
     wallet_sales = 0.0
     credit_sales = 0.0

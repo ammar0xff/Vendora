@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Literal
 
 
 class SaleItemCreate(BaseModel):
@@ -120,5 +122,5 @@ class SaleOut(BaseModel):
     wallet_id: uuid.UUID | None
     notes: str | None
     created_at: datetime
-    items: List[SaleItemOut] = []
+    items: list[SaleItemOut] = []
     model_config = {"from_attributes": True}
