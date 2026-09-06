@@ -1,0 +1,3 @@
+# Only the Dockerfile is needed to build this HF Space — keep the context tiny.
+*
+!Dockerfile
