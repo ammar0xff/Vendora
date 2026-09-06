@@ -87,7 +87,7 @@ function FaviconUpdater() {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000, retry: false })
   useEffect(() => {
     const logo = settings?.logo_url
-    const name = settings?.store_name || 'ERP'
+    const name = settings?.store_name || 'Vendora'
     document.title = name
     const href = logo ? logo + '?v=' + Date.now() : '/favicon.svg'
     const appleHref = logo ? logo + '?v=' + Date.now() : '/icon-192.png'

@@ -1,7 +1,7 @@
 {
-  "name": "نظام إدارة الأعمال",
-  "short_name": "ERP",
-  "description": "نظام إدارة المبيعات والمخزون والموظفين",
+  "name": "Vendora",
+  "short_name": "Vendora",
+  "description": "Vendora — نظام إدارة المبيعات والمخزون والموظفين",
   "theme_color": "#2b1b03",
   "background_color": "#2b1b03",
   "display": "standalone",

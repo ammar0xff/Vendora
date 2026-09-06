@@ -107,7 +107,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { activeWarehouseId, setActiveWarehouse } = useAppStore()
   const { data: warehouses } = useQuery<Warehouse[]>({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get })
-  const companyName = settings?.store_name || 'نظام الجرد'
+  const companyName = settings?.store_name || 'Vendora'
   const logoUrl = settings?.logo_url || ''
 
   const [sidebarOpen, setSidebarOpen] = useState(true)

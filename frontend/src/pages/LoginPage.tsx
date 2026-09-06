@@ -15,7 +15,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, retry: false, staleTime: 60_000 })
-  const companyName = settings?.store_name || 'نظام إدارة الأعمال'
+  const companyName = settings?.store_name || 'Vendora'
   const logoUrl = settings?.logo_url || ''
 
   const handleSubmit = async (e: React.FormEvent) => {

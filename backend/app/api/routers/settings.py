@@ -67,7 +67,7 @@ async def pwa_manifest(db: AsyncSession = Depends(get_db)):
     import os
     rows = (await db.execute(text("SELECT key, value FROM store_settings WHERE key IN ('store_name','logo_url')"))).fetchall()
     s = {r.key: r.value for r in rows}
-    name = s.get("store_name") or "نظام إدارة الأعمال"
+    name = s.get("store_name") or "Vendora"
     logo = s.get("logo_url") or ""
     icons = []
     if logo:
