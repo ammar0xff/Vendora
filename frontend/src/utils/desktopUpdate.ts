@@ -12,7 +12,7 @@ export async function checkForDesktopUpdates(): Promise<void> {
 
   try {
     const { check } = await import('@tauri-apps/plugin-updater');
-    const { relaunch } = await import('@tauri-apps/plugin-process');
+    const { restart } = await import('@tauri-apps/plugin-process');
 
     const update = await check();
     if (update) {
@@ -40,8 +40,8 @@ export async function checkForDesktopUpdates(): Promise<void> {
         }
       });
 
-      // Relaunch to apply update
-      await relaunch();
+      // Restart to apply update
+      await restart();
     } else {
       console.log('No updates available');
     }

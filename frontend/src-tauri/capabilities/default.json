@@ -14,7 +14,7 @@
     "updater:allow-install",
     "process:default",
     "process:allow-exit",
-    "process:allow-relaunch",
+    "process:allow-restart",
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-minimize",
