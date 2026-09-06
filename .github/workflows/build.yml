@@ -74,7 +74,7 @@ jobs:
 
       - name: Lint
         working-directory: backend
-        run: pip install ruff && ruff check .
+        run: pip install ruff==0.16.6 && ruff check .
 
   ci-manage:
     name: Manage script check
