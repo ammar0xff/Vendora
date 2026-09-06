@@ -110,7 +110,7 @@ async function getSourceImage(sourceArg) {
 }
 
 async function resizeTo(image, size) {
-  return sharp(image).resize(size, size, { fit: 'cover' }).png().toBuffer();
+  return sharp(image).resize(size, size, { fit: 'cover' }).ensureAlpha().png({ bitDepth: 8 }).toBuffer();
 }
 
 async function generateAndroidIcons(image) {

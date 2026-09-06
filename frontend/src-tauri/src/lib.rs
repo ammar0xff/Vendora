@@ -23,7 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState};
+            use tauri::tray::TrayIconBuilder;
             let _tray = TrayIconBuilder::new()
                 .tooltip("EG-CO ERP")
                 .on_menu_event(|app, event| {
