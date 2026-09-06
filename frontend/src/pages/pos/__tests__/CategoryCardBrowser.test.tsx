@@ -8,8 +8,8 @@
  *   npm install -D @testing-library/react @testing-library/user-event
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, cleanup } from '@testing-library/react'
 // userEvent is imported here for use by subsequent test tasks (4.4 onward)
 import userEvent from '@testing-library/user-event'
 import CategoryCardBrowser from '../CategoryCardBrowser'
@@ -129,6 +129,8 @@ beforeEach(() => {
   // Reset to the default mock before each test so tests are isolated
   mockUseQuery(defaultUseQuery)
 })
+
+afterEach(cleanup)
 
 // ---------------------------------------------------------------------------
 // Render helper — wraps render() with required props
