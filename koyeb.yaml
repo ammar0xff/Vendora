@@ -1,0 +1,42 @@
+# Koyeb declarative deploy for the Vendora backend (free tier).
+# Docs: https://www.koyeb.com/docs/reference/configuration
+#
+# Usage:
+#   koyeb app create
+#   koyeb service create vendora-backend --app vendora --git github.com/ammar0xff/Vendora \
+#     --git-branch master --dockerfile ./backend/Dockerfile --port 8000
+#
+# or via dashboard: Create Web Service -> Git -> repo -> Dockerfile -> backend/Dockerfile, port 8000.
+#
+# Environment variables are injected from the Koyeb dashboard "Environment" tab
+# (do NOT commit secrets here):
+#   DATABASE_URL   = Neon connection string (sslmode=require)
+#   SECRET_KEY     = random hex (openssl rand -hex 32)
+#   APP_ENV        = production
+
+app:
+  name: vendora
+
+services:
+  - name: vendora-backend
+    git:
+      repository: ammar0xff/Vendora
+      branch: master
+    dockerfile: backend/Dockerfile
+    instance_type: nano          # free tier: 0.1 vCPU / 512 MB
+    ports:
+      - port: 8000
+        protocol: http
+    routes:
+      - path: /
+        port: 8000
+    health_checks:
+      - port: 8000
+        path: /health
+        interval: 30
+        initial_delay: 60
+    env:
+      # Values come from the dashboard "Environment" tab — set DATABASE_URL, SECRET_KEY.
+      # APP_ENV is bumped to production so a placeholder SECRET_KEY is rejected.
+      - key: APP_ENV
+        value: production
