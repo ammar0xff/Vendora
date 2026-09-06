@@ -1,5 +1,6 @@
 import logging
 import os
+import tempfile
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -69,10 +70,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
-updates_dir = os.environ.get("UPDATES_DIR", "./updates")
-os.makedirs(updates_dir, exist_ok=True)
+def _resolve_writable_dir(path: str) -> str:
+    """Return the path if writable, else a writable mirror under /tmp."""
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe = os.path.join(path, ".wprobe")
+        with open(probe, "w") as f:
+            f.write("")
+        os.remove(probe)
+        return path
+    except OSError:
+        alt = os.path.join(tempfile.gettempdir(), os.path.basename(path.strip(os.sep)))
+        os.makedirs(alt, exist_ok=True)
+        return alt
+
+
+upload_dir = _resolve_writable_dir(settings.UPLOAD_DIR)
+settings.UPLOAD_DIR = upload_dir
+app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
+updates_dir = _resolve_writable_dir(os.environ.get("UPDATES_DIR", "./updates"))
 app.mount("/updates", StaticFiles(directory=updates_dir), name="updates")
 app.include_router(router)
 
