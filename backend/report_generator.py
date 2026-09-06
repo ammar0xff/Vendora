@@ -66,13 +66,13 @@ class ReportGenerator:
             --danger-color: #c0392b;
             --bg-color: #f5f7fa;
         }}
-        
+
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
@@ -80,7 +80,7 @@ class ReportGenerator:
             line-height: 1.6;
             padding: 20px;
         }}
-        
+
         .container {{
             max-width: 100%;
             margin: 0 auto;
@@ -89,7 +89,7 @@ class ReportGenerator:
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             overflow: hidden;
         }}
-        
+
         .header {{
             background: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
             color: white;
@@ -97,18 +97,18 @@ class ReportGenerator:
             text-align: center;
             border-bottom: 4px solid var(--accent-color);
         }}
-        
+
         .header h1 {{
             margin-bottom: 8px;
             font-size: 2em;
             font-weight: 700;
         }}
-        
+
         .header p {{
             font-size: 0.95em;
             opacity: 0.9;
         }}
-        
+
         .summary {{
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -117,7 +117,7 @@ class ReportGenerator:
             background: #fff;
             border-bottom: 2px solid #eee;
         }}
-        
+
         .summary-card {{
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             padding: 15px;
@@ -125,35 +125,35 @@ class ReportGenerator:
             border-right: 3px solid var(--accent-color);
             text-align: center;
         }}
-        
+
         .summary-card h3 {{
             font-size: 0.8em;
             color: #7f8c8d;
             margin-bottom: 8px;
             font-weight: 600;
         }}
-        
+
         .summary-card .value {{
             font-size: 1.4em;
             font-weight: 700;
             color: var(--primary-color);
         }}
-        
+
         .content {{
             padding: 20px 25px;
         }}
-        
+
         table {{
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85em;
         }}
-        
+
         thead {{
             background: var(--primary-color);
             color: white;
         }}
-        
+
         th {{
             padding: 10px 8px;
             text-align: right;
@@ -161,45 +161,45 @@ class ReportGenerator:
             font-size: 0.9em;
             white-space: nowrap;
         }}
-        
+
         td {{
             padding: 10px 8px;
             border-bottom: 1px solid #eee;
             text-align: right;
         }}
-        
+
         tbody tr:hover {{
             background-color: #f8f9fa;
             transition: background-color 0.2s;
         }}
-        
+
         tbody tr:nth-child(odd) {{
             background-color: #fff;
         }}
-        
+
         tbody tr:nth-child(even) {{
             background-color: #f8f9fa;
         }}
-        
+
         .salary-cell {{
             font-weight: 700;
             color: var(--success-color);
             font-size: 1.05em;
         }}
-        
+
         .total-row {{
             background: linear-gradient(135deg, #34495e 0%, var(--primary-color) 100%) !important;
             color: white !important;
             font-weight: 700;
             font-size: 1.05em;
         }}
-        
+
         .total-row td {{
             padding: 14px 8px;
             border-top: 3px solid var(--accent-color);
             border-bottom: 3px solid var(--accent-color);
         }}
-        
+
         .footer {{
             background: #f8f9fa;
             padding: 15px;
@@ -208,12 +208,12 @@ class ReportGenerator:
             color: #7f8c8d;
             font-size: 0.85em;
         }}
-        
+
         .no-print {{
             text-align: left;
             padding: 15px 25px;
         }}
-        
+
         .print-btn {{
             background: var(--primary-color);
             color: white;
@@ -224,36 +224,36 @@ class ReportGenerator:
             font-size: 1em;
             transition: background 0.3s;
         }}
-        
+
         .print-btn:hover {{
             background: #34495e;
         }}
-        
+
         @media print {{
             @page {{
                 size: landscape;
                 margin: 1cm;
             }}
-            
+
             body {{
                 background: white;
                 padding: 0;
             }}
-            
+
             .container {{
                 box-shadow: none;
                 width: 100%;
                 max-width: none;
             }}
-            
+
             .no-print {{
                 display: none;
             }}
-            
+
             table {{
                 font-size: 0.75em;
             }}
-            
+
             .header h1 {{
                 font-size: 1.8em;
             }}
@@ -266,7 +266,7 @@ class ReportGenerator:
             <h1>📊 تقرير الرواتب الشهري</h1>
             <p>الشهر: {month} | تاريخ الإنشاء: {datetime.now().strftime('%d/%m/%Y %I:%M %p')}</p>
         </div>
-        
+
         <div class="summary">
             <div class="summary-card">
                 <h3>عدد الموظفين</h3>
@@ -289,7 +289,7 @@ class ReportGenerator:
                 <div class="value">{total_final_salary:,.2f}</div>
             </div>
         </div>
-        
+
         <div class="content">
             <table>
                 <thead>
@@ -373,13 +373,13 @@ class ReportGenerator:
                 </tbody>
             </table>
         </div>
-        
+
         <div class="footer">
             <p>هذا التقرير تم إنشاؤه بواسطة نظام إدارة الموارد البشرية والرواتب</p>
             <p>© 2026 جميع الحقوق محفوظة</p>
         </div>
     </div>
-    
+
     <div class="no-print">
         <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير / PDF</button>
     </div>
@@ -391,7 +391,7 @@ class ReportGenerator:
     @staticmethod
     def generate_employee_report(employee: Employee, attendances: list[Attendance], payroll: dict, sections: list[str] = None, finances: list[dict] = None) -> str:
         """Generate an individual employee report.
-        sections: list of sections to include ('info', 'calc', 'summary', 'breakdown', 'attendance'). 
+        sections: list of sections to include ('info', 'calc', 'summary', 'breakdown', 'attendance').
                   If None, include all.
         finances: list of finance records (advances/bonuses/deductions) to show item by item.
         """
@@ -573,7 +573,7 @@ class ReportGenerator:
                         </td>
                         <td class="amount-positive">{fmt(payroll.get('base_pay_prorated', 0))}</td>
                     </tr>
-                    
+
                     <tr class="calc-row">
                         <td>
                             مستحقات العمل الإضافي
@@ -586,7 +586,7 @@ class ReportGenerator:
                         </td>
                         <td class="amount-positive">+{fmt(payroll['overtime_payment'])}</td>
                     </tr>
-                    
+
                     <tr class="calc-row">
                         <td>
                             مكافآت أيام البونص
@@ -614,7 +614,7 @@ class ReportGenerator:
                         </td>
                         <td class="amount-negative">-{fmt( (payroll['lateness_minutes'] / 60) * payroll.get('late_penalty_multiplier', 2) * payroll['hourly_rate'] )}</td>
                     </tr>
-                    
+
                     <tr class="calc-row">
                         <td>خصم الانصراف المبكر</td>
                         <td>
@@ -646,7 +646,7 @@ class ReportGenerator:
                     {deduct_rows_html}
 
                     {advance_rows_html}
-                    
+
                     <tr class="total-row">
                         <td colspan="2">صــــافي الراتـــــب النهائي</td>
                         <td style="direction: ltr; text-align: right;">{fmt(payroll['final_salary'])} EGP</td>
@@ -754,13 +754,13 @@ class ReportGenerator:
             --danger-color: #c0392b;
             --bg-color: #f5f7fa;
         }}
-        
+
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
@@ -768,7 +768,7 @@ class ReportGenerator:
             line-height: 1.6;
             padding: 20px;
         }}
-        
+
         .container {{
             max-width: 1000px;
             margin: 0 auto;
@@ -777,7 +777,7 @@ class ReportGenerator:
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             overflow: hidden;
         }}
-        
+
         .header {{
             background: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
             color: white;
@@ -785,12 +785,12 @@ class ReportGenerator:
             text-align: center;
             border-bottom: 4px solid var(--accent-color);
         }}
-        
+
         .header h1 {{
             margin-bottom: 10px;
             font-size: 2.2em;
         }}
-        
+
         .grid-info {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -799,31 +799,31 @@ class ReportGenerator:
             background: #fff;
             border-bottom: 1px solid #eee;
         }}
-        
+
         .info-card {{
             background: #f8f9fa;
             padding: 15px;
             border-radius: 8px;
             border-right: 3px solid var(--accent-color);
         }}
-        
+
         .info-label {{
             font-size: 0.85em;
             color: #7f8c8d;
             margin-bottom: 5px;
         }}
-        
+
         .info-value {{
             font-size: 1.2em;
             font-weight: 600;
             color: var(--primary-color);
         }}
-        
+
         .section {{
             padding: 25px;
             border-bottom: 1px solid #eee;
         }}
-        
+
         .section-title {{
             display: flex;
             align-items: center;
@@ -833,7 +833,7 @@ class ReportGenerator:
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
         }}
-        
+
         .section-title span {{
             background: var(--accent-color);
             color: white;
@@ -852,7 +852,7 @@ class ReportGenerator:
             border-collapse: collapse;
             font-size: 0.95em;
         }}
-        
+
         th {{
             background: var(--primary-color);
             color: white;
@@ -860,25 +860,25 @@ class ReportGenerator:
             text-align: right;
             font-weight: 500;
         }}
-        
+
         td {{
             padding: 12px;
             border-bottom: 1px solid #eee;
             vertical-align: middle;
         }}
-        
+
         tr:last-child td {{
             border-bottom: none;
         }}
-        
+
         .calc-row {{
             background-color: #fff;
         }}
-        
+
         .calc-row:hover {{
             background-color: #f8f9fa;
         }}
-        
+
         .formula {{
             color: #7f8c8d;
             font-size: 0.85em;
@@ -886,28 +886,28 @@ class ReportGenerator:
             display: block;
             margin-top: 4px;
         }}
-        
+
         .amount-positive {{
             color: var(--success-color);
             font-weight: 600;
         }}
-        
+
         .amount-negative {{
             color: var(--danger-color);
             font-weight: 600;
         }}
-        
+
         .total-row td {{
             background: var(--primary-color);
             color: white;
             font-size: 1.2em;
             font-weight: bold;
         }}
-        
+
         .attendance-table th {{
             background: #34495e;
         }}
-        
+
         .attendance-table tr:nth-child(even) {{
             background: #f8f9fa;
         }}
@@ -934,7 +934,7 @@ class ReportGenerator:
             <h1>كشف راتب تفصيلي</h1>
             <p>{_html.escape(employee.name)} | {datetime.now().strftime('%B %Y')}</p>
         </div>
-        
+
         {html_info}
 
         <!-- Calculation Bases -->
@@ -945,7 +945,7 @@ class ReportGenerator:
 
         <!-- Detailed Breakdown -->
         {html_breakdown}
-        
+
         <div class="section no-print" style="text-align: left;">
             <button onclick="window.print()" style="background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1em;">
                 🖨️ طباعة التقرير / PDF
@@ -1300,7 +1300,7 @@ body{{
             --out-color: #e3f2fd;
             --weekend-bg: #fff9c4;
         }}
-        
+
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: #333; line-height: 1.6; padding: 20px; }}
         .container {{ max-width: 100%; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); overflow: hidden; }}
@@ -1332,11 +1332,11 @@ body{{
             <h1>📋 {_html.escape(title)}</h1>
             <p>الشهر: {month} | تاريخ الإنشاء: {datetime.now().strftime('%d/%m/%Y %I:%M %p')}</p>
         </div>
-        
+
         <div class="summary" id="stats-summary">
             <!-- Stats will be populated after row processing to get accurate work day counts -->
         </div>
-        
+
         <div class="content">
             <table>
                 <thead>
