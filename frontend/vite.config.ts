@@ -13,49 +13,57 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    ...(process.env.CI ? [] : [VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/\/api\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^\/api\/(?:products|categories|subcategories|stock\/warehouses|wallets|safes|settings|customers|users|collections|financial-categories|shifts\/current|reports)(?:\?.*)?$/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-            },
+    ...(process.env.CI
+      ? [{
+          name: 'pwa-register-stub',
+          resolveId(id) { if (id === 'virtual:pwa-register') return id },
+          load(id) {
+            if (id !== 'virtual:pwa-register') return undefined
+            return 'export const registerSW = () => ({ updateSW: undefined })'
           },
-          {
-            urlPattern: /^\/api\/stock\/balance\/bulk$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'stock-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
-            },
+        }]
+      : [VitePWA({
+          registerType: 'autoUpdate',
+          workbox: {
+            globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+            navigateFallback: '/index.html',
+            navigateFallbackDenylist: [/\/api\//],
+            runtimeCaching: [
+              {
+                urlPattern: /^\/api\/(?:products|categories|subcategories|stock\/warehouses|wallets|safes|settings|customers|users|collections|financial-categories|shifts\/current|reports)(?:\?.*)?$/,
+                handler: 'StaleWhileRevalidate',
+                options: {
+                  cacheName: 'api-cache',
+                  expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+                },
+              },
+              {
+                urlPattern: /^\/api\/stock\/balance\/bulk$/,
+                handler: 'NetworkFirst',
+                options: {
+                  cacheName: 'stock-cache',
+                  expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
+                },
+              },
+              {
+                urlPattern: /^\/api\/products\/barcode\//,
+                handler: 'NetworkFirst',
+                options: {
+                  cacheName: 'barcode-cache',
+                  expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 },
+                },
+              },
+              {
+                urlPattern: /^\/uploads\//,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'uploads-cache',
+                  expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                },
+              },
+            ],
           },
-          {
-            urlPattern: /^\/api\/products\/barcode\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'barcode-cache',
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 },
-            },
-          },
-          {
-            urlPattern: /^\/uploads\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'uploads-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-        ],
-      },
-
-    })]),
+        })]),
   ],
   server: {
     proxy: process.env.CI ? undefined : {
