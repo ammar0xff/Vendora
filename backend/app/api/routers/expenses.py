@@ -19,7 +19,7 @@ def _safe_uuid(value: str | None) -> uuid.UUID | None:
     try:
         return uuid.UUID(value)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid warehouse_id")
+        raise HTTPException(status_code=400, detail="Invalid warehouse_id") from None
 
 
 # ── Expense Vendors ────────────────────────────────────────────────────────

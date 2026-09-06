@@ -23,7 +23,7 @@ class Settings(BaseSettings):
             import os
             if os.environ.get("APP_ENV") == "production":
                 raise RuntimeError("SECRET_KEY must be set to a random value in production! Run: openssl rand -hex 32")
-            warnings.warn("SECRET_KEY is still a placeholder! Set a real key via SECRET_KEY env var for production.")
+            warnings.warn("SECRET_KEY is still a placeholder! Set a real key via SECRET_KEY env var for production.", stacklevel=2)
 
     class Config:
         env_file = ".env"

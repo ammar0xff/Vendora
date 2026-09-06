@@ -28,7 +28,7 @@ async def check_update(target: str, current_version: str):
         if Version(latest_version) <= Version(current_version):
             return {}
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid version format")
+        raise HTTPException(status_code=400, detail="Invalid version format") from None
 
     platform = manifest.get("platforms", {}).get(target)
     if not platform:

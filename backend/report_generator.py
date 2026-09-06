@@ -1265,7 +1265,7 @@ body{{
 
         # Calculate statistics
         total_records = len(rows)
-        unique_employees = len(set(r.get('uid', '') for r in rows if r.get('uid')))
+        unique_employees = len({r.get('uid', '') for r in rows if r.get('uid')})
         sum(int(r.get('rec_count', 0)) for r in rows if r.get('rec_count'))
         sum(1 for r in rows if r.get('checkin'))
         records_complete = sum(1 for r in rows if r.get('checkin') and r.get('checkout'))

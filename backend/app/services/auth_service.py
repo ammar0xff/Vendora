@@ -39,7 +39,7 @@ async def create_user(db: AsyncSession, data) -> User:
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(400, f"اسم المستخدم '{data.username}' مستخدم بالفعل")
+        raise HTTPException(400, f"اسم المستخدم '{data.username}' مستخدم بالفعل") from None
     await db.refresh(user)
     return user
 

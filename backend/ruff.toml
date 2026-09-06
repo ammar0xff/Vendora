@@ -3,7 +3,7 @@ line-length = 120
 
 [lint]
 select = ["E", "F", "W", "B", "I", "UP", "C4", "SIM", "RUF"]
-ignore = ["BLE001", "RUF013", "E501", "RUF001"]
+ignore = ["BLE001", "RUF013", "E501", "RUF001", "SIM102", "SIM105", "SIM108"]
 
 [lint.flake8-bugbear]
 extend-immutable-calls = [

@@ -20,7 +20,7 @@ router = APIRouter(tags=["finance"])
 async def list_categories(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     r = await db.execute(text("SELECT * FROM financial_categories ORDER BY type, name"))
     cols = r.keys()
-    return [dict(zip(cols, row)) for row in r.fetchall()]
+    return [dict(zip(cols, row, strict=False)) for row in r.fetchall()]
 
 
 @router.post("/financial-categories")
@@ -29,7 +29,7 @@ async def create_category(data: FinancialCategoryCreate, db: AsyncSession = Depe
         INSERT INTO financial_categories (name, type, color) VALUES (:name, :type, :color) RETURNING *
     """), data.model_dump())
     await db.commit()
-    return dict(zip(r.keys(), r.fetchone()))
+    return dict(zip(r.keys(), r.fetchone(), strict=False))
 
 
 @router.put("/financial-categories/{cat_id}")
@@ -59,7 +59,7 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
             await db.commit()
         except IntegrityError:
             await db.rollback()
-            raise BusinessError("لا يمكن حذف التصنيف — مرتبط ببيانات أخرى")
+            raise BusinessError("لا يمكن حذف التصنيف — مرتبط ببيانات أخرى") from None
 
 
 # ── User Permissions ───────────────────────────────────────────────────────
@@ -121,7 +121,7 @@ async def financial_ledger(
 
     rows = (await db.execute(text(q), params)).fetchall()
     cols = ['id','type','amount','note','created_at','category_name','category_type','color','warehouse_id','warehouse_name','cashier_name']
-    entries = [dict(zip(cols, r)) for r in rows]
+    entries = [dict(zip(cols, r, strict=False)) for r in rows]
 
     # Group by category
     from collections import defaultdict

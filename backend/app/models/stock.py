@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
-class MovementType(str, enum.Enum):
+class MovementType(enum.StrEnum):
     opening_stock  = "opening_stock"
     purchase       = "purchase"
     return_in      = "return_in"

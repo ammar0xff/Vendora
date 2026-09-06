@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
-class DocType(str, enum.Enum):
+class DocType(enum.StrEnum):
     sale_invoice    = "sale_invoice"
     quotation       = "quotation"
     purchase_order  = "purchase_order"

@@ -113,7 +113,7 @@ async def send_notification(data: SendNotificationRequest, db: AsyncSession = De
     tokens = (await db.execute(
         select(DeviceToken.token).where(
             DeviceToken.user_id == data.user_id,
-            DeviceToken.is_active == True,
+            DeviceToken.is_active.is_(True),
         )
     )).scalars().all()
 
@@ -131,7 +131,7 @@ async def send_notification(data: SendNotificationRequest, db: AsyncSession = De
         return {"detail": "Sent", "success": response.success_count, "failed": response.failure_count}
     except Exception as e:
         logger.error(f"FCM send error: {e}")
-        raise HTTPException(500, f"Failed to send: {e}")
+        raise HTTPException(500, f"Failed to send: {e}") from e
 
 
 @router.get("/tokens")

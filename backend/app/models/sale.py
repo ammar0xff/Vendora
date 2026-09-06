@@ -11,12 +11,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-class SaleMode(str, enum.Enum):
+class SaleMode(enum.StrEnum):
     retail = "retail"
     wholesale = "wholesale"
 
 
-class SaleStatus(str, enum.Enum):
+class SaleStatus(enum.StrEnum):
     draft = "draft"
     quotation = "quotation"   # عرض سعر — لم يُخصم من المخزون بعد
     confirmed = "confirmed"

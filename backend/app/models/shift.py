@@ -11,12 +11,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-class ShiftStatus(str, enum.Enum):
+class ShiftStatus(enum.StrEnum):
     open = "open"
     closed = "closed"
 
 
-class DrawerTxType(str, enum.Enum):
+class DrawerTxType(enum.StrEnum):
     sale = "sale"
     return_ = "return"
     expense = "expense"

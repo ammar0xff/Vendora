@@ -40,7 +40,7 @@ async def get_audit_log(db: AsyncSession = Depends(get_db), _=Depends(require_pe
     rows = r.fetchall()
     result = []
     for row in rows:
-        d = dict(zip(cols, row))
+        d = dict(zip(cols, row, strict=False))
         d['created_at'] = d['created_at'].isoformat() if d['created_at'] else None
         result.append(d)
     return result
@@ -50,7 +50,7 @@ async def get_audit_log(db: AsyncSession = Depends(get_db), _=Depends(require_pe
 async def list_shifts(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     r = await db.execute(text("SELECT * FROM hr_shifts ORDER BY start_time"))
     cols = r.keys()
-    return [dict(zip(cols, row)) for row in r.fetchall()]
+    return [dict(zip(cols, row, strict=False)) for row in r.fetchall()]
 
 
 @router.post("/shifts")
@@ -82,7 +82,7 @@ async def update_hr_settings(data: HRSettingsUpdate, db: AsyncSession = Depends(
 async def list_employees(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     r = await db.execute(text("SELECT * FROM hr_employees WHERE is_active=TRUE ORDER BY name"))
     cols = r.keys()
-    return [dict(zip(cols, row)) for row in r.fetchall()]
+    return [dict(zip(cols, row, strict=False)) for row in r.fetchall()]
 
 
 @router.post("/employees")
@@ -95,7 +95,7 @@ async def create_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_d
            'hire': data.hire_date})
     await db.commit()
     row = r.fetchone()
-    return dict(zip(r.keys(), row))
+    return dict(zip(r.keys(), row, strict=False))
 
 
 @router.put("/employees/{emp_id}")
@@ -150,7 +150,7 @@ async def list_attendance(employee_id: str | None = None, month: str | None = No
     q += " ORDER BY a.work_date DESC"
     r = await db.execute(text(q), params)
     cols = r.keys()
-    return [dict(zip(cols, row)) for row in r.fetchall()]
+    return [dict(zip(cols, row, strict=False)) for row in r.fetchall()]
 
 
 @router.post("/attendance")
@@ -210,12 +210,12 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
 
     for row in reader:
         try:
-            emp_code_raw = str(row.get([k for k, v in col_map.items() if v == 'emp_code'][0], '')).strip() if has_code else ''
-            emp_name_raw = str(row.get([k for k, v in col_map.items() if v == 'emp_name'][0], '')).strip() if has_name else ''
-            date_str = str(row.get([k for k, v in col_map.items() if v == 'date'][0], '')).strip()
-            check_in_raw = row.get([k for k, v in col_map.items() if v == 'check_in'][0], '').strip() if 'check_in' in col_map.values() else ''
-            check_out_raw = row.get([k for k, v in col_map.items() if v == 'check_out'][0], '').strip() if 'check_out' in col_map.values() else ''
-            status_raw = row.get([k for k, v in col_map.items() if v == 'status'][0], '').strip() if 'status' in col_map.values() else 'present'
+            emp_code_raw = str(row.get(next(k for k, v in col_map.items() if v == 'emp_code'), '')).strip() if has_code else ''
+            emp_name_raw = str(row.get(next(k for k, v in col_map.items() if v == 'emp_name'), '')).strip() if has_name else ''
+            date_str = str(row.get(next(k for k, v in col_map.items() if v == 'date'), '')).strip()
+            check_in_raw = row.get(next(k for k, v in col_map.items() if v == 'check_in'), '').strip() if 'check_in' in col_map.values() else ''
+            check_out_raw = row.get(next(k for k, v in col_map.items() if v == 'check_out'), '').strip() if 'check_out' in col_map.values() else ''
+            status_raw = row.get(next(k for k, v in col_map.items() if v == 'status'), '').strip() if 'status' in col_map.values() else 'present'
         except (IndexError, KeyError):
             skipped += 1
             continue
@@ -333,7 +333,7 @@ async def list_payroll(month: str | None = None, db: AsyncSession = Depends(get_
     q += " ORDER BY e.name"
     r = await db.execute(text(q), params)
     cols = r.keys()
-    return [dict(zip(cols, row)) for row in r.fetchall()]
+    return [dict(zip(cols, row, strict=False)) for row in r.fetchall()]
 
 
 @router.post("/payroll/calculate")
@@ -371,7 +371,7 @@ async def calculate_payroll(data: PayrollCalculate, db: AsyncSession = Depends(g
 
     results = []
     for emp_row in emps:
-        emp = dict(zip(emp_cols, emp_row))
+        emp = dict(zip(emp_cols, emp_row, strict=False))
         eid = emp['id']
 
         # Load attendance for this month
@@ -382,7 +382,7 @@ async def calculate_payroll(data: PayrollCalculate, db: AsyncSession = Depends(g
         """), {'eid': eid, 'month': month})).fetchall()
         att_cols = ['check_in','check_out','status','edited','edited_by','edit_reason',
                     'excuse_no_late','excuse_no_early','excuse_allow_overtime','shift_override']
-        attendances = [dict(zip(att_cols, r)) for r in att_rows]
+        attendances = [dict(zip(att_cols, r, strict=False)) for r in att_rows]
 
         # Load advances for this month
         adv = (await db.execute(text("""
@@ -595,7 +595,7 @@ async def list_advances(employee_id: str | None = None, db: AsyncSession = Depen
     q += " ORDER BY a.date DESC"
     r = await db.execute(text(q), params)
     cols = r.keys()
-    return [dict(zip(cols, row)) for row in r.fetchall()]
+    return [dict(zip(cols, row, strict=False)) for row in r.fetchall()]
 
 
 @router.post("/advances")
@@ -655,14 +655,14 @@ async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db),
 
     payrolls = []
     for emp_row in emps:
-        emp = dict(zip(emp_cols, emp_row))
+        emp = dict(zip(emp_cols, emp_row, strict=False))
         att_rows = (await db.execute(text("""
             SELECT check_in,check_out,status,edited,edited_by,edit_reason,
                    excuse_no_late,excuse_no_early,excuse_allow_overtime,shift_override
             FROM hr_attendance WHERE employee_id=:eid AND TO_CHAR(work_date,'YYYY-MM')=:month
         """), {'eid': emp['id'], 'month': month})).fetchall()
         att_cols = ['check_in','check_out','status','edited','edited_by','edit_reason','excuse_no_late','excuse_no_early','excuse_allow_overtime','shift_override']
-        attendances = [dict(zip(att_cols, r)) for r in att_rows]
+        attendances = [dict(zip(att_cols, r, strict=False)) for r in att_rows]
         adv = float((await db.execute(text("SELECT COALESCE(SUM(amount),0) FROM hr_advances WHERE employee_id=:eid AND TO_CHAR(date,'YYYY-MM')=:month"), {'eid': emp['id'], 'month': month})).scalar() or 0)
         result = await asyncio.get_running_loop().run_in_executor(
             None,
@@ -727,7 +727,7 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
     if not emp_row:
         raise NotFoundError()
     emp_cols = ['id','emp_code','name','position','monthly_salary','shift_schedule','shift_id','hire_date','ignore_lateness','max_lateness_before_overtime_cancellation']
-    emp = dict(zip(emp_cols, emp_row))
+    emp = dict(zip(emp_cols, emp_row, strict=False))
 
     att_rows = (await db.execute(text("""
         SELECT work_date,check_in,check_out,status,edited,edited_by,edit_reason,
@@ -736,7 +736,7 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
         ORDER BY work_date
     """), {'eid': emp_id, 'month': month})).fetchall()
     att_cols = ['work_date','check_in','check_out','status','edited','edited_by','edit_reason','excuse_no_late','excuse_no_early','excuse_allow_overtime','shift_override']
-    attendances = [dict(zip(att_cols, r)) for r in att_rows]
+    attendances = [dict(zip(att_cols, r, strict=False)) for r in att_rows]
 
     adv_rows = (await db.execute(text("SELECT amount, date, note FROM hr_advances WHERE employee_id=:eid AND TO_CHAR(date,'YYYY-MM')=:month"), {'eid': emp_id, 'month': month})).fetchall()
     adv_total = sum(float(r[0]) for r in adv_rows)
@@ -937,7 +937,7 @@ async def sync_device(db: AsyncSession = Depends(get_db), current_user: User = D
             "INSERT INTO hr_sync_log (status, message) VALUES ('failure', :m)"
         ), {"m": str(e)})
         await db.commit()
-        raise HTTPException(502, f"Device connection failed: {e}")
+        raise HTTPException(502, f"Device connection failed: {e}") from e
 
     from collections import defaultdict
     groups: dict = defaultdict(list)

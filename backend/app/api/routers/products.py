@@ -310,13 +310,13 @@ async def product_movements(product_id: uuid.UUID, from_date: str | None = None,
             params["from_date"] = datetime.fromisoformat(from_date)
             conditions.append("sm.created_at >= :from_date")
         except ValueError:
-            raise HTTPException(400, f"Invalid from_date format: {from_date}")
+            raise HTTPException(400, f"Invalid from_date format: {from_date}") from None
     if to_date:
         try:
             params["to_date"] = datetime.fromisoformat(to_date)
             conditions.append("sm.created_at <= :to_date")
         except ValueError:
-            raise HTTPException(400, f"Invalid to_date format: {to_date}")
+            raise HTTPException(400, f"Invalid to_date format: {to_date}") from None
     where_sql = " AND ".join(conditions)
     total = (await db.execute(sqlt(f"SELECT COUNT(*) FROM stock_movements sm WHERE {where_sql}"), params)).scalar() or 0
     pages = max(1, ceil(total / page_size))

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-class POStatus(str, enum.Enum):
+class POStatus(enum.StrEnum):
     draft = "draft"
     received = "received"
     partial = "partial"

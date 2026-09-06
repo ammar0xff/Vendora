@@ -261,7 +261,7 @@ class Database:
                             all_ts.append(attendance.check_out)
 
                         # Dedupe and sort
-                        all_ts = sorted(list(set(all_ts)))
+                        all_ts = sorted(set(all_ts))
 
                         merged_check_in = all_ts[0] if all_ts else None
                         merged_check_out = all_ts[-1] if len(all_ts) > 1 else None
@@ -687,7 +687,7 @@ class PayrollCalculator:
                     all_ts.append(item.check_out)
 
             # Use extreme timestamps as effective In and Out
-            all_ts = sorted(list(set(all_ts)))
+            all_ts = sorted(set(all_ts))
             effective_in = all_ts[0] if all_ts else None
             effective_out = all_ts[-1] if len(all_ts) > 1 else None
 
@@ -746,7 +746,7 @@ class PayrollCalculator:
 
                 # Calculate lateness - SKIP for paid leave/mission
                 if effective_in and status not in ('leave', 'mission'):
-                    late_mins, is_late = PayrollCalculator.calculate_lateness(effective_in, effective_shift)
+                    late_mins, _is_late = PayrollCalculator.calculate_lateness(effective_in, effective_shift)
 
                     # Apply Employee Lateness Exclusion
                     if getattr(employee, 'ignore_lateness', False):

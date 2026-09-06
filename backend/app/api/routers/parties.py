@@ -170,7 +170,7 @@ async def customer_ledger(
         })
     entries.sort(key=lambda e: e["date"])
 
-    return entries + [{
+    return [*entries, {
         "__pagination": {
             "page": page,
             "page_size": page_size,
