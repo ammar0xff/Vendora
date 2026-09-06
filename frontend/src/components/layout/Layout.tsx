@@ -187,8 +187,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           {logoUrl ? (
             <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-7 h-7 rounded-lg object-contain" />
           ) : (
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white" style={{ background: 'var(--primary)' }}>
-              {companyName[0]}
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: '#2b1b03' }}>
+              <img src="/favicon.svg" alt="logo" className="w-full h-full object-cover" />
             </div>
           )}
           <span className="text-sm font-bold text-slate-700 hidden md:block">{companyName}</span>

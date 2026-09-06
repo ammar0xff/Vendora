@@ -46,9 +46,9 @@ export default function LoginPage() {
             {logoUrl ? (
               <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-32 h-32 object-contain mx-auto rounded-2xl" />
             ) : (
-              <div className="w-28 h-28 rounded-3xl flex items-center justify-center mx-auto shadow-2xl text-5xl font-black text-white"
-                style={{ background: 'var(--accent)' }}>
-                {companyName[0]}
+              <div className="w-28 h-28 rounded-3xl flex items-center justify-center mx-auto shadow-2xl overflow-hidden"
+                style={{ background: '#2b1b03' }}>
+                <img src="/favicon.svg" alt="logo" className="w-full h-full object-cover" />
               </div>
             )}
           </div>
@@ -73,9 +73,9 @@ export default function LoginPage() {
             {logoUrl ? (
               <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-20 h-20 object-contain mx-auto rounded-2xl mb-3" />
             ) : (
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl font-black text-white"
-                style={{ background: 'var(--accent)' }}>
-                {companyName[0]}
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 overflow-hidden"
+                style={{ background: '#2b1b03' }}>
+                <img src="/favicon.svg" alt="logo" className="w-full h-full object-cover" />
               </div>
             )}
             <p className="text-white font-bold">{companyName}</p>
