@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as date_type
 from decimal import Decimal
 from uuid import UUID
 
@@ -28,13 +28,13 @@ class ExpenseCreate(BaseModel):
     warehouse_id: UUID | None = None
     amount: Decimal = Field(..., gt=0)
     description: str = Field(..., min_length=1)
-    date: date | None = None
+    date: date_type | None = None
     payment_method: str | None = None
     wallet_id: UUID | None = None
     safe_id: UUID | None = None
     is_recurring: bool = False
     recurring_interval: str | None = None
-    recurring_end_date: date | None = None
+    recurring_end_date: date_type | None = None
     notes: str | None = None
 
 
@@ -44,7 +44,7 @@ class ExpenseUpdate(BaseModel):
     warehouse_id: UUID | None = None
     amount: Decimal | None = Field(None, gt=0)
     description: str | None = Field(None, min_length=1)
-    date: date | None = None
+    date: date_type | None = None
     payment_method: str | None = None
     wallet_id: UUID | None = None
     safe_id: UUID | None = None
