@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date as date_type
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -17,7 +17,7 @@ class EmployeeCreate(BaseModel):
     position: str | None = None
     monthly_salary: Decimal = Field(default=Decimal("0"), ge=0)
     shift_schedule: str | None = None
-    hire_date: date | None = None
+    hire_date: date_type | None = None
 
 
 class EmployeeUpdate(BaseModel):
@@ -26,13 +26,13 @@ class EmployeeUpdate(BaseModel):
     position: str | None = None
     monthly_salary: Decimal | None = Field(default=None, ge=0)
     shift_schedule: str | None = None
-    hire_date: date | None = None
+    hire_date: date_type | None = None
     is_active: bool | None = None
 
 
 class AttendanceCreate(BaseModel):
     employee_id: uuid.UUID
-    work_date: date
+    work_date: date_type
     check_in: str | None = None
     check_out: str | None = None
     status: str = "present"
@@ -55,7 +55,7 @@ class PayrollUpdate(BaseModel):
 class AdvanceCreate(BaseModel):
     employee_id: uuid.UUID
     amount: Decimal = Field(..., gt=0)
-    date: date | None = None
+    date: date_type | None = None
     note: str | None = None
     record_type: str = "سلفة"
 
