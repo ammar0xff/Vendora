@@ -1,7 +1,8 @@
 # Vendora — Tasks & Status
 
-> آخر تحديث: 2026-05-21 (جلسة Offline + Android + Desktop)
-> Stack: FastAPI · PostgreSQL · React 19 · TypeScript · Tailwind · Vite · Docker
+> آخر تحديث: 2026-09-06 (جلسة توثيق: README + SYSTEM.md + TASKS sync)
+> آخر جلسات فير: 2026-08-11 (Jibble CSV attendance) · 2026-08-09 (subcategory delete) · 2026-08-08 (قرار الدرج/الخزنة)
+> Stack: FastAPI (Python 3.12/3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind v4 · Vite · Docker
 
 ---
 
@@ -25,28 +26,32 @@
 | Username | Password | Role |
 |----------|----------|------|
 | `ammar` | `changeme` | Admin |
-| `nada` | `changeme` | Admin |
+| `nada` | `changeme` | Accountant (full perms, is_manager) |
 
 ### Architecture
 ```
-inventory-web/
-├── backend/          FastAPI (Python 3.13)
+Vendora/
+├── backend/          FastAPI (Python 3.12 img / 3.13 CI)
 │   ├── app/
-│   │   ├── api/routers/   27 endpoint files
-│   │   ├── models/        SQLAlchemy ORM
-│   │   ├── services/      Business logic
-│   │   └── core/          Config, security, roles
+│   │   ├── api/routers/   27 routers + print/ sub-package (7 files)
+│   │   ├── models/        SQLAlchemy ORM (20 files, 33 tables)
+│   │   ├── schemas/       Pydantic v2 (17 files)
+│   │   ├── services/      Business logic (8 services)
+│   │   └── core/          Config, security, roles, ratelimit
+│   ├── alembic/           Scaffold only (schema = create_all + SQL migrations)
+│   ├── migrations/        Idempotent SQL migrations
 │   └── Dockerfile
-├── frontend/         React 19 + TypeScript + Vite
-│   ├── src/pages/         ~25 pages
-│   ├── src/store/         Zustand (3 stores)
-│   └── src/api/           Axios client
-├── docker-compose.yml
-├── init_data.sql
-├── manage.py              CLI (backup/restore/deploy)
-├── install.sh / .bat
-└── android/               Capacitor (Android app)
-└── src-tauri/             Tauri (Desktop app)
+├── frontend/         React 19 + TypeScript + Vite + Tailwind v4
+│   ├── src/pages/        25 page modules
+│   ├── src/store/        Zustand (9 stores: auth, app, pos, purchaseCart,
+│   │                     pendingSales, localShift, offline, offlineCache, queryPersister)
+│   └── src/api/          Axios client + typed endpoints
+├── docker-compose.yml   4 services (db, backend, frontend, nginxpm)
+├── data/sql/init_data.sql
+├── manage.py             CLI (status/backup/restore/deploy/migrate/build-*)
+├── install.sh / deploy.sh
+├── frontend/android/     Capacitor (Android)
+└── frontend/src-tauri/   Tauri v2 (Desktop)
 ```
 
 ### User Roles
@@ -115,18 +120,18 @@ inventory-web/
 | D1 | Build pipeline | `npm run build:desktop` → AppImage/EXE | ✅ |
 | D2 | Tray / background | System tray + `tauri-plugin-notification` + tray menu | ✅ |
 | D3 | Offline indicator | Tauri commands `is_online` + `get_offline_queue` | ✅ |
-| D4 | Auto-update | `tauri.conf.json` updater configured — needs pubkey | 🔲 |
+| D4 | Auto-update | `tauri.conf.json` updater configured — pubkey set (Ed25519) + backend `/api/updater` feed + `/updates` downloads | ✅ |
 | D5 | App icon from settings | `scripts/generate-icons.mjs` يولد أيقونات Tauri (PNG + مربعات ويندوز + iOS) من شعار المتجر تلقائياً في `prebuild:desktop` | ✅ |
 
 #### 🧪 جودة وبنية تحتية
 | # | المهمة | الوصف |
 |---|--------|-------|
-| Q1 | Playwright E2E | 4 test specs with API mocks (login/POS/inventory/sales) | ✅ |
+| Q1 | Playwright E2E | 5 test specs (login/POS/inventory/sales/settings) + helpers | ✅ |
 | Q2 | GitHub Actions CI/CD | lint → typecheck → test → build → native apps + Docker on tags | ✅ |
 | Q3 | Docker | Dockerfile للتشغيل على أي سيرفر |
 | Q4 | Rate limiting | slowapi على auth endpoints | ✅ |
 | Q5 | HttpOnly cookies | بدلاً من localStorage للـ JWT | ✅ |
-| Q6 | Print router refactor | 1329-line print_router.py → 8 modular files | ✅ |
+| Q6 | Print router refactor | 1329-line `print_router.py` → `print/` sub-package (7 files: `__init__` + sale/purchase/archive/inventory/shift/dispatch) | ✅ |
 | Q7 | CSRF protection | Referer/Origin + token validation globally | ✅ |
 
 ---
@@ -268,6 +273,23 @@ inventory-web/
 | | Dead code: unused `TYPE_LABELS` in wallets, `check_period_open` in periods | Removed unused code |
 | | Dynamic SQL in expenses router (no field whitelisting) | Added field name whitelist |
 
+### ✅ تم إصلاحها في هذه الجلسات (2026-07-30 → 2026-08-11)
+
+| # | الموجز | الإصلاح |
+|---|--------|---------|
+| J1 | Jibble CSV attendance import (free tier) | Upgraded `POST /hr/attendance/import-csv`: name-based matching, `Member`/`Start time`/`End time` header mapping, robust time parsing (ISO/12h/24h); fixed `UndefinedColumnError` on `hr_attendance` insert (`created_by` removed). Verified live: 12h `9:02:00 AM` → 09:02 |
+| J2 | Deleting empty subcategory blocked by hidden products | `delete_subcategory`/`delete_category` counted only active products; soft-deleted products still held `subcategory_id` FK (RESTRICT). Fix: `DROP NOT NULL` + detach inactive products (`UPDATE products SET subcategory_id=NULL WHERE is_active=false`) before delete. Verified live: 18 inactive products detached, guard still blocks active ones |
+| J3 | Quotation confirm now asks where cash lands | `ConfirmQuotationRequest {destination: drawer\|safe}`; drawer = user's open shift in the quote's warehouse, safe = deposit + `safe_deposit` archive doc. New `QuoteDestinationModal`. Verified live both paths |
+| J4 | Empty-string codes sorted above real codes | `func.nullif(code, '').asc().nullslast()` for products/categories/subcategories (+report joins); empty codes normalized to NULL on create/update. Verified live |
+| J5 | Nested `<form>` killed barcode-添加 | `BarcodeManager` wrapped in ProductForm's `<form>`; replaced inner form with `<div>` + `type="button"`. Verified: POST fires now |
+| J6 | `create_supplier` raw INSERT without id | `suppliers.id` had no DB default → `NotNullViolationError`. Added `gen_random_uuid()` in the raw INSERT. Verified |
+| J7 | Ledger 500 (`drawer_tx_type` `return` vs `return_`) | Enum member is `return_`; fixed ledger.py queries (`'return_'`, `r.type == 'return_'`). Verified `OK nett=0` |
+| J8 | Admin warehouse-access bug blocked quotation confirm / shift open | `verify_warehouse_access` only honored `is_manager`; now also `role in ('admin','manager')` (matches shifts.py `is_privileged`). Unblocked ammar on any warehouse |
+| J9 | `GET /products/{id}/movements` Pydantic serialization 500 | Rewrote to raw SQL + `dict(r._mapping)` (matches `stock.py:list_movements`). Verified |
+| J10 | Google Fonts blocked by CSP | Added `fonts.googleapis.com` + `fonts.gstatic.com` to `style-src`/`font-src` in frontend nginx CSP. Verified header live |
+| J11 | Purchase-flow E2E (prod) | Confirmed new-product picker requires category/subcategory; verified receive → stock + `cost_price` + `purchase_price_history` + `tracked` promotion; cleaned all test rows. Removed-dead-code note: `POST /purchases/quick-add-product` unused |
+| J12 | CSP still hardcoded old domain? | Removed hardcoded domain from CSP — allows any HTTPS origin. Health URL updated to Nginx port. `sale_service` gained missing `StockMovement` import; DebtsContent pagination filter fixed (`customersApi.list` safe) |
+
 ### 🔍 تم التحقق — أصلحت من جلسات سابقة
 
 | # | الموجز | الحالة |
@@ -284,11 +306,11 @@ inventory-web/
 
 | القسم | العدد |
 |-------|-------|
-| Features مكتملة | 30 |
+| Features مكتملة | 20 |
 | Offline POS | 6/6 ✅ |
 | Android App | 5/6 ✅ (FCM pending) |
-| Desktop App | 4/5 ✅ (Auto-update pending) |
+| Desktop App | 5/5 ✅ (Auto-update يعمل — pubkey + /api/updater feed) |
 | Quality & Infra | 7/7 ✅ |
-| Bugs/Improvements تم إصلاحها | 78 |
-| تم إصلاحها في هذه الجلسة | 42 |
+| Bugs/Improvements تم إصلاحها | 108 |
+| تم إصلاحها في آخر جلسات (2026-07/08) | 12 (J1–J12) |
 | Audit items مفتوحة | 0 (تم التحقق — الكل Fixed) |

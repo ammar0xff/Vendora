@@ -1,559 +1,404 @@
-# Vendora — خريطة النظام الكاملة
+# Vendora — System Blueprint
 
-> تاريخ: 2026-06-24  
-> Stack: FastAPI (Python 3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind CSS · Vite · Docker  
-> منصة: Web PWA + Android (Capacitor) + Desktop (Tauri)
+> Updated: 2026-09-06  
+> Stack: FastAPI (Python 3.12 / CI 3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind CSS v4 · Vite · Docker  
+> Platforms: Web PWA (offline POS) · Android (Capacitor) · Desktop (Tauri v2)
 
 ---
 
-## فهرس المحتويات
+## Table of contents
 
-1. [نظرة عامة](#1-نظرة-عامة)
-2. [هيكل المجلدات](#2-هيكل-المجلدات)
-3. [قاعدة البيانات](#3-قاعدة-البيانات)
+1. [Overview](#1-overview)
+2. [Directory layout](#2-directory-layout)
+3. [Database](#3-database)
 4. [Backend — FastAPI](#4-backend--fastapi)
 5. [Frontend — React](#5-frontend--react)
 6. [Infrastructure](#6-infrastructure)
-7. [سير العمل الرئيسية](#7-سير-العمل-الرئيسية)
+7. [Core workflows](#7-core-workflows)
 
 ---
 
-## 1. نظرة عامة
+## 1. Overview
 
-نظام ERP متكامل لمتجر سباكة ومواد بناء (متعدد الفروع).  
-يتكون من:
+A multi-branch ERP for a plumbing and building-supplies store. Arabic RTL UI throughout.
 
-- **Backend** — FastAPI مع SQLAlchemy 2.0 (async) + Alembic migrations
-- **Frontend** — React 19 + TypeScript + Vite + Tailwind CSS + Zustand
-- **قاعدة بيانات** — PostgreSQL 16
-- **تطبيق Android** — Capacitor (WebView + Native plugins)
-- **تطبيق Desktop** — Tauri v2 (Rust shell + WebView)
-- **PWA** — Service Worker + IndexedDB persistence للـ offline POS
+- **Backend** - FastAPI, SQLAlchemy 2.0 (async), idempotent SQL migrations
+- **Frontend** - React 19, TypeScript, Vite, Tailwind CSS v4, Zustand
+- **Database** - PostgreSQL 16
+- **Android** - Capacitor (WebView + native plugins)
+- **Desktop** - Tauri v2 (Rust shell + WebView)
+- **PWA** - Service worker + IndexedDB persistence for offline POS
 
-### دخول افتراضي
+### Default seeds
 
-| المستخدم | كلمة السر | الصلاحية |
-|----------|-----------|----------|
-| `ammar` | `changeme` | Admin |
-| `nada` | `changeme` | Admin |
+Seeded from `data/sql/init_data.sql` on first database boot.
 
-### الصلاحيات
+| Username | Password | Role |
+|----------|----------|------|
+| `ammar` | `changeme` | `admin`, `is_manager=true`, all feature permissions |
+| `nada` | `changeme` | `accountant`, `is_manager=true`, all feature permissions |
 
-| الدور | الوصول |
-|-------|--------|
-| Admin | الكل |
-| Manager | مبيعات, مخزون, تقارير, ورديات |
-| Cashier | POS, مبيعات, عروض أسعار |
-| Storekeeper | مخزون, عمليات, مشتريات |
-| Accountant | تقارير, مالية, رواتب |
+### Roles
+
+| Role | Access |
+|------|--------|
+| Admin | Everything |
+| Manager | Sales, inventory, reports, shifts |
+| Cashier | POS, sales, quotations |
+| Storekeeper | Inventory, operations, purchasing |
+| Accountant | Reports, finance, payroll |
+
+Permission enforcement is two-layered: a `role` column plus a per-user `permissions` array (feature list) and an
+`is_manager` flag. `verify_warehouse_access` treats `is_manager` or `role in ('admin', 'manager')` as full access.
 
 ---
 
-## 2. هيكل المجلدات
+## 2. Directory layout
 
 ```
-C:\eg-co-erp\
-│
-├── backend/                  # FastAPI server
+Vendora/
+├── backend/                    # FastAPI server
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── deps.py       # Dependencies (get_db, get_current_user, ...)
-│   │   │   ├── errors.py     # BusinessError, error handlers
-│   │   │   └── routers/      # 27 endpoint files
-│   │   ├── core/
-│   │   │   ├── config.py     # Settings (pydantic-settings)
-│   │   │   ├── security.py   # JWT, password hashing, CSRF
-│   │   │   └── roles.py      # Role/permission helpers
-│   │   ├── models/           # SQLAlchemy ORM models
-│   │   ├── schemas/          # Pydantic request/response schemas
-│   │   └── services/         # Business logic layer
-│   ├── alembic/              # Database migrations
-│   ├── uploads/              # Uploaded files (images, CSVs, ...)
-│   ├── main.py               # FastAPI app entry point
-│   └── Dockerfile
-│
-├── frontend/                 # React + TypeScript
+│   │   │   ├── router.py       # registers all 27 feature routers
+│   │   │   ├── deps.py         # get_db, get_current_user, pagination deps
+│   │   │   ├── errors.py       # BusinessError + exception handlers
+│   │   │   └── routers/        # 27 API routers + print/ sub-package
+│   │   ├── core/               # config, security, roles, ratelimit, pagination, exceptions
+│   │   ├── db/                 # engine + Base
+│   │   ├── models/             # SQLAlchemy ORM models (20 files)
+│   │   ├── schemas/            # Pydantic v2 schemas (17 files)
+│   │   └── services/           # business-logic layer (8 services)
+│   ├── alembic/                # Alembic scaffold (schema is `create_all` +
+│   │                           #   idempotent SQL in scripts/migrate.py)
+│   ├── migrations/             # idempotent SQL migrations
+│   ├── tests/                  # backend tests
+│   ├── main.py                 # FastAPI entry point
+│   └── Dockerfile              # python:3.12-slim
+├── frontend/                   # React + TypeScript
 │   ├── src/
-│   │   ├── api/              # Axios client + endpoint modules
-│   │   ├── components/       # Shared UI components
-│   │   ├── contexts/         # React contexts
-│   │   ├── hooks/            # Custom hooks
-│   │   ├── lib/              # Utilities (formatting, barcode, ...)
-│   │   ├── pages/            # Page components
-│   │   └── store/            # Zustand stores
-│   ├── android/              # Capacitor Android project
-│   ├── src-tauri/            # Tauri Desktop project (Rust)
-│   ├── public/               # Static assets
-│   ├── scripts/              # Build helper scripts
-│   └── Dockerfile
-│
-├── docker-compose.yml        # 3 services: db, backend, frontend
-├── manage.py                 # CLI for ops (backup, restore, deploy, ...)
-├── init_data.sql             # Seed data (default users, categories, ...)
-├── erp.bat                   # Windows launcher shortcut
-├── SSL/                      # Self-signed certs for HTTPS dev
-└── *.sql, *.py               # Utility/one-off scripts
+│   │   ├── App.tsx             # routes + permission guards
+│   │   ├── api/                # client.ts + endpoints.ts
+│   │   ├── store/              # 9 Zustand stores
+│   │   ├── pages/              # 25 page modules
+│   │   ├── components/         # ui/ + layout/ + shared components
+│   │   ├── hooks/              # useOnlineStatus
+│   │   └── utils/              # format, native, pushNotifications, desktopUpdate
+│   ├── android/                # Capacitor Android project
+│   ├── src-tauri/              # Tauri v2 desktop project (Rust)
+│   ├── e2e/                    # Playwright specs
+│   ├── scripts/                # generate-icons.mjs
+│   ├── public/                 # static assets
+│   ├── nginx.conf              # reverse proxy + security headers
+│   └── Dockerfile              # node:20 → nginx:alpine
+├── data/sql/                   # init_data.sql, prod_db.sql, dump
+├── scripts/                    # migrate.py, setup.py, import/data helpers, zk_sync.py
+├── migrations/                 # ad-hoc SQL migrations
+├── docs/                       # AUDIT.md, AUDIT-frontend.md
+├── manage.py                   # ops CLI
+├── install.sh                  # fresh-server setup
+├── deploy.sh                   # push + SSH production deploy
+├── docker-compose.yml          # 4 services: db, backend, frontend, nginxpm
+├── AGENTS.md                   # AI-agent persistent memory
+├── SYSTEM.md                   # this file
+└── TASKS.md                    # features & bugs tracking
 ```
 
 ---
 
-## 3. قاعدة البيانات
+## 3. Database
 
-### جدول المستخدمين والصلاحيات
+All tables are SQLAlchemy `DeclarativeBase` models. The authoritative table list (from `backend/app/models/`):
 
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `users` | `models/user.py:22` | حسابات الدخول (id, username, hashed_password, role, warehouse_id, is_active) |
-| `roles_permissions` | `models/user.py:50` | صلاحيات مخصصة لكل دور (user_id, feature, can_view, can_create, can_edit, can_delete) |
+| Table | Model file |
+|-------|-----------|
+| `users` | `models/user.py` |
+| `warehouses` | `models/warehouse.py` |
+| `categories`, `subcategories`, `products`, `product_barcodes` | `models/product.py` |
+| `stock_movements` | `models/stock.py` |
+| `supplier_prices` | `models/supplier_price.py` |
+| `customers`, `suppliers` | `models/party.py` |
+| `sales`, `sale_items` | `models/sale.py` |
+| `sale_payments` | `models/sale_payment.py` |
+| `customer_payments` | `models/customer_payment.py` |
+| `purchase_orders`, `purchase_order_items` | `models/purchase.py` |
+| `shifts`, `drawer_transactions` | `models/shift.py` |
+| `expenses`, `expense_vendors` | `models/expense.py` |
+| `financial_categories` | `models/financial_category.py` |
+| `safes` | `models/safe.py` |
+| `payment_wallets` | `models/payment_wallet.py` |
+| `accounting_periods` | `models/period.py` |
+| `hr_employees`, `hr_payroll_periods`, `hr_payroll_entries` | `models/payroll.py` |
+| `archived_documents` | `models/archive.py` |
+| `store_settings` | `models/settings.py` |
+| `device_tokens` | `models/device_token.py` |
 
-### جدول المنتجات والمخزون
+### Key design notes
 
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `products` | `models/product.py:30` | المنتجات (name, barcode, category_id, prices, unit, image, shelf_number, is_active) |
-| `product_barcodes` | `models/product.py:100` | باركودات متعددة لكل منتج (barcode, product_id) |
-| `categories` | `models/category.py:8` | التصنيفات (name, parent_id) — شجرة متعددة المستويات |
-| `subcategories` | `models/category.py:30` | تصنيفات فرعية (name, category_id, is_active) |
-| `warehouses` | `models/warehouse.py:8` | المخازن/الفروع (name, code, is_active) |
-| `stock` | `models/stock.py:8` | رصيد المخزون (product_id, warehouse_id, quantity, updated_at) |
-| `stock_movements` | `models/stock_movement.py:8` | حركات المخزون (product_id, warehouse_id, type, qty_change, ref_type, ref_id, note) |
-| `stocktaking` | `models/stocktaking.py:8` | جرد المخزون (warehouse_id, date, status) |
-| `stocktaking_items` | `models/stocktaking.py:30` | بنود الجرد (stocktaking_id, product_id, system_qty, actual_qty, diff) |
-| `stock_transfers` | `models/stock_movement.py:30` | تحويلات بين المخازن (from_warehouse, to_warehouse, status, date) |
-| `stock_transfer_items` | `models/stock_movement.py:50` | بنود التحويل (transfer_id, product_id, qty) |
-
-### جداول المبيعات والمشتريات
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `sales` | `models/sale.py:10` | فواتير البيع (id, date, customer_id, warehouse_id, shift_id, total, paid_amount, status, sale_type, note) |
-| `sale_items` | `models/sale.py:50` | بنود الفاتورة (sale_id, product_id, qty, unit_price, total) |
-| `sale_payments` | `models/sale.py:80` | طرق الدفع (sale_id, method, amount, reference) |
-| `quotations` | `models/sale.py:110` | عروض الأسعار (date, customer_id, warehouse_id, items, total, status) |
-| `purchase_orders` | `models/purchase.py:8` | أوامر الشراء (supplier_id, warehouse_id, date, status, total, notes) |
-| `purchase_order_items` | `models/purchase.py:40` | بنود أمر الشراء (po_id, product_id, qty_ordered, qty_received, unit_price) |
-| `purchase_invoices` | `models/purchase.py:70` | فواتير الموردين (supplier_id, warehouse_id, date, total, paid_amount) |
-
-### جداول العملاء والموردين
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `parties` | `models/party.py:10` | العملاء والموردين (name, phone, type, tax_id, balance, credit_limit, address) |
-| `suppliers` | `models/party.py:50` | Verifies party.type == 'supplier' |
-
-### جداول المالية
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `expenses` | `models/finance.py:8` | المصروفات (amount, category, date, note, type [recurring/one-time], approved_by) |
-| `expense_categories` | `models/finance.py:30` | تصنيفات المصروفات |
-| `safes` | `models/finance.py:50` | الخزائن (name, balance, warehouse_id) |
-| `safe_transactions` | `models/finance.py:70` | حركات الخزينة (safe_id, type, amount, ref_type, ref_id, note) |
-| `customer_wallets` | `models/finance.py:90` | محافظ العملاء (party_id, balance) |
-| `wallet_transactions` | `models/finance.py:110` | حركات المحفظة (wallet_id, type, amount, ref_type, ref_id, note, balance_before) |
-| `accounting_periods` | `models/finance.py:130` | الفترات المالية (name, start_date, end_date, is_closed) |
-
-### جداول الموارد البشرية
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `employees` | `models/hr.py:8` | الموظفون (name, phone, salary, department, hire_date, is_active) |
-| `attendance_records` | `models/hr.py:30` | سجلات الحضور (employee_id, date, check_in, check_out, source) |
-| `payrolls` | `models/hr.py:50` | كشوف المرتبات (employee_id, period, basic_salary, allowances, deductions, net, status) |
-| `payroll_items` | `models/hr.py:70` | بنود الراتب (payroll_id, type, amount) |
-| `attendance_devices` | `models/hr.py:90` | أجهزة البصمة (name, ip, port, model, is_active) |
-
-### جداول الورديات
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `shifts` | `models/shift.py:8` | الورديات (user_id, warehouse_id, opened_at, closed_at, status, opening_balance, closing_balance, notes) |
-| `shift_transactions` | `models/shift.py:30` | معاملات الوردية (shift_id, type, amount, ref_type, ref_id, note) |
-
-### جداول المطبوعات والأرشفة
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `archives` | `models/archive.py:8` | المستندات المؤرشفة (id, ref_type, ref_id, html_content, created_at) |
-
-### جداول الإعدادات والسجل
-
-| الجدول | الملف | الوصف |
-|--------|-------|-------|
-| `settings` | `models/settings.py:8` | إعدادات المتجر (JSON key-value) |
-| `audit_log` | `models/audit.py:8` | سجل التدقيق (user_id, action, entity_type, entity_id, old_values, new_values, timestamp) |
+- **Users & permissions** - `users` carries `role` (admin/manager/cashier/storekeeper/accountant), a `permissions`
+  array (feature list), and `is_manager`. There is no `roles_permissions` table; feature access is enforced from the
+  `permissions` array via `require_perm(feature)`, warehouse access via `verify_warehouse_access` (admins/managers
+  pass everything).
+- **Inventory** - balances are computed (query-driven) from `stock_movements`, not stored. Every movement
+  (sale, purchase receipt, transfer, adjustment, stocktaking) is a `stock_movements` row. There are no separate
+  `stock`, `stocktaking` or `stock_transfers` tables. `stock_movements.type` includes transfer/stocktaking/adjustment;
+  typed FK columns (`sale_id`, `purchase_id`, `operation_id`) exist alongside `ref_id`/`ref_type`.
+- **Products** - multiple barcodes per product (`product_barcodes`); a nullable manual `code` (SKU) used for ordering
+  and search; `subcategory_id` is nullable so soft-deleted products can be detached before subcategory/category
+  deletion.
+- **Sales & quotations** - quotations live in `sales` with `status = quotation`; confirming turns them into
+  `status = confirmed` and records where the cash lands. `SaleStatus`: `draft`, `quotation`, `confirmed`, `returned`,
+  `cancelled`. Returns track `returns_total`; payments update `sales.paid_amount`, enabling
+  `remaining = net_total - returns_total - paid_amount`.
+  Note: the return value of the `drawer_tx_type` enum is `return_` (not `return`).
+- **Money flows** - cash drawer transactions (`drawer_transactions`, keyed by `shift_id`), safe balances on `safes`
+  (deposits/withdrawals update `safes.balance`; deposits also archive a `safe_deposit` document), and customer wallet
+  balances on `payment_wallets` (sale payments can reference `wallet_id`).
+- **Exact money** - all monetary columns are `Numeric(14, 2)` and every calculation uses `Decimal`.
+- **HR & payroll** - attendance sources are ZKTeco badge devices (`scripts/zk_sync.py`) or CSV import with Jibble
+  export support. Payroll is normalized into periods + entries (the old flat `hr_payroll` table was migrated out).
+- **Archives** - every printable document is stored as HTML in `archived_documents`; `doc_type_enum` includes
+  `sale_invoice`, `purchase_order`, `shift_report`, `inventory_report`, `safe_deposit`, `shift_handover`, `other`.
 
 ---
 
 ## 4. Backend — FastAPI
 
-### `backend/main.py`
-نقطة الدخول. تنشئ `FastAPI` app، تسجل `APIRouter` الرئيسي، تثبت middleware (CORS, CSRF, rate-limiting).
+### Entry point (`backend/main.py`)
 
-### `backend/app/core/config.py`
-إعدادات التطبيق عبر `pydantic-settings`: `DATABASE_URL`, `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `UPLOAD_DIR`.
+Creates the `FastAPI` app, runs `Base.metadata.create_all` at startup (schema is created in code, then extended with
+idempotent SQL migrations from `scripts/migrate.py`/`backend/migrations/`), appends the `safe_deposit` enum value if
+missing, mounts `/uploads` (and `/updates`), and registers the aggregated `router`. `/health` returns liveness.
 
-### `backend/app/core/security.py`
-- `create_access_token()` / `create_print_token()` — JWT
-- `hash_password()` / `verify_password()` — passlib + bcrypt
-- `require_csrf()` — CSRF protection via header validation
+### Core (`backend/app/core/`)
 
-### `backend/app/core/roles.py`
-- `require_role(role)` — dependency للتحقق من الدور
-- `require_perm(feature)` — dependency للتحقق من صلاحية معينة
-- `get_current_user()` — extracts + verifies JWT
+| File | Purpose |
+|------|---------|
+| `config.py` | `Settings` (pydantic-settings): `DATABASE_URL`, `SECRET_KEY`, CORS, upload dir |
+| `security.py` | JWT (access + short-lived print tokens), bcrypt password hashing, CSRF header validation |
+| `roles.py` | `require_role`, `require_perm(feature)`, `get_current_user` |
+| `ratelimit.py` | login rate limiting (slowapi; falls back to in-memory without Redis) |
+| `pagination.py` | shared pagination helpers |
+| `exceptions.py` | `BusinessError`, `NotFoundError`, handler wiring |
 
-### `backend/app/api/deps.py`
-Dependencies مشتركة: `get_db` (async session), `get_pagination`, etc.
+### Routers (`backend/app/api/routers/`, 27 + `print/`)
 
-### `backend/app/api/errors.py`
-`BusinessError` class + exception handlers (`BusinessError`, `ValidationError`, `IntegrityError`).
+| Router | Prefix | Scope |
+|--------|--------|-------|
+| `auth.py` | `/auth` | login/logout/refresh, `/me`, change password, roles, print-token, reauthenticate |
+| `users.py` | `/users` | user CRUD, password reset |
+| `products.py` | `/products` | product/category/subcategory CRUD, search, barcodes |
+| `stock.py` | `/stock` | balances, movements, adjustments, stocktaking |
+| `sales.py` | `/sales` | sale CRUD, returns, payments, quotation confirm |
+| `shifts.py` | `/shifts` | shift lifecycle + per-shift transaction reports |
+| `reports.py` | `/reports` | profit/loss, stock reports, aging |
+| `ledger.py` | `/reports/ledger` | daily ledger (from/to, warehouse) |
+| `parties.py` | `/customers`, `/suppliers` | customer & supplier CRUD, ledgers, balances, payments |
+| `purchases.py` | `/purchases` | purchase orders, receiving, supplier invoices |
+| `operations.py` | `/operations` | dispatch orders, goods receipts, stock requests |
+| `finance.py` | `/financial-categories`, `/financial-ledger`, `/audit-log`, `/permissions` | financial categories, ledger, audit log, user permission grants |
+| `expenses.py` | (no prefix) | expense CRUD + approval |
+| `safes.py` | `/safes` | safe CRUD, deposits/withdrawals |
+| `wallets.py` | `/wallets` | customer wallets + transactions |
+| `payroll.py` | `/payroll` | payroll periods/entries, approval, payslips |
+| `hr.py` | `/hr` | employees, attendance (CSV import incl. Jibble), devices |
+| `periods.py` | `/periods` | accounting periods + closing |
+| `archive.py` | `/archive` | archived documents, print/view |
+| `settings.py` | `/settings` | store settings, logo upload, PWA manifest, product options |
+| `admin_overview.py` | `/admin` | admin dashboard aggregate |
+| `collections.py` | `/collections` | debt collections |
+| `suppliers.py` | `/suppliers` | supplier CRUD |
+| `export.py` | `/export` | Excel export for all tables |
+| `notifications.py` | `/notifications` | FCM device tokens + push dispatch |
+| `updater.py` | `/updater` | desktop updater feed + `/updates` download |
+| `print_router.py` | (re-export) | historical alias into `print/` |
 
-### Routers (`backend/app/api/routers/`)
+### Print sub-package (`backend/app/api/routers/print/`)
 
-| الملف | المسار | الوظيفة |
-|-------|--------|---------|
-| `auth.py` | `/auth/*` | Login, logout, refresh, change password, roles/permissions CRUD |
-| `users.py` | `/users/*` | CRUD مستخدمين, reset password |
-| `products.py` | `/products/*` | CRUD منتجات, بحث, باركودات متعددة |
+The former 1329-line `print_router.py` was split into a modular sub-package mounted at `/print`:
 
-| `categories.py` | `/categories/*` | CRUD تصنيفات (شجرة) |
-| `subcategories.py` | `/subcategories/*` | CRUD تصنيفات فرعية |
-| `warehouses.py` | `/warehouses/*` | CRUD مخازن |
+| File | Scope |
+|------|-------|
+| `__init__.py` | shared print CSS + sub-router registration |
+| `sale.py` | sale invoice, quotation, return |
+| `purchase.py` | purchase order, supplier invoice |
+| `archive.py` | archived documents |
+| `inventory.py` | stocktaking, balance sheet |
+| `shift.py` | shift report, handover (عهدة) |
+| `dispatch.py` | dispatch-order documents |
 
-| `stock.py` | `/stock/*` | رصيد, حركات, تحويلات, جرد, تعديل رصيد |
-| `stocktaking.py` | `/stocktaking/*` | جرد المخزون |
-| `transfers.py` | `/transfers/*` | تحويلات بين المخازن |
+### Models, schemas, services
 
-| `sales.py` | `/sales/*` | CRUD فواتير بيع, مرتجعات, دفع |
-| `quotations.py` | `/quotations/*` | CRUD عروض أسعار, تحويل لفاتورة |
-| `pos.py` | `/pos/*` | نقاط البيع (checkout, hold, resume, void, split payments) |
-| `purchases.py` | `/purchases/*` | أوامر شراء, استلام, فواتير موردين |
-
-| `customers.py` | `/customers/*` | CRUD عملاء |
-| `suppliers.py` | `/suppliers/*` | CRUD موردين |
-
-| `expenses.py` | `/expenses/*` | CRUD مصروفات, موافقة |
-| `safes.py` | `/safes/*` | CRUD خزائن, إيداع/سحب |
-| `wallets.py` | `/wallets/*` | محافظ العملاء, حركات |
-| `accounting.py` | `/accounting/*` | تقارير مالية, دفتر أستاذ, فترات |
-| `cash_flow.py` | `/cash-flow/*` | كشف التدفق النقدي |
-
-| `hr.py` | `/hr/*` | موظفين, حضور, رواتب, أجهزة بصمة |
-| `shifts.py` | `/shifts/*` | CRUD ورديات, معاملات, تقارير |
-
-| `settings.py` | `/settings/*` | إعدادات المتجر (شعار, اسم, manifest.json) |
-| `archive.py` | `/archive/*` | أرشفة وعرض المستندات |
-| `audit.py` | `/audit/*` | سجل التدقيق |
-| `collections.py` | `/collections/*` | تحصيل ديون |
-| `dashboard.py` | `/dashboard/*` | لوحة التحكم (إحصائيات, charts) |
-| `health.py` | `/health` | Health check endpoint |
-| `export.py` | `/export/*` | تصدير Excel لجميع الجداول |
-
-### Print Routers (`backend/app/api/routers/print/`)
-
-تم تقسيم `print_router.py` (كان 1329 سطراً) إلى 8 ملفات:
-
-| الملف | المسار | المطبوعات |
-|-------|--------|-----------|
-| `__init__.py` | — | CSS مشترك + تسجيل جميع sub-routers |
-| `sale.py` | `/print/sale/*` | فاتورة بيع, عرض سعر, مرتجع |
-| `purchase.py` | `/print/purchase/*` | أمر شراء, فاتورة مورد |
-| `archive.py` | `/print/archive/*` | مستندات مؤرشفة |
-| `inventory.py` | `/print/inventory/*` | جرد, كشف رصيد |
-| `shift.py` | `/print/shift/*` | تقرير وردية, إيداع عهدة |
-| `financial.py` | `/print/financial/*` | تقارير مالية |
-| `hr.py` | `/print/hr/*` | كشف مرتب, تقرير دوام |
-
-### Models (`backend/app/models/`)
-
-كل ملف يحتوي على SQLAlchemy `DeclarativeBase` models.  
-راجع [قاعدة البيانات](#3-قاعدة-البيانات) أعلاه لكل جدول وصفه.
-
-### Schemas (`backend/app/schemas/`)
-
-Pydantic v2 schemas للـ request/response validation.  
-نفس تقسيم الـ routers تقريباً (كل router عنده schema file).
-
-### Services (`backend/app/services/`)
-
-طبقة منطق الأعمال — تفصل الـ business logic عن الـ routers:
-
-| الملف | الوظيفة |
-|-------|---------|
-| `stock_service.py` | حسابات الرصيد (FOR UPDATE), حركات المخزون, تحويلات |
-| `sale_service.py` | إنشاء فاتورة, خصم رصيد, مرتجعات, split payments |
-| `purchase_service.py` | أوامر شراء, استلام, تحديث رصيد |
-| `wallet_service.py` | محافظ العملاء (إيداع/سحب/تحويل مع overdraft check) |
-| `finance_service.py` | تقارير مالية, دفتر أستاذ, إقفال فترة |
-| `payroll_engine.py` | حساب الرواتب (custom business rules: دوام, غياب, إضافي, ...) |
-| `zk_sync.py` | مزامنة أجهزة البصمة ZKTeco عبر pyzk |
-| `archive_service.py` | أرشفة تلقائية لكل المستندات |
-| `excel_export.py` | تصدير Excel عبر openpyxl |
-| `settings_service.py` | قراءة/كتابة الإعدادات, generate manifest.json |
-| `barcode_service.py` | توليد باركودات, scan, validation |
-
-### Alembic (`backend/alembic/`)
-
-- `env.py` — تكوين Alembic (async driver, `target_metadata = Base.metadata`)
-- `versions/` — ملفات migrations (كل ملف يمثل تغييراً في الـ schema)
+- 20 model files, 17 schema files, 8 service files (`stock_service`, `sale_service`, `wallet_service`,
+  `shift_service`, `payroll_engine`, `report_service`, `audit_service`, `auth_service`).
+- Backend tests live in `backend/tests/`.
 
 ---
 
 ## 5. Frontend — React
 
-### `frontend/src/api/`
+### API layer (`frontend/src/api/`)
 
-| الملف | الوظيفة |
+| File | Purpose |
+|------|---------|
+| `client.ts` | Axios instance: base URL (`VITE_API_URL || '' + /api`), JWT interceptor, CSRF header |
+| `endpoints.ts` | all typed endpoint functions |
+
+### Stores (`frontend/src/store/`, Zustand)
+
+| Store | Purpose |
 |-------|---------|
-| `client.ts` | Axios instance (baseURL, interceptors للـ JWT + refresh + CSRF) |
-| `auth.ts` | دوال تسجيل الدخول/تسجيل الخروج |
-| `products.ts` | دوال CRUD + بحث + باركودات |
-| `categories.ts`, `subcategories.ts` | دوال التصنيفات |
-| `warehouses.ts` | دوال المخازن |
-| `stock.ts` | دوال المخزون والحركات |
-| `sales.ts` | دوال المبيعات |
-| `pos.ts` | دوال نقاط البيع |
-| `purchases.ts` | دوال المشتريات |
-| `parties.ts` | دوال العملاء والموردين |
-| `expenses.ts` | دوال المصروفات |
-| `safes.ts` | دوال الخزائن |
-| `wallets.ts` | دوال المحافظ |
-| `accounting.ts` | دوال التقارير المالية |
-| `hr.ts` | دوال الموارد البشرية |
-| `shifts.ts` | دوال الورديات |
-| `settings.ts` | دوال الإعدادات |
-| `archive.ts` | دوال الأرشفة |
-| `audit.ts` | دوال سجل التدقيق |
-| `dashboard.ts` | دوال لوحة التحكم |
-| `collections.ts` | دوال التحصيل |
-| `suppliers.ts` | دوال الموردين |
-| `export.ts` | دوال التصدير |
+| `auth.ts` | user, token, permissions, login/logout (persisted) |
+| `app.ts` | active warehouse / branch |
+| `pos.ts` | POS cart (items, quantities, discounts, notes) |
+| `purchaseCart.ts` | purchase cart |
+| `pendingSales.ts` | offline pending sales (persisted) |
+| `localShift.ts` | offline local shift (persisted) |
+| `offline.ts` | offline sync queue (persisted) |
+| `offlineCache.ts` | local search cache |
+| `queryPersister.ts` | TanStack Query IndexedDB persister |
 
-### `frontend/src/store/` (Zustand stores)
+### Pages (`frontend/src/pages/`, 25 modules)
 
-| الملف | الوظيفة |
-|-------|---------|
-| `authStore.ts` | Auth state (user, token, login/logout, permissions) — persist |
-| `cartStore.ts` | سلة POS (items, quantities, discounts, notes) — غير persist |
-| `pendingSalesStore.ts` | فواتير Offline pending — persist (localStorage) |
-| `localShiftStore.ts` | وردية محلية Offline — persist (localStorage) |
-| `offlineSyncStore.ts` | Queue المزامنة (actions pending sync) — persist |
+Login, dashboard, POS, sales, quotations, payroll, admin, customers, operations (purchases/purchase-orders/
+purchase-bill/transfers/dispatch grouped), inventory (stock, stocktaking, stock-adjustments, products), shifts,
+reports (accounting/aging/cashflow), archive, expenses, safes, supplier-prices, suppliers, users, settings.
 
-### `frontend/src/contexts/`
+### Shared UI (`frontend/src/components/`)
 
-| الملف | الوظيفة |
-|-------|---------|
-| `QueryContext.tsx` | React Query provider + persist client (IndexedDB) |
-| `ThemeContext.tsx` | الوضع الليلي/النهاري |
+`ui/` (Modal, DataTable, ConfirmDialog, FormField, SearchInput, BarcodeManager, ...), `layout/` (Sidebar, Layout),
+`ErrorBoundary`, `OfflineBanner`, `OfflineSync`, `NativeShell`.
 
-### `frontend/src/hooks/`
+### PWA / offline
 
-| الملف | الوظيفة |
-|-------|---------|
-| `useAuth.ts` | اختصار لـ authStore |
-| `usePermissions.ts` | التحقق من الصلاحيات في الـ components |
-| `useBarcode.ts` |扫描 الباركود (keyboard + camera) |
-| `useDebounce.ts` | Debounce للبحث |
-| `useOnlineStatus.ts` | مراقبة الاتصال (onLine/offLine) |
-| `useOfflineSync.ts` | مزامنة Offline queue |
-
-### `frontend/src/components/` (مشتركة)
-
-| الملف | الوظيفة |
-|-------|---------|
-| `DataTable.tsx` | جدول بيانات عام (sorting, pagination, loading, empty state) |
-| `Modal.tsx` | نافذة منبثقة عامة |
-| `ConfirmDialog.tsx` | تأكيد الإجراءات |
-| `FormField.tsx` | حقل نموذج عام |
-| `SearchInput.tsx` | حقل بحث |
-| `PageLoader.tsx` | شاشة تحميل |
-| `EmptyState.tsx` | حالة عدم وجود بيانات |
-| `ErrorBoundary.tsx` | Catch errors |
-| `OfflineBanner.tsx` | إشعار Offline |
-| `Sidebar.tsx` | القائمة الجانبية |
-| `Layout.tsx` | الهيكل العام للصفحات |
-| `BarcodeManager.tsx` | إدارة باركودات متعددة لمنتج |
-| `openPrint.ts` | Utility للطباعة (popup blocker detection + fallback) |
-
-### `frontend/src/pages/`
-
-| الملف | المسار | الوظيفة |
-|-------|--------|---------|
-| `LoginPage.tsx` | `/login` | تسجيل الدخول |
-| `DashboardPage.tsx` | `/dashboard` | لوحة التحكم (إحصائيات, رسوم بيانية) |
-| `POSPage.tsx` | `/pos` | نقطة البيع (بحث, سلة, check out, hold, resume) |
-| `SalesPage.tsx` | `/sales` | قائمة فواتير البيع |
-| `SaleDetailPage.tsx` | `/sales/:id` | تفاصيل فاتورة بيع |
-| `QuotationsPage.tsx` | `/quotations` | عروض الأسعار |
-| `InventoryPage.tsx` | `/inventory` | رصيد المخزون (بحث, فلتر) |
-| `StockMovementsPage.tsx` | `/stock-movements` | حركات المخزون |
-| `StocktakingPage.tsx` | `/stocktaking` | الجرد |
-| `TransfersPage.tsx` | `/transfers` | تحويلات المخزون |
-| `ProductsPage.tsx` | `/products` | إدارة المنتجات |
-| `ProductFormPage.tsx` | `/products/new`, `/products/:id/edit` | إضافة/تعديل منتج |
-| `CategoriesPage.tsx` | `/categories` | إدارة التصنيفات (شجرة) |
-| `WarehousesPage.tsx` | `/warehouses` | إدارة المخازن |
-| `SuppliersPage.tsx` | `/suppliers` | إدارة الموردين |
-| `CustomersPage.tsx` | `/customers` | إدارة العملاء |
-| `PurchasesPage.tsx` | `/operations` | المشتريات (أوامر شراء + فواتير موردين) |
-| `ExpensesPage.tsx` | `/expenses` | المصروفات |
-| `SafesPage.tsx` | `/safes` | الخزائن |
-| `WalletsPage.tsx` | `/wallets` | محافظ العملاء |
-| `AccountingPage.tsx` | `/accounting` | تقارير مالية (أرباح/خسائر, دفتر أستاذ, فترات) |
-| `CashFlowPage.tsx` | `/cash-flow` | كشف التدفق النقدي |
-| `AgingPage.tsx` | `/aging` | تقارير الأعمار (عملاء + موردون) |
-| `CollectionsPage.tsx` | `/collections` | تحصيل الديون |
-| `HrPage.tsx` | `/hr` | الموارد البشرية (موظفين, حضور, رواتب) |
-| `ShiftsPage.tsx` | `/shifts` | إدارة الورديات |
-| `SettingsPage.tsx` | `/settings` | الإعدادات (شعار, اسم, صلاحيات, tabs) |
-| `ArchivePage.tsx` | `/archive` | الأرشيف |
-| `AuditPage.tsx` | `/audit` | سجل التدقيق |
-| `AdminPage.tsx` | `/admin` | لوحة تحكم المدير (manage users, roles) |
-
-### PWA / Offline
-
-| الملف | الوظيفة |
-|-------|---------|
-| `sw.ts` | Service Worker (caching استراتيجيات للـ API + static assets) |
-| `offlineSync.ts` | مزامنة Offline queue عند استعادة الاتصال |
-| `manifest.ts` | Manifest ديناميكي (شعار + اسم من الإعدادات) |
+| File | Purpose |
+|------|---------|
+| `sw.ts` (via vite-plugin-pwa) | service worker: app-shell + API caching |
+| `utils/format.ts` | number/currency formatting (signed currency strings) |
+| `utils/native.ts` | native-shell capabilities (browser vs Capacitor vs Tauri) |
 
 ### Android (Capacitor) — `frontend/android/`
 
-| الميزة | الـ plugin |
-|--------|------------|
-| Camera barcode | `@capacitor/camera` |
-| Bluetooth printing | `@capacitor-community/bluetooth-le` |
-| Biometric auth | `@aparajita/capacitor-biometric-auth` |
-| Local notifications | `@capacitor/local-notifications` |
-| Status bar | `@capacitor/status-bar` |
-| Filesystem | `@capacitor/filesystem` |
+Camera barcode ↔ `@capacitor/camera`; Bluetooth printing ↔ `@capacitor-community/bluetooth-le`; biometric auth ↔
+`@aparajita/capacitor-biometric-auth`; local/push notifications ↔ `@capacitor/local-notifications`,
+`@capacitor/push-notifications`; status bar/filesystem ↔ `@capacitor/status-bar`, `@capacitor/filesystem`.
+App icons are generated from the store logo by `scripts/generate-icons.mjs` in `prebuild:android`.
 
-### Desktop (Tauri) — `frontend/src-tauri/`
+### Desktop (Tauri v2) — `frontend/src-tauri/`
 
-| الميزة | الوصف |
-|--------|-------|
-| System tray | أيقونة في شريط المهام مع قائمة (إظهار, إخفاء, خروج) |
-| Offline indicator | `tauri::command is_online` + `get_offline_queue` |
-| Auto-update | Tauri updater (needs pubkey) |
-| Notifications | `tauri-plugin-notification` |
+System tray, offline indicator, notifications, auto-updater wired to the backend `/api/updater` feed.
 
 ---
 
 ## 6. Infrastructure
 
-### Docker Compose (`docker-compose.yml`)
+### Docker Compose (`docker-compose.yml`) — 4 services
 
-3 خدمات:
+| Service | Image | Host ports | Resource limits |
+|---------|-------|-----------|-----------------|
+| `db` | `postgres:16-alpine` | `5432` | 1 CPU, 512M |
+| `backend` | built from `./backend` | (internal only) `8000` | 1 CPU, 1G |
+| `frontend` | built from `./frontend` | `8080 → 80` | - |
+| `nginxpm` | `jc21/nginx-proxy-manager` | `80`, `443`, `81` | - |
 
-| الخدمة | الصورة | الاعتماديات | الموارد |
-|--------|--------|-------------|---------|
-| `db` | `postgres:16-alpine` | — | 1 CPU, 512M RAM |
-| `backend` | مبنية من `./backend` | db (healthcheck) | 1 CPU, 1G RAM |
-| `frontend` | مبنية من `./frontend` | backend | — |
+Backend connects via `DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/inventory_db`. `SECRET_KEY` is set
+from compose. Optional `firebase-service-account.json` mounted when FCM push is used. Volumes: `pgdata`, `uploads_data`,
+`npm_data`, `npm_letsencrypt`. `data/sql/init_data.sql` seeds the DB on first boot.
 
-- الـ backend يتصل بـ db عبر `DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/inventory_db`
-- الـ frontend يعمل على port 80 (Nginx reverse proxy)
-- Volume: `pgdata` لقاعدة البيانات, `uploads_data` للملفات المرفوعة
+### Frontend `nginx.conf`
+
+- reverse-proxies `/api/` → `backend:8000`, `/uploads/` → backend, `/manifest.json`/`/manifest.webmanifest` →
+  `/settings/manifest.json`
+- SPA fallback (`try_files ... /index.html`)
+- security headers: CSP (assets + Google Fonts), HSTS, X-Frame-Options, nosniff, referrer policy
+- `limit_req_zone login:5r/m` — 5 login requests/minute per IP
 
 ### Backend Dockerfile
 
-- Base: `python:3.11-slim`
-- system deps: gcc, libpq-dev, Pango/Cairo (لـ WeasyPrint التقارير), خطوط Noto
-- pip install من `requirements.txt`
-- يعمل كمستخدم `appuser` (غير root)
-- Port 8000
+`python:3.12-slim` + gcc/libpq for asyncpg + Pango/Cairo (WeasyPrint PDFs) + Noto fonts; runs as non-root `appuser`;
+serves on `8000`.
 
-### Frontend Dockerfile
+### manage.py
 
-- Multi-stage:
-  1. `node:20-alpine` — npm ci + build
-  2. `nginx:alpine` — تخدم الـ static build على port 80
-- nginx.conf يعمل reverse proxy للـ backend في الطلبات `/api/*`
+CLI commmands: `setup`, `deploy`, `build`, `deploy-fresh`, `stop`, `restart`, `status`, `backup`, `restore`,
+`restore-append`, `migrate`, `update-init`, `export-clean`, `logs`, `list-backups`, `build-apk`, `build-appimage`,
+`build-exe`.
 
-### `manage.py`
+### install.sh / deploy.sh
 
-CLI أداة:
+`install.sh` — one-time setup on Ubuntu 20.04/22.04/24.04 or Debian 11/12: installs Docker + Compose plugin, builds
+images, creates an `erp` systemd service (`erp status | backup | restore | restart | logs`).
 
-| الأمر | الوظيفة |
-|-------|---------|
-| `backup` | نسخة احتياطية من قاعدة البيانات (pg_dump) |
-| `restore` | استعادة نسخة احتياطية |
-| `deploy` | تحديث التطبيق على السيرفر (git pull + docker compose up -d --build) |
-| `logs` | عرض logs الحاوية |
-| `migrate` | تشغيل Alembic migrations |
+`deploy.sh` — push local `master`, SSH to production, back up + migrate, rebuild, health-check.
 
-### `init_data.sql`
+### CI/CD (`.github/workflows/build.yml`)
 
-بيانات أولية تُحقن تلقائياً عند أول تشغيل لـ PostgreSQL (عبر `/docker-entrypoint-initdb.d/`):
-- مستخدمين افتراضيين (ammar, nada)
-- صلاحيات افتراضية
-- تصنيفات أولية
-
-### CI/CD (GitHub Actions — `.github/`)
-
-| الـ workflow | الوظيفة |
-|-------------|---------|
-| `ci.yml` | lint → typecheck → test → build → Docker images |
-| `release.yml` | بناء Android APK + Desktop EXE عند إنشاء tag |
-| `e2e.yml` | تشغيل Playwright E2E tests |
+| Job | Runs on | Gates |
+|-----|---------|-------|
+| `ci-frontend` | push/PR on master+main | npm ci, `tsc --noEmit`, ESLint, Vitest, production build |
+| `ci-backend` | push/PR | byte-compile all `.py`, `ruff` lint |
+| `ci-manage` | push/PR | `manage.py --help` renders |
+| `build-desktop` | `v*` tags only | Tauri builds: Linux / Windows / macOS; upload + GitHub release |
+| `build-android` | `v*` tags only | Gradle `assembleDebug` APK; upload + GitHub release |
+| `build-docker` | `v*` tags only | `backend` + `frontend` images → Docker Hub |
 
 ### Playwright E2E (`frontend/e2e/`)
 
-| الملف | الوظيفة |
-|-------|---------|
-| `login.spec.ts` | تسجيل الدخول/الخروج |
-| `pos.spec.ts` | دورة بيع كاملة في POS |
-| `inventory.spec.ts` | تصفح المخزون, جرد |
-| `sales.spec.ts` | إنشاء فاتورة بيع, عرض |
+`login.spec.ts`, `pos.spec.ts`, `inventory.spec.ts`, `sales.spec.ts`, `settings.spec.ts`, shared `helpers.ts`.
+Run with `npm run test:e2e` in `frontend/`.
 
 ---
 
-## 7. سير العمل الرئيسية
+## 7. Core workflows
 
-### دورة البيع في POS
-1. يفتح cashier وردية → shift status = `open`
-2. يختار warehouse
-3. يبحث عن منتج (search debounced 300ms) أو scan barcode
-4. يضيف إلى cartStore
-5. (اختياري) يحدد عميل, يطبق خصم, split payment
-6. Checkout → sale_service.create_sale() مع FOR UPDATE على stock
-7. يطبع الفاتورة عبر `/print/sale/{id}`
-8. لو Offline: يحفظ في pendingSalesStore + offlineSyncStore → يزامن لاحقاً
+### POS sale cycle
 
-### دورة المشتريات
-1. مدخل بيانات ينشئ Purchase Order
-2. مدير يوافق على الـ PO
-3. أمين مخزن يستلم الشحنة → qty_received يحدث
-4. stock يزيد تلقائياً
-5. تنشأ Purchase Invoice (حساب مورد)
+1. Cashier opens a shift → `shifts.status = open`
+2. Selects warehouse
+3. Searches any product by name or code (300ms debounced) or scans barcode (keyboard/camera + multi-barcode)
+4. Adds to `pos` cart
+5. Optional customer, discount, split payment (cash/card/credit, wallet)
+6. Checkout → `sale_service.create_sale()` with `FOR UPDATE` on stock balance
+7. Prints invoice via `/print/sale/{id}`
+8. If offline: bill lands in `pendingSales` + offline sync queue; replays when connectivity returns, surfacing 409 conflicts
 
-### دورة المخزون
-- كل حركة (بيع, شراء, تحويل, جرد, تعديل) تسجل في `stock_movements`
-- الرصود محسوبة (query-driven) باستخدام `SUM(...) WHERE warehouse_id = ?`
-- `FOR UPDATE` يمنع الـ race conditions عند checkout
+### Purchase cycle
 
-### دورة الورديات
-1. مدير أو أمين مخزن يفتح وردية → opening_balance
-2. كل المعاملات المالية تربط بـ shift_id
-3. عند الإغلاق → closing_balance, system حساب الفرق
-4. طباعة تقرير الوردية + إيداع العهدة
+1. Create Purchase Order (existing product picker, or "create new product" flow that requires category/subcategory)
+2. Receive the shipment → `qty_received` updated, stock increases, `cost_price` updated, `purchase_price_history`
+   logged, product promoted to `tracked`
+3. Supplier invoice settles the account
+
+### Inventory cycle
+
+- Every movement (sale, purchase, transfer, adjustment, stocktaking) is written to `stock_movements`
+- Balances are computed (`SUM ... WHERE warehouse_id = ?`); `FOR UPDATE` prevents checkout races
+- Per-warehouse isolation via `verify_warehouse_access` (> full access for admins/managers)
+
+### Shift cycle
+
+1. Manager or storekeeper opens a shift with `opening_balance`
+2. All financial transactions are linked to `shift_id`
+3. On close: `closing_balance`, system-computed difference, shift report + handover (عهدة) print
+
+### Quotation → invoice
+
+1. Quote created with items and pricing
+2. Confirm flow asks where the cash lands: **drawer** (the user's open shift in the quote's warehouse) or **safe**
+   (selected safe → deposit + archived doc)
+3. Stock pre-check runs before confirm; confirmation deducts stock, archives, records money
 
 ### Offline POS
-1. Service Worker يخبئ assets الأساسية
-2. React Query persist client يخبئ البيانات في IndexedDB
-3. لو disconnected:
-   - البحث محلياً في cache
-   - إنشاء فاتورة محلياً في pendingSalesStore
-   - فتح وردية محلية في localShiftStore
-4. عند استعادة الاتصال:
-   - offlineSyncStore يزامن الفواتير المعلقة
-   - لو 409 (conflict) → يعرض خطأ للمستخدم
 
-### التقارير المالية
-- Profit & Loss: إجمالي مبيعات - تكلفة مبيعات - مصروفات
-- دفتر الأستاذ: كل الحركات المالية مصنفة
-- Aging: عملاء 0-30-60-90+ يوم
-- Cash Flow: وارد وصادر وصافي
-- دعم الفترات المالية (monthly close)
+1. Service worker caches app shell + API responses
+2. TanStack Query persists reads via IndexedDB
+3. Disconnected: local search cache, local bill in `pendingSales`, local shift in `localShift`
+4. Reconnected: `offline` sync queue replays; 409 conflicts surfaced as errors
+
+### Financial reports
+
+- Profit & loss: gross sales - COGS - expenses
+- Ledger: classified financial movements (`/reports/ledger`)
+- Aging: customers/suppliers 0-30-60-90+ days
+- Cash flow: inflow/outflow/net
+- Accounting periods: monthly close locking

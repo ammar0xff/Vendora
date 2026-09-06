@@ -32,7 +32,7 @@ app (Tauri). All user-facing text is Arabic with an RTL interface.
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.12 (Docker image) / 3.13 (CI) - FastAPI - SQLAlchemy 2.0 (async) - Alembic - Pydantic v2 |
+| Backend | Python 3.12 (Docker image) / 3.13 (CI) - FastAPI - SQLAlchemy 2.0 (async) - Pydantic v2 |
 | Frontend | React 19 - TypeScript 5.9 - Vite 8 - Tailwind CSS v4 - Zustand - TanStack Query |
 | Database | PostgreSQL 16 |
 | Mobile | Capacitor (Android) - PWA + WebView with native plugins |
@@ -65,8 +65,8 @@ On first boot, PostgreSQL runs `data/sql/init_data.sql`, which seeds the default
 
 | Username | Password | Role |
 |----------|----------|------|
-| `ammar` | `changeme` | Admin |
-| `nada` | `changeme` | Admin |
+| `ammar` | `changeme` | Admin (admin, all permissions) |
+| `nada` | `changeme` | Accountant (full permissions, `is_manager`) |
 
 > Change the default passwords on first login.
 
@@ -95,7 +95,7 @@ Vendora/
 │   │   ├── models/         # SQLAlchemy ORM models
 │   │   ├── schemas/        # Pydantic v2 request/response schemas
 │   │   └── services/       # business logic layer
-│   ├── alembic/            # schema migrations
+│   ├── alembic/            # scaffold only (schema = create_all + SQL migrations)
 │   ├── migrations/         # idempotent SQL migrations
 │   ├── main.py             # FastAPI entry point
 │   └── Dockerfile
@@ -138,8 +138,8 @@ The API is a single FastAPI app with `230+` endpoints grouped into 27 routers. T
   and `report_service` keep business logic out of the routers.
 - **Printing** - the `print/` sub-package serves HTML documents for sales, purchases, archive, inventory, shifts, and
   dispatch orders with shared print CSS.
-- **Migrations** - Alembic for schema evolution plus idempotent SQL files under `backend/migrations/` (no
-  `BEGIN/COMMIT` wrappers, `IF NOT EXISTS` guards).
+- **Migrations** - schema is created via `Base.metadata.create_all` on startup plus idempotent SQL migrations in
+  `scripts/migrate.py` and `backend/migrations/` (no `BEGIN/COMMIT` wrappers, `IF NOT EXISTS` guards).
 - **Monitoring** - `/health` returns service liveness; the audit log records every mutating action with old/new values.
 
 ## Frontend
