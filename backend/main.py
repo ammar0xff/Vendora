@@ -77,6 +77,11 @@ app.mount("/updates", StaticFiles(directory=updates_dir), name="updates")
 app.include_router(router)
 
 
+@app.get("/")
+async def root():
+    return {"name": "Vendora Inventory ERP API", "docs": "/docs", "health": "/health"}
+
+
 @app.get("/health")
 async def health():
     from sqlalchemy import text
