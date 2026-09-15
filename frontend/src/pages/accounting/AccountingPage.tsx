@@ -46,7 +46,7 @@ export default function AccountingPage() {
         {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-all flex-shrink-0
-              ${activeTab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              ${activeTab === t.id ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
           </button>
         ))}

@@ -450,7 +450,7 @@ export default function SettingsPage() {
           <button
             key={id}
             onClick={() => setTab(id as any)}
-            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 -mb-px ${tab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 -mb-px ${tab === id ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <Icon size={16} />{label}
           </button>
@@ -516,7 +516,7 @@ export default function SettingsPage() {
                 <button onClick={() => {
                   const arr = [...(sf.contact_phones || []), { name: '', phone: '' }]
                   setStoreForm({ ...sf, contact_phones: arr })
-                }} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 font-medium">+ إضافة رقم</button>
+                }} className="text-xs px-2 py-1 rounded bg-[var(--primary-soft)] text-[var(--accent)] font-medium">+ إضافة رقم</button>
               </div>
               <div className="space-y-2">
                 {(sf.contact_phones || [{ name: '', phone: '' }]).map((c: any, i: number) => (
@@ -564,7 +564,7 @@ export default function SettingsPage() {
             <div key={key} className="card">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-slate-700">{label} ({options[key]?.length || 0})</h3>
-                <button onClick={() => { setAddOptionKey(key); setAddOptionVal('') }} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 font-medium">+ إضافة</button>
+                <button onClick={() => { setAddOptionKey(key); setAddOptionVal('') }} className="text-xs px-2 py-1 rounded bg-[var(--primary-soft)] text-[var(--accent)] font-medium">+ إضافة</button>
               </div>
               <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
                 {options[key]?.map((v: string) => (

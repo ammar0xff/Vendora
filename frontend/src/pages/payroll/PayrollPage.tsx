@@ -68,7 +68,7 @@ function AttendanceTable({ month, employees }: { month: string; employees: any[]
                 <td className="text-xs text-slate-600 font-mono">{a.check_out ? new Date(a.check_out).toLocaleTimeString('ar-EG') : '-'}</td>
                 <td><span className={statusColors[a.status] || 'badge-gray'}>{statusLabels[a.status] || a.status}</span></td>
                 <td className="text-xs text-slate-400">{a.edit_reason || ''}</td>
-                <td>                <button onClick={() => { setEditRec(a); setEditCheckIn(a.check_in?.slice(0,16) || ''); setEditCheckOut(a.check_out?.slice(0,16) || ''); setEditStatus(a.status); setEditReason(a.edit_reason || '') }} className="text-xs text-blue-600 hover:underline">تعديل</button></td>
+                <td>                <button onClick={() => { setEditRec(a); setEditCheckIn(a.check_in?.slice(0,16) || ''); setEditCheckOut(a.check_out?.slice(0,16) || ''); setEditStatus(a.status); setEditReason(a.edit_reason || '') }} className="text-xs text-[var(--accent)] hover:underline">تعديل</button></td>
               </tr>
             ))}
           </tbody>
@@ -418,7 +418,7 @@ export default function PayrollPage() {
       <div className="flex gap-0 mb-6 border-b border-slate-200 overflow-x-auto pb-px" style={{ WebkitOverflowScrolling: 'touch' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
           </button>
         ))}
@@ -478,7 +478,7 @@ export default function PayrollPage() {
               📊 تقرير الحضور
             </button>
             {totalNet > 0 && (
-              <div className="mr-auto bg-blue-50 border border-blue-200 rounded-xl px-4 py-2 text-sm">
+              <div className="mr-auto bg-[var(--primary-soft)] border-[var(--primary-border)] rounded-xl px-4 py-2 text-sm">
                 إجمالي الرواتب: <span className="font-black text-blue-800">{totalNet.toLocaleString('ar-EG')} ج.م</span>
               </div>
             )}
@@ -513,7 +513,7 @@ export default function PayrollPage() {
                         <td className="text-red-600 font-semibold">
                           {Number(p.lateness_deduction) > 0 ? `${Number(p.lateness_deduction).toLocaleString('ar-EG')} ج.م` : '-'}
                         </td>
-                        <td className="text-blue-600">{p.overtime_hours > 0 ? `${p.overtime_hours}h` : '-'}</td>
+                        <td className="text-[var(--accent)]">{p.overtime_hours > 0 ? `${p.overtime_hours}h` : '-'}</td>
                         <td className="text-green-600">{Number(p.overtime_pay) > 0 ? `${Number(p.overtime_pay).toLocaleString('ar-EG')}` : '-'}</td>
                         <td className="text-amber-600">{Number(p.advances) > 0 ? `${Number(p.advances).toLocaleString('ar-EG')}` : '-'}</td>
                         <td className="font-black text-lg" style={{ color: 'var(--primary)' }}>{Number(p.net_salary).toLocaleString('ar-EG')} ج.م</td>
@@ -526,7 +526,7 @@ export default function PayrollPage() {
                           <div className="flex gap-1 flex-nowrap">
                             <button
                               onClick={async () => { const d = await hrApi.breakdown(p.id); setBreakdown(d) }}
-                              className="px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 whitespace-nowrap">
+                              className="px-2 py-1 rounded-lg text-xs font-semibold bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary-border)] whitespace-nowrap">
                               تفاصيل
                             </button>
                             <button
@@ -645,7 +645,7 @@ export default function PayrollPage() {
                 </button>
               </div>
             </div>
-            <div className="mt-6 p-4 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
+            <div className="mt-6 p-4 rounded-xl bg-blue-50 border border-blue-200 text-sm text-[var(--primary)]">
               ✓ يتم إنشاء التقارير بصيغة HTML جاهزة للطباعة والمشاركة
             </div>
           </div>
@@ -819,7 +819,7 @@ export default function PayrollPage() {
                     <td className="font-semibold text-center">{d.work_hours > 0 ? d.work_hours.toFixed(1) : '—'}</td>
                     <td className={`text-center ${d.late_minutes > 0 ? 'text-amber-600 font-semibold' : 'text-slate-300'}`}>{d.late_minutes > 0 ? `${d.late_minutes}د` : '—'}</td>
                     <td className={`text-center ${d.early_minutes > 0 ? 'text-orange-500 font-semibold' : 'text-slate-300'}`}>{d.early_minutes > 0 ? `${d.early_minutes}د` : '—'}</td>
-                    <td className={`text-center ${d.overtime_hours > 0 ? 'text-blue-600 font-semibold' : 'text-slate-300'}`}>{d.overtime_hours > 0 ? `${d.overtime_hours.toFixed(1)}h` : '—'}</td>
+                    <td className={`text-center ${d.overtime_hours > 0 ? 'text-[var(--accent)] font-semibold' : 'text-slate-300'}`}>{d.overtime_hours > 0 ? `${d.overtime_hours.toFixed(1)}h` : '—'}</td>
                     <td className="text-xs text-slate-400 max-w-xs truncate">{d.note || ''}</td>
                   </tr>
                 ))}

@@ -121,7 +121,7 @@ function PermissionsPanel({ users }: { users: any[] | undefined }) {
       <div className="w-56 flex-shrink-0 space-y-1.5 overflow-y-auto">
         {users?.map(u => (
           <button key={u.id} onClick={() => selectUser(u)}
-            className={`w-full text-right p-3 rounded-xl border transition-all ${selectedUser?.id === u.id ? 'border-blue-300 bg-blue-50' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
+            className={`w-full text-right p-3 rounded-xl border transition-all ${selectedUser?.id === u.id ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'var(--primary)' }}>{u.full_name?.[0]}</div>
               <div className="min-w-0"><p className="font-semibold text-slate-800 text-sm truncate">{u.full_name}</p><p className="text-xs text-slate-400">@{u.username}</p></div>
@@ -163,7 +163,7 @@ function PermissionsPanel({ users }: { users: any[] | undefined }) {
               const enabled = perms.includes(page.id)
               return (
                 <button key={page.id} onClick={() => setPerms(prev => prev.includes(page.id) ? prev.filter(p => p !== page.id) : [...prev, page.id])}
-                  className={`p-3 rounded-xl border-2 text-right transition-all ${enabled ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                  className={`p-3 rounded-xl border-2 text-right transition-all ${enabled ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xl">{page.icon}</span>
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${enabled ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`}>
@@ -214,7 +214,7 @@ export default function UsersPage() {
       <div className="flex gap-0 mb-6 border-b border-slate-200">
         {[{ id: 'users', label: '👥 المستخدمون' }, { id: 'permissions', label: '🔐 الصلاحيات' }].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${tab === t.id ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
           </button>
         ))}
@@ -257,7 +257,7 @@ export default function UsersPage() {
         <div className="p-4 space-y-4">
           <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
             placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)"
-            className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-right"
+            className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)/0.2] focus:border-[var(--accent)] text-right"
             autoFocus dir="auto" />
           <div className="flex gap-3">
             <button onClick={() => { setResetPwUser(null); setNewPassword('') }}

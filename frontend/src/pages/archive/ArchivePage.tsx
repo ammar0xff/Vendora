@@ -138,7 +138,7 @@ export default function ArchivePage() {
             {cfg?.pdfPath && (
               <button onClick={e => { e.stopPropagation(); setPrintingId(d.id); openPrint(cfg.pdfPath!(d)); const h = () => { setPrintingId(null); window.removeEventListener('afterprint', h) }; window.addEventListener('afterprint', h) }}
                 disabled={printingId === d.id}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600 disabled:opacity-40" title="طباعة / PDF">
+                className="p-1.5 rounded-lg hover:bg-[var(--primary-soft)] text-slate-300 hover:text-[var(--primary)] disabled:opacity-40" title="طباعة / PDF">
                 <Printer size={14} />
               </button>
             )}

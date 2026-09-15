@@ -49,7 +49,7 @@ export default function PeriodsTab() {
                 <Calendar size={16} className={isClosed ? 'text-red-400' : 'text-slate-400'} />
                 <span className={`font-semibold ${isClosed ? 'text-red-700' : 'text-slate-700'}`}>
                   {arabicMonth}
-                  {isCurrent && <span className="text-xs text-blue-500 mr-2">(الحالي)</span>}
+                  {isCurrent && <span className="text-xs text-[var(--accent)] mr-2">(الحالي)</span>}
                   {isFuture && <span className="text-xs text-slate-400 mr-2">(مستقبلي)</span>}
                 </span>
                 {isClosed && (
