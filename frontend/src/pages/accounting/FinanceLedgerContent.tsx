@@ -72,7 +72,7 @@ export default function FinanceLedgerContent() {
 
       {/* Company view notice */}
       {isCompanyView && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 font-medium flex items-center gap-2">
+        <div className="mb-4 p-3 bg-[var(--primary-soft)] border-[var(--primary-border)] rounded-xl text-sm text-[var(--primary)] font-medium flex items-center gap-2">
           🏢 عرض إجمالي — كل الفروع مجمعة. اختر فرعاً من القائمة الجانبية لعرض فرع بعينه.
         </div>
       )}

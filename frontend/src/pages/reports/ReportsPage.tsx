@@ -53,7 +53,7 @@ export default function ReportsPage() {
       <div className="flex gap-0 mb-6 border-b border-slate-200">
         {[{ id: 'ledger', label: '📒 دفتر الأستاذ' }, { id: 'stats', label: '📊 الإحصائيات' }].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${tab === t.id ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
           </button>
         ))}
