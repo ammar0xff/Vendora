@@ -123,7 +123,7 @@ export default function OperationsPage() {
   })
 
   const opConfig = {
-    dispatch:      { label: 'إذن صرف', icon: Truck,         color: '#1e3a5f', desc: 'نقل بضاعة من مخزن إلى معرض' },
+    dispatch:      { label: 'إذن صرف', icon: Truck,         color: 'var(--primary)', desc: 'نقل بضاعة من مخزن إلى معرض' },
     goods_receipt: { label: 'استلام مشتريات', icon: PackagePlus, color: '#16a34a', desc: 'استلام بضاعة جديدة من تاجر' },
   }
 

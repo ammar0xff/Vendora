@@ -85,7 +85,7 @@ export default function CustomersPage() {
               { label: 'الرصيد', accessor: (c: any) => Number(c.balance_due) },
               { label: 'حد الائتمان', accessor: (c: any) => Number(c.credit_limit || 0) },
             ]} filename="العملاء" excelEndpoint="/export/customers" />
-            <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: 'var(--primary)' }}>
               <Plus size={14} /> إضافة
             </button>
           </div>
@@ -156,7 +156,7 @@ export default function CustomersPage() {
               <>
                 <div className="grid grid-cols-4 gap-4 mb-2">
                   {[
-                    { label: 'إجمالي الفواتير', value: account.total_invoiced, color: '#1e3a5f', icon: TrendingUp },
+                    { label: 'إجمالي الفواتير', value: account.total_invoiced, color: 'var(--primary)', icon: TrendingUp },
                     { label: 'المرتجعات', value: account.total_returned, color: '#dc2626', icon: TrendingDown },
                     { label: 'المدفوع', value: account.total_paid, color: '#16a34a', icon: DollarSign },
                     { label: 'المتبقي', value: account.balance_due, color: account.balance_due > 0 ? '#d97706' : '#16a34a', icon: DollarSign },
@@ -228,7 +228,7 @@ export default function CustomersPage() {
           <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م) — اختياري</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => { setShowAdd(false); resetForm() }} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => createMut.mutate()} disabled={!newName} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
+            <button onClick={() => createMut.mutate()} disabled={!newName} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
           </div>
         </div>
       </Modal>
@@ -242,7 +242,7 @@ export default function CustomersPage() {
           <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م)</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowEdit(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => editMut.mutate()} disabled={!newName || editMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>حفظ التعديلات</button>
+            <button onClick={() => editMut.mutate()} disabled={!newName || editMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>حفظ التعديلات</button>
           </div>
         </div>
       </Modal>

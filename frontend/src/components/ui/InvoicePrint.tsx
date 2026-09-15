@@ -34,7 +34,7 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
     <>
       {/* Screen controls — hidden when printing */}
       <div className="print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 flex gap-3 bg-white rounded-2xl shadow-xl p-3 border border-slate-200">
-        <button onClick={handlePrint} className="px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2" style={{ background: '#1e3a5f', color: 'white' }}>
+        <button onClick={handlePrint} className="px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2" style={{ background: 'var(--primary)', color: 'white' }}>
           🖨️ طباعة
         </button>
         <button onClick={onClose} className="px-6 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
@@ -63,21 +63,21 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
 
         <div className="print-doc max-w-2xl mx-auto">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6 pb-5 border-b-2" style={{ borderColor: '#1e3a5f' }}>
+          <div className="flex items-start justify-between mb-6 pb-5 border-b-2" style={{ borderColor: 'var(--primary)' }}>
             <div>
               {data.store.logo_url ? (
                 <img src={data.store.logo_url} alt="logo" className="h-16 object-contain mb-2" />
               ) : (
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-black mb-2" style={{ background: '#1e3a5f' }}>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-black mb-2" style={{ background: 'var(--primary)' }}>
                   {(data.store.name || 'م')[0]}
                 </div>
               )}
-              <h1 className="text-3xl font-black mb-1" style={{ color: '#1e3a5f' }}>{data.store.name || 'المتجر'}</h1>
+              <h1 className="text-3xl font-black mb-1" style={{ color: 'var(--primary)' }}>{data.store.name || 'المتجر'}</h1>
               <p className="text-base text-slate-600">{data.store.address}</p>
               <p className="text-base text-slate-600">📞 {data.store.phone}</p>
             </div>
             <div className="text-left">
-              <div className="inline-block px-4 py-2 rounded-xl text-white font-bold text-lg mb-3" style={{ background: data.status === 'quotation' ? '#c8a84b' : '#1e3a5f' }}>
+              <div className="inline-block px-4 py-2 rounded-xl text-white font-bold text-lg mb-3" style={{ background: data.status === 'quotation' ? 'var(--accent)' : 'var(--primary)' }}>
                 {data.document_type}
               </div>
               <p className="text-slate-800 font-bold text-xl">{data.invoice_number}</p>
@@ -101,7 +101,7 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
           {/* Items table */}
           <table className="w-full mb-5 border-collapse" style={{ fontSize: '14px' }}>
             <thead>
-              <tr style={{ background: '#1e3a5f' }}>
+              <tr style={{ background: 'var(--primary)' }}>
                 <th className="text-white text-right px-3 py-3 rounded-r-lg" style={{ fontSize: '14px' }}>#</th>
                 <th className="text-white text-right px-3 py-3" style={{ fontSize: '14px' }}>المنتج</th>
                 <th className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الوحدة</th>
@@ -126,7 +126,7 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
                       {item.discount > 0 ? `- ${item.discount.toLocaleString('ar-EG')}` : '—'}
                     </td>
                   )}
-                  <td className="px-3 py-3 text-center font-bold" style={{ fontSize: '14px', color: '#1e3a5f' }}>
+                  <td className="px-3 py-3 text-center font-bold" style={{ fontSize: '14px', color: 'var(--primary)' }}>
                     {item.total.toLocaleString('ar-EG')}
                   </td>
                 </tr>
@@ -147,7 +147,7 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
                   <span>- {data.discount.toLocaleString('ar-EG')} ج.م</span>
                 </div>
               )}
-              <div className="total-row flex justify-between font-black text-xl pt-3 border-t-2" style={{ borderColor: '#1e3a5f', color: '#1e3a5f' }}>
+              <div className="total-row flex justify-between font-black text-xl pt-3 border-t-2" style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
                 <span>الإجمالي</span>
                 <span>{data.total.toLocaleString('ar-EG')} ج.م</span>
               </div>

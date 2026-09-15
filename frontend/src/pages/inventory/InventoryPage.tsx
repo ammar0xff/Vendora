@@ -157,7 +157,7 @@ export default function InventoryPage() {
             onClick={() => { setSelectedCatId(null); setSelectedSubId(null) }}
             className={clsx('w-full text-right px-4 py-2 text-sm font-semibold transition-colors flex items-center gap-2',
               !selectedCatId && !selectedSubId ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)]' : 'text-slate-600 hover:bg-slate-50')}
-            style={!selectedCatId && !selectedSubId ? { background: '#1e3a5f' } : {}}
+            style={!selectedCatId && !selectedSubId ? { background: 'var(--primary)' } : {}}
           >
             <Package size={14} /> الكل
           </button>
@@ -176,7 +176,7 @@ export default function InventoryPage() {
                     title={cat.name}
                     className={clsx('flex-1 text-right px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2',
                       isCatActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)]' : 'text-slate-700 hover:bg-slate-50')}
-                    style={isCatActive ? { background: '#1e3a5f' } : {}}
+                    style={isCatActive ? { background: 'var(--primary)' } : {}}
                   >
                     <Tag size={12} className="flex-shrink-0 opacity-60" />
                     {cat.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{cat.code}</span> : null}
@@ -199,7 +199,7 @@ export default function InventoryPage() {
                       title={sub.name}
                       className={clsx('w-full text-right pl-3 pr-7 py-1.5 text-xs font-medium transition-colors flex items-center gap-2',
                         isSubActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700')}
-                      style={isSubActive ? { background: '#2d5a8e' } : {}}
+                      style={isSubActive ? { background: 'var(--primary)' } : {}}
                     >
                       <Layers size={10} className="flex-shrink-0 opacity-50" />
                       {sub.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{sub.code}</span> : null}
@@ -241,7 +241,7 @@ export default function InventoryPage() {
               { label: 'سعر التكلفة', accessor: p => Number(p.cost_price) },
             ]}
             filename="products" excelEndpoint="/export/products" />
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 flex-shrink-0" style={{ background: '#1e3a5f' }}>
+          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 flex-shrink-0" style={{ background: 'var(--primary)' }}>
             <Plus size={15} /> إضافة منتج
           </button>
         </div>
@@ -281,7 +281,7 @@ export default function InventoryPage() {
                 const low = qty <= 5
                 return <span className={`font-black text-sm ${low ? 'text-red-600' : 'text-green-700'}`}>{Number(qty).toLocaleString('ar-EG')} {p.unit}</span>
               }},
-              { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold" style={{ color: '#c8a84b' }}>{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
+              { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold" style={{ color: 'var(--accent)' }}>{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'wholesale_price', label: 'سعر الجملة', sortable: true, render: (p: any) => <span className="text-slate-600">{Number(p.wholesale_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'cost_price', label: 'التكلفة', sortable: true, render: (p: any) => <span className="text-slate-500 text-sm">{Number(p.cost_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'shelf_number', label: 'الرف', sortable: true, render: (p: any) => p.shelf_number ? <span className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 font-bold whitespace-nowrap">{p.shelf_number}</span> : <span className="text-xs text-slate-300">—</span> },

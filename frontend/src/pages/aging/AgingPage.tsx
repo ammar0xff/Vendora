@@ -45,7 +45,7 @@ function AgingTable({ items, totals }: { items: any[]; totals: any }) {
                   {fmt(totals?.[b] || 0)}
                 </td>
               ))}
-              <td className="text-center font-black text-lg" style={{ color: '#1e3a5f' }}>{fmt(totals?.total || 0)}</td>
+              <td className="text-center font-black text-lg" style={{ color: 'var(--primary)' }}>{fmt(totals?.total || 0)}</td>
             </tr>
           </tfoot>
         </table>

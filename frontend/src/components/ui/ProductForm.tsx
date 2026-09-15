@@ -174,7 +174,7 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
 
       <div className="flex gap-3 justify-end pt-2">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: 'var(--primary)' }}>حفظ</button>
       </div>
     </form>
   )

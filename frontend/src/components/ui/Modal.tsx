@@ -32,8 +32,8 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     >
       <div className={clsx('modal', sizes[size])} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 id={`modal-title-${title}`} className="text-lg font-bold text-slate-800">{title}</h2>
-          <button onClick={onClose} className="btn-ghost btn-sm rounded-lg p-1.5" aria-label="Close"><X size={18} /></button>
+          <h2 id={`modal-title-${title}`} className="text-base font-black text-[var(--text)]">{title}</h2>
+          <button onClick={onClose} className="btn-ghost btn-icon" aria-label="Close"><X size={18} /></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}

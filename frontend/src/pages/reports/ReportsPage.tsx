@@ -68,7 +68,7 @@ export default function ReportsPage() {
               {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
                 <button key={p} onClick={() => setLedgerPeriod(p)}
                   className={`px-4 py-2 text-xs font-bold transition-all ${ledgerPeriod === p ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                  style={ledgerPeriod === p ? { background: '#1e3a5f' } : {}}>
+                  style={ledgerPeriod === p ? { background: 'var(--primary)' } : {}}>
                   {p === 'daily' ? 'يومي' : p === 'weekly' ? 'أسبوعي' : p === 'monthly' ? 'شهري' : 'سنوي'}
                 </button>
               ))}
@@ -124,7 +124,7 @@ export default function ReportsPage() {
                         const totalReturns = dailyData.items.reduce((s: number, i: any) => s + i.returns, 0)
                         const totalExpenses = (dailyData.expenses || []).reduce((s: number, e: any) => s + e.total, 0)
                         return (
-                          <tr className="font-black" style={{ background: '#1e3a5f', color: 'white' }}>
+                          <tr className="font-black" style={{ background: 'var(--primary)', color: 'white' }}>
                             <td colSpan={4} className="text-white">الإجمالي</td>
                             <td className="text-center text-white">{fmt(totalIncome)}</td>
                             <td className="text-center text-red-300">{totalReturns > 0 ? fmt(totalReturns) : '—'}</td>

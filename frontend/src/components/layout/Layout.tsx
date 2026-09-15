@@ -5,7 +5,7 @@ import {
   Archive, Settings, Users, LogOut, FileText,
   Building2, Receipt, Truck, UserCheck, ShieldCheck,
   DollarSign, ClipboardList, Vault, Clock, TrendingDown,
-  ChevronDown, ChevronLeft, PanelLeftClose, PanelLeft
+  ChevronDown, PanelLeftClose, PanelLeft, Store, Boxes
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
@@ -15,7 +15,7 @@ import { fixUploadUrl } from '../../utils/format'
 import { clsx } from 'clsx'
 import type { Warehouse } from '../../types'
 
-// ── Navigation structure (VB6 Almodeer menu hierarchy) ──────────────
+// ── Navigation structure ─────────────────────────────────────────
 const NAV_GROUPS = [
   {
     key: 'home',
@@ -86,18 +86,16 @@ const NAV_GROUPS = [
   },
 ]
 
-// ── Quick-access toolbar buttons (like VB6 Command buttons) ─────────
-const TOOLBAR_ITEMS = [
-  { to: '/pos',        icon: ShoppingCart, label: 'نقاطة بيع',  perm: 'pos',        color: 'bg-emerald-500' },
-  { to: '/sales',      icon: Receipt,      label: 'المبيعات',    perm: 'sales',      color: 'bg-blue-500' },
-  { to: '/quotations', icon: FileText,      label: 'عروض سعر',    perm: 'quotations', color: 'bg-purple-500' },
-  { to: '/inventory',  icon: Package,       label: 'الأصناف',     perm: 'inventory',  color: 'bg-amber-500' },
-  { to: '/purchases',  icon: Truck,         label: 'المشتريات',   perm: 'inventory',  color: 'bg-orange-500' },
-  { to: '/customers',  icon: UserCheck,     label: 'العملاء',     perm: 'customers',  color: 'bg-cyan-500' },
-  { to: '/safes',      icon: Vault,         label: 'الخزينة',     perm: 'finance',    color: 'bg-green-600' },
-  { to: '/expenses',   icon: DollarSign,    label: 'المصروفات',   perm: 'finance',    color: 'bg-red-400' },
-  { to: '/accounting', icon: BarChart3,     label: 'الحسابات',    perm: 'reports',    color: 'bg-indigo-500' },
-  { to: '/shifts',     icon: Clock,         label: 'الورديات',    perm: 'shifts',     color: 'bg-slate-500' },
+// ── Quick-access shortcuts (merged into the sidebar) ────────────
+const QUICK_ITEMS = [
+  { to: '/pos',        icon: ShoppingCart, label: 'نقطة بيع', perm: 'pos' },
+  { to: '/inventory',  icon: Package,      label: 'الأصناف',   perm: 'inventory' },
+  { to: '/sales',      icon: Receipt,      label: 'المبيعات',  perm: 'sales' },
+  { to: '/quotations', icon: FileText,     label: 'عروض سعر',  perm: 'quotations' },
+  { to: '/purchases',  icon: Truck,        label: 'المشتريات', perm: 'inventory' },
+  { to: '/customers',  icon: UserCheck,    label: 'العملاء',   perm: 'customers' },
+  { to: '/safes',      icon: Vault,        label: 'الخزينة',   perm: 'finance' },
+  { to: '/expenses',   icon: DollarSign,   label: 'المصروفات', perm: 'finance' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -169,103 +167,116 @@ export default function Layout({ children }: { children: ReactNode }) {
     })
   }
 
+  const showroomCount = warehouses?.filter(w => w.warehouse_type === 'showroom').length || 0
+  const warehouseCount = warehouses?.filter(w => w.warehouse_type === 'warehouse').length || 0
+
+  const quickItems = QUICK_ITEMS.filter(q => hasPermission(q.perm))
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-100" style={{ direction: 'rtl' }}>
+    <div className="flex flex-col h-screen overflow-hidden bg-[var(--bg)]" style={{ direction: 'rtl' }}>
       {/* ═══ Top Header Bar ═══ */}
-      <header className="h-11 flex items-center gap-3 px-4 border-b border-slate-200 bg-white flex-shrink-0 z-30">
+      <header className="h-14 flex items-center gap-3 px-4 border-b border-[var(--border)] bg-white flex-shrink-0 z-30">
         {/* Sidebar toggle */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
+          className="btn-ghost btn-icon"
           title={sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'}
         >
           {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
         </button>
 
         {/* Logo + Company */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {logoUrl ? (
-            <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-7 h-7 rounded-lg object-contain" />
+            <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-8 h-8 rounded-[10px] object-contain" />
           ) : (
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: '#2b1b03' }}>
+            <div className="w-8 h-8 rounded-[10px] flex items-center justify-center overflow-hidden bg-[var(--primary)]">
               <img src="/favicon.svg" alt="logo" className="w-full h-full object-cover" />
             </div>
           )}
-          <span className="text-sm font-bold text-slate-700 hidden md:block">{companyName}</span>
+          <span className="text-sm font-black text-[var(--text)] hidden md:block">{companyName}</span>
         </div>
 
         {/* Warehouse selector */}
-        <select value={activeWarehouseId || ''}
-          onChange={e => {
-            const wh = warehouses?.find(w => w.id === e.target.value)
-            if (wh) setActiveWarehouse(wh.id, wh.name)
-            else setActiveWarehouse('', '')
-          }}
-          className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-400 cursor-pointer">
-          <option value="">🏢 إدارة شاملة</option>
-          <optgroup label="المعارض">
-            {warehouses?.filter(w => w.warehouse_type === 'showroom').map(w => (
-              <option key={w.id} value={w.id}>🏪 {w.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="المخازن">
-            {warehouses?.filter(w => w.warehouse_type === 'warehouse').map(w => (
-              <option key={w.id} value={w.id}>🏭 {w.name}</option>
-            ))}
-          </optgroup>
-        </select>
+        <div className="relative">
+          <Store size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+          <select value={activeWarehouseId || ''}
+            onChange={e => {
+              const wh = warehouses?.find(w => w.id === e.target.value)
+              if (wh) setActiveWarehouse(wh.id, wh.name)
+              else setActiveWarehouse('', '')
+            }}
+            className="select-arrow bg-[var(--surface-2)] border border-[var(--border)] rounded-[var(--r-md)] pl-8 pr-8 py-2 text-xs font-semibold text-[var(--text-soft)] outline-none focus:border-[var(--primary)] cursor-pointer min-w-[200px]">
+            <option value="">إدارة شاملة ({warehouses?.length || 0} فروع)</option>
+            {showroomCount > 0 && (
+              <optgroup label="المعارض">
+                {warehouses?.filter(w => w.warehouse_type === 'showroom').map(w => (
+                  <option key={w.id} value={w.id}>🏪 {w.name}</option>
+                ))}
+              </optgroup>
+            )}
+            {warehouseCount > 0 && (
+              <optgroup label="المخازن">
+                {warehouses?.filter(w => w.warehouse_type === 'warehouse').map(w => (
+                  <option key={w.id} value={w.id}>🏭 {w.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </div>
 
         {/* Spacer */}
         <div className="flex-1" />
 
         {/* User info + logout */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'var(--primary)' }}>
-            {user?.full_name?.[0] || 'م'}
+          <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--r-md)] bg-[var(--surface-2)] border border-[var(--border)]">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 bg-[var(--primary)]">
+              {user?.full_name?.[0] || 'م'}
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold text-[var(--text)] leading-tight">{user?.full_name}</p>
+              <p className="text-[10px] text-[var(--muted)]">{isManager ? 'مدير' : 'موظف'}</p>
+            </div>
           </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-xs font-semibold text-slate-700 leading-tight">{user?.full_name}</p>
-            <p className="text-[10px] text-slate-400">{isManager ? 'مدير' : 'موظف'}</p>
-          </div>
-          <button onClick={logout} title="خروج"
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
-            <LogOut size={14} />
+          <button onClick={logout} title="تسجيل الخروج"
+            className="btn-ghost btn-icon text-[var(--muted)] hover:text-red-500">
+            <LogOut size={16} />
           </button>
         </div>
       </header>
 
-      {/* ═══ Toolbar (VB6-style shortcut buttons) ═══ */}
-      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border-b border-slate-200 flex-shrink-0 z-20 overflow-x-auto">
-          {TOOLBAR_ITEMS.map((item) => {
-            if (!hasPermission(item.perm)) return null
-            const Icon = item.icon
-            const isActive = location.pathname === item.to
-            return (
-              <button
-                key={item.to}
-                onClick={() => navigate(item.to)}
-                className={clsx(
-                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap',
-                  isActive
-                    ? 'bg-slate-800 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100'
-                )}
-              >
-                <div className={clsx('w-5 h-5 rounded-md flex items-center justify-center text-white', isActive ? 'bg-white/20' : item.color)}>
-                  <Icon size={11} />
-                </div>
-                {item.label}
-              </button>
-            )
-          })}
-        </div>
-
       {/* ═══ Main Layout: Sidebar + Content ═══ */}
       <div className="flex flex-1 overflow-hidden">
-        {/* ── Left Sidebar (VB6-style tree navigation) ── */}
+        {/* ── Right Sidebar ── */}
         {sidebarOpen && (
-          <aside className="w-56 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col overflow-hidden z-10">
-            <div className="flex-1 overflow-y-auto py-2 px-2">
+          <aside className="w-60 flex-shrink-0 bg-white border-l border-[var(--border)] flex flex-col overflow-hidden z-10">
+            <div className="flex-1 overflow-y-auto px-2.5 py-3">
+              {/* Quick access */}
+              <div className="mb-4">
+                <p className="sidebar-section-label px-3 mb-2">وصول سريع</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {quickItems.map(item => {
+                    const isActive = location.pathname === item.to
+                    return (
+                      <button
+                        key={item.to}
+                        onClick={() => navigate(item.to)}
+                        className={clsx('quick-tile', isActive && 'active')}
+                      >
+                        <span className={clsx('quick-tile-icon', isActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--primary-soft)] text-[var(--primary)]')}>
+                          <item.icon size={15} />
+                        </span>
+                        {item.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Main navigation */}
+              <p className="sidebar-section-label px-3 mb-2">القائمة الرئيسية</p>
+              <div className="space-y-0.5">
               {NAV_GROUPS.map((group) => {
                 const visibleItems = group.items.filter(isVisible)
                 if (!visibleItems.length) return null
@@ -274,23 +285,18 @@ export default function Layout({ children }: { children: ReactNode }) {
                 const GroupIcon = group.icon
 
                 return (
-                  <div key={group.key} className="mb-1">
+                  <div key={group.key}>
                     {/* Group header */}
                     <button
                       onClick={() => toggleGroup(group.key)}
-                      className={clsx(
-                        'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all',
-                        isGroupActive
-                          ? 'text-[var(--primary)] bg-blue-50'
-                          : 'text-slate-600 hover:bg-slate-50'
-                      )}
+                      className={clsx('sidebar-group-btn', isGroupActive && 'active')}
                     >
-                      <GroupIcon size={15} className={isGroupActive ? 'text-[var(--primary)]' : 'text-slate-400'} />
+                      <GroupIcon size={16} className={isGroupActive ? 'text-[var(--primary)]' : 'text-[var(--muted)]'} />
                       <span className="flex-1 text-right">{group.label}</span>
                       <ChevronDown
                         size={14}
                         className={clsx(
-                          'text-slate-400 transition-transform duration-200',
+                          'text-[var(--muted)] transition-transform duration-200',
                           isExpanded ? 'rotate-0' : '-rotate-90'
                         )}
                       />
@@ -298,7 +304,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
                     {/* Group items */}
                     {isExpanded && (
-                      <div className="mr-2 mt-0.5 space-y-0.5 border-r-2 border-slate-100 pr-2">
+                      <div className="mr-3 mt-0.5 space-y-0.5 border-r-2 border-[var(--primary-soft)] pr-1.5">
                         {visibleItems.map((item) => {
                           const ItemIcon = item.icon
                           const isActive = location.pathname === item.to
@@ -306,15 +312,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
-                              className={clsx(
-                                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all',
-                                isActive
-                                  ? 'text-white font-bold'
-                                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                              )}
-                              style={isActive ? { background: 'var(--primary)' } : {}}
+                              className={clsx('sidebar-link', isActive && 'active')}
                             >
-                              <ItemIcon size={13} />
+                              <ItemIcon size={15} className={isActive ? 'text-[var(--primary)]' : 'text-[var(--muted)]'} />
                               {item.label}
                             </NavLink>
                           )
@@ -324,12 +324,17 @@ export default function Layout({ children }: { children: ReactNode }) {
                   </div>
                 )
               })}
+              </div>
             </div>
 
             {/* Sidebar footer */}
-            <div className="border-t border-slate-100 p-3">
-              <div className="text-[10px] text-slate-400 text-center">
-                Vendora v1.0
+            <div className="border-t border-[var(--border)] p-3.5">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <Boxes size={14} className="text-[var(--muted)]" />
+                  <span className="text-[11px] font-semibold text-[var(--text-soft)]">{companyName}</span>
+                </div>
+                <span className="text-[10px] text-[var(--muted)]">v1.0</span>
               </div>
             </div>
           </aside>

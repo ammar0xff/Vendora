@@ -5,7 +5,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/auth'
 import { authApi, settingsApi } from '../api/endpoints'
 import toast from 'react-hot-toast'
-import { Lock, User } from 'lucide-react'
+import { Lock, User, Store, Boxes, BarChart3 } from 'lucide-react'
+
+const FEATURES = [
+  { icon: Store, label: 'نقطة البيع', desc: 'مبيعات سريعة وسلسة' },
+  { icon: Boxes, label: 'المخزون', desc: 'تتبع كامل للأصناف' },
+  { icon: BarChart3, label: 'التقارير', desc: 'تحليلات دقيقة' },
+]
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -37,80 +43,81 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #152d4a 60%, #0f1f33 100%)' }}>
-      {/* Left panel */}
-      <div className="hidden lg:flex flex-1 items-center justify-center p-12">
-        <div className="text-center text-white max-w-md">
-          {/* Logo */}
+    <div className="min-h-screen flex bg-[#f4f6fa]">
+      {/* Brand panel */}
+      <div className="hidden lg:flex flex-1 flex-col justify-between items-center p-12 relative overflow-hidden bg-[var(--primary)]">
+        <div className="absolute inset-0 opacity-[0.08]" style={{
+          backgroundImage: 'radial-gradient(circle at 20% 20%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 70%, #fff 1px, transparent 1px)',
+          backgroundSize: '48px 48px'
+        }} />
+        <div className="relative z-10 flex flex-col items-center text-center max-w-md">
           <div className="mb-8">
             {logoUrl ? (
-              <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-32 h-32 object-contain mx-auto rounded-2xl" />
+              <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-28 h-28 object-contain mx-auto rounded-2xl drop-shadow-2xl" />
             ) : (
-              <div className="w-28 h-28 rounded-3xl flex items-center justify-center mx-auto shadow-2xl overflow-hidden"
-                style={{ background: '#2b1b03' }}>
+              <div className="w-28 h-28 rounded-3xl flex items-center justify-center mx-auto shadow-2xl overflow-hidden bg-[#2b1b03]">
                 <img src="/favicon.svg" alt="logo" className="w-full h-full object-cover" />
               </div>
             )}
           </div>
-          <h1 className="text-4xl font-black mb-3 leading-tight">{companyName}</h1>
-          <p className="text-white/60 text-lg leading-relaxed">منصة متكاملة لإدارة المبيعات والمخزون والموظفين</p>
-          <div className="mt-10 grid grid-cols-3 gap-4">
-            {[['🛒','نقطة البيع'],['📦','المخزون'],['📊','التقارير']].map(([icon, label]) => (
-              <div key={label} className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
-                <div className="text-2xl mb-1">{icon}</div>
-                <p className="text-white/80 text-xs font-medium">{label}</p>
+          <h1 className="text-4xl font-black mb-4 leading-tight text-white">{companyName}</h1>
+          <p className="text-white/60 text-base leading-relaxed">منصة متكاملة لإدارة المبيعات والمخزون والموظفين</p>
+          <div className="mt-12 grid grid-cols-3 gap-3 w-full">
+            {FEATURES.map(({ icon: Icon, label, desc }) => (
+              <div key={label} className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10">
+                <Icon size={22} className="mb-2 text-[var(--accent)]" />
+                <p className="text-white/90 text-sm font-bold mb-0.5">{label}</p>
+                <p className="text-white/50 text-[11px]">{desc}</p>
               </div>
             ))}
           </div>
         </div>
+        <p className="relative z-10 text-white/30 text-xs">Vendora v1.0 · إدارة شاملة</p>
       </div>
 
       {/* Login form */}
-      <div className="w-full lg:w-[440px] flex items-center justify-center p-8 bg-white/5 backdrop-blur-sm">
+      <div className="w-full lg:max-w-[480px] flex items-center justify-center p-6 sm:p-10 bg-white">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
+          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--primary-soft)] mb-6 lg:hidden">
             {logoUrl ? (
-              <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-20 h-20 object-contain mx-auto rounded-2xl mb-3" />
+              <img src={fixUploadUrl(logoUrl)} alt="logo" className="w-9 h-9 object-contain rounded-xl" />
             ) : (
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 overflow-hidden"
-                style={{ background: '#2b1b03' }}>
+              <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#2b1b03]">
                 <img src="/favicon.svg" alt="logo" className="w-full h-full object-cover" />
               </div>
             )}
-            <p className="text-white font-bold">{companyName}</p>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-3xl font-black text-white mb-1">مرحباً بك</h2>
-            <p className="text-white/50">سجّل دخولك للمتابعة</p>
+            <h2 className="text-2xl font-black text-[var(--text)] mb-1.5">مرحباً بك</h2>
+            <p className="text-[var(--muted)] text-sm">سجّل دخولك للمتابعة</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-white/70 text-sm font-medium mb-2">اسم المستخدم</label>
+              <label className="field-label">اسم المستخدم</label>
               <div className="relative">
-                <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" />
+                <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                 <input value={username} onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-10 text-white placeholder-white/30 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all"
+                  className="input pr-10"
                   placeholder="أدخل اسم المستخدم" required autoFocus />
               </div>
             </div>
             <div>
-              <label className="block text-white/70 text-sm font-medium mb-2">كلمة المرور</label>
+              <label className="field-label">كلمة المرور</label>
               <div className="relative">
-                <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" />
+                <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-10 text-white placeholder-white/30 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all"
+                  className="input pr-10"
                   placeholder="أدخل كلمة المرور" required />
               </div>
             </div>
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 disabled:opacity-60 mt-2"
-              style={{ background: 'var(--accent)', color: 'var(--primary)' }}>
+              className="btn-primary w-full btn-lg mt-2">
               {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
             </button>
           </form>
+          <p className="text-center text-[11px] text-[var(--muted)] mt-8">© {new Date().getFullYear()} {companyName} — جميع الحقوق محفوظة</p>
         </div>
       </div>
     </div>

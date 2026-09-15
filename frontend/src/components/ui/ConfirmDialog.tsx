@@ -16,18 +16,18 @@ export default function ConfirmDialog({ open, onClose, onConfirm, title, message
   return (
     <Modal open={open} onClose={onClose} title={title || 'تأكيد'} size="sm"
       footer={
-        <div className="flex gap-3 pt-4">
+        <div className="flex gap-3 pt-1 w-full">
           <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+            className="btn-outline flex-1">
             {cancelText}
           </button>
           <button onClick={() => { onConfirm(); if (closeOnConfirm) onClose() }}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+            className={`${danger ? 'btn-danger' : 'btn-primary'} flex-1`}>
             {confirmText}
           </button>
         </div>
       }>
-      <p className="text-slate-600 text-sm leading-relaxed text-center py-2">{message}</p>
+      <p className="text-[var(--text-soft)] text-sm leading-relaxed text-center py-2">{message}</p>
     </Modal>
   )
 }

@@ -30,7 +30,7 @@ export default function SafesContent() {
               </div>
               <TrendingUp size={16} className="text-green-500 mt-1" />
             </div>
-            <p className="text-2xl font-black" style={{ color: '#1e3a5f' }}>
+            <p className="text-2xl font-black" style={{ color: 'var(--primary)' }}>
               {Number(safe.balance).toLocaleString('ar-EG')} ج.م
             </p>
           </div>
@@ -38,7 +38,7 @@ export default function SafesContent() {
       </div>
 
       {/* Total */}
-      <div className="card p-4 flex items-center justify-between" style={{ background: '#1e3a5f' }}>
+      <div className="card p-4 flex items-center justify-between" style={{ background: 'var(--primary)' }}>
         <span className="text-white/70 font-semibold">إجمالي الخزنات</span>
         <span className="text-white text-2xl font-black">{totalBalance.toLocaleString('ar-EG')} ج.م</span>
       </div>

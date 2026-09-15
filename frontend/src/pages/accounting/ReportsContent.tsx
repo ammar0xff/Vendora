@@ -8,7 +8,7 @@ import { openPrint } from '../../utils/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { BarChart3, TrendingUp, Package, Users, Printer } from 'lucide-react'
 
-const COLORS = ['#1e3a5f', '#c8a84b', '#16a34a', '#7c3aed', '#dc2626', '#0891b2']
+const COLORS = ['var(--primary)', 'var(--accent)', '#16a34a', '#7c3aed', '#dc2626', '#0891b2']
 
 export default function ReportsContent() {
   const today = format(new Date(), 'yyyy-MM-dd')
@@ -87,7 +87,7 @@ export default function ReportsContent() {
               {[
                 { label: 'إجمالي الإيرادات', value: profit.total_revenue, color: '#16a34a', icon: TrendingUp },
                 { label: 'تكلفة البضاعة (COGS)', value: profit.total_cogs, color: '#dc2626', icon: Package },
-                { label: 'مجمل الربح', value: profit.gross_profit, sub: `${profit.gross_margin}%`, color: '#1e3a5f', icon: BarChart3 },
+                { label: 'مجمل الربح', value: profit.gross_profit, sub: `${profit.gross_margin}%`, color: 'var(--primary)', icon: BarChart3 },
                 { label: 'صافي الربح', value: profit.net_profit, sub: `${profit.net_margin}%`, color: Number(profit.net_profit) >= 0 ? '#16a34a' : '#dc2626', icon: TrendingUp },
               ].map(({ label, value, sub, color, icon: Icon }) => (
                 <div key={label} className="stat-card">
@@ -135,7 +135,7 @@ export default function ReportsContent() {
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`, 'المبيعات']} />
-              <Bar dataKey="مبيعات" fill="#1e3a5f" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="مبيعات" fill="var(--primary)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

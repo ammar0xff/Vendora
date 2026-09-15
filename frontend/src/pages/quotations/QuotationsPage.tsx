@@ -231,7 +231,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
               </div>
               <div className="text-center">
                 <p className="text-xs text-slate-500">الإجمالي الكلي</p>
-                <p className="font-black" style={{ color: '#1e3a5f' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</p>
+                <p className="font-black" style={{ color: 'var(--primary)' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-slate-500">صافي الربح</p>
@@ -277,7 +277,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
               </div>
               <div className="mr-auto flex items-center gap-2">
                 <span className="text-sm text-slate-500">الصافي بعد الخصم:</span>
-                <span className="text-lg font-black" style={{ color: '#1e3a5f' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</span>
+                <span className="text-lg font-black" style={{ color: 'var(--primary)' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</span>
               </div>
             </div>
           </div>
@@ -319,7 +319,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
         <button type="button" onClick={handleSubmit} disabled={!cart.length || mut.isPending}
           className="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 disabled:opacity-50"
-          style={{ background: '#c8a84b', color: '#1e3a5f' }}>
+          style={{ background: 'var(--accent)', color: 'var(--primary)' }}>
           <FileText size={16} /> {isEdit ? 'حفظ التعديلات' : 'إنشاء وطباعة'}
         </button>
       </div>
@@ -474,7 +474,7 @@ export default function QuotationsPage() {
           <h1 className="page-title">📋 عروض الأسعار</h1>
           <p className="text-slate-500 text-sm mt-1">إنشاء عروض أسعار مع تتبع الربحية</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+        <button onClick={() => setShowCreate(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
           <Plus size={16} /> عرض سعر جديد
         </button>
       </div>

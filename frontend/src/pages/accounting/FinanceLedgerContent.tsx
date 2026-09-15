@@ -57,7 +57,7 @@ export default function FinanceLedgerContent() {
           <h1 className="page-title">الميزان المالي</h1>
           <p className="text-slate-500 text-sm mt-1">تتبع كل جنيه داخل وخارج الشركة بالتفصيل</p>
         </div>
-        <button onClick={() => setShowManageCats(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+        <button onClick={() => setShowManageCats(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
           <Plus size={15} /> إدارة الفئات
         </button>
       </div>
@@ -191,7 +191,7 @@ export default function FinanceLedgerContent() {
               </select>
               <div className="flex gap-2 items-center">
                 <input type="color" value={newCatColor} onChange={e => setNewCatColor(e.target.value)} className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer" />
-                <button onClick={() => addCatMut.mutate()} disabled={!newCatName} className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
+                <button onClick={() => addCatMut.mutate()} disabled={!newCatName} className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
               </div>
             </div>
           </div>

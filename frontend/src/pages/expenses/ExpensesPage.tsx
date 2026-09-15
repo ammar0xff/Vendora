@@ -91,7 +91,7 @@ export default function ExpensesPage() {
             { label: 'الحالة', accessor: (r: any) => statusLabel[r.status] || r.status },
             { label: 'ملاحظات', accessor: (r: any) => r.notes || '' },
           ]} filename="المصروفات" excelEndpoint="/export/expenses" />
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: '#1e3a5f' }}>
+          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: 'var(--primary)' }}>
             <Plus size={14} /> إضافة مصروف
           </button>
         </div>
@@ -203,7 +203,7 @@ export default function ExpensesPage() {
         </div>
         <div className="flex gap-3 justify-end mt-6">
           <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-          <button onClick={() => createMut.mutate()} disabled={!formAmount || !formDesc} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
+          <button onClick={() => createMut.mutate()} disabled={!formAmount || !formDesc} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
         </div>
       </Modal>
 
@@ -246,7 +246,7 @@ export default function ExpensesPage() {
           <div className="flex gap-3">
             <input className="input flex-1" placeholder="اسم المورد" value={vendorName} onChange={e => setVendorName(e.target.value)} />
             <input className="input w-40" placeholder="رقم الهاتف" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} />
-            <button onClick={() => vendorMut.mutate()} disabled={!vendorName} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
+            <button onClick={() => vendorMut.mutate()} disabled={!vendorName} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
           </div>
           <div className="table-wrap max-h-80 overflow-y-auto">
             <table>

@@ -26,7 +26,7 @@ function Row({ label, amount, total }: { label: string; amount: number; total: n
       <div className="flex items-center gap-3">
         <span className="font-bold text-sm" style={{ minWidth: 100, textAlign: 'left', direction: 'ltr' }}>{fmt(amount)} ج.م</span>
         <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: total > 0 ? '#1e3a5f' : '#e5e7eb' }} />
+          <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: total > 0 ? 'var(--primary)' : '#e5e7eb' }} />
         </div>
       </div>
     </div>

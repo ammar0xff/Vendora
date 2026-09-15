@@ -91,14 +91,14 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = 'Ù
           <tr>
             {columns.map(col => (
               <th key={col.key} style={col.width ? { width: col.width } : {}}
-                className={col.sortable ? 'cursor-pointer select-none hover:bg-slate-100 transition-colors' : ''}
+                className={col.sortable ? 'cursor-pointer select-none hover:bg-[var(--primary-soft)] transition-colors' : ''}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}>
                 <div className="flex items-center gap-1">
                   {col.label}
                   {col.sortable && (
                     <span className="text-slate-400 flex-shrink-0">
                       {sortKey === col.key
-                        ? sortDir === 'desc' ? <ChevronDown size={13} className="text-blue-500" /> : <ChevronUp size={13} className="text-blue-500" />
+                        ? sortDir === 'desc' ? <ChevronDown size={13} className="text-[var(--primary)]" /> : <ChevronUp size={13} className="text-[var(--primary)]" />
                         : <ChevronsUpDown size={13} />}
                     </span>
                   )}
@@ -112,13 +112,12 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = 'Ù
           {!loading && !sorted?.length && (
             <tr>
               <td colSpan={columns.length}>
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                  <div className="text-4xl mb-3">{emptyIcon}</div>
-                  <p className="text-sm font-medium mb-4">{emptyMessage}</p>
+                <div className="flex flex-col items-center justify-center py-16 text-[var(--muted)]">
+                  <div className="text-4xl mb-3 opacity-60">{emptyIcon}</div>
+                  <p className="text-sm font-semibold mb-4">{emptyMessage}</p>
                   {emptyAction && (
                     <button onClick={emptyAction.onClick}
-                      className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-2"
-                      style={{ background: '#1e3a5f' }}>
+                      className="btn-primary">
                       <Plus size={14} /> {emptyAction.label}
                     </button>
                   )}

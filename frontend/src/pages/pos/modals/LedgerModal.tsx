@@ -32,7 +32,7 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
               { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
               { label: 'الدواخل', val: todayLedger.summary.total_deposits, color: '#2563eb' },
               { label: 'توريد إيرادات', val: todayLedger.summary.total_revenue_delivery ?? 0, color: '#9333ea' },
-              { label: 'الصافي', val: todayLedger.summary.net, color: '#1e3a5f' },
+              { label: 'الصافي', val: todayLedger.summary.net, color: 'var(--primary)' },
               { label: 'الدرج (نقدي)', val: todayLedger.summary.cash_closing ?? todayLedger.summary.closing, color: '#7c3aed' },
             ].map(({ label, val, color }) => (
               <div key={label} className="bg-slate-50 rounded-lg p-2">

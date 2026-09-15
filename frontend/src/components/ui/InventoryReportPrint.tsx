@@ -20,7 +20,7 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
   return (
     <>
       <div className="print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 flex gap-3 bg-white rounded-2xl shadow-xl p-3 border border-slate-200">
-        <button onClick={() => window.print()} className="px-6 py-2 rounded-xl font-bold text-sm text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+        <button onClick={() => window.print()} className="px-6 py-2 rounded-xl font-bold text-sm text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
           🖨️ طباعة
         </button>
         <button onClick={onClose} className="px-6 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
@@ -41,13 +41,13 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
 
         <div className="print-doc max-w-5xl mx-auto">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6 pb-4 border-b-2" style={{ borderColor: '#1e3a5f' }}>
+          <div className="flex items-start justify-between mb-6 pb-4 border-b-2" style={{ borderColor: 'var(--primary)' }}>
             <div>
-              <h1 className="text-2xl font-black" style={{ color: '#1e3a5f' }}>{data.store.name}</h1>
+              <h1 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{data.store.name}</h1>
               <p className="text-slate-500 text-sm">{data.store.address} | {data.store.phone}</p>
             </div>
             <div className="text-left">
-              <h2 className="text-xl font-black" style={{ color: '#1e3a5f' }}>تقرير المخزون</h2>
+              <h2 className="text-xl font-black" style={{ color: 'var(--primary)' }}>تقرير المخزون</h2>
               <p className="text-slate-600 text-sm font-medium">المخزن: {data.warehouse}</p>
               <p className="text-slate-400 text-xs">{new Date(data.generated_at).toLocaleString('ar-EG')}</p>
             </div>
@@ -62,7 +62,7 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
             ].map(({ label, value, unit }) => (
               <div key={label} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
                 <p className="text-xs text-slate-500 mb-1">{label}</p>
-                <p className="text-xl font-black" style={{ color: '#1e3a5f' }}>{value} <span className="text-sm font-normal text-slate-500">{unit}</span></p>
+                <p className="text-xl font-black" style={{ color: 'var(--primary)' }}>{value} <span className="text-sm font-normal text-slate-500">{unit}</span></p>
               </div>
             ))}
           </div>
@@ -70,7 +70,7 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
           {/* Items by category */}
           {Object.entries(grouped).map(([cat, items]) => (
             <div key={cat} className="mb-6">
-              <h3 className="font-black text-base mb-2 px-3 py-1.5 rounded-lg text-white" style={{ background: '#1e3a5f' }}>{cat}</h3>
+              <h3 className="font-black text-base mb-2 px-3 py-1.5 rounded-lg text-white" style={{ background: 'var(--primary)' }}>{cat}</h3>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-slate-100">

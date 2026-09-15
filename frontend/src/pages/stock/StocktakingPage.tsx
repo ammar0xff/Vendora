@@ -126,7 +126,7 @@ export default function StocktakingPage() {
         {[
           { key: 'untracked', label: '⚠️ غير مجرود', count: untrackedCount, color: '#d97706' },
           { key: 'tracked',   label: '✅ مجرود',      count: trackedCount,   color: '#16a34a' },
-           { key: 'all',       label: '📦 الكل',        count: products.length, color: '#1e3a5f' },
+           { key: 'all',       label: '📦 الكل',        count: products.length, color: 'var(--primary)' },
          ].map(({ key, label, count, color }) => (
           <div key={key} onClick={() => setFilter(key as any)}
             className="card p-4 text-center cursor-pointer border-2 transition-all"
@@ -191,7 +191,7 @@ export default function StocktakingPage() {
                     <td className="text-center">
                       {p.stock_status === 'untracked'
                         ? <span className="text-xs text-slate-400">—</span>
-                        : <span className="font-bold text-sm" style={{ color: '#1e3a5f' }}>{balances?.[p.id] ?? '...'} {p.unit}</span>}
+                        : <span className="font-bold text-sm" style={{ color: 'var(--primary)' }}>{balances?.[p.id] ?? '...'} {p.unit}</span>}
                     </td>
                     <td className="text-center">
                       {p.stock_status === 'untracked'
@@ -227,7 +227,7 @@ export default function StocktakingPage() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-slate-400">{p.unit}</span>
                     {p.stock_status !== 'untracked' && balances?.[p.id] != null && (
-                      <span className="text-xs font-bold" style={{ color: '#1e3a5f' }}>الحالي: {balances[p.id]}</span>
+                      <span className="text-xs font-bold" style={{ color: 'var(--primary)' }}>الحالي: {balances[p.id]}</span>
                     )}
                   </div>
                 </div>

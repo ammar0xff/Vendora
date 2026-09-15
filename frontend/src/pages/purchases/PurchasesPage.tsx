@@ -159,7 +159,7 @@ function NewPOForm({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div className="flex justify-end mt-3 pt-3 border-t border-slate-100">
-          <span className="font-bold text-slate-700">الإجمالي: <span style={{ color: '#1e3a5f' }}>{total.toLocaleString('ar-EG')} ج.م</span></span>
+          <span className="font-bold text-slate-700">الإجمالي: <span style={{ color: 'var(--primary)' }}>{total.toLocaleString('ar-EG')} ج.م</span></span>
         </div>
       </div>
 
@@ -181,7 +181,7 @@ function NewPOForm({ onClose }: { onClose: () => void }) {
 
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" disabled={createMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+        <button type="submit" disabled={createMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
           إنشاء أمر الشراء
         </button>
       </div>
@@ -273,7 +273,7 @@ function ReceivePOModal({ poId, onClose }: { poId: string; onClose: () => void }
       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
         <div className="space-y-1">
           <div className="flex gap-4 text-sm">
-            <span className="text-slate-500">الإجمالي: <span className="font-black" style={{ color: '#1e3a5f' }}>{total.toLocaleString('ar-EG')} ج.م</span></span>
+            <span className="text-slate-500">الإجمالي: <span className="font-black" style={{ color: 'var(--primary)' }}>{total.toLocaleString('ar-EG')} ج.م</span></span>
             {po?.amount_paid > 0 && <span className="text-green-600">مدفوع: <span className="font-black">{Number(po.amount_paid).toLocaleString('ar-EG')} ج.م</span></span>}
             {po?.amount_paid > 0 && total - Number(po.amount_paid) > 0 && (
               <span className="text-amber-600">متبقي: <span className="font-black">{(total - Number(po.amount_paid)).toLocaleString('ar-EG')} ج.م</span></span>
@@ -367,7 +367,7 @@ export default function PurchasesPage() {
             { label: 'الحالة', accessor: (r: any) => r.status },
             { label: 'التاريخ', accessor: (r: any) => new Date(r.created_at).toLocaleDateString('en-CA') },
           ]} filename="المشتريات" excelEndpoint="/export/purchases" />
-          <button onClick={() => setShowNew(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+          <button onClick={() => setShowNew(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
             <Plus size={15} /> فاتورة مشتريات جديدة
           </button>
         </div>

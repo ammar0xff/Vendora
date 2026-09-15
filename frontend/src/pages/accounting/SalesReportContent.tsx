@@ -45,7 +45,7 @@ export default function SalesReportContent() {
                   <XAxis dataKey="cashier_name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
                   <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
                   <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`]}/>
-                  <Bar dataKey="total_sales" name="المبيعات" fill="#1e3a5f" radius={[4,4,0,0]}/>
+                  <Bar dataKey="total_sales" name="المبيعات" fill="var(--primary)" radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-4 space-y-2">
@@ -70,7 +70,7 @@ export default function SalesReportContent() {
             {topProducts?.slice(0, 10).map((p: any, i: number) => {
               const max = Number(topProducts[0]?.total_revenue || 1)
               const pct = Math.round((Number(p.total_revenue) / max) * 100)
-              const colors = ['#1e3a5f','#16a34a','#c8a84b','#7c3aed','#0891b2','#dc2626','#d97706','#059669','#6366f1','#ec4899']
+              const colors = ['var(--primary)','#16a34a','#c8a84b','#7c3aed','#0891b2','#dc2626','#d97706','#059669','#6366f1','#ec4899']
               return (
                 <div key={p.product_id}>
                   <div className="flex justify-between mb-1">

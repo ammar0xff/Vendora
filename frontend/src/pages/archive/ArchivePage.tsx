@@ -9,9 +9,9 @@ import { openPrint } from '../../utils/format'
 
 const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; pdfPath?: (d: any) => string }> = {
   sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,    color: '#16a34a', pdfPath: d => `/print/pdf/sale/${d.ref_id}` },
-  quotation:       { label: 'عرض سعر',          icon: FileText,   color: '#c8a84b', pdfPath: d => `/print/pdf/sale/${d.ref_id}` },
+  quotation:       { label: 'عرض سعر',          icon: FileText,   color: 'var(--accent)', pdfPath: d => `/print/pdf/sale/${d.ref_id}` },
   purchase_invoice:{ label: 'فاتورة مشتريات',  icon: ShoppingBag,color: '#7c3aed', pdfPath: d => `/print/pdf/purchase/${d.ref_id}` },
-  dispatch_order:  { label: 'إذن صرف',          icon: Truck,      color: '#1e3a5f', pdfPath: d => `/print/pdf/dispatch/${d.doc_number}` },
+  dispatch_order:  { label: 'إذن صرف',          icon: Truck,      color: 'var(--primary)', pdfPath: d => `/print/pdf/dispatch/${d.doc_number}` },
   goods_receipt:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
   stock_request:   { label: 'استلام مشتريات',  icon: Package,    color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
   shift_report:    { label: 'تقرير وردية',      icon: BarChart2,  color: '#0891b2', pdfPath: d => `/print/pdf/archive/${d.id}` },
@@ -175,7 +175,7 @@ export default function ArchivePage() {
             <button key={key} onClick={() => setDocType(key)}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold flex-shrink-0 transition-all border"
               style={isActive
-                ? { background: cfg?.color || '#1e3a5f', color: 'white', borderColor: 'transparent' }
+                ? { background: cfg?.color || 'var(--primary)', color: 'white', borderColor: 'transparent' }
                 : { background: 'white', color: '#64748b', borderColor: '#e2e8f0' }}>
               {label}
               <span className={`px-1.5 py-0.5 rounded-full text-xs ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>

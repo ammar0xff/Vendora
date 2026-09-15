@@ -33,7 +33,7 @@ function WalletsTab() {
     <div className="card max-w-lg">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-slate-700">وسائل الدفع والمحافظ الإلكترونية</h3>
-        <button onClick={() => setShowAdd(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: '#1e3a5f' }}>
+        <button onClick={() => setShowAdd(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: 'var(--primary)' }}>
           <Plus size={13} /> إضافة
         </button>
       </div>
@@ -72,7 +72,7 @@ function WalletsTab() {
           </div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border">إلغاء</button>
-            <button onClick={() => createMut.mutate()} disabled={!form.name || !form.phone} className="px-4 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
+            <button onClick={() => createMut.mutate()} disabled={!form.name || !form.phone} className="px-4 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
           </div>
         </div>
       )}
@@ -167,7 +167,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           </div>
           <button onClick={() => { setShowNewCat(true); setNewCatName('') }}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white"
-            style={{ background: '#1e3a5f' }}>
+            style={{ background: 'var(--primary)' }}>
             <Plus size={15} /> فئة جديدة
           </button>
         </div>
@@ -187,7 +187,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
               <div key={cat.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ background: '#1e3a5f' }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ background: 'var(--primary)' }}>
                       <Tag size={15} />
                     </div>
                     <div>
@@ -246,7 +246,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowNewCat(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => addCatMut.mutate()} disabled={!newCatName.trim() || addCatMut.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
               {addCatMut.isPending ? 'جاري...' : 'إضافة'}
             </button>
           </div>
@@ -270,7 +270,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           <div className="flex gap-3 justify-end">
             <button onClick={() => setEditCatId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => editCatMut.mutate()} disabled={!editCatName.trim() || editCatMut.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
               {editCatMut.isPending ? 'جاري...' : 'حفظ'}
             </button>
           </div>
@@ -294,7 +294,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           <div className="flex gap-3 justify-end">
             <button onClick={() => setEditSubId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => editSubMut.mutate()} disabled={!editSubName.trim() || editSubMut.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
               {editSubMut.isPending ? 'جاري...' : 'حفظ'}
             </button>
           </div>
@@ -322,7 +322,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
           <div className="flex gap-3 justify-end">
             <button onClick={() => setNewSubCatId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => addSubMut.mutate()} disabled={!newSubName.trim() || addSubMut.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
               {addSubMut.isPending ? 'جاري...' : 'إضافة'}
             </button>
           </div>
@@ -540,7 +540,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <button onClick={() => saveSettings.mutate(sf)} disabled={saveSettings.isPending} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full flex items-center justify-center gap-2" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => saveSettings.mutate(sf)} disabled={saveSettings.isPending} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full flex items-center justify-center gap-2" style={{ background: 'var(--primary)' }}>
               <Save size={16} /> {saveSettings.isPending ? 'جاري...' : 'حفظ الإعدادات'}
             </button>
           </div>
@@ -591,7 +591,7 @@ export default function SettingsPage() {
           <div className="flex gap-3 justify-end">
             <button onClick={() => setAddOptionKey('')} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => addOptionMut.mutate()} disabled={!addOptionVal.trim() || addOptionMut.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
               {addOptionMut.isPending ? 'جاري...' : 'إضافة'}
             </button>
           </div>
@@ -603,7 +603,7 @@ export default function SettingsPage() {
         <div className="card max-w-lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-700">المخازن ({warehouses?.length || 0})</h3>
-            <button onClick={() => setShowAddWh(true)} className="btn-primary btn-sm px-3 py-1.5 rounded-lg text-xs text-white flex items-center gap-1" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => setShowAddWh(true)} className="btn-primary btn-sm px-3 py-1.5 rounded-lg text-xs text-white flex items-center gap-1" style={{ background: 'var(--primary)' }}>
               <Plus size={13} /> إضافة مخزن
             </button>
           </div>
@@ -645,7 +645,7 @@ export default function SettingsPage() {
               {[{v:'showroom',l:'🏪 معرض'},{v:'warehouse',l:'🏭 مخزن'}].map(({v,l}) => (
                 <button key={v} onClick={() => setNewWhType(v)}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${newWhType===v ? 'text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'}`}
-                  style={newWhType===v ? {background:'#1e3a5f'} : {}}>
+                  style={newWhType===v ? {background:'var(--primary)'} : {}}>
                   {l}
                 </button>
               ))}
@@ -662,7 +662,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowAddWh(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold">إلغاء</button>
-            <button onClick={() => addWh.mutate()} disabled={!newWhCode || !newWhName} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>إضافة</button>
+            <button onClick={() => addWh.mutate()} disabled={!newWhCode || !newWhName} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
           </div>
         </div>
         </Modal>
@@ -697,7 +697,7 @@ export default function SettingsPage() {
           <div className="flex gap-3 justify-end">
             <button onClick={() => setRenameWhId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
             <button onClick={() => renameWh.mutate()} disabled={!renameWhName.trim() || renameWh.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
               {renameWh.isPending ? 'جاري...' : 'حفظ'}
             </button>
           </div>

@@ -107,7 +107,7 @@ function AdjustmentForm({ onClose }: { onClose: () => void }) {
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
         <button type="submit" disabled={!selectedProduct || !warehouseId || !qty || mut.isPending || (['adjustment_out', 'damage'].includes(movementType) && !note.trim())}
-          className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+          className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
           تسجيل الحركة
         </button>
       </div>
@@ -172,7 +172,7 @@ export default function StockAdjustmentsPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">📋 حركات المخزون</h1>
-        <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+        <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
           <Plus size={15} /> تسوية جديدة
         </button>
       </div>

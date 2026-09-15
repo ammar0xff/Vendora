@@ -196,7 +196,7 @@ export default function SalesPage() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <button onClick={() => setStatusFilter('')}
           className={clsx('px-3 py-1.5 rounded-xl text-xs font-bold transition-all border', !statusFilter ? 'text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300')}
-          style={!statusFilter ? { background: '#1e3a5f' } : {}}>
+          style={!statusFilter ? { background: 'var(--primary)' } : {}}>
           الكل ({sales?.filter((s: any) => s.status !== 'quotation').length || 0})
         </button>
         {Object.entries(STATUS_CONFIG).filter(([k]) => k !== 'quotation' && k !== 'draft').map(([status, cfg]) => {
@@ -277,7 +277,7 @@ export default function SalesPage() {
             {/* Financial summary */}
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: 'الإجمالي', val: Number(saleDetail.net_total).toLocaleString('ar-EG'), color: '#1e3a5f' },
+                { label: 'الإجمالي', val: Number(saleDetail.net_total).toLocaleString('ar-EG'), color: 'var(--primary)' },
                 { label: 'المدفوع', val: Number(saleDetail.paid_amount || 0).toLocaleString('ar-EG'), color: '#16a34a' },
                 { label: 'المرتجعات', val: Number(saleDetail.returns_total || 0).toLocaleString('ar-EG'), color: '#dc2626' },
                 { label: 'المتبقي', val: Number(saleDetail.remaining || 0).toLocaleString('ar-EG'), color: '#d97706' },

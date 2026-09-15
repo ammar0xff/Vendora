@@ -99,7 +99,7 @@ function AttendanceTable({ month, employees }: { month: string; employees: any[]
                 status: editStatus,
                 edit_reason: editReason,
                 edited: true,
-              })} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+              })} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: 'var(--primary)' }}>حفظ</button>
             </div>
           </div>
         </Modal>
@@ -169,7 +169,7 @@ function EmployeeForm({ emp, shifts, onSave, onClose }: any) {
       </div>
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: 'var(--primary)' }}>حفظ</button>
       </div>
     </form>
   )
@@ -236,7 +236,7 @@ function CsvImportSection() {
         <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="text-sm" />
         <button onClick={doImport} disabled={!file || importing}
           className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-          style={{ background: '#1e3a5f' }}>
+          style={{ background: 'var(--primary)' }}>
           {importing ? 'جاري الاستيراد...' : 'استيراد'}
         </button>
       </div>
@@ -308,7 +308,7 @@ function DeviceSyncCard({ settings, onSettingsChange, onSave }: any) {
         <button onClick={onSave} className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">حفظ الإعدادات</button>
         <button onClick={doSync} disabled={syncing}
           className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: '#1e3a5f' }}>
+          style={{ background: 'var(--primary)' }}>
           {syncing ? '⏳ جاري المزامنة...' : '🔄 مزامنة الحضور الآن'}
         </button>
       </div>
@@ -516,7 +516,7 @@ export default function PayrollPage() {
                         <td className="text-blue-600">{p.overtime_hours > 0 ? `${p.overtime_hours}h` : '-'}</td>
                         <td className="text-green-600">{Number(p.overtime_pay) > 0 ? `${Number(p.overtime_pay).toLocaleString('ar-EG')}` : '-'}</td>
                         <td className="text-amber-600">{Number(p.advances) > 0 ? `${Number(p.advances).toLocaleString('ar-EG')}` : '-'}</td>
-                        <td className="font-black text-lg" style={{ color: '#1e3a5f' }}>{Number(p.net_salary).toLocaleString('ar-EG')} ج.م</td>
+                        <td className="font-black text-lg" style={{ color: 'var(--primary)' }}>{Number(p.net_salary).toLocaleString('ar-EG')} ج.م</td>
                         <td>
                           <span className={p.status === 'paid' ? 'badge-green' : p.status === 'approved' ? 'badge-blue' : 'badge-gray'}>
                             {p.status === 'paid' ? 'مدفوع' : p.status === 'approved' ? 'معتمد' : 'مسودة'}
@@ -575,7 +575,7 @@ export default function PayrollPage() {
       {tab === 'shifts' && (
         <div>
           <div className="flex justify-end mb-4">
-            <button onClick={() => setShowAddShift(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => setShowAddShift(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
               <Plus size={15} /> إضافة مناوبة
             </button>
           </div>
@@ -609,7 +609,7 @@ export default function PayrollPage() {
                 </div>
                 <button onClick={() => window.open(reportUrl(`/hr/payroll/report/monthly?month=${selectedMonth}`), "_blank")}
                   className="px-5 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2"
-                  style={{ background: "#1e3a5f" }}>
+                  style={{ background: "var(--primary)" }}>
                   عرض التقرير
                 </button>
               </div>
@@ -626,11 +626,11 @@ export default function PayrollPage() {
                   <button onClick={() => {
                     const sel = (document.getElementById("report-emp-select") as HTMLSelectElement)?.value
                     if (sel) window.open(reportUrl(`/hr/payroll/report/employee/${sel}?month=${selectedMonth}&report_type=detailed`), "_blank")
-                  }} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "#1e3a5f" }}>تقرير مفصل</button>
+                  }} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "var(--primary)" }}>تقرير مفصل</button>
                   <button onClick={() => {
                     const sel = (document.getElementById("report-emp-select") as HTMLSelectElement)?.value
                     if (sel) window.open(reportUrl(`/hr/payroll/report/employee/${sel}?month=${selectedMonth}&report_type=ticket`), "_blank")
-                  }} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "#c8a84b", color: "#1e3a5f" }}>قسيمة راتب</button>
+                  }} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "var(--accent)", color: "var(--primary)" }}>قسيمة راتب</button>
                 </div>
               </div>
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
@@ -658,7 +658,7 @@ export default function PayrollPage() {
           <div className="flex items-center justify-between mb-4 gap-3">
             <input className="input max-w-xs" placeholder="بحث بالاسم أو الوظيفة..."
               onChange={e => setEmpSearch(e.target.value)} />
-            <button onClick={() => setShowAddEmp(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2 flex-shrink-0" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => setShowAddEmp(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2 flex-shrink-0" style={{ background: 'var(--primary)' }}>
               <Plus size={15} /> إضافة موظف
             </button>
           </div>
@@ -666,12 +666,12 @@ export default function PayrollPage() {
             columns={[
               { key: 'name', label: 'الموظف', sortable: true, render: (e: any) => (
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: '#1e3a5f' }}>{e.name[0]}</div>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: 'var(--primary)' }}>{e.name[0]}</div>
                   <div><p className="font-bold text-slate-800">{e.name}</p><p className="text-xs text-slate-400">{e.shift_schedule || ''}</p></div>
                 </div>
               )},
               { key: 'position', label: 'الوظيفة', sortable: true, render: (e: any) => <span className="text-slate-600">{e.position}</span> },
-              { key: 'monthly_salary', label: 'الراتب', sortable: true, render: (e: any) => <span className="font-black" style={{ color: '#1e3a5f' }}>{Number(e.monthly_salary).toLocaleString('ar-EG')} ج.م</span> },
+              { key: 'monthly_salary', label: 'الراتب', sortable: true, render: (e: any) => <span className="font-black" style={{ color: 'var(--primary)' }}>{Number(e.monthly_salary).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'status', label: 'الحالة', render: (e: any) => <span className={e.is_active !== false ? 'badge-green' : 'badge-red'}>{e.is_active !== false ? 'نشط' : 'غير نشط'}</span> },
               { key: 'actions', label: '', render: (e: any) => (
                 <div className="flex gap-1 justify-end">
@@ -692,7 +692,7 @@ export default function PayrollPage() {
       {tab === 'advances' && (
         <div>
           <div className="flex justify-end mb-4">
-            <button onClick={() => setShowAddAdvance(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => setShowAddAdvance(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
               <Plus size={15} /> تسجيل سلفة
             </button>
           </div>
@@ -763,7 +763,7 @@ export default function PayrollPage() {
                 onChange={e => setSettingsForm({ ...sf, weekend_paid: e.target.checked ? 'True' : 'False' })} className="w-4 h-4" />
               <label htmlFor="wp" className="text-sm font-medium text-slate-600">الجمعة مدفوعة</label>
             </div>
-            <button onClick={() => saveSettingsMut.mutate()} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full" style={{ background: '#1e3a5f' }}>
+            <button onClick={() => saveSettingsMut.mutate()} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full" style={{ background: 'var(--primary)' }}>
               حفظ الإعدادات
             </button>
           </div>
@@ -795,7 +795,7 @@ export default function PayrollPage() {
           <div><label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label><input className="input" value={advNote} onChange={e => setAdvNote(e.target.value)} /></div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setShowAddAdvance(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => addAdvanceMut.mutate()} disabled={!advEmpId || !advAmount} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>تسجيل</button>
+            <button onClick={() => addAdvanceMut.mutate()} disabled={!advEmpId || !advAmount} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>تسجيل</button>
           </div>
         </div>
       </Modal>

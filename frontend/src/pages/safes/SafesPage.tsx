@@ -82,18 +82,18 @@ export default function SafesPage() {
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="card p-4 flex items-center gap-3" style={{ borderRight: '4px solid #1e3a5f' }}>
-          <Vault size={24} style={{ color: '#1e3a5f' }} />
+        <div className="card p-4 flex items-center gap-3" style={{ borderRight: '4px solid var(--primary)' }}>
+          <Vault size={24} style={{ color: 'var(--primary)' }} />
           <div>
             <p className="text-xs text-slate-500">إجمالي الخزن الأساسية</p>
-            <p className="text-xl font-black" style={{ color: '#1e3a5f' }}>{totalSafes.toLocaleString('ar-EG')} ج.م</p>
+            <p className="text-xl font-black" style={{ color: 'var(--primary)' }}>{totalSafes.toLocaleString('ar-EG')} ج.م</p>
           </div>
         </div>
-        <div className="card p-4 flex items-center gap-3" style={{ borderRight: '4px solid #c8a84b' }}>
-          <Wallet size={24} style={{ color: '#c8a84b' }} />
+        <div className="card p-4 flex items-center gap-3" style={{ borderRight: '4px solid var(--accent)' }}>
+          <Wallet size={24} style={{ color: 'var(--accent)' }} />
           <div>
             <p className="text-xs text-slate-500">إجمالي المحافظ المؤقتة</p>
-            <p className="text-xl font-black" style={{ color: '#c8a84b' }}>{totalWallets.toLocaleString('ar-EG')} ج.م</p>
+            <p className="text-xl font-black" style={{ color: 'var(--accent)' }}>{totalWallets.toLocaleString('ar-EG')} ج.م</p>
           </div>
         </div>
       </div>
@@ -146,12 +146,12 @@ export default function SafesPage() {
               <button onClick={() => { setForm({ name: w.name, phone: w.phone }); setAction({ type: 'edit-wallet', target: w }) }}
                 className="text-slate-400 hover:text-slate-600"><Pencil size={14} /></button>
             </div>
-            <p className="text-xl font-black mb-3" style={{ color: '#c8a84b' }}>
+            <p className="text-xl font-black mb-3" style={{ color: 'var(--accent)' }}>
               {Number(w.balance).toLocaleString('ar-EG')} ج.م
             </p>
             <button onClick={() => { setToSafeId(safes?.[0]?.id || ''); setAction({ type: 'transfer', target: w }) }}
               className="w-full py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1 mb-1"
-              style={{ background: '#1e3a5f' }}><ArrowRightLeft size={12} /> تحويل للخزنة</button>
+              style={{ background: 'var(--primary)' }}><ArrowRightLeft size={12} /> تحويل للخزنة</button>
             <button onClick={() => setConfirmResetWallet(w)}
               className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 flex items-center justify-center gap-1">
               ✕ تصفير الرصيد
@@ -199,7 +199,7 @@ export default function SafesPage() {
           <p className="text-xs text-slate-400">الرصيد المتاح: {Number(action?.target?.balance || 0).toLocaleString('ar-EG')} ج.م</p>
           <input className="input" placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)} />
           <button onClick={() => transferMut.mutate()} disabled={!amount || !toSafeId || transferMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
             {transferMut.isPending ? 'جاري...' : 'تأكيد التحويل'}
           </button>
         </div>
@@ -212,7 +212,7 @@ export default function SafesPage() {
           <input className="input" placeholder="اسم الخزنة *" value={form.name || ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} autoFocus />
           <input className="input" placeholder="الموقع (اختياري)" value={form.location || ''} onChange={e => setForm((f: any) => ({ ...f, location: e.target.value }))} />
           <button onClick={() => saveSafeMut.mutate()} disabled={!form.name || saveSafeMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
             {saveSafeMut.isPending ? 'جاري...' : 'حفظ'}
           </button>
         </div>
@@ -224,7 +224,7 @@ export default function SafesPage() {
           <input className="input" placeholder="الاسم *" value={form.name || ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} autoFocus />
           <input className="input" placeholder="رقم الهاتف" value={form.phone || ''} onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
           <button onClick={() => saveWalletMut.mutate()} disabled={!form.name || saveWalletMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
             {saveWalletMut.isPending ? 'جاري...' : 'حفظ'}
           </button>
         </div>

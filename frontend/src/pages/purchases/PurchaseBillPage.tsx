@@ -175,7 +175,7 @@ export default function PurchaseBillPage() {
                       <span className={clsx('font-bold px-1 rounded', qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600')}>{qty}</span>
                     ) : <span className="text-slate-300">—</span>}
                   </td>
-                  <td className="py-2 px-2 font-black" style={{ color: '#c8a84b' }}>{Number(p.cost_price || 0).toLocaleString('ar-EG')}</td>
+                  <td className="py-2 px-2 font-black" style={{ color: 'var(--accent)' }}>{Number(p.cost_price || 0).toLocaleString('ar-EG')}</td>
                   <td className="py-2 px-2 text-blue-500 font-bold text-sm">+</td>
                 </tr>
               )
@@ -188,7 +188,7 @@ export default function PurchaseBillPage() {
 
   const cartPanel = (
     <div className="w-full lg:w-96 flex flex-col bg-white rounded-xl border border-slate-200 min-h-0 flex-shrink-0">
-      <div className="px-4 py-3 flex-shrink-0" style={{ background: '#1e3a5f' }}>
+      <div className="px-4 py-3 flex-shrink-0" style={{ background: 'var(--primary)' }}>
         <div className="flex items-center justify-between mb-2">
           <span className="text-white font-bold text-sm">فاتورة مشتريات</span>
           {items.length > 0 && <button onClick={clear} className="text-white/50 text-xs px-1">✕ مسح</button>}
@@ -260,7 +260,7 @@ export default function PurchaseBillPage() {
       <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-2">
         <div className="flex justify-between items-center">
           <span className="text-slate-500 text-sm">إجمالي الفاتورة</span>
-          <span className="text-2xl font-black" style={{ color: '#1e3a5f' }}>{totalCost().toLocaleString('ar-EG')} ج.م</span>
+          <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalCost().toLocaleString('ar-EG')} ج.م</span>
         </div>
         <button onClick={() => submitMut.mutate()}
           disabled={!items.length || !targetWhId || submitMut.isPending}

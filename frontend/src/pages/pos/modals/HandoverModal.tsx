@@ -37,7 +37,7 @@ export function HandoverModal({ showHandover, onClose, summary, handoverUsername
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
           <button onClick={() => handoverMut.mutate()} disabled={!handoverUsername || !handoverPassword || handoverMut.isPending}
             className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
-            style={{ background: '#c8a84b', color: '#1e3a5f' }}>
+            style={{ background: 'var(--accent)', color: 'var(--primary)' }}>
             <ArrowLeftRight size={15} /> تأكيد التسليم
           </button>
         </div>

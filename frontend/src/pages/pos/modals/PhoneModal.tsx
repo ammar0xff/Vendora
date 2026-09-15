@@ -41,7 +41,7 @@ export function PhoneModal({ showPhoneModal, onClose, pendingCustomerName, setPe
               setPendingCustomerName('')
               setNewCustomerPhone('')
             }}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
             إضافة وتأكيد
           </button>
         </div>

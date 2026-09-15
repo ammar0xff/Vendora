@@ -51,7 +51,7 @@ export function SplitPaymentModal({ showSplitModal, onClose, splitMethod, setSpl
             setSplitPayments((p: any) => [...p, { method: isWalletMethod ? 'wallet' : splitMethod, amount: amt, walletId: isWalletMethod ? splitMethod : undefined }])
             setSplitAmount(''); setShowSplitModal(false)
           }} disabled={!splitAmount || Number(splitAmount) <= 0}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#1e3a5f' }}>
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
             إضافة القسط
           </button>
         </div>

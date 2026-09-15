@@ -47,3 +47,6 @@ _*.py
 
 # Firebase service account (NEVER commit)
 firebase-service-account.json
+
+# Tooling
+.serena/

@@ -82,7 +82,7 @@ function UserForm({ user, onSave, onClose }: any) {
       )}
       <div className="flex gap-3 justify-end">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#1e3a5f' }}>حفظ</button>
+        <button type="submit" className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: 'var(--primary)' }}>حفظ</button>
       </div>
     </form>
   )
@@ -123,7 +123,7 @@ function PermissionsPanel({ users }: { users: any[] | undefined }) {
           <button key={u.id} onClick={() => selectUser(u)}
             className={`w-full text-right p-3 rounded-xl border transition-all ${selectedUser?.id === u.id ? 'border-blue-300 bg-blue-50' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: '#1e3a5f' }}>{u.full_name?.[0]}</div>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'var(--primary)' }}>{u.full_name?.[0]}</div>
               <div className="min-w-0"><p className="font-semibold text-slate-800 text-sm truncate">{u.full_name}</p><p className="text-xs text-slate-400">@{u.username}</p></div>
             </div>
           </button>
@@ -205,7 +205,7 @@ export default function UsersPage() {
       <div className="page-header">
         <h1 className="page-title">المستخدمون والصلاحيات</h1>
         {tab === 'users' && (
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#1e3a5f' }}>
+          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
             <Plus size={15} /> إضافة مستخدم
           </button>
         )}
@@ -225,7 +225,7 @@ export default function UsersPage() {
           columns={[
             { key: 'full_name', label: 'المستخدم', sortable: true, render: (u: any) => (
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: '#1e3a5f' }}>{u.full_name?.[0]}</div>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: 'var(--primary)' }}>{u.full_name?.[0]}</div>
                 <div><p className="font-bold text-slate-800">{u.full_name}</p><p className="text-xs text-slate-400">@{u.username}</p></div>
               </div>
             )},
@@ -271,7 +271,7 @@ export default function UsersPage() {
               setNewPassword('')
             }} disabled={newPassword.trim().length < 8}
               className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50"
-              style={{ background: '#1e3a5f' }}>
+              style={{ background: 'var(--primary)' }}>
               حفظ
             </button>
           </div>

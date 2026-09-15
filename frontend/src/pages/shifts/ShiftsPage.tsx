@@ -184,7 +184,7 @@ export default function ShiftsPage() {
               {/* KPI cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                 {[
-                  { label: 'الرصيد الافتتاحي', value: summary.initial_amount, icon: Wallet, color: '#1e3a5f' },
+                  { label: 'الرصيد الافتتاحي', value: summary.initial_amount, icon: Wallet, color: 'var(--primary)' },
                   { label: 'إجمالي المبيعات', value: summary.sales_total, icon: TrendingUp, color: '#16a34a' },
                   { label: 'المصروفات', value: summary.expenses_total, icon: TrendingDown, color: '#dc2626' },
                   { label: 'الرصيد الكلي المتوقع', value: summary.expected_balance, icon: DollarSign, color: '#7c3aed' },
@@ -228,17 +228,17 @@ export default function ShiftsPage() {
                 </div>
 
                 {/* Wallets — already with owners */}
-                <div className="card p-5" style={{ borderRight: '4px solid #c8a84b' }}>
+                <div className="card p-5" style={{ borderRight: '4px solid var(--accent)' }}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#fef9c3' }}>
-                      <Smartphone size={20} style={{ color: '#c8a84b' }} />
+                      <Smartphone size={20} style={{ color: 'var(--accent)' }} />
                     </div>
                     <div>
                       <p className="font-bold text-slate-700">محافظ إلكترونية (مع الملاك)</p>
                       <p className="text-xs text-slate-400">فودافون كاش / إنستا باي — تعتبر موردة</p>
                     </div>
                   </div>
-                  <p className="text-3xl font-black" style={{ color: '#c8a84b' }}>{walletTotal.toLocaleString('ar-EG')} ج.م</p>
+                  <p className="text-3xl font-black" style={{ color: 'var(--accent)' }}>{walletTotal.toLocaleString('ar-EG')} ج.م</p>
                   {summary.payment_breakdown?.filter((p: any) => p.method !== 'cash').map((p: any) => (
                     <p key={p.wallet_name} className="text-xs text-slate-500 mt-1">
                       {p.wallet_type === 'vodafone_cash' ? '📱' : '💳'} {p.wallet_name}: {Number(p.total).toLocaleString('ar-EG')} ج.م ({p.count} فاتورة)

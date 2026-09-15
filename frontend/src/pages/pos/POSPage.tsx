@@ -15,7 +15,7 @@ import { openPrint } from '../../utils/format'
 import Decimal from 'decimal.js'
 import {
   Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle,
-  X, Wallet, ArrowLeftRight, Lock, Printer, RotateCcw,
+  X, Wallet as WalletIcon, ArrowLeftRight, Lock, Printer, RotateCcw,
   ChevronDown, ChevronLeft, Tag, DollarSign, BookOpen,
   LayoutGrid, List, Landmark, Package
 } from 'lucide-react'
@@ -48,14 +48,14 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
   if (!shift) return (
     <div className="flex items-center gap-2">
       <button onClick={onOpen} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#16a34a' }}>
-        <Wallet size={15} /> فتح وردية جديدة
+        <WalletIcon size={15} /> فتح وردية جديدة
       </button>
     </div>
   )
   if (!summary) return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold" style={{ background: '#1e3a5f', opacity: 0.6 }}>
-        <Wallet size={15} />
+      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold" style={{ background: 'var(--primary)', opacity: 0.6 }}>
+        <WalletIcon size={15} />
         <span>جاري تحميل الدرج...</span>
       </div>
     </div>
@@ -95,8 +95,8 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
         </div>
       )}
       <div className="relative group">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold cursor-default" style={{ background: '#1e3a5f' }}>
-          <Wallet size={15} />
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold cursor-default" style={{ background: 'var(--primary)' }}>
+          <WalletIcon size={15} />
           <span>الدرج: {cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
         </div>
         {/* Hover tooltip */}
@@ -115,7 +115,7 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
             ))}
             <div className="border-t border-slate-100 pt-1.5 flex justify-between text-xs">
               <span className="font-bold text-slate-700">إجمالي الوردية</span>
-              <span className="font-black" style={{color:'#1e3a5f'}}>{Number(summary?.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
+              <span className="font-black" style={{color:'var(--primary)'}}>{Number(summary?.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
             </div>
             <div className="border-t border-slate-200 mt-1.5 pt-1 text-[10px] text-slate-400 space-y-0.5">
               <div className="flex justify-between">
@@ -768,11 +768,11 @@ export default function POSPage() {
       </div>
       <div className="relative z-10 flex-1 flex items-center justify-center">
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center max-w-sm w-full mx-4">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black text-white" style={{ background: '#c8a84b' }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black text-white" style={{ background: 'var(--accent)' }}>
             {typeof shiftOwner === 'string' ? shiftOwner[0] : '؟'}
           </div>
           <h2 className="text-xl font-black text-slate-800 mb-1">الدرج مع موظف آخر</h2>
-          <p className="text-2xl font-black mb-1" style={{ color: '#1e3a5f' }}>{shiftOwner}</p>
+          <p className="text-2xl font-black mb-1" style={{ color: 'var(--primary)' }}>{shiftOwner}</p>
           <p className="text-slate-400 text-sm mb-2">🏪 {mainWh?.name}</p>
           <p className="text-slate-400 text-xs mb-8">
             رصيد الدرج: <span className="font-bold text-slate-600">{Number(summary?.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
@@ -800,7 +800,7 @@ export default function POSPage() {
       {/* Lock overlay */}
       <div className="relative z-10 flex-1 flex items-center justify-center">
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center max-w-sm w-full mx-4">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ background: '#1e3a5f' }}>
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ background: 'var(--primary)' }}>
             <Lock size={36} className="text-white" />
           </div>
           <h2 className="text-2xl font-black text-slate-800 mb-2">نقطة البيع مقفولة</h2>
@@ -845,7 +845,7 @@ export default function POSPage() {
         <div className="flex flex-wrap gap-3 justify-center">
           {warehouses.filter(w => w.warehouse_type === 'showroom').map(w => (
             <button key={w.id} onClick={() => setActiveWarehouse(w.id, w.name)}
-              className="px-5 py-3 rounded-xl font-bold text-white text-sm" style={{ background: '#1e3a5f' }}>
+              className="px-5 py-3 rounded-xl font-bold text-white text-sm" style={{ background: 'var(--primary)' }}>
               🏪 {w.name}
             </button>
           ))}
@@ -903,13 +903,13 @@ export default function POSPage() {
                   <div className="flex gap-1 flex-1 overflow-hidden">
                     <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
                       className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                        !selectedCat ? 'bg-[#1e3a5f] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                        !selectedCat ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
                       الكل
                     </button>
                     {visibleCats.map(cat => (
                       <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
                         className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                          selectedCat === cat.id && !selectedSub ? 'bg-[#1e3a5f] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                          selectedCat === cat.id && !selectedSub ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
                         {cat.name}
                       </button>
                     ))}
@@ -945,7 +945,7 @@ export default function POSPage() {
                     {visibleSubs.map(sub => (
                       <button key={sub.id} onClick={() => setSelectedSub(sub.id)}
                         className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                          selectedSub === sub.id ? 'bg-[#2d5a8e] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')}>
+                          selectedSub === sub.id ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')}>
                         {sub.name}
                       </button>
                     ))}
@@ -991,7 +991,7 @@ export default function POSPage() {
                           <p className="text-[11px] font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
                           {p.company && <p className="text-[10px] text-slate-400 mb-1">{p.company}</p>}
                           <div className="mt-auto">
-                            <p className="text-xs font-black leading-none" style={{ color: '#c8a84b' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
+                            <p className="text-xs font-black leading-none" style={{ color: 'var(--accent)' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
                           </div>
                         </button>
                       )
@@ -1033,7 +1033,7 @@ export default function POSPage() {
                                 className="bg-white rounded-lg border border-amber-200 p-2 text-right hover:border-amber-400 hover:shadow-sm transition-all active:scale-95">
                                 <p className="text-[10px] font-bold text-slate-700 leading-tight truncate">{c.name}</p>
                                 <p className="text-[10px] text-slate-400">{c.items?.length || 0} منتج</p>
-                                <p className="text-xs font-black mt-0.5" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')} ج.م</p>
+                                <p className="text-xs font-black mt-0.5" style={{ color: 'var(--accent)' }}>{price.toLocaleString('ar-EG')} ج.م</p>
                               </button>
                             )
                           })}
@@ -1041,7 +1041,7 @@ export default function POSPage() {
                       </div>
                     )}
                     <table className="w-full text-right text-[11px]">
-                      <thead className="sticky top-0 z-10" style={{ background: '#2d5a8e' }}>
+                      <thead className="sticky top-0 z-10" style={{ background: 'var(--primary)' }}>
                         <tr className="text-white font-bold">
                           <th className="py-1.5 px-2">المنتج</th>
                           <th className="py-1.5 px-2">الشركة</th>
@@ -1069,7 +1069,7 @@ export default function POSPage() {
                               <td className="py-1.5 px-2 font-semibold text-slate-700">{p.name}</td>
                               <td className="py-1.5 px-2 text-slate-400 text-[10px]">{p.company || '—'}</td>
                               <td className="py-1.5 px-2">{p.shelf_number ? <span className="text-[10px] px-1 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                              <td className="py-1.5 px-2 font-black" style={{ color: '#c8a84b' }}>{retailPrice.toLocaleString('ar-EG')}</td>
+                              <td className="py-1.5 px-2 font-black" style={{ color: 'var(--accent)' }}>{retailPrice.toLocaleString('ar-EG')}</td>
                               <td className="py-1.5 px-2 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
                               <td className="py-1.5 px-2">
                                 {qty != null ? (
@@ -1137,8 +1137,8 @@ export default function POSPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="flex rounded-lg overflow-hidden border border-slate-200">
-                  <button onClick={() => setMode('retail')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'retail' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'retail' ? { background: '#1e3a5f' } : {}}>قطاعي</button>
-                  <button onClick={() => setMode('wholesale')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'wholesale' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'wholesale' ? { background: '#1e3a5f' } : {}}>جملة</button>
+                  <button onClick={() => setMode('retail')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'retail' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'retail' ? { background: 'var(--primary)' } : {}}>قطاعي</button>
+                  <button onClick={() => setMode('wholesale')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'wholesale' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'wholesale' ? { background: 'var(--primary)' } : {}}>جملة</button>
                 </div>
                 <button onClick={() => setIsCredit(v => !v)}
                   className={clsx('px-2 py-1 rounded-lg text-[10px] font-bold border transition-all', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>
@@ -1199,7 +1199,7 @@ export default function POSPage() {
               </div>
             ) : (
               <table className="w-full text-right text-[11px]">
-                <thead className="sticky top-0 z-10" style={{ background: '#2d5a8e' }}>
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--primary)' }}>
                   <tr className="text-white font-bold">
                     <th className="py-1.5 px-2">كود الصنف</th>
                     <th className="py-1.5 px-2">إسم الصنف</th>
@@ -1233,7 +1233,7 @@ export default function POSPage() {
                             <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={9} /></button>
                           </div>
                         </td>
-                        <td className={clsx('py-1.5 px-2 text-center font-black', belowCost ? 'text-red-600' : '')} style={!belowCost ? { color: '#1e3a5f' } : {}}>
+                        <td className={clsx('py-1.5 px-2 text-center font-black', belowCost ? 'text-red-600' : '')} style={!belowCost ? { color: 'var(--primary)' } : {}}>
                           {lineNet.toLocaleString('ar-EG')}
                         </td>
                       </tr>
@@ -1271,12 +1271,12 @@ export default function POSPage() {
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>خصم: <span className="font-bold text-red-500">{totalDiscount().toLocaleString('ar-EG')} ج.م</span></span>
             <span className="text-slate-300">|</span>
-            <span>الإجمالي: <span className="font-black text-lg" style={{ color: '#1e3a5f' }}>{total().toLocaleString('ar-EG')} ج.م</span></span>
+            <span>الإجمالي: <span className="font-black text-lg" style={{ color: 'var(--primary)' }}>{total().toLocaleString('ar-EG')} ج.م</span></span>
           </div>
           <button onClick={() => checkoutMut.mutate()}
             disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
             className="px-6 py-2 rounded-xl font-black text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
-            style={{ background: items.length ? '#c8a84b' : '#e2e8f0', color: items.length ? '#1e3a5f' : '#94a3b8' }}>
+            style={{ background: items.length ? 'var(--accent)' : '#e2e8f0', color: items.length ? 'var(--primary)' : '#94a3b8' }}>
             <CheckCircle size={16} />
             {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? 'حدد عميل' : isCredit ? 'تأكيد — آجل' : 'تأكيد الدفع'}
           </button>
@@ -1353,7 +1353,7 @@ export default function POSPage() {
     <div className="lg:hidden flex flex-col" style={{ height: 'calc(100vh - 7rem)' }}>
 
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ background: '#1e3a5f' }}>
+      <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ background: 'var(--primary)' }}>
         <span className="text-white font-bold text-sm">🏪 {mainWh?.name}</span>
         <div className="flex items-center gap-2">
           {shift ? (
@@ -1411,7 +1411,7 @@ export default function POSPage() {
                         <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
                         {p.company && <p className="text-[10px] text-slate-400 mb-1">{p.company}</p>}
                         <div className="mt-auto">
-                          <p className="text-sm font-black leading-none" style={{ color: '#c8a84b' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
+                          <p className="text-sm font-black leading-none" style={{ color: 'var(--accent)' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
                         </div>
                       </button>
                     )
@@ -1454,13 +1454,13 @@ export default function POSPage() {
                 <div className="flex gap-1.5 flex-1 overflow-hidden">
                   <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
                     className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
-                    style={!selectedCat ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
+                    style={!selectedCat ? { background: 'var(--primary)', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
                     الكل
                   </button>
                   {cats.slice(catPage * 6, (catPage + 1) * 6).map((cat) => (
                     <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
                       className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
-                      style={selectedCat === cat.id ? { background: '#1e3a5f', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
+                      style={selectedCat === cat.id ? { background: 'var(--primary)', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
                       {cat.name}
                     </button>
                   ))}
@@ -1500,7 +1500,7 @@ export default function POSPage() {
                       className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
                       <td className="py-2 px-2 font-semibold text-slate-800">{p.name}</td>
                       <td className="py-2 px-2">{p.shelf_number ? <span className="text-xs px-1 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                      <td className="py-2 px-2 font-black" style={{ color: '#c8a84b' }}>{price.toLocaleString('ar-EG')}</td>
+                      <td className="py-2 px-2 font-black" style={{ color: 'var(--accent)' }}>{price.toLocaleString('ar-EG')}</td>
                       <td className="py-2 px-2">
                         {qty !== null ? (
                           <span className={`font-bold px-1 rounded ${
@@ -1541,7 +1541,7 @@ export default function POSPage() {
       {mobileTab === 'cart' && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Cart header */}
-          <div className="px-4 py-3 flex-shrink-0" style={{ background: '#1e3a5f' }}>
+          <div className="px-4 py-3 flex-shrink-0" style={{ background: 'var(--primary)' }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex gap-1">
                 <button onClick={() => setMode('retail')} className={`px-2.5 py-1 rounded-lg text-xs font-bold ${mode === 'retail' ? 'bg-white text-slate-800' : 'text-white/60'}`}>قطاعي</button>
@@ -1641,7 +1641,7 @@ export default function POSPage() {
                       onBlur={e => { if (Number(e.target.value) < item.unit_cost) updatePrice(item.product_id, item.unit_cost) }}
                       className={`w-20 text-center text-sm font-bold border rounded-lg py-1 outline-none ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
                     {/* Total */}
-                    <p className="font-black text-sm w-16 text-left" style={{ color: belowCost ? '#dc2626' : '#1e3a5f' }}>{lineNet.toLocaleString('ar-EG')}</p>
+                    <p className="font-black text-sm w-16 text-left" style={{ color: belowCost ? '#dc2626' : 'var(--primary)' }}>{lineNet.toLocaleString('ar-EG')}</p>
                   </div>
                 </div>
               )
@@ -1655,12 +1655,12 @@ export default function POSPage() {
             )}
             <div className="flex justify-between items-center">
               <span className="text-slate-500 text-sm">الإجمالي</span>
-              <span className="text-2xl font-black" style={{ color: '#1e3a5f' }}>{total().toLocaleString('ar-EG')} ج.م</span>
+              <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{total().toLocaleString('ar-EG')} ج.م</span>
             </div>
             <button onClick={() => checkoutMut.mutate()}
               disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
               className="w-full py-4 rounded-xl font-black text-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: items.length ? '#c8a84b' : '#e2e8f0', color: items.length ? '#1e3a5f' : '#94a3b8' }}>
+              style={{ background: items.length ? 'var(--accent)' : '#e2e8f0', color: items.length ? 'var(--primary)' : '#94a3b8' }}>
               <CheckCircle size={20} />
               {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? '⚠️ حدد عميل' : 'تأكيد الدفع'}
             </button>

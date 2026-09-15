@@ -29,7 +29,7 @@ export function HeldInvoicesModal({ showHeld, onClose, holdLabel, setHoldLabel, 
           />
           <button
             className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-            style={{ background: '#1e3a5f' }}
+            style={{ background: 'var(--primary)' }}
             disabled={items.length === 0}
             onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }}
           >

@@ -8,7 +8,7 @@ import { TrendingUp, TrendingDown, Package, Wallet, AlertTriangle, Users, Buildi
 const today = format(new Date(), 'yyyy-MM-dd')
 const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd')
 
-function KPI({ label, value, sub, color = '#1e3a5f', icon: Icon, trend }: any) {
+function KPI({ label, value, sub, color = 'var(--primary)', icon: Icon, trend }: any) {
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between mb-2">
@@ -80,11 +80,11 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KPI label="إجمالي الإيرادات" value={fmtEGP(s.total_revenue)} sub={`هامش ${s.profit_margin}%`} icon={TrendingUp} color="#16a34a" />
             <KPI label="صافي الربح" value={fmtEGP(s.total_profit)} icon={TrendingUp} color="#16a34a" />
-            <KPI label="قيمة المخزون (تكلفة)" value={fmtEGP(s.total_stock_cost)} sub={`بيع: ${fmtEGP(s.total_stock_retail)}`} icon={Package} color="#1e3a5f" />
+            <KPI label="قيمة المخزون (تكلفة)" value={fmtEGP(s.total_stock_cost)} sub={`بيع: ${fmtEGP(s.total_stock_retail)}`} icon={Package} color="var(--primary)" />
             <KPI label="نقدي في الدرج" value={fmtEGP(s.total_cash_in_drawers)} icon={Wallet} color="#7c3aed" />
             <KPI label="مديونية العملاء" value={fmtEGP(s.total_customer_debt)} sub="علينا تحصيلها" icon={Users} color="#d97706" />
             <KPI label="مديونية الموردين" value={fmtEGP(s.total_supplier_debt)} sub="علينا دفعها" icon={Building2} color="#dc2626" />
-            <KPI label="رأس المال الصافي" value={fmtEGP(s.net_capital)} sub="مخزون + نقدي - موردين" icon={TrendingUp} color="#1e3a5f" />
+            <KPI label="رأس المال الصافي" value={fmtEGP(s.net_capital)} sub="مخزون + نقدي - موردين" icon={TrendingUp} color="var(--primary)" />
             <KPI label="نواقص المخزون" value={data?.low_stock?.length || 0} sub="منتج تحت الحد" icon={AlertTriangle} color={data?.low_stock?.length > 0 ? '#d97706' : '#16a34a'} />
           </div>
 
@@ -96,14 +96,14 @@ export default function AdminPage() {
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1e3a5f" stopOpacity={0.15}/><stop offset="95%" stopColor="#1e3a5f" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15}/><stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/></linearGradient>
                     <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#16a34a" stopOpacity={0.15}/><stop offset="95%" stopColor="#16a34a" stopOpacity={0}/></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
                   <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
                   <Tooltip formatter={(v: any, n: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`, n]}/>
-                  <Area type="monotone" dataKey="إيرادات" stroke="#1e3a5f" strokeWidth={2} fill="url(#rg)"/>
+                  <Area type="monotone" dataKey="إيرادات" stroke="var(--primary)" strokeWidth={2} fill="url(#rg)"/>
                   <Area type="monotone" dataKey="ربح" stroke="#16a34a" strokeWidth={2} fill="url(#pg)"/>
                 </AreaChart>
               </ResponsiveContainer>
@@ -118,7 +118,7 @@ export default function AdminPage() {
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
                   <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
                   <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`]}/>
-                  <Bar dataKey="revenue" name="إيرادات" fill="#1e3a5f" radius={[4,4,0,0]}/>
+                  <Bar dataKey="revenue" name="إيرادات" fill="var(--primary)" radius={[4,4,0,0]}/>
                   <Bar dataKey="gross_profit" name="ربح" fill="#16a34a" radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
@@ -139,7 +139,7 @@ export default function AdminPage() {
                       <p className="text-xs text-slate-400">{b.invoice_count} فاتورة · نقدي: {fmtEGP(b.cash_sales)}</p>
                     </div>
                     <div className="text-left">
-                      <p className="font-black text-sm" style={{ color: '#1e3a5f' }}>{fmtEGP(b.revenue)}</p>
+                      <p className="font-black text-sm" style={{ color: 'var(--primary)' }}>{fmtEGP(b.revenue)}</p>
                       <p className="text-xs text-green-600">ربح: {fmtEGP(b.gross_profit)}</p>
                     </div>
                   </div>

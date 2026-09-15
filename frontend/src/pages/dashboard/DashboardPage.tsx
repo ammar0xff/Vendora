@@ -2,7 +2,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { stockApi, reportsApi, shiftsApi } from '../../api/endpoints'
 import { format, subDays } from 'date-fns'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { ShoppingCart, Package, AlertTriangle, Wallet, ArrowUpRight } from 'lucide-react'
+import { ShoppingCart, Package, AlertTriangle, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/app'
 import api from '../../api/client'
@@ -12,14 +12,14 @@ const today = format(new Date(), 'yyyy-MM-dd')
 
 function StatCard({ label, value, sub, icon: Icon, color, onClick }: any) {
   return (
-    <div onClick={onClick} className={`stat-card ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}>
-      <div className="stat-icon" style={{ background: color + '20' }}>
-        <Icon size={22} style={{ color }} />
+    <div onClick={onClick} className={`stat-card ${onClick ? 'cursor-pointer hover:shadow-[var(--shadow-md)] hover:border-[var(--border-strong)] transition-all' : ''}`}>
+      <div className="stat-icon flex-shrink-0" style={{ background: color + '12', color }}>
+        <Icon size={20} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-slate-500 text-xs font-medium mb-0.5">{label}</p>
-        <p className="text-xl font-black text-slate-800 truncate">{value}</p>
-        {sub && <p className="text-slate-400 text-xs mt-0.5">{sub}</p>}
+        <p className="text-[11px] font-bold mb-0.5" style={{ color: 'var(--muted)' }}>{label}</p>
+        <p className="text-lg font-black text-[var(--text)] truncate tabular">{value}</p>
+        {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>{sub}</p>}
       </div>
     </div>
   )
@@ -29,7 +29,6 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const { activeWarehouseId } = useAppStore()
   const { user } = useAuthStore()
-  const isCompanyView = !activeWarehouseId
   const isManager = (user as any)?.is_manager
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
@@ -59,65 +58,71 @@ export default function DashboardPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">{mainWh ? `🏪 ${mainWh.name}` : '🏢 الرئيسية'}</h1>
-          <p className="text-slate-500 text-sm mt-1">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="page-title tabular">{mainWh ? `🏪 ${mainWh.name}` : '🏢 الرئيسية'}</h1>
+          <p className="page-subtitle">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <button onClick={() => navigate('/pos')} className="px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm" style={{ background: '#c8a84b', color: '#1e3a5f' }}>
+        <button onClick={() => navigate('/pos')} className="btn-accent">
           <ShoppingCart size={16} /> فتح نقطة البيع
         </button>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <StatCard label="مبيعات اليوم" value={`${todaySales.toLocaleString('ar-EG')} ج.م`} sub={`${daily?.invoice_count || 0} فاتورة`} icon={ShoppingCart} color="#1e3a5f" onClick={() => navigate('/sales')} />
-        <StatCard label="قيمة المخزون" value={`${Number(valuation?.total_retail_value || 0).toLocaleString('ar-EG')} ج.م`} sub={`${valuation?.product_count || 0} منتج`} icon={Package} color="#16a34a" onClick={() => navigate('/inventory')} />
-        <StatCard label="منتجات ناقصة" value={lowStock?.length || 0} sub="تحت الحد الأدنى" icon={AlertTriangle} color={lowStock?.length > 0 ? '#d97706' : '#16a34a'} onClick={() => navigate('/inventory')} />
+        <StatCard label="قيمة المخزون" value={`${Number(valuation?.total_retail_value || 0).toLocaleString('ar-EG')} ج.م`} sub={`${valuation?.product_count || 0} منتج`} icon={Package} color="#15803d" onClick={() => navigate('/inventory')} />
+        <StatCard label="منتجات ناقصة" value={lowStock?.length || 0} sub="تحت الحد الأدنى" icon={AlertTriangle} color={lowStock?.length > 0 ? '#d97706' : '#15803d'} onClick={() => navigate('/inventory')} />
         <StatCard label="رصيد الدرج" value={shift ? `${Number(drawerBalance).toLocaleString('ar-EG')} ج.م` : 'مغلق'} sub={shift ? 'وردية مفتوحة' : 'لا توجد وردية'} icon={Wallet} color={shift ? '#7c3aed' : '#94a3b8'} onClick={() => navigate('/pos')} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="card xl:col-span-2">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-slate-700">المبيعات — آخر 7 أيام</h3>
-            <button onClick={() => navigate('/accounting')} className="text-xs text-blue-600 hover:underline flex items-center gap-1">التقارير <ArrowUpRight size={12} /></button>
+            <div>
+              <h3 className="font-bold text-[var(--text)]">المبيعات — آخر 7 أيام</h3>
+              <p className="text-[11px] text-[var(--muted)] mt-0.5">إجمالي المبيعات لكل يوم</p>
+            </div>
+            <button onClick={() => navigate('/accounting')} className="btn-ghost btn-sm text-[var(--primary)]">التقارير</button>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={chartData}>
-              <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1e3a5f" stopOpacity={0.15}/><stop offset="95%" stopColor="#1e3a5f" stopOpacity={0}/></linearGradient></defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}/>
-              <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`, 'المبيعات']}/>
-              <Area type="monotone" dataKey="مبيعات" stroke="#1e3a5f" strokeWidth={2.5} fill="url(#sg)" dot={{ fill: '#1e3a5f', r: 3 }} activeDot={{ r: 5 }}/>
+              <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1e3a5f" stopOpacity={0.18}/><stop offset="95%" stopColor="#1e3a5f" stopOpacity={0}/></linearGradient></defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#edf0f5"/>
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#8a94a6', fontFamily: 'Cairo' }} axisLine={false} tickLine={false} dy={4}/>
+              <YAxis tick={{ fontSize: 10, fill: '#8a94a6', fontFamily: 'Cairo' }} axisLine={false} tickLine={false} width={44}/>
+              <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString('ar-EG')} ج.م`, 'المبيعات']} contentStyle={{ fontFamily: 'Cairo', direction: 'rtl', borderRadius: 12, border: '1px solid #e4e9f0', boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }} />
+              <Area type="monotone" dataKey="مبيعات" stroke="#1e3a5f" strokeWidth={2.5} fill="url(#sg)" dot={{ fill: '#1e3a5f', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="card p-4">
-            <h3 className="font-bold text-slate-700 mb-3 text-sm">الوردية الحالية</h3>
+            <h3 className="font-bold text-[var(--text)] mb-3 text-sm">الوردية الحالية</h3>
             {shift ? (
               <>
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="bg-green-50 rounded-xl p-3 text-center"><p className="text-xs text-green-600 font-medium mb-1">المبيعات</p><p className="text-base font-black text-green-700">{Number(shiftSummary?.sales_total || 0).toLocaleString('ar-EG')} ج.م</p></div>
-                    <div className="bg-red-50 rounded-xl p-3 text-center"><p className="text-xs text-red-600 font-medium mb-1">المصروفات</p><p className="text-base font-black text-red-700">{expenses.toLocaleString('ar-EG')} ج.م</p></div>
+                    <div className="bg-emerald-50 rounded-[var(--r-md)] p-3 text-center border border-emerald-100"><p className="text-[11px] text-emerald-600 font-bold mb-1">المبيعات</p><p className="text-base font-black text-emerald-700 tabular">{Number(shiftSummary?.sales_total || 0).toLocaleString('ar-EG')} ج.م</p></div>
+                    <div className="bg-red-50 rounded-[var(--r-md)] p-3 text-center border border-red-100"><p className="text-[11px] text-red-600 font-bold mb-1">المصروفات</p><p className="text-base font-black text-red-700 tabular">{expenses.toLocaleString('ar-EG')} ج.م</p></div>
                   </div>
-                {isManager && <div className="text-xs text-amber-700 text-center py-1 bg-amber-50 rounded-lg">🔑 مدير</div>}
+                {isManager && <div className="text-[11px] text-amber-700 text-center py-1.5 bg-amber-50 rounded-lg border border-amber-100 font-bold">🔑 مدير</div>}
               </>
             ) : (
-              <p className="text-slate-400 text-xs text-center py-3">لا توجد وردية مفتوحة</p>
+              <div className="flex flex-col items-center gap-2 py-4">
+                <span className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">💤</span>
+                <p className="text-[var(--muted)] text-xs">لا توجد وردية مفتوحة</p>
+              </div>
             )}
           </div>
           <div className="card p-4 flex-1">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-slate-700 text-sm flex items-center gap-1.5"><AlertTriangle size={14} className="text-amber-500"/> تنبيهات المخزون</h3>
-              <button onClick={() => navigate('/inventory')} className="text-xs text-blue-600 hover:underline">عرض الكل</button>
+              <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/> تنبيهات المخزون</h3>
+              <button onClick={() => navigate('/inventory')} className="btn-ghost btn-sm text-[var(--primary)]">عرض الكل</button>
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {!lowStock?.length && <p className="text-slate-400 text-xs text-center py-4">✅ المخزون بخير</p>}
+              {!lowStock?.length && <p className="text-[var(--muted)] text-xs text-center py-4">✅ المخزون بخير</p>}
               {lowStock?.slice(0, 8).map((item: any) => (
-                <div key={item.product_id} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
-                  <p className="text-xs font-medium text-slate-700 truncate flex-1 ml-2">{item.product_name}</p>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${item.current_qty <= 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>{item.current_qty} {item.unit}</span>
+                <div key={item.product_id} className="flex items-center justify-between py-2 border-b border-[#eef1f5] last:border-0">
+                  <p className="text-xs font-semibold text-[var(--text)] truncate flex-1 ml-2">{item.product_name}</p>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${item.current_qty <= 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>{item.current_qty} {item.unit}</span>
                 </div>
               ))}
             </div>
