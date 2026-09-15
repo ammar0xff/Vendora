@@ -126,7 +126,7 @@ export default function FinanceLedgerPage() {
                         <div key={e.id} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
                           <div>
                             <p className="text-sm font-medium text-slate-700">{e.note || txTypeLabel[e.type] || e.type}</p>
-                            <p className="text-xs text-slate-400">{isCompanyView && e.warehouse_name && <span className="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
+                            <p className="text-xs text-slate-400">{isCompanyView && e.warehouse_name && <span className="inline-block bg-[var(--primary-soft)] text-[var(--primary)] px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
                           </div>
                           <span className="font-bold text-red-600 text-sm">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
                         </div>
@@ -165,7 +165,7 @@ export default function FinanceLedgerPage() {
                         <div key={e.id} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
                           <div>
                             <p className="text-sm font-medium text-slate-700">{e.note || txTypeLabel[e.type] || e.type}</p>
-                            <p className="text-xs text-slate-400">{isCompanyView && e.warehouse_name && <span className="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
+                            <p className="text-xs text-slate-400">{isCompanyView && e.warehouse_name && <span className="inline-block bg-[var(--primary-soft)] text-[var(--primary)] px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
                           </div>
                           <span className="font-bold text-green-600 text-sm">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
                         </div>
