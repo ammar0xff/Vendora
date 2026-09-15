@@ -114,8 +114,7 @@ export default function StocktakingPage() {
         </div>
         {pendingCount > 0 && (
           <button onClick={saveAll} disabled={saving || !activeWarehouseId}
-            className="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 disabled:opacity-50"
-            style={{ background: '#16a34a' }}>
+            className="btn btn-success">
             <CheckCircle size={16} /> حفظ {pendingCount} منتج {activeWh ? `في ${activeWh.name}` : ''}
           </button>
         )}
@@ -124,14 +123,13 @@ export default function StocktakingPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-5">
         {[
-          { key: 'untracked', label: '⚠️ غير مجرود', count: untrackedCount, color: '#d97706' },
-          { key: 'tracked',   label: '✅ مجرود',      count: trackedCount,   color: '#16a34a' },
-           { key: 'all',       label: '📦 الكل',        count: products.length, color: 'var(--primary)' },
-         ].map(({ key, label, count, color }) => (
+          { key: 'untracked', label: '⚠️ غير مجرود', count: untrackedCount, active: 'border-amber-500', text: 'text-amber-600' },
+          { key: 'tracked',   label: '✅ مجرود',      count: trackedCount,   active: 'border-green-600', text: 'text-green-600' },
+          { key: 'all',       label: '📦 الكل',        count: products.length, active: 'border-[var(--primary)]', text: 'text-[var(--primary)]' },
+        ].map(({ key, label, count, active, text }) => (
           <div key={key} onClick={() => setFilter(key as any)}
-            className="card p-4 text-center cursor-pointer border-2 transition-all"
-            style={{ borderColor: filter === key ? color : 'transparent' }}>
-            <p className="text-2xl font-black" style={{ color }}>{count}</p>
+            className={`card p-4 text-center cursor-pointer border-2 transition-all ${filter === key ? active : 'border-transparent'}`}>
+            <p className={`text-2xl font-black ${text}`}>{count}</p>
             <p className="text-xs text-slate-500 mt-1">{label}</p>
           </div>
         ))}
@@ -191,7 +189,7 @@ export default function StocktakingPage() {
                     <td className="text-center">
                       {p.stock_status === 'untracked'
                         ? <span className="text-xs text-slate-400">—</span>
-                        : <span className="font-bold text-sm" style={{ color: 'var(--primary)' }}>{balances?.[p.id] ?? '...'} {p.unit}</span>}
+                        : <span className="font-bold text-sm text-[var(--primary)]">{balances?.[p.id] ?? '...'} {p.unit}</span>}
                     </td>
                     <td className="text-center">
                       {p.stock_status === 'untracked'
@@ -227,7 +225,7 @@ export default function StocktakingPage() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-slate-400">{p.unit}</span>
                     {p.stock_status !== 'untracked' && balances?.[p.id] != null && (
-                      <span className="text-xs font-bold" style={{ color: 'var(--primary)' }}>الحالي: {balances[p.id]}</span>
+                      <span className="text-xs font-bold text-[var(--primary)]">الحالي: {balances[p.id]}</span>
                     )}
                   </div>
                 </div>
@@ -250,8 +248,7 @@ export default function StocktakingPage() {
       {pendingCount > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button onClick={saveAll} disabled={saving || !activeWarehouseId}
-            className="px-8 py-3 rounded-2xl font-bold text-white shadow-2xl flex items-center gap-3 disabled:opacity-50"
-            style={{ background: '#16a34a' }}>
+            className="btn btn-success btn-lg shadow-2xl">
             <CheckCircle size={18} />
             حفظ {pendingCount} منتج {activeWh ? `في ${activeWh.name}` : '— اختر فرعاً أولاً'}
           </button>

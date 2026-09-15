@@ -41,7 +41,7 @@ export function SplitPaymentModal({ showSplitModal, onClose, splitMethod, setSpl
           المتبقي من الفاتورة: {(total() - splitPayments.reduce((s, p) => s + p.amount, 0)).toLocaleString('ar-EG')} ج.م
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => {
             const amt = Number(splitAmount)
             const maxRemaining = total() - splitPayments.reduce((s, p) => s + p.amount, 0)
@@ -51,7 +51,7 @@ export function SplitPaymentModal({ showSplitModal, onClose, splitMethod, setSpl
             setSplitPayments((p: any) => [...p, { method: isWalletMethod ? 'wallet' : splitMethod, amount: amt, walletId: isWalletMethod ? splitMethod : undefined }])
             setSplitAmount(''); setShowSplitModal(false)
           }} disabled={!splitAmount || Number(splitAmount) <= 0}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+            className="btn btn-primary">
             إضافة القسط
           </button>
         </div>

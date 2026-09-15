@@ -61,12 +61,12 @@ export default function ExportButton({ data, columns, filename = 'export', excel
   return (
     <div className="flex gap-1">
       <button onClick={handleCsv} disabled={!data?.length}
-        className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+        className="btn btn-outline btn-sm">
         <Download size={13} /> CSV
       </button>
       {excelEndpoint && (
         <button onClick={handleExcel}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-green-300 text-green-700 hover:bg-green-50 transition-colors">
+          className="btn btn-success-soft btn-sm">
           <FileSpreadsheet size={13} /> Excel
         </button>
       )}

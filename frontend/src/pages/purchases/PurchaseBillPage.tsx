@@ -133,7 +133,7 @@ export default function PurchaseBillPage() {
             const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
             return (
               <button key={p.id} onClick={() => handleAddProduct(p)}
-                className="bg-white rounded-xl border border-slate-200 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 flex flex-col">
+                className="bg-white rounded-xl border border-slate-200 p-3 text-right hover:border-[var(--primary-border)] hover:shadow-md transition-all active:scale-95 flex flex-col">
                 <div className="flex items-start justify-between mb-1.5">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
                     <Package size={14} className="text-blue-600" />
@@ -175,7 +175,7 @@ export default function PurchaseBillPage() {
                       <span className={clsx('font-bold px-1 rounded', qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600')}>{qty}</span>
                     ) : <span className="text-slate-300">—</span>}
                   </td>
-                  <td className="py-2 px-2 font-black" style={{ color: 'var(--accent)' }}>{Number(p.cost_price || 0).toLocaleString('ar-EG')}</td>
+                  <td className="py-2 px-2 font-black text-[var(--accent)]">{Number(p.cost_price || 0).toLocaleString('ar-EG')}</td>
                   <td className="py-2 px-2 text-blue-500 font-bold text-sm">+</td>
                 </tr>
               )
@@ -238,14 +238,14 @@ export default function PurchaseBillPage() {
                   <button onClick={() => updateQty(item.product_id, item.new_qty - 1)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90"><Minus size={12} /></button>
                   <input type="number" min="1" value={item.new_qty}
                     onChange={e => updateQty(item.product_id, Math.max(1, Number(e.target.value)))}
-                    className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-blue-300" />
+                    className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
                   <button onClick={() => updateQty(item.product_id, item.new_qty + 1)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90"><Plus size={12} /></button>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-slate-400">تكلفة</span>
                   <input type="number" min="0" step="0.01" value={item.unit_cost}
                     onChange={e => updateCost(item.product_id, Number(e.target.value))}
-                    className="w-16 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-blue-300" />
+                    className="w-16 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
                 </div>
               </div>
               <div className="flex justify-between mt-1.5 text-xs">
@@ -260,12 +260,11 @@ export default function PurchaseBillPage() {
       <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-2">
         <div className="flex justify-between items-center">
           <span className="text-slate-500 text-sm">إجمالي الفاتورة</span>
-          <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalCost().toLocaleString('ar-EG')} ج.م</span>
+          <span className="text-2xl font-black text-[var(--primary)]">{totalCost().toLocaleString('ar-EG')} ج.م</span>
         </div>
         <button onClick={() => submitMut.mutate()}
           disabled={!items.length || !targetWhId || submitMut.isPending}
-          className="w-full py-4 rounded-xl font-black text-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: items.length && targetWhId ? '#16a34a' : '#e2e8f0', color: items.length && targetWhId ? 'white' : '#94a3b8' }}>
+          className={clsx('btn btn-lg w-full font-black', items.length && targetWhId ? 'btn-success text-white' : 'btn-ghost text-slate-400')}>
           <CheckCircle size={20} />
           {submitMut.isPending ? 'جاري...' : !targetWhId ? '⚠️ اختر المخزن' : 'تأكيد فاتورة المشتريات'}
         </button>
@@ -280,7 +279,7 @@ export default function PurchaseBillPage() {
         <div className="relative flex-1 max-w-md">
           <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => handleSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-300"
+            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:border-[var(--accent)]"
             placeholder="ابحث عن منتج..." />
         </div>
         <button onClick={() => setViewMode(v => v === 'cards' ? 'table' : 'cards')}
@@ -306,7 +305,7 @@ export default function PurchaseBillPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {categories?.map((cat: any) => (
                   <button key={cat.id} onClick={() => handleCatClick(cat.id)}
-                    className="bg-white rounded-xl border border-slate-200 p-4 text-center hover:border-blue-300 hover:shadow-md transition-all">
+                    className="bg-white rounded-xl border border-slate-200 p-4 text-center hover:border-[var(--primary-border)] hover:shadow-md transition-all">
                     <p className="text-xs font-bold text-slate-700">{cat.name}</p>
                   </button>
                 ))}
@@ -323,7 +322,7 @@ export default function PurchaseBillPage() {
           <div className="relative flex-1">
             <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input value={search} onChange={e => handleSearch(e.target.value)}
-              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-white text-xs outline-none focus:border-blue-300"
+              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-white text-xs outline-none focus:border-[var(--accent)]"
               placeholder="ابحث..." />
           </div>
           <select value={targetWhId} onChange={e => handleWhChange(e.target.value)}
@@ -353,13 +352,13 @@ export default function PurchaseBillPage() {
         <div className="flex-shrink-0 border-t border-slate-200 bg-white flex">
           <button onClick={() => setMobileTab('products')}
             className={clsx('flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors',
-              mobileTab === 'products' ? 'text-blue-600' : 'text-slate-400')}>
+              mobileTab === 'products' ? 'text-[var(--primary)]' : 'text-slate-400')}>
             <Package size={20} />
             <span>منتجات</span>
           </button>
           <button onClick={() => setMobileTab('cart')}
             className={clsx('flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors relative',
-              mobileTab === 'cart' ? 'text-blue-600' : 'text-slate-400')}>
+              mobileTab === 'cart' ? 'text-[var(--primary)]' : 'text-slate-400')}>
             <ShoppingCart size={20} />
             <span>السلة</span>
             {items.length > 0 && (

@@ -156,8 +156,7 @@ export default function InventoryPage() {
           <button
             onClick={() => { setSelectedCatId(null); setSelectedSubId(null) }}
             className={clsx('w-full text-right px-4 py-2 text-sm font-semibold transition-colors flex items-center gap-2',
-              !selectedCatId && !selectedSubId ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)]' : 'text-slate-600 hover:bg-slate-50')}
-            style={!selectedCatId && !selectedSubId ? { background: 'var(--primary)' } : {}}
+              !selectedCatId && !selectedSubId ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)] bg-[var(--primary)]' : 'text-slate-600 hover:bg-slate-50')}
           >
             <Package size={14} /> الكل
           </button>
@@ -175,8 +174,7 @@ export default function InventoryPage() {
                     onClick={() => { setSelectedCatId(cat.id); setSelectedSubId(null); if (!isExpanded) toggleCat(cat.id) }}
                     title={cat.name}
                     className={clsx('flex-1 text-right px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2',
-                      isCatActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)]' : 'text-slate-700 hover:bg-slate-50')}
-                    style={isCatActive ? { background: 'var(--primary)' } : {}}
+                      isCatActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)] bg-[var(--primary)]' : 'text-slate-700 hover:bg-slate-50')}
                   >
                     <Tag size={12} className="flex-shrink-0 opacity-60" />
                     {cat.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{cat.code}</span> : null}
@@ -198,8 +196,7 @@ export default function InventoryPage() {
                       onClick={() => { setSelectedCatId(cat.id); setSelectedSubId(sub.id) }}
                       title={sub.name}
                       className={clsx('w-full text-right pl-3 pr-7 py-1.5 text-xs font-medium transition-colors flex items-center gap-2',
-                        isSubActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700')}
-                      style={isSubActive ? { background: 'var(--primary)' } : {}}
+                        isSubActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)] bg-[var(--primary)]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700')}
                     >
                       <Layers size={10} className="flex-shrink-0 opacity-50" />
                       {sub.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{sub.code}</span> : null}
@@ -227,7 +224,7 @@ export default function InventoryPage() {
               </p>
             )}
           </div>
-          <button onClick={() => setShowCollection(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 flex-shrink-0 border border-slate-300 text-slate-600 hover:bg-slate-50">
+          <button onClick={() => setShowCollection(true)} className="btn btn-outline">
             <Package size={15} /> كوليكشن جديد
           </button>
           <ExportButton
@@ -241,7 +238,7 @@ export default function InventoryPage() {
               { label: 'سعر التكلفة', accessor: p => Number(p.cost_price) },
             ]}
             filename="products" excelEndpoint="/export/products" />
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 flex-shrink-0" style={{ background: 'var(--primary)' }}>
+          <button onClick={() => setShowAdd(true)} className="btn btn-primary">
             <Plus size={15} /> إضافة منتج
           </button>
         </div>
@@ -281,7 +278,7 @@ export default function InventoryPage() {
                 const low = qty <= 5
                 return <span className={`font-black text-sm ${low ? 'text-red-600' : 'text-green-700'}`}>{Number(qty).toLocaleString('ar-EG')} {p.unit}</span>
               }},
-              { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold" style={{ color: 'var(--accent)' }}>{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
+              { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold text-[var(--accent)]">{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'wholesale_price', label: 'سعر الجملة', sortable: true, render: (p: any) => <span className="text-slate-600">{Number(p.wholesale_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'cost_price', label: 'التكلفة', sortable: true, render: (p: any) => <span className="text-slate-500 text-sm">{Number(p.cost_price).toLocaleString('ar-EG')} ج.م</span> },
               { key: 'shelf_number', label: 'الرف', sortable: true, render: (p: any) => p.shelf_number ? <span className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 font-bold whitespace-nowrap">{p.shelf_number}</span> : <span className="text-xs text-slate-300">—</span> },
@@ -310,13 +307,13 @@ export default function InventoryPage() {
             <div className="flex items-center justify-center gap-2 pt-3 pb-1">
               <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
                 disabled={productPage <= 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                className="btn btn-outline btn-sm">
                 السابق
               </button>
               <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
               <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
                 disabled={productPage >= productPages}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                className="btn btn-outline btn-sm">
                 التالي
               </button>
             </div>
@@ -384,7 +381,7 @@ export default function InventoryPage() {
             </div>
           </div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setOpeningStockProduct(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => setOpeningStockProduct(null)} className="btn btn-ghost">إلغاء</button>
             <button disabled={!openingQty || !activeWarehouseId}
               onClick={async () => {
                 if (!activeWarehouseId) return toast.error('اختر فرعاً أولاً')
@@ -400,7 +397,7 @@ export default function InventoryPage() {
                 setOpeningStockProduct(null)
                 qc.invalidateQueries({ queryKey: ['products'] })
               }}
-              className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#16a34a' }}>
+              className="btn btn-success">
               تأكيد الرصيد
             </button>
           </div>

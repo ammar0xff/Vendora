@@ -123,8 +123,8 @@ export default function OperationsPage() {
   })
 
   const opConfig = {
-    dispatch:      { label: 'إذن صرف', icon: Truck,         color: 'var(--primary)', desc: 'نقل بضاعة من مخزن إلى معرض' },
-    goods_receipt: { label: 'استلام مشتريات', icon: PackagePlus, color: '#16a34a', desc: 'استلام بضاعة جديدة من تاجر' },
+    dispatch:      { label: 'إذن صرف', icon: Truck,         iconBg: 'bg-[var(--primary-soft)]', iconColor: 'text-[var(--primary)]', btnCls: 'btn-primary', desc: 'نقل بضاعة من مخزن إلى معرض' },
+    goods_receipt: { label: 'استلام مشتريات', icon: PackagePlus, iconBg: 'bg-green-50', iconColor: 'text-green-600', btnCls: 'btn-success', desc: 'استلام بضاعة جديدة من تاجر' },
   }
 
   const docTypeLabel: Record<string, string> = {
@@ -152,7 +152,7 @@ export default function OperationsPage() {
           { id: 'ops',       label: '🚚 العمليات والنقل' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
           </button>
         ))}
@@ -167,9 +167,9 @@ export default function OperationsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {(Object.entries(opConfig) as any[]).map(([key, cfg]) => (
           <button key={key} onClick={() => { setActiveOp(key as OpType); reset() }}
-            className="card text-right hover:shadow-md transition-all active:scale-95 border-2 hover:border-blue-200">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style={{ background: cfg.color + '20' }}>
-              <cfg.icon size={22} style={{ color: cfg.color }} />
+            className="card text-right hover:shadow-md transition-all active:scale-95 border-2 hover:border-[var(--primary-border)]">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${cfg.iconBg}`}>
+              <cfg.icon size={22} className={cfg.iconColor} />
             </div>
             <p className="font-bold text-slate-800 text-base">{cfg.label}</p>
             <p className="text-slate-500 text-sm mt-1">{cfg.desc}</p>
@@ -268,7 +268,7 @@ export default function OperationsPage() {
             </div>
 
             <div className="flex gap-3 justify-end pt-2">
-              <button onClick={() => setActiveOp(null)} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
+              <button onClick={() => setActiveOp(null)} className="btn btn-ghost">إلغاء</button>
               <button
                 onClick={() => {
                   if (!toWh) return toast.error('اختر المخزن المستلم أولاً')
@@ -276,8 +276,7 @@ export default function OperationsPage() {
                   submitMut.mutate()
                 }}
                 disabled={!items.length || !toWh || (!fromWh && activeOp !== 'goods_receipt') || submitMut.isPending}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
-                style={{ background: opConfig[activeOp].color }}
+                className={`btn ${opConfig[activeOp].btnCls}`}
               >
                 {submitMut.isPending ? 'جاري...' : `إنشاء ${opConfig[activeOp].label}`}
               </button>

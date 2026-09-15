@@ -29,19 +29,19 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
             {debtCustomer ? 'العميل المحدد' : 'ابحث عن العميل'}
           </label>
           {debtCustomer ? (
-            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-xl px-4 py-3">
               <div>
                 <p className="font-black text-slate-800">{debtCustomer.name}</p>
                 {debtCustomerAccount && (
                   <p className="text-sm mt-0.5">
-                    المتبقي: <span className={`font-black ${Number(debtCustomerAccount.balance_due) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    المتبقي: <span className={`font-black tabular-nums ${Number(debtCustomerAccount.balance_due) > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {Number(debtCustomerAccount.balance_due).toLocaleString('ar-EG')} ج.م
                     </span>
                   </p>
                 )}
               </div>
               <button onClick={() => { setDebtCustomer(null); setDebtCustomerSearch('') }}
-                className="text-slate-400 hover:text-red-500 text-xs px-2 py-1 rounded-lg hover:bg-red-50">
+                className="btn btn-ghost btn-sm text-slate-400">
                 تغيير
               </button>
             </div>
@@ -70,10 +70,10 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
 
         {/* Empty state — show instructions when no customer yet */}
         {!debtCustomer && (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-300 border-2 border-dashed border-slate-200 rounded-2xl">
-            <div className="text-5xl mb-4">👤</div>
-            <p className="text-base font-semibold text-slate-400">ابحث عن العميل أعلاه</p>
-            <p className="text-sm text-slate-300 mt-1">سيظهر رصيده وفواتيره هنا</p>
+          <div className="empty-state border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/40 py-14">
+            <div className="empty-icon text-2xl">👤</div>
+            <p className="empty-title">ابحث عن العميل أعلاه</p>
+            <p className="empty-sub">سيظهر رصيده وفواتيره هنا</p>
           </div>
         )}
 
@@ -90,9 +90,9 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
                   .sort((a: any, b: any) => a.date.localeCompare(b.date))
                   .map((e: any) => (
                     <div key={e.ref} className="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2 text-sm">
-                      <span className="font-mono text-blue-700 font-bold">{e.ref}</span>
+                      <span className="font-mono text-[var(--primary)] font-bold">{e.ref}</span>
                       <span className="text-slate-500 text-xs">{new Date(e.date).toLocaleDateString('ar-EG')}</span>
-                      <span className="font-bold text-slate-800">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
+                      <span className="font-bold text-slate-800 tabular-nums">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
                     </div>
                   ))}
               </div>
@@ -112,9 +112,9 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowCustomerDebt(false); setDebtCustomer(null) }}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+                className="btn btn-ghost">إلغاء</button>
               <button onClick={() => debtPayMut.mutate()} disabled={!debtPayAmount || debtPayMut.isPending}
-                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                className="btn btn-success">
                 تسجيل الدفعة
               </button>
             </div>

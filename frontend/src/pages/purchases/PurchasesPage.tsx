@@ -130,8 +130,7 @@ function NewPOForm({ onClose }: { onClose: () => void }) {
                     {/* Always show add-new at bottom */}
                     <button key="add-new" type="button"
                       onClick={() => { setNewProductIdx(i); setNewProduct({ name: productSearch[i], unit: 'عدد', cost_price: Number(item.unit_cost) || 0, retail_price: 0 }) }}
-                      className="w-full text-right px-3 py-2.5 hover:bg-green-50 text-sm border-t border-slate-100 flex items-center gap-2"
-                      style={{ color: '#16a34a', fontWeight: 700 }}>
+                      className="w-full text-right px-3 py-2.5 hover:bg-green-50 text-sm border-t border-slate-100 flex items-center gap-2 text-green-600 font-bold">
                       <Plus size={13} />
                       {filteredProducts(productSearch[i]).length
                         ? `إضافة "${productSearch[i]}" كمنتج جديد`
@@ -159,7 +158,7 @@ function NewPOForm({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div className="flex justify-end mt-3 pt-3 border-t border-slate-100">
-          <span className="font-bold text-slate-700">الإجمالي: <span style={{ color: 'var(--primary)' }}>{total.toLocaleString('ar-EG')} ج.م</span></span>
+          <span className="font-bold text-slate-700">الإجمالي: <span className="text-[var(--primary)]">{total.toLocaleString('ar-EG')} ج.م</span></span>
         </div>
       </div>
 
@@ -180,8 +179,8 @@ function NewPOForm({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" disabled={createMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+        <button type="button" onClick={onClose} className="btn btn-ghost">إلغاء</button>
+        <button type="submit" disabled={createMut.isPending} className="btn btn-primary">
           إنشاء أمر الشراء
         </button>
       </div>
@@ -273,7 +272,7 @@ function ReceivePOModal({ poId, onClose }: { poId: string; onClose: () => void }
       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
         <div className="space-y-1">
           <div className="flex gap-4 text-sm">
-            <span className="text-slate-500">الإجمالي: <span className="font-black" style={{ color: 'var(--primary)' }}>{total.toLocaleString('ar-EG')} ج.م</span></span>
+            <span className="text-slate-500">الإجمالي: <span className="font-black text-[var(--primary)]">{total.toLocaleString('ar-EG')} ج.م</span></span>
             {po?.amount_paid > 0 && <span className="text-green-600">مدفوع: <span className="font-black">{Number(po.amount_paid).toLocaleString('ar-EG')} ج.م</span></span>}
             {po?.amount_paid > 0 && total - Number(po.amount_paid) > 0 && (
               <span className="text-amber-600">متبقي: <span className="font-black">{(total - Number(po.amount_paid)).toLocaleString('ar-EG')} ج.م</span></span>
@@ -282,9 +281,9 @@ function ReceivePOModal({ poId, onClose }: { poId: string; onClose: () => void }
           {po?.received_by_name && <p className="text-xs text-slate-400">المستلم: {po.received_by_name}</p>}
         </div>
         <div className="flex gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => receiveMut.mutate()} disabled={receiveMut.isPending}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-2 disabled:opacity-50" style={{ background: '#16a34a' }}>
+            className="btn btn-success">
             <CheckCircle size={15} /> تأكيد الاستلام
           </button>
         </div>
@@ -346,7 +345,7 @@ export default function PurchasesPage() {
           </button>
           {r.status === 'draft' && (
             <button onClick={() => setReceivePO(r.id)}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: '#16a34a' }}>
+              className="btn btn-success btn-sm">
               <Package size={12} /> استلام
             </button>
           )}
@@ -367,7 +366,7 @@ export default function PurchasesPage() {
             { label: 'الحالة', accessor: (r: any) => r.status },
             { label: 'التاريخ', accessor: (r: any) => new Date(r.created_at).toLocaleDateString('en-CA') },
           ]} filename="المشتريات" excelEndpoint="/export/purchases" />
-          <button onClick={() => setShowNew(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+          <button onClick={() => setShowNew(true)} className="btn btn-primary">
             <Plus size={15} /> فاتورة مشتريات جديدة
           </button>
         </div>

@@ -28,8 +28,7 @@ export function HeldInvoicesModal({ showHeld, onClose, holdLabel, setHoldLabel, 
             onChange={e => setHoldLabel(e.target.value)}
           />
           <button
-            className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-            style={{ background: 'var(--primary)' }}
+            className="btn btn-primary"
             disabled={items.length === 0}
             onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }}
           >
@@ -38,7 +37,10 @@ export function HeldInvoicesModal({ showHeld, onClose, holdLabel, setHoldLabel, 
         </div>
 
         {suspended.length === 0 ? (
-          <div className="text-center py-10 text-slate-400">لا توجد فواتير معلقة</div>
+          <div className="empty-state py-10">
+            <p className="empty-title">لا توجد فواتير معلقة</p>
+            <p className="empty-sub">علّق فاتورة ليتم استئنافها لاحقاً</p>
+          </div>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {suspended.map((b: any) => {
@@ -46,7 +48,7 @@ export function HeldInvoicesModal({ showHeld, onClose, holdLabel, setHoldLabel, 
               const sameShift = !b.shift_id || b.shift_id === shift?.id
               const canResume = sameWarehouse && sameShift
               return (
-                <div key={b.id} className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3">
+                <div key={b.id} className="card card-hover p-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-bold text-slate-800 truncate">{b.label}</p>
                     <p className="text-xs text-slate-500">{new Date(b.created_at).toLocaleString('ar-EG')} · {b.items.length} بند</p>
@@ -56,8 +58,7 @@ export function HeldInvoicesModal({ showHeld, onClose, holdLabel, setHoldLabel, 
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      className="px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
-                      style={{ background: '#16a34a' }}
+                      className="btn btn-success btn-sm"
                       disabled={!canResume || items.length > 0}
                       title={items.length > 0 ? 'امسح السلة الحالية أولاً' : ''}
                       onClick={() => { resume(b.id); setShowHeld(false) }}
@@ -65,15 +66,14 @@ export function HeldInvoicesModal({ showHeld, onClose, holdLabel, setHoldLabel, 
                       استئناف
                     </button>
                     <button
-                      className="px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
-                      style={{ background: '#7c3aed20', color: '#7c3aed' }}
+                      className="btn btn-primary-soft btn-sm"
                       disabled={convertToQuotationMut.isPending}
                       onClick={() => convertToQuotationMut.mutate(b)}
                     >
                       {convertToQuotationMut.isPending ? 'جاري...' : 'عرض سعر'}
                     </button>
                     <button
-                      className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200"
+                      className="btn btn-danger-soft btn-sm"
                       onClick={() => deleteHeld(b.id)}
                     >
                       حذف

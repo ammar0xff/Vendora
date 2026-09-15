@@ -21,18 +21,18 @@ export function ReturnModal({ showReturn, onClose, returnSearch, setReturnSearch
       <Modal open={showReturn} onClose={onClose} title="اختر فاتورة للمرتجع" size="lg">
         <div className="space-y-3">
           <input type="text" placeholder="ابحث باسم المنتج..." value={returnSearch} onChange={e => setReturnSearch(e.target.value)} autoFocus
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-300" />
+            className="input" />
           <div className="space-y-2 max-h-80 overflow-y-auto">
-          {!allSales?.length && <p className="text-center py-8 text-slate-400">{returnSearch.trim() ? 'لا توجد فواتير بهذا المنتج' : 'لا توجد فواتير مؤكدة'}</p>}
+          {!allSales?.length && <div className="empty-state py-10"><p className="empty-title">{returnSearch.trim() ? 'لا توجد فواتير بهذا المنتج' : 'لا توجد فواتير مؤكدة'}</p></div>}
           {allSales?.map((s: any) => (
-            <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50">
+            <div key={s.id} className="card card-hover p-3 flex items-center justify-between">
               <div>
                 <p className="font-semibold text-slate-800">{s.customer_name || 'عميل عادي'}</p>
                 <p className="text-xs text-slate-400 font-mono">{s.invoice_number} — {new Date(s.created_at).toLocaleString('ar-EG')} — {s.sale_mode === 'wholesale' ? 'جملة' : 'قطاعي'} — {s.items?.length || 0} صنف</p>
               </div>
               <button
                 onClick={() => { setShowReturn(false); setReturnSaleDetails(s); const init: Record<string,number> = {}; s.items?.forEach((i: any) => { init[i.product_id] = Number(i.qty) }); setReturnQtys(init) }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 transition-colors">
+                className="btn btn-accent btn-sm">
                 <RotateCcw size={12} /> مرتجع
               </button>
             </div>
@@ -58,26 +58,26 @@ export function ReturnModal({ showReturn, onClose, returnSearch, setReturnSearch
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.max(0, (q[item.product_id] || 0) - 1) }))}
-                      className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={12} /></button>
+                      className="w-8 h-8 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition-colors" aria-label="إنقاص"><Minus size={12} /></button>
                     <input type="number" min="0" max={item.qty} value={returnQtys[item.product_id] || 0}
                       onChange={e => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min(Number(e.target.value), item.qty) }))}
-                      className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-blue-300" />
+                      className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1.5 outline-none focus:border-[var(--accent)] tabular-nums" />
                     <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min((q[item.product_id] || 0) + 1, item.qty) }))}
-                      className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={12} /></button>
+                      className="w-8 h-8 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition-colors" aria-label="زيادة"><Plus size={12} /></button>
                   </div>
                 </div>
               ))}
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
-              إجمالي المرتجع: <span className="font-black">
+              إجمالي المرتجع: <span className="font-black tabular-nums">
                 {returnSaleDetails.items?.reduce((s: number, i: any) => s + (returnQtys[i.product_id] || 0) * Number(i.unit_price), 0).toLocaleString('ar-EG')} ج.م
               </span>
             </div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => { setReturnSaleDetails(null); setReturnQtys({}) }} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+              <button onClick={() => { setReturnSaleDetails(null); setReturnQtys({}) }} className="btn btn-ghost">إلغاء</button>
               <button onClick={() => returnMut.mutate()}
                 disabled={Object.values(returnQtys).every(v => v === 0) || returnMut.isPending}
-                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
+                className="btn btn-accent">
                 <RotateCcw size={14} /> تأكيد المرتجع
               </button>
             </div>

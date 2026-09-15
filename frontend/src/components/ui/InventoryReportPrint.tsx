@@ -20,10 +20,10 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
   return (
     <>
       <div className="print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 flex gap-3 bg-white rounded-2xl shadow-xl p-3 border border-slate-200">
-        <button onClick={() => window.print()} className="px-6 py-2 rounded-xl font-bold text-sm text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+        <button onClick={() => window.print()} className="btn btn-primary">
           🖨️ طباعة
         </button>
-        <button onClick={onClose} className="px-6 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
+        <button onClick={onClose} className="btn btn-ghost">
           ✕ إغلاق
         </button>
       </div>

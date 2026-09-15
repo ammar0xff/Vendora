@@ -26,11 +26,11 @@ export function CloseShiftModal({ showClose, onClose, summary, closingBalance, s
     <Modal open={showClose} onClose={onClose} title="إغلاق الوردية">
       <div className="space-y-4">
         {summary && (
-          <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-slate-500">المبيعات</span><span className="font-bold text-green-700">{Number(summary.sales_total).toLocaleString('ar-EG')} ج.م</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">المرتجعات</span><span className="font-bold text-amber-600">{Number(summary.returns_total).toLocaleString('ar-EG')} ج.م</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">المصروفات</span><span className="font-bold text-red-600">{Number(summary.expenses_total).toLocaleString('ar-EG')} ج.م</span></div>
-            <div className="flex justify-between border-t border-slate-200 pt-2"><span className="font-semibold">الرصيد المتوقع</span><span className="font-black text-base">{Number(summary.expected_balance).toLocaleString('ar-EG')} ج.م</span></div>
+          <div className="card bg-slate-50/70 p-4 space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-slate-500">المبيعات</span><span className="font-bold text-green-600 tabular-nums">{Number(summary.sales_total).toLocaleString('ar-EG')} ج.م</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">المرتجعات</span><span className="font-bold text-amber-600 tabular-nums">{Number(summary.returns_total).toLocaleString('ar-EG')} ج.م</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">المصروفات</span><span className="font-bold text-red-600 tabular-nums">{Number(summary.expenses_total).toLocaleString('ar-EG')} ج.م</span></div>
+            <div className="flex justify-between border-t border-slate-200 pt-2"><span className="font-semibold">الرصيد المتوقع</span><span className="font-black text-base text-[var(--primary)] tabular-nums">{Number(summary.expected_balance).toLocaleString('ar-EG')} ج.م</span></div>
           </div>
         )}
         <div>
@@ -45,10 +45,10 @@ export function CloseShiftModal({ showClose, onClose, summary, closingBalance, s
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm space-y-1">
             <div className="flex justify-between font-semibold text-blue-800">
               <span>المبلغ المورَّد (التوريد)</span>
-              <span>{(Number(closingBalance) - Number(nextDayDrawer)).toLocaleString('ar-EG')} ج.م</span>
+              <span className="tabular-nums">{(Number(closingBalance) - Number(nextDayDrawer)).toLocaleString('ar-EG')} ج.م</span>
             </div>
             {summary && (
-              <div className={clsx('flex justify-between text-xs', Number(closingBalance) >= Number(summary.expected_balance) ? 'text-green-600' : 'text-red-600')}>
+              <div className={clsx('flex justify-between text-xs tabular-nums', Number(closingBalance) >= Number(summary.expected_balance) ? 'text-green-600' : 'text-red-600')}>
                 <span>الفرق عن المتوقع</span>
                 <span>{(Number(closingBalance) - Number(summary.expected_balance)).toLocaleString('ar-EG')} ج.م</span>
               </div>
@@ -83,9 +83,9 @@ export function CloseShiftModal({ showClose, onClose, summary, closingBalance, s
           </div>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => closeMut.mutate()} disabled={!closingBalance || Number(closingBalance) <= 0 || !managerIdForClose || !managerPasswordForClose || !closeSafeId || closeMut.isPending}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 flex items-center gap-2">
+            className="btn btn-danger">
             <Lock size={15} /> إغلاق الوردية
           </button>
         </div>

@@ -60,7 +60,7 @@ export default function BarcodeManager({ productId, barcodes = [] }: any) {
         <button
           type="button"
           onClick={() => setIsAdding(!isAdding)}
-          className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 font-medium flex items-center gap-1"
+          className="btn btn-primary-soft btn-sm"
         >
           <Plus size={14} /> جديد
         </button>
@@ -77,10 +77,10 @@ export default function BarcodeManager({ productId, barcodes = [] }: any) {
             className="input flex-1"
             autoFocus
           />
-          <button type="button" onClick={handleAdd} disabled={addMut.isPending} className="px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium">
+          <button type="button" onClick={handleAdd} disabled={addMut.isPending} className="btn btn-primary btn-sm">
             {addMut.isPending ? '...' : 'إضافة'}
           </button>
-          <button type="button" onClick={() => { setIsAdding(false); setNewBarcode('') }} className="px-3 py-2 bg-slate-200 text-slate-600 rounded text-sm font-medium">
+          <button type="button" onClick={() => { setIsAdding(false); setNewBarcode('') }} className="btn btn-ghost btn-sm">
             إلغاء
           </button>
         </div>

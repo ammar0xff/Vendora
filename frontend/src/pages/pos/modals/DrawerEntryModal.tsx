@@ -1,4 +1,5 @@
 import Modal from '../../../components/ui/Modal'
+import { clsx } from 'clsx'
 
 interface Props {
   showDrawerEntry: boolean
@@ -42,13 +43,13 @@ export function DrawerEntryModal({ showDrawerEntry, onClose, drawerEntryType, dr
           <label className="block text-sm font-medium text-slate-600 mb-1">وسيلة الدفع</label>
           <div className="flex gap-2">
             <button type="button" onClick={() => { setDrawerEntryPaymentMethod('cash'); setDrawerEntryWalletId('') }}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${drawerEntryPaymentMethod === 'cash' ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-600'}`}>
+              className={clsx('flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all', drawerEntryPaymentMethod === 'cash' ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm' : 'border-slate-300 text-slate-600 hover:border-slate-400')}>
               💵 نقدي
             </button>
             {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
               <button key={w.id} type="button"
                 onClick={() => { setDrawerEntryPaymentMethod('wallet'); setDrawerEntryWalletId(w.id) }}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${drawerEntryPaymentMethod === 'wallet' && drawerEntryWalletId === w.id ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-600'}`}>
+                className={clsx('flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all', drawerEntryPaymentMethod === 'wallet' && drawerEntryWalletId === w.id ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm' : 'border-slate-300 text-slate-600 hover:border-slate-400')}>
                 {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
               </button>
             ))}
@@ -60,10 +61,9 @@ export function DrawerEntryModal({ showDrawerEntry, onClose, drawerEntryType, dr
             placeholder={drawerEntryType === 'expense' ? 'إيجار، كهرباء، مصاريف...' : 'مصدر الدخل...'} />
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => drawerEntryMut.mutate()} disabled={!drawerEntryAmount || drawerEntryMut.isPending}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-            style={{ background: drawerEntryType === 'expense' ? '#dc2626' : '#16a34a' }}>
+            className={clsx('btn', drawerEntryType === 'expense' ? 'btn-danger' : 'btn-success')}>
             تسجيل
           </button>
         </div>

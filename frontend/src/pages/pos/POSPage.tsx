@@ -47,16 +47,16 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
 }) {
   if (!shift) return (
     <div className="flex items-center gap-2">
-      <button onClick={onOpen} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#16a34a' }}>
+      <button onClick={onOpen} className="btn btn-success flex items-center gap-2">
         <WalletIcon size={15} /> فتح وردية جديدة
       </button>
     </div>
   )
   if (!summary) return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold" style={{ background: 'var(--primary)', opacity: 0.6 }}>
+      <div className="badge-primary flex items-center gap-2 opacity-70">
         <WalletIcon size={15} />
-        <span>جاري تحميل الدرج...</span>
+        <span className="animate-pulse">جاري تحميل الدرج...</span>
       </div>
     </div>
   )
@@ -78,73 +78,77 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
     walletMap[k].total += t.tx_type === 'deposit' ? Number(t.total) : -Number(t.total)
   })
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {warehouseName && (
-        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-semibold">
-          🏪 {warehouseName}
+        <div className="badge-primary flex items-center gap-1.5">
+          <span className="text-sm">🏪</span> {warehouseName}
         </div>
       )}
       {supervisorName && (
-        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 text-purple-700 text-xs font-semibold">
-          👤 مشرف: {supervisorName}
+        <div className="badge-accent flex items-center gap-1.5">
+          <span className="text-sm">👤</span> مشرف: {supervisorName}
         </div>
       )}
       {shift?.cashier_name && shift.cashier_id !== currentUserId && (
-        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">
-          🧑‍💼 الكاشير: {shift.cashier_name}
+        <div className="badge-yellow flex items-center gap-1.5">
+          <span className="text-sm">🧑‍💼</span> الكاشير: {shift.cashier_name}
         </div>
       )}
       <div className="relative group">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold cursor-default" style={{ background: 'var(--primary)' }}>
+        <div
+          className="flex items-center gap-2 rounded-xl px-4 py-2 min-h-[36px] text-white text-sm font-bold cursor-default"
+          style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)', boxShadow: 'var(--shadow-sm)' }}
+          aria-label="رصيد الدرج وتفاصيل الوردية">
           <WalletIcon size={15} />
-          <span>الدرج: {cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
+          <span className="tabular-nums">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
+          <ChevronDown size={12} className="opacity-70" />
         </div>
         {/* Hover tooltip */}
-        <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-52 p-3 hidden group-hover:block">
-          <p className="text-xs font-bold text-slate-500 mb-2">مبيعات الوردية الحالية</p>
-          <div className="space-y-1.5">
+        <div className="absolute top-full right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 min-w-60 p-4 hidden group-hover:block fade-in">
+          <p className="text-xs font-black text-slate-500 mb-2.5">مبيعات الوردية الحالية</p>
+          <div className="space-y-2">
             <div className="flex justify-between text-xs">
               <span className="text-slate-600">💵 نقدي (الدرج)</span>
-              <span className="font-bold text-slate-800">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
+              <span className="font-bold text-slate-800 tabular-nums">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
             </div>
             {Object.values(walletMap).map((w: { name: string; type: string; total: number }) => (
               <div key={w.name} className="flex justify-between text-xs">
                 <span className="text-slate-600">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
-                <span className="font-bold text-slate-800">{Number(w.total).toLocaleString('ar-EG')} ج.م</span>
+                <span className="font-bold text-slate-800 tabular-nums">{Number(w.total).toLocaleString('ar-EG')} ج.م</span>
               </div>
             ))}
-            <div className="border-t border-slate-100 pt-1.5 flex justify-between text-xs">
+            <div className="border-t border-slate-100 pt-2 flex justify-between text-xs">
               <span className="font-bold text-slate-700">إجمالي الوردية</span>
-              <span className="font-black" style={{color:'var(--primary)'}}>{Number(summary?.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
+              <span className="font-black text-[var(--accent)] tabular-nums">{Number(summary?.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
             </div>
-            <div className="border-t border-slate-200 mt-1.5 pt-1 text-[10px] text-slate-400 space-y-0.5">
+            <div className="border-t border-slate-200 mt-2 pt-2 text-[10px] text-slate-400 space-y-1">
               <div className="flex justify-between">
                 <span>🟢 الافتتاحي:</span>
-                <span>{Number(shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
+                <span className="tabular-nums">{Number(shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
               </div>
               <div className="flex justify-between">
                 <span>📊 المبيعات:</span>
-                <span>{Number(summary.sales_total ?? 0).toLocaleString('ar-EG')} ج.م</span>
+                <span className="tabular-nums">{Number(summary.sales_total ?? 0).toLocaleString('ar-EG')} ج.م</span>
               </div>
               <div className="flex justify-between">
                 <span>🧾 حركات:</span>
                 <span>{summary.transaction_count ?? '...'}</span>
               </div>
-              <div className="border-t border-slate-200/50 mt-0.5 pt-0.5 flex justify-between font-medium text-slate-500">
+              <div className="border-t border-slate-200/50 mt-1 pt-1 flex justify-between font-medium text-slate-500">
                 <span>📋 المتوقع:</span>
-                <span>{Number(summary.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
+                <span className="tabular-nums">{Number(summary.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <button onClick={onHandover} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+      <button onClick={onHandover} className="btn btn-accent-soft">
         <ArrowLeftRight size={14} /> تسليم
       </button>
-      <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
+      <button onClick={onClose} className="btn btn-danger-soft">
         <Lock size={14} /> إغلاق
       </button>
-      <button onClick={onRevenueDelivery} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+      <button onClick={onRevenueDelivery} className="btn btn-primary-soft">
         <Landmark size={14} /> توريد إيرادات
       </button>
     </div>
@@ -761,23 +765,22 @@ export default function POSPage() {
 
   if (shiftOwner) return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ filter: 'blur(6px)', opacity: 0.12 }}>
-        <div className="grid grid-cols-5 gap-3 p-8">
-          {Array.from({ length: 20 }).map((_, i) => <div key={i} className="bg-white rounded-xl h-32 border border-slate-200" />)}
-        </div>
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
+        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full opacity-25 blur-3xl" style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)' }} />
       </div>
-      <div className="relative z-10 flex-1 flex items-center justify-center">
-        <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center max-w-sm w-full mx-4">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black text-white" style={{ background: 'var(--accent)' }}>
+      <div className="relative z-10 flex-1 flex items-center justify-center p-4">
+        <div className="card w-full max-w-sm text-center slide-in p-10">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black text-white shadow-lg" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%)' }}>
             {typeof shiftOwner === 'string' ? shiftOwner[0] : '؟'}
           </div>
           <h2 className="text-xl font-black text-slate-800 mb-1">الدرج مع موظف آخر</h2>
-          <p className="text-2xl font-black mb-1" style={{ color: 'var(--primary)' }}>{shiftOwner}</p>
+          <p className="text-2xl font-black mb-1 text-[var(--primary)]">{shiftOwner}</p>
           <p className="text-slate-400 text-sm mb-2">🏪 {mainWh?.name}</p>
           <p className="text-slate-400 text-xs mb-8">
-            رصيد الدرج: <span className="font-bold text-slate-600">{Number(summary?.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
+            رصيد الدرج: <span className="font-bold text-slate-600 tabular-nums">{Number(summary?.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
           </p>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700">
+          <div className="badge-yellow p-4 rounded-2xl text-sm leading-relaxed">
             لإجراء أي عملية بيع، يجب أن يسلّم <strong>{shiftOwner}</strong> الدرج إليك أولاً
           </div>
         </div>
@@ -788,19 +791,16 @@ export default function POSPage() {
   // ── Lock screen when no shift at all ─────────────────────────────────
   if (!shift && mainWh) return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
-      {/* Blurred POS background hint */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ filter: 'blur(6px)', opacity: 0.15 }}>
-        <div className="grid grid-cols-5 gap-3 p-8">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl h-32 border border-slate-200" />
-          ))}
-        </div>
+      {/* Ambient blurred glow background */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-15 blur-3xl" style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
+        <div className="absolute bottom-0 -left-24 w-80 h-80 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)' }} />
       </div>
 
       {/* Lock overlay */}
-      <div className="relative z-10 flex-1 flex items-center justify-center">
-        <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center max-w-sm w-full mx-4">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ background: 'var(--primary)' }}>
+      <div className="relative z-10 flex-1 flex items-center justify-center p-4">
+        <div className="card w-full max-w-sm text-center slide-in p-10">
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)' }}>
             <Lock size={36} className="text-white" />
           </div>
           <h2 className="text-2xl font-black text-slate-800 mb-2">نقطة البيع مقفولة</h2>
@@ -810,14 +810,13 @@ export default function POSPage() {
           <p className="text-slate-400 text-xs mb-8">لا توجد وردية مفتوحة في هذا الفرع</p>
           <button
             onClick={() => setShowOpenShift(true)}
-            className="w-full py-4 rounded-2xl font-black text-lg text-white flex items-center justify-center gap-3 transition-all active:scale-95 hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+            className="btn btn-success w-full btn-lg"
           >
             <Wallet size={22} /> فتح الوردية
           </button>
           {lastDrawer?.amount > 0 && (
             <p className="text-slate-400 text-xs mt-4">
-              الفكة المتبقية: <span className="font-bold text-slate-600">{Number(lastDrawer.amount).toLocaleString('ar-EG')} ج.م</span>
+              الفكة المتبقية: <span className="font-bold text-slate-600 tabular-nums">{Number(lastDrawer.amount).toLocaleString('ar-EG')} ج.م</span>
             </p>
           )}
         </div>
@@ -836,8 +835,10 @@ export default function POSPage() {
   // Guard: must select a warehouse first
   if (!mainWh && warehouses) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-6 text-center">
-        <div className="text-6xl">🏪</div>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-6 text-center fade-in">
+        <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shadow-lg" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)' }}>
+          <span className="text-white">🏪</span>
+        </div>
         <div>
           <h2 className="text-xl font-black text-slate-800 mb-1">اختر الفرع أولاً</h2>
           <p className="text-slate-500 text-sm">يجب اختيار معرض أو مخزن من القائمة الجانبية قبل فتح نقطة البيع</p>
@@ -845,7 +846,7 @@ export default function POSPage() {
         <div className="flex flex-wrap gap-3 justify-center">
           {warehouses.filter(w => w.warehouse_type === 'showroom').map(w => (
             <button key={w.id} onClick={() => setActiveWarehouse(w.id, w.name)}
-              className="px-5 py-3 rounded-xl font-bold text-white text-sm" style={{ background: 'var(--primary)' }}>
+              className="btn btn-primary btn-lg">
               🏪 {w.name}
             </button>
           ))}
@@ -859,34 +860,38 @@ export default function POSPage() {
     {/* ── DESKTOP layout (lg+) ── */}
     <div className="hidden lg:flex flex-col h-[calc(100vh-7rem)]">
 
-      {/* POS Header bar (VB6-style: title + nav buttons + drawer badge) */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white border border-slate-200 rounded-t-xl flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} onRevenueDelivery={() => setShowRevenueDelivery(true)} warehouseName={mainWh?.name}
-            supervisorName={shift?.supervisor_id ? (allUsers as User[])?.find((u) => u.id === shift.supervisor_id)?.full_name : null}
-            wallets={wallets} currentUserId={user?.id} />
+      {/* POS Header bar */}
+      <div className="card flex items-center justify-between gap-3 px-4 py-2 rounded-xl mb-2 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="flex items-center justify-center w-9 h-9 rounded-xl text-white flex-shrink-0 shadow-sm" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)' }}>
+            <ShoppingCart size={18} />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-sm font-black text-slate-800 leading-tight truncate">نقطة البيع — {mainWh?.name}</h1>
+            <p className="text-[11px] text-slate-400 leading-tight hidden xl:block">فاتورة كاشير وتفاصيل الوردية الحالية</p>
+          </div>
         </div>
-        <h1 className="text-sm font-bold text-slate-600">فاتورة كاشير — {mainWh?.name}</h1>
+        <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} onRevenueDelivery={() => setShowRevenueDelivery(true)} warehouseName={mainWh?.name}
+          supervisorName={shift?.supervisor_id ? (allUsers as User[])?.find((u) => u.id === shift.supervisor_id)?.full_name : null}
+          wallets={wallets} currentUserId={user?.id} />
       </div>
-
-      {/* ═══ Split screen: RIGHT panel (Products+Cats) | LEFT panel (Cart) ═══ */}
-      <div className="flex flex-1 min-h-0 border-x border-b border-slate-200 rounded-b-xl overflow-hidden">
-
+{/* ═══ Split screen: RIGHT panel (Products+Cats) | LEFT panel (Cart) ═══ */}
+      <div className="flex flex-1 min-h-0 gap-2">
         {/* ══════ RIGHT PANEL (Products & Categories) ══════ */}
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 bg-white border border-slate-200 rounded-xl overflow-hidden">
 
           {/* ── Search bar at top ── */}
           <div className="relative px-3 pt-2 pb-1 flex-shrink-0">
-            <Search size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={search}
+            <Search size={15} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input value={search} aria-label="ابحث عن صنف أو امسح الباركود"
               onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
               onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-              className="w-full pr-8 pl-3 py-1.5 rounded-lg text-xs border border-slate-200 bg-white text-slate-700 placeholder-slate-400 outline-none focus:border-blue-400 transition-all"
+              className="input w-full pr-9 text-sm"
               placeholder="ابحث عن صنف أو امسح الباركود..." />
           </div>
 
           {/* ── Horizontal Categories Bar ── */}
-          <div className="flex-shrink-0 bg-white border-b border-slate-200">
+          <div className="flex-shrink-0 px-2 py-2 border-b border-slate-100">
             {/* Main categories row */}
             {(() => {
               const allCats = (categories as Category[]) || []
@@ -894,29 +899,29 @@ export default function POSPage() {
               const catStart = catPage * CATS_PER_PAGE
               const visibleCats = allCats.slice(catStart, catStart + CATS_PER_PAGE)
               return (
-                <div className="flex items-center gap-1 px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
                   <button onClick={() => setCatPage(p => Math.max(0, p - 1))}
                     disabled={catPage === 0}
-                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات سابقة">
                     ▶
                   </button>
-                  <div className="flex gap-1 flex-1 overflow-hidden">
+                  <div className="flex gap-1.5 flex-1 overflow-hidden">
                     <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
-                      className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                        !selectedCat ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                      className={clsx('chip whitespace-nowrap transition-all',
+                        !selectedCat ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                       الكل
                     </button>
                     {visibleCats.map(cat => (
                       <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
-                        className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                          selectedCat === cat.id && !selectedSub ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                        className={clsx('chip whitespace-nowrap transition-all',
+                          selectedCat === cat.id && !selectedSub ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                         {cat.name}
                       </button>
                     ))}
                   </div>
                   <button onClick={() => setCatPage(p => Math.min(totalCatPages - 1, p + 1))}
                     disabled={catPage >= totalCatPages - 1}
-                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات تالية">
                     ◀
                   </button>
                 </div>
@@ -930,29 +935,29 @@ export default function POSPage() {
               const subStart = subPage * SUBS_PER_PAGE
               const visibleSubs = subs.slice(subStart, subStart + SUBS_PER_PAGE)
               return (
-                <div className="flex items-center gap-1 px-2 py-1.5 border-t border-slate-100">
+                <div className="flex items-center gap-1.5 mt-1.5">
                   <button onClick={() => setSubPage(p => Math.max(0, p - 1))}
                     disabled={subPage === 0}
-                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات فرعية سابقة">
                     ▶
                   </button>
-                  <div className="flex gap-1 flex-1 overflow-hidden">
+                  <div className="flex gap-1.5 flex-1 overflow-hidden">
                     <button onClick={() => setSelectedSub(null)}
-                      className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                        !selectedSub ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100')}>
+                      className={clsx('chip whitespace-nowrap transition-all',
+                        !selectedSub ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                       {(categories as Category[])?.find(c => c.id === selectedCat)?.name || 'الكل'}
                     </button>
                     {visibleSubs.map(sub => (
                       <button key={sub.id} onClick={() => setSelectedSub(sub.id)}
-                        className={clsx('flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap',
-                          selectedSub === sub.id ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')}>
+                        className={clsx('chip whitespace-nowrap transition-all',
+                          selectedSub === sub.id ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                         {sub.name}
                       </button>
                     ))}
                   </div>
                   <button onClick={() => setSubPage(p => Math.min(totalSubPages - 1, p + 1))}
                     disabled={subPage >= totalSubPages - 1}
-                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-100 hover:bg-slate-200 text-slate-500">
+                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات فرعية تالية">
                     ◀
                   </button>
                 </div>
@@ -961,13 +966,18 @@ export default function POSPage() {
           </div>
 
           {/* ── Center: Product display grid ── */}
-          <div className="flex-1 flex flex-col bg-slate-50 min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col bg-slate-50/60 min-w-0 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-white flex-shrink-0">
-              <h3 className="text-xs font-bold text-slate-600">أصناف المجموعة</h3>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-white flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)' }}>
+                  <Package size={13} className="text-white" />
+                </span>
+                <h3 className="text-xs font-bold text-slate-600">أصناف المجموعة</h3>
+              </div>
               <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">
-                {viewMode === 'table' ? <><LayoutGrid size={11} /> كروت</> : <><List size={11} /> جدول</>}
+                className="btn btn-ghost btn-sm" aria-label="تبديل عرض الأصناف">
+                {viewMode === 'table' ? <><LayoutGrid size={13} /> كروت</> : <><List size={13} /> جدول</>}
               </button>
             </div>
 
@@ -975,23 +985,32 @@ export default function POSPage() {
             {debouncedSearch ? (
               <div className="flex-1 overflow-y-auto px-3 py-3">
                 {isLoading ? <PageLoader /> : !products?.length ? (
-                  <div className="text-center py-12 text-slate-400 text-xs">لا توجد نتائج</div>
+                  <div className="empty-state">
+                    <div className="empty-icon"><Search size={20} /></div>
+                    <p className="empty-title">لا توجد نتائج</p>
+                    <p className="empty-sub">جرب كلمة أخرى أو امسح الباركود</p>
+                  </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
                     {products.map((p: any) => {
                       const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
+                      const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                       return (
                         <button key={p.id} onClick={() => handleAddProduct(p)}
-                          className="bg-white rounded-xl border border-slate-200 p-2.5 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 flex flex-col">
-                          <div className="flex items-start justify-between mb-1.5">
-                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
-                              <Package size={12} className="text-blue-600" />
+                          className="card card-hover p-3 text-right active:scale-95 transition-all flex flex-col gap-1.5">
+                          <div className="flex items-start justify-between">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--primary-soft)] to-[var(--primary-border)] flex items-center justify-center flex-shrink-0">
+                              <Package size={15} className="text-[var(--primary)]" />
                             </div>
+                            {p.code && <span className="badge-neutral text-[9px] font-mono">{p.code}</span>}
                           </div>
-                          <p className="text-[11px] font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
-                          {p.company && <p className="text-[10px] text-slate-400 mb-1">{p.company}</p>}
-                          <div className="mt-auto">
-                            <p className="text-xs font-black leading-none" style={{ color: 'var(--accent)' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
+                          <p className="text-[11px] font-bold text-slate-800 leading-tight line-clamp-2 text-right">{p.name}</p>
+                          {p.company && <p className="text-[10px] text-slate-400 text-right">{p.company}</p>}
+                          <div className="mt-auto flex items-center justify-between">
+                            <p className="text-xs font-black text-[var(--primary)] font-normal tabular-nums">{Number(price).toLocaleString('ar-EG')} ج.م</p>
+                            {qty != null && (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${qty <= 0 ? 'bg-red-50 text-red-500' : qty <= 5 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>{qty > 0 ? qty : 'نفد'}</span>
+                            )}
                           </div>
                         </button>
                       )
@@ -1002,13 +1021,13 @@ export default function POSPage() {
                   <div className="flex items-center justify-center gap-2 pt-3">
                     <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
                       disabled={productPage <= 1}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                      className="btn btn-outline btn-sm">
                       السابق
                     </button>
-                    <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
+                    <span className="text-xs text-slate-500 px-2 tabular-nums">{productPage} / {productPages}</span>
                     <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
                       disabled={productPage >= productPages}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                      className="btn btn-outline btn-sm">
                       التالي
                     </button>
                   </div>
@@ -1030,26 +1049,27 @@ export default function POSPage() {
                             const price = mode === 'wholesale' ? Number(c.wholesale_price) || Number(c.retail_price) : Number(c.retail_price)
                             return (
                               <button key={c.id} onClick={() => handleAddCollection(c)}
-                                className="bg-white rounded-lg border border-amber-200 p-2 text-right hover:border-amber-400 hover:shadow-sm transition-all active:scale-95">
-                                <p className="text-[10px] font-bold text-slate-700 leading-tight truncate">{c.name}</p>
+                                className="card card-hover border-amber-200 p-2.5 text-right active:scale-95 transition-all">
+                                <p className="text-[10px] font-bold text-slate-700 leading-tight truncate text-right">{c.name}</p>
                                 <p className="text-[10px] text-slate-400">{c.items?.length || 0} منتج</p>
-                                <p className="text-xs font-black mt-0.5" style={{ color: 'var(--accent)' }}>{price.toLocaleString('ar-EG')} ج.م</p>
+                                <p className="text-xs font-black mt-0.5 text-[var(--accent)]">{price.toLocaleString('ar-EG')} ج.م</p>
                               </button>
                             )
                           })}
                         </div>
                       </div>
                     )}
+                    <div className="table-wrap">
                     <table className="w-full text-right text-[11px]">
-                      <thead className="sticky top-0 z-10" style={{ background: 'var(--primary)' }}>
-                        <tr className="text-white font-bold">
-                          <th className="py-1.5 px-2">المنتج</th>
-                          <th className="py-1.5 px-2">الشركة</th>
-                          <th className="py-1.5 px-2">الرف</th>
-                          <th className="py-1.5 px-2">القطاعي</th>
-                          <th className="py-1.5 px-2">الجملة</th>
-                          <th className="py-1.5 px-2">المخزون</th>
-                          <th className="py-1.5 px-2 w-6"></th>
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-[var(--primary)] text-white font-bold">
+                          <th className="py-2 px-2">المنتج</th>
+                          <th className="py-2 px-2">الشركة</th>
+                          <th className="py-2 px-2">الرف</th>
+                          <th className="py-2 px-2">القطاعي</th>
+                          <th className="py-2 px-2">الجملة</th>
+                          <th className="py-2 px-2">المخزون</th>
+                          <th className="py-2 px-2 w-6"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1065,23 +1085,24 @@ export default function POSPage() {
                           const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                           return (
                             <tr key={p.id} onClick={() => handleAddProduct(p)}
-                              className="border-b border-slate-200 hover:bg-blue-50 cursor-pointer transition-colors">
-                              <td className="py-1.5 px-2 font-semibold text-slate-700">{p.name}</td>
-                              <td className="py-1.5 px-2 text-slate-400 text-[10px]">{p.company || '—'}</td>
-                              <td className="py-1.5 px-2">{p.shelf_number ? <span className="text-[10px] px-1 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                              <td className="py-1.5 px-2 font-black" style={{ color: 'var(--accent)' }}>{retailPrice.toLocaleString('ar-EG')}</td>
-                              <td className="py-1.5 px-2 text-slate-600">{wholesalePrice.toLocaleString('ar-EG')}</td>
-                              <td className="py-1.5 px-2">
+                              className="border-b border-slate-100 hover:bg-[var(--primary-soft)] cursor-pointer transition-colors">
+                              <td className="py-2 px-2 font-semibold text-slate-700 text-right">{p.name}</td>
+                              <td className="py-2 px-2 text-slate-400 text-[10px]">{p.company || '—'}</td>
+                              <td className="py-2 px-2">{p.shelf_number ? <span className="badge-blue text-[10px]">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
+                              <td className="py-2 px-2 font-black text-[var(--primary)] tabular-nums">{retailPrice.toLocaleString('ar-EG')}</td>
+                              <td className="py-2 px-2 text-slate-600 tabular-nums">{wholesalePrice.toLocaleString('ar-EG')}</td>
+                              <td className="py-2 px-2">
                                 {qty != null ? (
-                                  <span className={`font-bold px-1 rounded ${qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600'}`}>{qty}</span>
+                                  <span className={`font-bold px-1.5 py-0.5 rounded tabular-nums ${qty <= 0 ? 'text-red-500 bg-red-50' : qty <= 5 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50'}`}>{qty}</span>
                                 ) : <span className="text-slate-300">—</span>}
                               </td>
-                              <td className="py-1.5 px-2 text-blue-500 font-bold text-sm">+</td>
+                              <td className="py-2 px-2 text-[var(--primary)] font-black text-sm">+</td>
                             </tr>
                           )
                         })}
                       </tbody>
                     </table>
+                    </div>
                   </>
                 )}
               </div>
@@ -1089,35 +1110,35 @@ export default function POSPage() {
 
             {/* Pagination controls */}
             {productPages > 1 && (
-            <div className="flex items-center justify-center gap-4 py-2 border-t border-slate-200 bg-white flex-shrink-0">
+            <div className="flex items-center justify-center gap-4 py-2 border-t border-slate-100 bg-white flex-shrink-0">
               <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
                 disabled={productPage <= 1}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-30 text-slate-500 hover:bg-slate-100 border border-slate-200">
+                className="btn btn-outline btn-sm">
                 <ChevronDown size={12} className="rotate-90" /> أصناف سابقة
               </button>
-              <span className="text-[10px] text-slate-500">{productPage} / {productPages}</span>
+              <span className="text-[10px] text-slate-500 tabular-nums">{productPage} / {productPages}</span>
               <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
                 disabled={productPage >= productPages}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-30 text-slate-500 hover:bg-slate-100 border border-slate-200">
+                className="btn btn-outline btn-sm">
                 أصناف تالية <ChevronLeft size={12} />
               </button>
             </div>
             )}
 
             {/* Discount block */}
-            <div className="px-4 py-2.5 border-t border-slate-200 bg-white flex-shrink-0">
+            <div className="px-4 py-2.5 border-t border-slate-100 bg-white flex-shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">خصم أصناف</span>
+                <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap flex items-center gap-1.5"><Tag size={12} className="text-slate-400" /> خصم أصناف</span>
                 <div className="relative flex-1 max-w-[120px]">
-                  <input type="number" min="0" max="100" value={discountInput}
+                  <input type="number" min="0" max="100" value={discountInput} aria-label="نسبة خصم الأصناف"
                     onChange={e => setDiscountInput(e.target.value)}
-                    className="w-full text-center text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" placeholder="0.00" />
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">%</span>
+                    className="input input-sm w-full text-center tabular-nums" placeholder="0.00" />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">%</span>
                 </div>
                 <button
                   onClick={() => { if (!discountInput) return; const pct = Number(discountInput); items.forEach(i => updateItemDiscount(i.product_id, 0, pct)); setDiscountInput(''); toast.success('تم تطبيق الخصم') }}
                   disabled={!discountInput || !items.length}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40 border border-slate-200">
+                  className="btn btn-primary-soft btn-sm">
                   تطبيق خصم
                 </button>
               </div>
@@ -1126,57 +1147,56 @@ export default function POSPage() {
         </div>
 
         {/* ══════ LEFT PANEL (Transaction & Cart) ══════ */}
-        <div ref={cartElRef} className="flex flex-col bg-white border-r border-slate-200 overflow-hidden" style={{ width: cartWidth }}>
+        <div ref={cartElRef} className="relative flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden" style={{ width: cartWidth }}>
           <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group flex items-center justify-center"
             onMouseDown={handleDragStart}>
-            <div className="w-0.5 h-8 rounded-full bg-slate-200 group-hover:bg-blue-400 transition-colors" />
+            <div className="w-0.5 h-8 rounded-full bg-slate-200 group-hover:bg-[var(--primary)] transition-colors" />
           </div>
 
           {/* Top: Total display + Warehouse dropdown + mode toggles */}
-          <div className="px-4 py-3 border-b border-slate-200 flex-shrink-0">
+          <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex rounded-lg overflow-hidden border border-slate-200">
-                  <button onClick={() => setMode('retail')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'retail' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'retail' ? { background: 'var(--primary)' } : {}}>قطاعي</button>
-                  <button onClick={() => setMode('wholesale')} className={clsx('px-2.5 py-1 text-[10px] font-bold transition-all', mode === 'wholesale' ? 'text-white' : 'text-slate-500 hover:bg-slate-50')} style={mode === 'wholesale' ? { background: 'var(--primary)' } : {}}>جملة</button>
-                </div>
-                <button onClick={() => setIsCredit(v => !v)}
-                  className={clsx('px-2 py-1 rounded-lg text-[10px] font-bold border transition-all', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>
+              <div className="flex items-center gap-1.5 rounded-xl p-1 border border-slate-200 bg-slate-50">
+                <button onClick={() => setMode('retail')} aria-pressed={mode === 'retail'}
+                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all', mode === 'retail' ? 'bg-white text-[var(--primary)] shadow-sm' : 'text-slate-500 hover:text-slate-700')}>قطاعي</button>
+                <button onClick={() => setMode('wholesale')} aria-pressed={mode === 'wholesale'}
+                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all', mode === 'wholesale' ? 'bg-white text-[var(--primary)] shadow-sm' : 'text-slate-500 hover:text-slate-700')}>جملة</button>
+                <button onClick={() => setIsCredit(v => !v)} aria-pressed={isCredit}
+                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all border', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'text-slate-500 border-transparent hover:text-slate-700')}>
                   آجل
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setShowHeld(true)} className="text-[10px] text-slate-400 hover:text-slate-600">معلقة ({suspended.length})</button>
-                {items.length > 0 && <button onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }} className="text-[10px] text-slate-400 hover:text-slate-600">تعليق</button>}
-                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-[10px] text-red-400 hover:text-red-600">مسح</button>}
+                <button onClick={() => setShowHeld(true)} className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1">📌 معلقة <span className="font-black text-[var(--primary)] tabular-nums">{suspended.length}</span></button>
+                {items.length > 0 && <button onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }} className="text-[10px] font-bold text-slate-400 hover:text-[var(--primary)] transition-colors">تعليق</button>}
+                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="btn btn-danger-soft btn-sm">مسح الكل</button>}
               </div>
             </div>
-            <div className="text-center mb-2">
-              <p className="text-4xl font-black text-red-500 leading-none">{total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</p>
+            <div className="text-center mb-2 px-2 py-2.5 rounded-xl bg-gradient-to-b from-slate-50 to-transparent">
+              <p className="text-4xl font-black text-[var(--primary)] leading-none tabular-nums">{total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</p>
               <p className="text-[10px] text-slate-400 mt-1">المبلغ الإجمالي — ج.م</p>
             </div>
             {/* Customer search */}
             <div className="relative">
-              <input value={selectedCustomer ? selectedCustomer.name : customerInput}
+              <input value={selectedCustomer ? selectedCustomer.name : customerInput} aria-label="اسم العميل"
                 onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomerInput(e.target.value); setShowCustomerDrop(true) }}
                 onFocus={() => setShowCustomerDrop(true)}
                 onBlur={() => setTimeout(() => setShowCustomerDrop(false), 200)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] text-slate-700 placeholder-slate-400 outline-none focus:border-blue-400 transition-all"
-                placeholder="اسم العميل (اختياري)" />
+                className="input w-full text-[11px]" placeholder="اسم العميل (اختياري)" />
               {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
-                <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-40 overflow-y-auto">
+                <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-48 overflow-y-auto fade-in">
                   {customerResults?.map((c: Customer) => (
                     <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
-                      className="w-full text-right px-3 py-2 hover:bg-slate-50 text-xs border-b border-slate-50 last:border-0">
+                      className="w-full text-right px-3 py-2 hover:bg-[var(--primary-soft)] text-xs border-b border-slate-50 last:border-0 transition-colors">
                       <p className="font-semibold text-slate-800">{c.name}</p>
-                      {c.phone && <p className="text-[10px] text-slate-400">{c.phone}</p>}
+                      {c.phone && <p className="text-[10px] text-slate-400 tabular-nums">{c.phone}</p>}
                     </button>
                   ))}
                   {customerSearch.length > 1 && (
                     <button onMouseDown={() => {
                       if (isCredit) { setPendingCustomerName(customerSearch); setNewCustomerPhone(''); setShowPhoneModal(true); setShowCustomerDrop(false); return }
                       customersApi.create({ name: customerSearch }).then(c => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) })
-                    }} className="w-full text-right px-3 py-2 hover:bg-green-50 text-xs text-green-700 font-semibold">
+                    }} className="w-full text-right px-3 py-2 hover:bg-emerald-50 text-xs text-emerald-700 font-semibold transition-colors">
                       + إضافة "{customerSearch}"{isCredit ? ' (يلزم تليفون)' : ''}
                     </button>
                   )}
@@ -1186,26 +1206,27 @@ export default function POSPage() {
           </div>
 
           {/* Item counter */}
-          <div className="px-4 py-1.5 border-b border-slate-200 flex-shrink-0 bg-slate-50">
-            <span className="text-[11px] font-bold text-slate-500">{items.length} / {items.reduce((s, i) => s + i.qty, 0)} صنف</span>
+          <div className="px-4 py-1.5 border-b border-slate-100 flex-shrink-0 bg-slate-50/60">
+            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5"><ShoppingCart size={11} className="text-slate-400" /> <span className="tabular-nums">{items.length}</span> صنف / الكمية <span className="tabular-nums font-black text-[var(--primary)]">{items.reduce((s, i) => s + i.qty, 0)}</span></span>
           </div>
 
           {/* Transaction table (VB6-style: كود الصنف | إسم الصنف | السعر | الكمية | الإجمالي) */}
           <div className="flex-1 overflow-y-auto">
             {!items.length ? (
-              <div className="text-center py-12 text-slate-300">
-                <ShoppingCart size={28} className="mx-auto mb-2 opacity-30" />
-                <p className="text-[11px]">لا توجد أصناف</p>
+              <div className="empty-state h-full">
+                <div className="empty-icon"><ShoppingCart size={24} /></div>
+                <p className="empty-title">لا توجد أصناف</p>
+                <p className="empty-sub">أضف أصناف من الجانب أو امسح الباركود</p>
               </div>
             ) : (
               <table className="w-full text-right text-[11px]">
-                <thead className="sticky top-0 z-10" style={{ background: 'var(--primary)' }}>
-                  <tr className="text-white font-bold">
-                    <th className="py-1.5 px-2">كود الصنف</th>
-                    <th className="py-1.5 px-2">إسم الصنف</th>
-                    <th className="py-1.5 px-2 text-center">السعر</th>
-                    <th className="py-1.5 px-2 text-center">الكمية</th>
-                    <th className="py-1.5 px-2 text-center">الإجمالي</th>
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[var(--primary)] text-white font-bold">
+                    <th className="py-2 px-2 text-right">كود الصنف</th>
+                    <th className="py-2 px-2 text-right">إسم الصنف</th>
+                    <th className="py-2 px-2 text-center">السعر</th>
+                    <th className="py-2 px-2 text-center">الكمية</th>
+                    <th className="py-2 px-2 text-center">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1216,24 +1237,24 @@ export default function POSPage() {
                     const belowCost = lineNet < item.qty * item.unit_cost
                     return (
                       <tr key={item.product_id} onClick={() => removeItem(item.product_id)}
-                        className={clsx('border-b border-slate-100 cursor-pointer', belowCost ? 'bg-red-50' : 'hover:bg-slate-50')}>
-                        <td className="py-1.5 px-2 text-slate-400 font-mono text-[10px]">{idx + 1}</td>
-                        <td className="py-1.5 px-2 font-semibold text-slate-700 max-w-[100px] truncate" title={item.name}>{item.name}</td>
-                        <td className="py-1.5 px-2 text-center">
-                          <input type="number" min="0" step="0.5" value={item.unit_price} onClick={e => e.stopPropagation()}
+                        className={clsx('border-b border-slate-100 cursor-pointer transition-colors', belowCost ? 'bg-red-50 hover:bg-red-100/70' : 'hover:bg-[var(--primary-soft)]')}>
+                        <td className="py-2 px-2 text-slate-400 font-mono text-[10px] tabular-nums text-right">{idx + 1}</td>
+                        <td className="py-2 px-2 font-semibold text-slate-700 max-w-[100px] truncate text-right" title={item.name}>{item.name}</td>
+                        <td className="py-2 px-2 text-center">
+                          <input type="number" min="0" step="0.5" value={item.unit_price} onClick={e => e.stopPropagation()} aria-label={`سعر ${item.name}`}
                             onChange={e => { const v = Number(e.target.value); if (v > 0) updatePrice(item.product_id, v) }}
                             onBlur={e => { if (Number(e.target.value) < item.unit_cost) updatePrice(item.product_id, item.unit_cost) }}
-                            className={clsx('w-12 text-center text-[10px] font-bold border rounded py-0.5 outline-none',
-                              item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50' : 'border-slate-200')} />
+                            className={clsx('w-14 text-center text-[10px] font-bold border rounded-md py-1 outline-none focus:ring-2 tabular-nums',
+                              item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50 focus:ring-red-200' : 'border-slate-200 focus:ring-[var(--primary-border)]')} />
                         </td>
-                        <td className="py-1.5 px-2 text-center">
-                          <div className="flex items-center justify-center gap-0.5" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={9} /></button>
-                            <span className="w-6 text-center font-bold text-[11px]">{item.qty}</span>
-                            <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={9} /></button>
+                        <td className="py-2 px-2 text-center">
+                          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => updateQty(item.product_id, item.qty - 1)} aria-label="إنقاص الكمية" className="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"><Minus size={9} /></button>
+                            <span className="w-7 text-center font-bold text-[11px] tabular-nums">{item.qty}</span>
+                            <button onClick={() => updateQty(item.product_id, item.qty + 1)} aria-label="زيادة الكمية" className="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"><Plus size={9} /></button>
                           </div>
                         </td>
-                        <td className={clsx('py-1.5 px-2 text-center font-black', belowCost ? 'text-red-600' : '')} style={!belowCost ? { color: 'var(--primary)' } : {}}>
+                        <td className={clsx('py-2 px-2 text-center font-black tabular-nums', belowCost ? 'text-red-600' : 'text-[var(--primary)]')}>
                           {lineNet.toLocaleString('ar-EG')}
                         </td>
                       </tr>
@@ -1245,12 +1266,11 @@ export default function POSPage() {
           </div>
 
           {/* Bottom checkout bar */}
-          <div className="border-t border-slate-200 p-2 flex-shrink-0">
+          <div className="border-t border-slate-100 p-2.5 flex-shrink-0">
             <button onClick={() => checkoutMut.mutate()}
               disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-              className="w-full py-2 rounded-lg text-[11px] font-bold text-white transition-all disabled:opacity-40"
-              style={{ background: items.length ? '#16a34a' : '#cbd5e1' }}>
-              <Printer size={12} className="inline ml-1" />
+              className="btn btn-success w-full">
+              <Printer size={14} />
               {checkoutMut.isPending ? 'جاري...' : `طباعة حفظ — ${total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })} ج.م`}
             </button>
           </div>
@@ -1260,88 +1280,65 @@ export default function POSPage() {
 
       {/* Invoice-level discount + checkout (only when items exist) */}
       {items.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-b-xl flex-shrink-0 -mt-px">
+        <div className="card flex items-center gap-3 px-4 py-2.5 rounded-xl flex-shrink-0 mt-2 fade-in">
           {splitPayments.length > 0 && !isCredit && (
-            <div className="flex items-center gap-1 text-[10px] text-slate-400">
-              <span>{splitPayments.length} أقساط</span>
-              <button onClick={() => setSplitPayments([])} className="text-red-400 hover:text-red-600">✕</button>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+              <span className="badge-primary">{splitPayments.length} أقساط</span>
+              <button onClick={() => setSplitPayments([])} className="text-red-400 hover:text-red-600 transition-colors" aria-label="إلغاء التقسيم">✕</button>
             </div>
           )}
           <div className="flex-1" />
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>خصم: <span className="font-bold text-red-500">{totalDiscount().toLocaleString('ar-EG')} ج.م</span></span>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span>خصم: <span className="font-bold text-red-500 tabular-nums">{totalDiscount().toLocaleString('ar-EG')} ج.م</span></span>
             <span className="text-slate-300">|</span>
-            <span>الإجمالي: <span className="font-black text-lg" style={{ color: 'var(--primary)' }}>{total().toLocaleString('ar-EG')} ج.م</span></span>
+            <span>الإجمالي: <span className="font-black text-lg text-[var(--primary)] tabular-nums">{total().toLocaleString('ar-EG')} ج.م</span></span>
           </div>
           <button onClick={() => checkoutMut.mutate()}
             disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-            className="px-6 py-2 rounded-xl font-black text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
-            style={{ background: items.length ? 'var(--accent)' : '#e2e8f0', color: items.length ? 'var(--primary)' : '#94a3b8' }}>
+            className={clsx('btn btn-lg', items.length ? 'btn-accent text-[var(--primary)]' : 'btn-ghost')}>
             <CheckCircle size={16} />
             {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? 'حدد عميل' : isCredit ? 'تأكيد — آجل' : 'تأكيد الدفع'}
           </button>
         </div>
       )}
 
-      {/* ── Bottom toolbar (VB6-style action buttons + discount) ── */}
-      <div className="flex-shrink-0 mt-2 flex items-stretch gap-3">
-        {/* Discount section */}
-        <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2">
-          <Tag size={13} className="text-slate-400" />
-          <span className="text-[10px] font-bold text-slate-500">خصم أصناف</span>
-          <div className="relative">
-            <input type="number" min="0" max="100" value={discountInput}
-              onChange={e => setDiscountInput(e.target.value)}
-              className="w-16 text-center text-xs border border-slate-200 rounded-lg px-1 py-1 outline-none focus:border-blue-300" placeholder="%" />
-            <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">%</span>
-          </div>
-          <button
-            onClick={() => { if (!discountInput) return; const pct = Number(discountInput); items.forEach(i => updateItemDiscount(i.product_id, 0, pct)); setDiscountInput(''); toast.success('تم تطبيق الخصم') }}
-            disabled={!discountInput || !items.length}
-            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40">
-            تطبيق
-          </button>
-        </div>
-
-        {/* Separator */}
-        <div className="w-px bg-slate-200" />
-
+      {/* ── Bottom toolbar (action buttons + discount) ── */}
+      <div className="flex-shrink-0 mt-2 flex items-stretch gap-2">
         {/* Action buttons */}
-        <div className="flex items-center gap-1.5 flex-wrap flex-1">
+        <div className="flex items-center gap-2 flex-wrap flex-1 card rounded-xl px-3 py-2">
           {/* Barcode / code entry */}
-          <div className="flex items-center gap-1 bg-white rounded-xl border border-slate-200 px-2 py-1.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:border-[var(--primary)] transition-colors">
             <Search size={12} className="text-slate-400" />
-            <input ref={searchRef} value={search}
+            <input ref={searchRef} value={search} aria-label="إدخال كود أو باركود"
               onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
               onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-              className="w-32 text-[11px] bg-transparent outline-none placeholder-slate-400" placeholder="إدخال كود / باركود..." />
+              className="w-36 text-[11px] bg-transparent outline-none placeholder-slate-400" placeholder="إدخال كود / باركود..." />
           </div>
 
           {/* Quick action buttons */}
-          <button onClick={() => setShowReturn(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors">
-            <RotateCcw size={11} /> مرتجع
+          <button onClick={() => setShowReturn(true)} className="btn btn-accent-soft btn-sm text-amber-700">
+            <RotateCcw size={12} /> مرتجع
           </button>
           <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-40">
-            <Trash2 size={11} /> خوارج
+            className="btn btn-danger-soft btn-sm">
+            <Trash2 size={12} /> خوارج
           </button>
           <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors disabled:opacity-40">
-            <DollarSign size={11} /> دواخل
+            className="btn btn-success-soft btn-sm">
+            <DollarSign size={12} /> دواخل
           </button>
           <button onClick={() => setShowCustomerDebt(true)} disabled={!shift}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-40">
-            <DollarSign size={11} /> دفع عميل
+            className="btn btn-primary-soft btn-sm">
+            <DollarSign size={12} /> دفع عميل
           </button>
           <button onClick={() => setShowLedger(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-colors">
-            <BookOpen size={11} /> سجل اليوم
+            className="btn btn-sm btn-ghost border border-slate-200">
+            <BookOpen size={12} /> سجل اليوم
           </button>
           {items.length > 0 && (
             <button onClick={() => { setMode(mode === 'wholesale' ? 'retail' : 'wholesale') }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors">
-              <Tag size={11} /> {mode === 'wholesale' ? 'جملة' : 'قطاعي'}
+              className="btn btn-sm btn-ghost border border-slate-200">
+              <Tag size={12} /> {mode === 'wholesale' ? 'جملة' : 'قطاعي'}
             </button>
           )}
         </div>
@@ -1353,20 +1350,22 @@ export default function POSPage() {
     <div className="lg:hidden flex flex-col" style={{ height: 'calc(100vh - 7rem)' }}>
 
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ background: 'var(--primary)' }}>
-        <span className="text-white font-bold text-sm">🏪 {mainWh?.name}</span>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 flex-shrink-0 rounded-xl mb-2" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)', boxShadow: 'var(--shadow-sm)' }}>
+        <div className="min-w-0">
+          <span className="text-white font-bold text-sm truncate block">🏪 {mainWh?.name}</span>
+          {shift && summary && (
+            <span className="text-white/80 text-[11px] font-semibold tabular-nums">💵 {Number(summary.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
           {shift ? (
             <>
-              <span className="text-white/80 text-xs font-semibold">
-                💵 {summary ? Number(summary.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG') : '...'} ج.م
-              </span>
-              <button onClick={() => setShowRevenueDelivery(true)} className="px-2 py-1 rounded-lg text-xs font-bold bg-blue-500 text-white">💰 توريد</button>
-              <button onClick={() => setShowHandover(true)} className="px-2 py-1 rounded-lg text-xs font-bold bg-amber-400 text-slate-900">تسليم</button>
-              <button onClick={() => setShowClose(true)} className="px-2 py-1 rounded-lg text-xs font-bold bg-red-500 text-white">إغلاق</button>
+              <button onClick={() => setShowRevenueDelivery(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-white/15 text-white active:scale-95 transition-all">💰 توريد</button>
+              <button onClick={() => setShowHandover(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-amber-400 text-slate-900 active:scale-95 transition-all">تسليم</button>
+              <button onClick={() => setShowClose(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-red-500 text-white active:scale-95 transition-all">إغلاق</button>
             </>
           ) : (
-            <button onClick={() => setShowOpenShift(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500 text-white">فتح وردية</button>
+            <button onClick={() => setShowOpenShift(true)} className="btn btn-success btn-sm">فتح وردية</button>
           )}
         </div>
       </div>
@@ -1395,23 +1394,28 @@ export default function POSPage() {
           {debouncedSearch ? (
             <div className="flex-1 min-h-0 overflow-y-auto">
               {isLoading ? <PageLoader /> : !products?.length ? (
-                <div className="text-center py-12 text-slate-400 text-xs">لا توجد نتائج</div>
+                <div className="empty-state">
+                  <div className="empty-icon"><Search size={20} /></div>
+                  <p className="empty-title">لا توجد نتائج</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2.5">
                   {products.map((p: any) => {
                     const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
+                    const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                     return (
                       <button key={p.id} onClick={() => handleAddProduct(p)}
-                        className="bg-white rounded-xl border border-slate-200 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 flex flex-col">
-                        <div className="flex items-start justify-between mb-1.5">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
-                            <Package size={14} className="text-blue-600" />
+                        className="card card-hover p-3 text-right active:scale-95 transition-all flex flex-col gap-1.5">
+                        <div className="flex items-start justify-between">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary-soft)] to-[var(--primary-border)] flex items-center justify-center flex-shrink-0">
+                            <Package size={14} className="text-[var(--primary)]" />
                           </div>
+                          {qty != null && qty <= 0 && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-red-50 text-red-500">نفد</span>}
                         </div>
-                        <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
-                        {p.company && <p className="text-[10px] text-slate-400 mb-1">{p.company}</p>}
+                        <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 text-right">{p.name}</p>
+                        {p.company && <p className="text-[10px] text-slate-400 text-right">{p.company}</p>}
                         <div className="mt-auto">
-                          <p className="text-sm font-black leading-none" style={{ color: 'var(--accent)' }}>{Number(price).toLocaleString('ar-EG')} ج.م</p>
+                          <p className="text-sm font-black text-[var(--primary)] tabular-nums">{Number(price).toLocaleString('ar-EG')} ج.م</p>
                         </div>
                       </button>
                     )
@@ -1422,13 +1426,13 @@ export default function POSPage() {
                 <div className="flex items-center justify-center gap-2 pt-3 pb-1">
                   <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
                     disabled={productPage <= 1}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                    className="btn btn-outline btn-sm">
                     السابق
                   </button>
-                  <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
+                  <span className="text-xs text-slate-500 px-2 tabular-nums">{productPage} / {productPages}</span>
                   <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
                     disabled={productPage >= productPages}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+                    className="btn btn-outline btn-sm">
                     التالي
                   </button>
                 </div>
@@ -1448,26 +1452,24 @@ export default function POSPage() {
               return <>
                 <button onClick={() => setCatPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={catPage >= totalPages - 1}
-                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-200 text-slate-500">
+                  className="btn-icon btn-ghost text-slate-400" aria-label="تصنيفات سابقة">
                   ▶
                 </button>
                 <div className="flex gap-1.5 flex-1 overflow-hidden">
                   <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
-                    className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
-                    style={!selectedCat ? { background: 'var(--primary)', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
+                    className={clsx('chip whitespace-nowrap transition-all', !selectedCat ? 'chip-active font-black text-xs' : 'text-xs')}>
                     الكل
                   </button>
                   {cats.slice(catPage * 6, (catPage + 1) * 6).map((cat) => (
                     <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
-                      className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
-                      style={selectedCat === cat.id ? { background: 'var(--primary)', color: 'white' } : { background: '#f1f5f9', color: '#64748b' }}>
+                      className={clsx('chip whitespace-nowrap transition-all', selectedCat === cat.id ? 'chip-active font-black text-xs' : 'text-xs')}>
                       {cat.name}
                     </button>
                   ))}
                 </div>
                 <button onClick={() => setCatPage(p => Math.max(0, p - 1))}
                   disabled={catPage === 0}
-                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors disabled:opacity-20 disabled:cursor-default bg-slate-200 text-slate-500">
+                  className="btn-icon btn-ghost text-slate-400" aria-label="تصنيفات تالية">
                   ◀
                 </button>
               </>
@@ -1476,13 +1478,13 @@ export default function POSPage() {
           {/* Product table */}
           <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
             <table className="w-full text-right text-xs">
-              <thead className="sticky top-0 bg-slate-100 z-10">
-                <tr className="text-slate-500 font-semibold">
-                  <th className="py-2 px-2">المنتج</th>
-                  <th className="py-2 px-2">الرف</th>
-                  <th className="py-2 px-2">السعر</th>
-                  <th className="py-2 px-2">المخزون</th>
-                  <th className="py-2 px-2"></th>
+              <thead className="sticky top-0 bg-[var(--primary)] z-10">
+                <tr className="text-white font-bold">
+                  <th className="py-2 px-2 text-right">المنتج</th>
+                  <th className="py-2 px-2 text-right">الرف</th>
+                  <th className="py-2 px-2 text-right">السعر</th>
+                  <th className="py-2 px-2 text-right">المخزون</th>
+                  <th className="py-2 px-2 text-right"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1497,18 +1499,18 @@ export default function POSPage() {
                   const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                   return (
                     <tr key={p.id} onClick={() => handleAddProduct(p)}
-                      className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
-                      <td className="py-2 px-2 font-semibold text-slate-800">{p.name}</td>
-                      <td className="py-2 px-2">{p.shelf_number ? <span className="text-xs px-1 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                      <td className="py-2 px-2 font-black" style={{ color: 'var(--accent)' }}>{price.toLocaleString('ar-EG')}</td>
-                      <td className="py-2 px-2">
+                      className="border-t border-slate-100 hover:bg-[var(--primary-soft)] cursor-pointer transition-colors">
+                      <td className="py-2 px-2 font-semibold text-slate-800 text-right">{p.name}</td>
+                      <td className="py-2 px-2 text-right">{p.shelf_number ? <span className="badge-blue text-xs">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
+                      <td className="py-2 px-2 font-black text-[var(--primary)] tabular-nums">{price.toLocaleString('ar-EG')}</td>
+                      <td className="py-2 px-2 text-right">
                         {qty !== null ? (
-                          <span className={`font-bold px-1 rounded ${
-                            qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600'
+                          <span className={`font-bold px-1.5 py-0.5 rounded tabular-nums ${
+                            qty <= 0 ? 'text-red-500 bg-red-50' : qty <= 5 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50'
                           }`}>{qty}</span>
                         ) : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="py-2 px-2 text-blue-500 font-bold text-sm">+</td>
+                      <td className="py-2 px-2 text-[var(--primary)] font-black text-sm">+</td>
                     </tr>
                   )
                 })}
@@ -1606,9 +1608,10 @@ export default function POSPage() {
           {/* Cart items */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {!items.length && (
-              <div className="text-center py-16 text-slate-300">
-                <ShoppingCart size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm">السلة فارغة</p>
+              <div className="empty-state py-16">
+                <div className="empty-icon"><ShoppingCart size={24} /></div>
+                <p className="empty-title">السلة فارغة</p>
+                <p className="empty-sub">أضف أصناف من تبويب المنتجات</p>
               </div>
             )}
             {items.map((item) => {
@@ -1617,31 +1620,31 @@ export default function POSPage() {
               const lineNet = lineTotal - itemDiscAmt
               const belowCost = item.unit_price < item.unit_cost
               return (
-                <div key={item.product_id} className={`bg-white rounded-xl border p-3 ${belowCost ? 'border-red-200' : 'border-slate-100'}`}>
+                <div key={item.product_id} className={`card p-3 ${belowCost ? 'border-red-200 bg-red-50/40' : ''} fade-in`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm leading-tight truncate">{item.name}</p>
+                      <p className="font-bold text-slate-800 text-sm leading-tight truncate text-right">{item.name}</p>
                       <p className="text-xs text-slate-400">{item.unit}</p>
                     </div>
-                    <button onClick={() => removeItem(item.product_id)} className="text-slate-300 hover:text-red-500 flex-shrink-0">
+                    <button onClick={() => removeItem(item.product_id)} className="text-slate-300 hover:text-red-500 flex-shrink-0 transition-colors" aria-label={`حذف ${item.name}`}>
                       <X size={14} />
                     </button>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     {/* Qty */}
                     <div className="flex items-center gap-1">
-                      <button onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90"><Minus size={12} /></button>
-                      <span className="w-8 text-center font-bold text-sm">{item.qty}</span>
-                      <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90"><Plus size={12} /></button>
+                      <button onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90 transition-all" aria-label="إنقاص الكمية"><Minus size={12} /></button>
+                      <span className="w-8 text-center font-bold text-sm tabular-nums">{item.qty}</span>
+                      <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90 transition-all" aria-label="زيادة الكمية"><Plus size={12} /></button>
                     </div>
                     {/* Price */}
-                    <input type="number" min="0" step="0.01"
+                    <input type="number" min="0" step="0.01" aria-label={`سعر ${item.name}`}
                       value={item.unit_price}
                       onChange={e => { const v = Number(e.target.value); if (v > 0) updatePrice(item.product_id, v) }}
                       onBlur={e => { if (Number(e.target.value) < item.unit_cost) updatePrice(item.product_id, item.unit_cost) }}
-                      className={`w-20 text-center text-sm font-bold border rounded-lg py-1 outline-none ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
+                      className={`w-20 text-center text-sm font-bold border rounded-lg py-1.5 outline-none tabular-nums ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
                     {/* Total */}
-                    <p className="font-black text-sm w-16 text-left" style={{ color: belowCost ? '#dc2626' : 'var(--primary)' }}>{lineNet.toLocaleString('ar-EG')}</p>
+                    <p className={`font-black text-sm w-16 text-left tabular-nums ${belowCost ? 'text-red-600' : 'text-[var(--primary)]'}`}>{lineNet.toLocaleString('ar-EG')}</p>
                   </div>
                 </div>
               )
@@ -1649,45 +1652,44 @@ export default function POSPage() {
           </div>
 
           {/* Checkout footer */}
-          <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-2">
+          <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-2 bg-white">
             {totalDiscount() > 0 && (
               <div className="flex justify-between text-xs text-red-500"><span>الخصم</span><span>- {totalDiscount().toLocaleString('ar-EG')} ج.م</span></div>
             )}
             <div className="flex justify-between items-center">
               <span className="text-slate-500 text-sm">الإجمالي</span>
-              <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{total().toLocaleString('ar-EG')} ج.م</span>
+              <span className="text-2xl font-black text-[var(--primary)] tabular-nums">{total().toLocaleString('ar-EG')} ج.م</span>
             </div>
             <button onClick={() => checkoutMut.mutate()}
               disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-              className="w-full py-4 rounded-xl font-black text-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: items.length ? 'var(--accent)' : '#e2e8f0', color: items.length ? 'var(--primary)' : '#94a3b8' }}>
+              className={clsx('btn btn-lg w-full', items.length ? 'btn-accent text-[var(--primary)]' : 'btn-ghost')}>
               <CheckCircle size={20} />
               {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? '⚠️ حدد عميل' : 'تأكيد الدفع'}
             </button>
             {/* Quick actions */}
             <div className="grid grid-cols-4 gap-1.5">
-              <button onClick={() => setShowReturn(true)} className="py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">↩ مرتجع</button>
-              <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift} className="py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200 disabled:opacity-40">خوارج</button>
-              <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift} className="py-2 rounded-xl text-xs font-bold bg-green-50 text-green-700 border border-green-200 disabled:opacity-40">دواخل</button>
-              <button onClick={() => setShowLedger(true)} className="py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">سجل</button>
+              <button onClick={() => setShowReturn(true)} className="btn btn-accent-soft btn-sm text-amber-700">↩ مرتجع</button>
+              <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift} className="btn btn-danger-soft btn-sm">خوارج</button>
+              <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift} className="btn btn-success-soft btn-sm">دواخل</button>
+              <button onClick={() => setShowLedger(true)} className="btn btn-sm btn-ghost">سجل</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Bottom tab bar */}
-      <div className="flex-shrink-0 border-t border-slate-200 bg-white flex" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex-shrink-0 border-t border-slate-200 bg-white flex rounded-xl shadow-sm" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <button onClick={() => setMobileTab('products')}
-          className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors ${mobileTab === 'products' ? 'text-blue-600' : 'text-slate-400'}`}>
+          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors ${mobileTab === 'products' ? 'text-[var(--primary)]' : 'text-slate-400'}`}>
           <Search size={20} />
           <span>منتجات</span>
         </button>
         <button onClick={() => setMobileTab('cart')}
-          className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors relative ${mobileTab === 'cart' ? 'text-blue-600' : 'text-slate-400'}`}>
+          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors relative ${mobileTab === 'cart' ? 'text-[var(--primary)]' : 'text-slate-400'}`}>
           <ShoppingCart size={20} />
           <span>السلة</span>
           {items.length > 0 && (
-            <span className="absolute top-2 right-1/2 translate-x-4 -translate-y-0.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-black">{items.length}</span>
+            <span className="absolute top-1 right-1/2 translate-x-4 -translate-y-0.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-black tabular-nums">{items.length}</span>
           )}
         </button>
       </div>

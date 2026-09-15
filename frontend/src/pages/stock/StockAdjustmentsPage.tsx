@@ -57,9 +57,9 @@ function AdjustmentForm({ onClose }: { onClose: () => void }) {
       <div>
         <label className="block text-sm font-medium text-slate-600 mb-1">المنتج *</label>
         {selectedProduct ? (
-          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-xl">
-            <span className="font-semibold text-blue-800">{selectedProduct.name}</span>
-            <button type="button" onClick={() => { setSelectedProduct(null); setSearch('') }} className="text-xs text-blue-500 hover:underline">تغيير</button>
+          <div className="flex items-center justify-between p-3 bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-xl">
+            <span className="font-semibold text-[var(--primary)]">{selectedProduct.name}</span>
+            <button type="button" onClick={() => { setSelectedProduct(null); setSearch('') }} className="text-xs text-[var(--primary)] hover:underline">تغيير</button>
           </div>
         ) : (
           <div className="relative">
@@ -105,9 +105,9 @@ function AdjustmentForm({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+        <button type="button" onClick={onClose} className="btn btn-ghost">إلغاء</button>
         <button type="submit" disabled={!selectedProduct || !warehouseId || !qty || mut.isPending || (['adjustment_out', 'damage'].includes(movementType) && !note.trim())}
-          className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+          className="btn btn-primary">
           تسجيل الحركة
         </button>
       </div>
@@ -138,7 +138,9 @@ export default function StockAdjustmentsPage() {
     queryFn: () => api.get('/stock/movements', { params: { warehouse_id: activeWarehouseId || undefined, limit: 200 } }).then(r => r.data),
   })
 
-  const filtered = (movements || []).filter((m: any) => {
+  const list = Array.isArray(movements) ? movements : (movements?.items ?? [])
+
+  const filtered = list.filter((m: any) => {
     if (typeFilter && m.movement_type !== typeFilter) return false
     if (search && !(m.product_name || '').includes(search) && !(m.note || '').includes(search)) return false
     return true
@@ -172,7 +174,7 @@ export default function StockAdjustmentsPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">📋 حركات المخزون</h1>
-        <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+        <button onClick={() => setShowAdd(true)} className="btn btn-primary">
           <Plus size={15} /> تسوية جديدة
         </button>
       </div>

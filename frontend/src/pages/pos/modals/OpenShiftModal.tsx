@@ -20,9 +20,9 @@ export function OpenShiftModal({ showOpenShift, onClose, mainWh, lastDrawer, sup
           <p className="text-slate-500 text-xs mb-1">الفرع</p>
           <p className="font-bold text-slate-800">🏪 {mainWh?.name || '—'}</p>
         </div>
-        <div className="bg-slate-50 rounded-xl p-5 text-center border border-slate-200">
+        <div className="bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-xl p-5 text-center">
           <p className="text-slate-500 text-sm mb-1">الرصيد الافتتاحي (فكة اليوم السابق)</p>
-          <p className="text-4xl font-black" style={{ color: 'var(--primary)' }}>
+          <p className="text-4xl font-black text-[var(--primary)] tabular-nums">
             {Number(lastDrawer?.amount || 0).toLocaleString('ar-EG')} ج.م
           </p>
           <p className="text-xs text-slate-400 mt-1">لا يمكن تعديله — يُحسب تلقائياً</p>
@@ -37,10 +37,9 @@ export function OpenShiftModal({ showOpenShift, onClose, mainWh, lastDrawer, sup
           </select>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => openShiftMut.mutate()} disabled={openShiftMut.isPending || !mainWh?.id}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-2 disabled:opacity-50"
-            style={{ background: '#16a34a' }}>
+            className="btn btn-success">
             <Wallet size={15} /> تأكيد فتح الوردية
           </button>
         </div>

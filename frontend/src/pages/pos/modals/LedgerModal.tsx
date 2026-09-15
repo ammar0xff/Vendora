@@ -25,19 +25,19 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
           {/* Summary */}
           <div className="grid grid-cols-9 gap-2 text-center text-xs">
             {[
-              { label: 'الرصيد الافتتاحي', val: todayLedger.summary.opening_balance, color: '#6b7280' },
-              { label: 'إجمالي المبيعات', val: todayLedger.summary.total_sales, color: '#16a34a' },
-              { label: 'نقدي', val: todayLedger.summary.cash_sales, color: '#15803d' },
-              { label: 'المرتجعات', val: todayLedger.summary.total_returns, color: '#dc2626' },
-              { label: 'الخوارج', val: todayLedger.summary.total_expenses, color: '#d97706' },
-              { label: 'الدواخل', val: todayLedger.summary.total_deposits, color: '#2563eb' },
-              { label: 'توريد إيرادات', val: todayLedger.summary.total_revenue_delivery ?? 0, color: '#9333ea' },
-              { label: 'الصافي', val: todayLedger.summary.net, color: 'var(--primary)' },
-              { label: 'الدرج (نقدي)', val: todayLedger.summary.cash_closing ?? todayLedger.summary.closing, color: '#7c3aed' },
-            ].map(({ label, val, color }) => (
+              { label: 'الرصيد الافتتاحي', val: todayLedger.summary.opening_balance, colorClass: 'text-slate-500' },
+              { label: 'إجمالي المبيعات', val: todayLedger.summary.total_sales, colorClass: 'text-green-600' },
+              { label: 'نقدي', val: todayLedger.summary.cash_sales, colorClass: 'text-green-700' },
+              { label: 'المرتجعات', val: todayLedger.summary.total_returns, colorClass: 'text-red-600' },
+              { label: 'الخوارج', val: todayLedger.summary.total_expenses, colorClass: 'text-amber-600' },
+              { label: 'الدواخل', val: todayLedger.summary.total_deposits, colorClass: 'text-blue-600' },
+              { label: 'توريد إيرادات', val: todayLedger.summary.total_revenue_delivery ?? 0, colorClass: 'text-violet-600' },
+              { label: 'الصافي', val: todayLedger.summary.net, colorClass: 'text-[var(--primary)]' },
+              { label: 'الدرج (نقدي)', val: todayLedger.summary.cash_closing ?? todayLedger.summary.closing, colorClass: 'text-violet-600' },
+            ].map(({ label, val, colorClass }) => (
               <div key={label} className="bg-slate-50 rounded-lg p-2">
                 <p className="text-slate-400 mb-0.5">{label}</p>
-                <p className="font-black text-sm" style={{ color }}>{Number(val ?? 0).toLocaleString('ar-EG')} ج.م</p>
+                <p className={`font-black text-sm tabular-nums ${colorClass}`}>{Number(val ?? 0).toLocaleString('ar-EG')} ج.م</p>
               </div>
             ))}
           </div>
@@ -47,13 +47,13 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
             <table>
               <thead>
                 <tr>
-                  <th style={{width:'28px'}}>#</th>
+                  <th className="w-7">#</th>
                   <th>اسم الصنف</th>
-                  <th style={{textAlign:'center',whiteSpace:'nowrap'}}>الكمية</th>
-                  <th style={{textAlign:'center',whiteSpace:'nowrap'}}>السعر</th>
-                  <th style={{textAlign:'center',whiteSpace:'nowrap'}}>المجموع</th>
-                  <th style={{textAlign:'center',whiteSpace:'nowrap'}}>النوع</th>
-                  <th style={{whiteSpace:'nowrap'}}>الدفع</th>
+                  <th className="text-center whitespace-nowrap">الكمية</th>
+                  <th className="text-center whitespace-nowrap">السعر</th>
+                  <th className="text-center whitespace-nowrap">المجموع</th>
+                  <th className="text-center whitespace-nowrap">النوع</th>
+                  <th className="whitespace-nowrap">الدفع</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,7 +66,7 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
                       <p className="text-xs text-slate-400 leading-tight">{item.invoice_number} · {item.customer}</p>
                     </td>
                     <td className="text-center text-sm">
-                      <button className="text-blue-500 hover:text-blue-700 text-xs underline"
+                      <button className="text-[var(--primary)] hover:underline text-xs font-bold"
                         onClick={() => {
                           const newQty = prompt(`كمية جديدة لـ ${item.product_name} (الحالية: ${item.qty}):`, String(item.qty))
                           if (newQty && Number(newQty) > 0 && Number(newQty) !== item.qty) {

@@ -88,12 +88,12 @@ export default function PurchaseOrdersPage() {
           <p className="text-slate-500 text-sm mt-1">منتجات وصلت لحد إعادة الطلب عبر جميع المخازن</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => refetch()} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-white border border-slate-200 text-slate-600 flex items-center gap-2 hover:bg-slate-50">
+          <button onClick={() => refetch()} className="btn btn-outline">
             <RefreshCw size={14} /> تحديث
           </button>
           {selectedCount > 0 && (
             <button onClick={() => setShowConfirm(true)}
-              className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+              className="btn btn-primary">
               <ShoppingBag size={15} /> إنشاء أمر شراء ({selectedCount})
             </button>
           )}
@@ -144,9 +144,9 @@ export default function PurchaseOrdersPage() {
             </div>
           </div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowConfirm(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+            <button onClick={() => setShowConfirm(false)} className="btn btn-ghost">إلغاء</button>
             <button onClick={() => { if (!warehouseId) return toast.error('اختر المخزن أولاً'); createMut.mutate() }} disabled={createMut.isPending}
-              className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+              className="btn btn-primary">
               إنشاء الأمر
             </button>
           </div>

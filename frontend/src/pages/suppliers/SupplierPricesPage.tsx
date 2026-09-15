@@ -54,13 +54,13 @@ export default function SupplierPricesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">مقارنة أسعار الموردين</h1>
+        <h1 className="page-title">مقارنة أسعار الموردين</h1>
         <p className="text-slate-500 mt-1">قارن أسعار نفس المنتج من موردين مختلفين</p>
       </div>
 
       {/* Product Selector */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <label className="block text-sm font-medium text-slate-600 mb-2">اختر منتج</label>
+      <div className="card p-4">
+        <label className="field-label mb-2">اختر منتج</label>
         <select 
           value={selectedProductId} 
           onChange={e => setSelectedProductId(e.target.value)}
@@ -108,53 +108,48 @@ export default function SupplierPricesPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setSortBy('price')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                sortBy === 'price' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-              }`}
+              className={`chip ${sortBy === 'price' ? 'chip-active' : ''}`}
             >
-              <TrendingDown size={14} className="inline mr-1" /> السعر
+              <TrendingDown size={13} className="inline ml-1" /> السعر
             </button>
             <button
               onClick={() => setSortBy('supplier')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                sortBy === 'supplier' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-              }`}
+              className={`chip ${sortBy === 'supplier' ? 'chip-active' : ''}`}
             >
               الموردين
             </button>
             <button
               onClick={() => setSortBy('date')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                sortBy === 'date' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-              }`}
+              className={`chip ${sortBy === 'date' ? 'chip-active' : ''}`}
             >
-              <Calendar size={14} className="inline mr-1" /> آخر شراء
+              <Calendar size={13} className="inline ml-1" /> آخر شراء
             </button>
           </div>
 
           {/* Supplier Prices Table */}
-          <div className="bg-white rounded-xl shadow overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b">
+          <div className="card p-0 overflow-hidden">
+            <div className="table-wrap !rounded-none !border-0 !shadow-none">
+            <table>
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-right text-slate-700 font-semibold">الموردين</th>
-                  <th className="px-4 py-3 text-right text-slate-700 font-semibold">السعر</th>
-                  <th className="px-4 py-3 text-right text-slate-700 font-semibold">الحد الأدنى</th>
-                  <th className="px-4 py-3 text-right text-slate-700 font-semibold">آخر شراء</th>
-                  <th className="px-4 py-3 text-right text-slate-700 font-semibold">الملاحظات</th>
-                  <th className="px-4 py-3 text-center text-slate-700 font-semibold">الإجراءات</th>
+                  <th>الموردين</th>
+                  <th>السعر</th>
+                  <th>الحد الأدنى</th>
+                  <th>آخر شراء</th>
+                  <th>الملاحظات</th>
+                  <th className="text-center">الإجراءات</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedSuppliers().map((supplier: any) => (
-                  <tr key={supplier.id} className="border-b hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3">
+                  <tr key={supplier.id} className="hover:bg-slate-50 transition-colors">
+                    <td>
                       <div>
                         <p className="font-medium text-slate-800">{supplier.supplier_name}</p>
                         <p className="text-xs text-slate-500">#{supplier.supplier_id}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       <span className={`font-bold ${
                         supplier.price === bestPrice ? 'text-green-600' : 'text-slate-800'
                       }`}>
@@ -162,18 +157,18 @@ export default function SupplierPricesPage() {
                       </span>
                       {supplier.price === bestPrice && <span className="text-xs text-green-600 block">✓ الأقل</span>}
                     </td>
-                    <td className="px-4 py-3">{supplier.min_qty || '1'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
+                    <td className="text-center">{supplier.min_qty || '1'}</td>
+                    <td className="text-xs text-slate-500">
                       {supplier.last_purchase_date ? 
                         new Date(supplier.last_purchase_date).toLocaleDateString('ar-EG') : 
                         'لم يتم شراء'}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">{supplier.notes || '-'}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="text-xs text-slate-500">{supplier.notes || '-'}</td>
+                    <td className="text-center">
                       <button
                         onClick={() => deleteMut.mutate(supplier.id)}
                         disabled={deleteMut.isPending}
-                        className="p-1 hover:bg-red-100 rounded text-red-600 transition-colors"
+                        className="p-1.5 rounded btn-icon text-red-600 hover:bg-red-50 transition-colors"
                         title="حذف"
                       >
                         <Trash2 size={16} />
@@ -183,6 +178,7 @@ export default function SupplierPricesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       )}

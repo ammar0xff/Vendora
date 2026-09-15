@@ -21,8 +21,8 @@ function SupplierForm({ initial, onSave, onClose, saving }: any) {
         <div className="col-span-2"><label className="block text-sm font-medium text-slate-600 mb-1">ملاحظات</label><textarea className="input" rows={2} value={form.notes || ''} onChange={e => set('notes', e.target.value)} /></div>
       </div>
       <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>{saving ? 'جاري الحفظ...' : 'حفظ'}</button>
+        <button type="button" onClick={onClose} className="btn btn-ghost">إلغاء</button>
+        <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'جاري الحفظ...' : 'حفظ'}</button>
       </div>
     </form>
   )
@@ -52,8 +52,8 @@ function TxForm({ supplierId, onClose }: any) {
         <div><label className="block text-sm font-medium text-slate-600 mb-1">ملاحظات</label><input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
       </div>
       <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="submit" disabled={mut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: 'var(--primary)' }}>إضافة</button>
+        <button type="button" onClick={onClose} className="btn btn-ghost">إلغاء</button>
+        <button type="submit" disabled={mut.isPending} className="btn btn-primary">إضافة</button>
       </div>
     </form>
   )
@@ -77,7 +77,7 @@ function LedgerModal({ supplier, onClose }: any) {
             {balance > 0 ? '🔴 مديون لنا' : balance < 0 ? '🟢 نحن مدينون له' : '✅ متوازن'}
           </p>
         </div>
-        <button onClick={() => setShowTxForm(true)} className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+        <button onClick={() => setShowTxForm(true)} className="btn btn-primary">
           <Plus size={14} /> حركة جديدة
         </button>
       </div>
@@ -165,7 +165,7 @@ export default function SuppliersPage() {
             { label: 'الهاتف', accessor: (r: any) => r.phone || '' },
             { label: 'الرصيد', accessor: (r: any) => Number(r.balance) },
           ]} filename="الموردون" excelEndpoint="/export/suppliers" />
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+          <button onClick={() => setShowAdd(true)} className="btn btn-primary">
             <Plus size={15} /> إضافة
           </button>
         </div>

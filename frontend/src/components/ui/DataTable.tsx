@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
-import { ChevronUp, ChevronDown, ChevronsUpDown, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, ChevronsUpDown, Plus, Search } from 'lucide-react'
 
 interface Column<T> {
   key: string
@@ -14,32 +14,39 @@ interface Props<T> {
   data: T[] | undefined
   loading?: boolean
   emptyMessage?: string
-  emptyIcon?: string
+  emptyIcon?: ReactNode
   emptyAction?: { label: string; onClick: () => void }
   rowKey: (row: T) => string
   onRowClick?: (row: T) => void
   maxHeight?: string
   defaultSort?: { key: string; dir: 'asc' | 'desc' }
+  toolbar?: ReactNode
+  searchPlaceholder?: string
+  searchValue?: string
+  onSearchChange?: (value: string) => void
+  className?: string
 }
 
 function SkeletonRow({ cols, index }: { cols: number; index: number }) {
-  const variants = [
+  const widths = [
     ['65%', '45%', '35%', '55%'],
     ['50%', '30%', '60%', '40%'],
     ['70%', '55%', '25%', '50%'],
     ['40%', '60%', '45%', '70%'],
     ['55%', '35%', '50%', '30%'],
   ]
-  const pattern = variants[index % variants.length]
+  const pattern = widths[index % widths.length]
   return (
-    <tr className="border-b border-slate-50">
+    <tr className="border-b border-[var(--border-faint)]">
       {Array.from({ length: cols }).map((_, i) => (
         <td key={i} className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            {i === 0 && <div className="w-8 h-8 rounded-lg bg-slate-100 animate-pulse flex-shrink-0" />}
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 bg-slate-100 rounded-lg animate-pulse" style={{ width: pattern[i % pattern.length] }} />
-              {i <= 1 && <div className="h-2.5 bg-slate-50 rounded-lg animate-pulse" style={{ width: '35%' }} />}
+          <div className="flex items-center gap-2.5">
+            {i === 0 && (
+              <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
+            )}
+            <div className="flex-1 space-y-2">
+              <div className="skeleton h-3 rounded-md" style={{ width: pattern[i % pattern.length] }} />
+              {i <= 1 && <div className="skeleton h-2.5 rounded-md" style={{ width: '35%' }} />}
             </div>
           </div>
         </td>
@@ -48,7 +55,7 @@ function SkeletonRow({ cols, index }: { cols: number; index: number }) {
   )
 }
 
-export default function DataTable<T>({ columns, data, loading, emptyMessage = 'لا توجد بيانات', emptyIcon = '📭', emptyAction, rowKey, onRowClick, maxHeight, defaultSort }: Props<T>) {
+export default function DataTable<T>({ columns, data, loading, emptyMessage = 'لا توجد بيانات', emptyIcon, emptyAction, rowKey, onRowClick, maxHeight, defaultSort, toolbar, searchPlaceholder, searchValue, onSearchChange, className }: Props<T>) {
   const [sortKey, setSortKey] = useState<string | null>(defaultSort?.key ?? null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultSort?.dir ?? 'desc')
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -84,59 +91,86 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = '�
     })
   }, [data, sortKey, sortDir])
 
+  const hasToolbar = toolbar || (searchPlaceholder && onSearchChange)
+
   return (
-    <div className="table-wrap" ref={wrapRef} style={maxHeight ? { maxHeight, overflowY: 'auto' } : {}}>
-      <table>
-        <thead>
-          <tr>
-            {columns.map(col => (
-              <th key={col.key} style={col.width ? { width: col.width } : {}}
-                className={col.sortable ? 'cursor-pointer select-none hover:bg-[var(--primary-soft)] transition-colors' : ''}
-                onClick={col.sortable ? () => handleSort(col.key) : undefined}>
-                <div className="flex items-center gap-1">
-                  {col.label}
-                  {col.sortable && (
-                    <span className="text-slate-400 flex-shrink-0">
-                      {sortKey === col.key
-                        ? sortDir === 'desc' ? <ChevronDown size={13} className="text-[var(--primary)]" /> : <ChevronUp size={13} className="text-[var(--primary)]" />
-                        : <ChevronsUpDown size={13} />}
-                    </span>
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={columns.length} index={i} />)}
-          {!loading && !sorted?.length && (
+    <div className={className}>
+      {hasToolbar && (
+        <div className="table-tools">
+          <div className="flex items-center gap-3 flex-wrap flex-1">
+            {searchPlaceholder && onSearchChange && (
+              <div className="relative max-w-xs w-full">
+                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+                <input
+                  type="search"
+                  placeholder={searchPlaceholder}
+                  value={searchValue ?? ''}
+                  onChange={e => onSearchChange(e.target.value)}
+                  className="input pr-9 pl-3 py-2 text-xs min-h-[34px]"
+                />
+              </div>
+            )}
+            {toolbar}
+          </div>
+        </div>
+      )}
+
+      <div className="table-wrap" ref={wrapRef} style={maxHeight ? { maxHeight, overflowY: 'auto' } : {}}>
+        <table>
+          <thead>
             <tr>
-              <td colSpan={columns.length}>
-                <div className="flex flex-col items-center justify-center py-16 text-[var(--muted)]">
-                  <div className="text-4xl mb-3 opacity-60">{emptyIcon}</div>
-                  <p className="text-sm font-semibold mb-4">{emptyMessage}</p>
-                  {emptyAction && (
-                    <button onClick={emptyAction.onClick}
-                      className="btn-primary">
-                      <Plus size={14} /> {emptyAction.label}
-                    </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          )}
-          {!loading && sorted?.map(row => (
-            <tr key={rowKey(row)} onClick={() => onRowClick?.(row)}
-              className={onRowClick ? 'cursor-pointer' : ''}>
               {columns.map(col => (
-                <td key={col.key}>
-                  {col.render ? col.render(row) : (row as any)[col.key]}
-                </td>
+                <th key={col.key} style={col.width ? { width: col.width } : {}}
+                  className={col.sortable ? 'cursor-pointer select-none hover:bg-[var(--primary-soft)] transition-colors' : ''}
+                  onClick={col.sortable ? () => handleSort(col.key) : undefined}>
+                  <div className="flex items-center gap-1">
+                    {col.label}
+                    {col.sortable && (
+                      <span className="text-[var(--muted)] flex-shrink-0">
+                        {sortKey === col.key
+                          ? sortDir === 'desc' ? <ChevronDown size={13} className="text-[var(--primary)]" /> : <ChevronUp size={13} className="text-[var(--primary)]" />
+                          : <ChevronsUpDown size={13} />}
+                      </span>
+                    )}
+                  </div>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={columns.length} index={i} />)}
+            {!loading && !sorted?.length && (
+              <tr>
+                <td colSpan={columns.length}>
+                  <div className="empty-state">
+                    <div className="empty-icon">
+                      {emptyIcon ?? <span className="text-3xl opacity-50">📭</span>}
+                    </div>
+                    <p className="empty-title">{emptyMessage}</p>
+                    {emptyAction && (
+                      <div className="mt-3">
+                        <button onClick={emptyAction.onClick} className="btn-primary btn-sm">
+                          <Plus size={14} /> {emptyAction.label}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!loading && sorted?.map(row => (
+              <tr key={rowKey(row)} onClick={() => onRowClick?.(row)}
+                className={onRowClick ? 't-row-click' : ''}>
+                {columns.map(col => (
+                  <td key={col.key}>
+                    {col.render ? col.render(row) : (row as any)[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -29,7 +29,7 @@ export function PhoneModal({ showPhoneModal, onClose, pendingCustomerName, setPe
           <input className="input" type="tel" value={newCustomerPhone} onChange={e => setNewCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" autoFocus />
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button
             disabled={!newCustomerPhone.trim() || !pendingCustomerName.trim()}
             onClick={async () => {
@@ -41,7 +41,7 @@ export function PhoneModal({ showPhoneModal, onClose, pendingCustomerName, setPe
               setPendingCustomerName('')
               setNewCustomerPhone('')
             }}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+            className="btn btn-primary">
             إضافة وتأكيد
           </button>
         </div>

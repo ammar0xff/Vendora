@@ -24,9 +24,9 @@ export function RevenueDeliveryModal({ showRevenueDelivery, onClose, summary, re
   return (
     <Modal open={showRevenueDelivery} onClose={onClose} title="توريد إيرادات إلى الخزنة">
       <div className="space-y-4">
-        <div className="rounded-xl p-4 text-center" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-          <p className="text-xs font-medium mb-1" style={{ color: '#2563eb' }}>الرصيد النقدي المتوقع في الدرج</p>
-          <p className="text-3xl font-black" style={{ color: '#2563eb' }}>{Number(summary?.cash_in_drawer ?? 0).toLocaleString('ar-EG')} ج.م</p>
+        <div className="rounded-xl p-5 text-center bg-[var(--primary-soft)] border border-[var(--primary-border)]">
+          <p className="text-xs font-medium mb-1 text-[var(--primary)]">الرصيد النقدي المتوقع في الدرج</p>
+          <p className="text-3xl font-black text-[var(--primary)] tabular-nums">{Number(summary?.cash_in_drawer ?? 0).toLocaleString('ar-EG')} ج.م</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ المسلَّم *</label>
@@ -57,10 +57,9 @@ export function RevenueDeliveryModal({ showRevenueDelivery, onClose, summary, re
           </div>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => revenueMut.mutate()} disabled={revenueMut.isPending || !revenueAmount || !revenueSafeId || !revenueManagerId || !revenueManagerPassword}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
-            style={{ background: '#2563eb' }}>
+            className="btn btn-primary">
             <Landmark size={15} /> تأكيد التوريد
           </button>
         </div>

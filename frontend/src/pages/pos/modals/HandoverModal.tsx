@@ -17,9 +17,9 @@ export function HandoverModal({ showHandover, onClose, summary, handoverUsername
     <Modal open={showHandover} onClose={onClose} title="تسليم الدرج لموظف آخر">
       <div className="space-y-4">
         {summary && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <p className="text-sm text-blue-700 font-semibold">الرصيد الحالي للتسليم</p>
-            <p className="text-2xl font-black text-blue-800 mt-1">{Number(summary.expected_balance).toLocaleString('ar-EG')} ج.م</p>
+          <div className="bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-xl p-4">
+            <p className="text-sm font-semibold text-[var(--primary)]">الرصيد الحالي للتسليم</p>
+            <p className="text-2xl font-black text-[var(--primary-strong)] mt-1 tabular-nums">{Number(summary.expected_balance).toLocaleString('ar-EG')} ج.م</p>
           </div>
         )}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
@@ -34,10 +34,9 @@ export function HandoverModal({ showHandover, onClose, summary, handoverUsername
           <input type="password" className="input" value={handoverPassword} onChange={e => setHandoverPassword(e.target.value)} placeholder="••••••••" />
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
+          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
           <button onClick={() => handoverMut.mutate()} disabled={!handoverUsername || !handoverPassword || handoverMut.isPending}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
-            style={{ background: 'var(--accent)', color: 'var(--primary)' }}>
+            className="btn btn-accent">
             <ArrowLeftRight size={15} /> تأكيد التسليم
           </button>
         </div>
