@@ -37,7 +37,7 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
           <button
             onClick={() => onConfirm(destination, safeId)}
             disabled={isPending || (destination === 'safe' && (!safeId || loadingSafes))}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold btn btn-primary transition-colors disabled:opacity-50"
           >
             {isPending ? '...جارٍ التأكيد' : 'تأكيد التحويل'}
           </button>
@@ -53,7 +53,7 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
         <button
           onClick={() => setDestination('drawer')}
           disabled={!hasShift}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-right transition-colors ${destination === 'drawer' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'} ${!hasShift ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-right transition-colors ${destination === 'drawer' ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'border-slate-200 hover:border-slate-300'} ${!hasShift ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#dbeafe', color: '#2563eb' }}>
             <Clock size={20} />
@@ -66,7 +66,7 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
 
         <button
           onClick={() => setDestination('safe')}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-right transition-colors ${destination === 'safe' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
+          className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-right transition-colors ${destination === 'safe' ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#dcfce7', color: '#16a34a' }}>
             <Landmark size={20} />

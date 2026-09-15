@@ -57,11 +57,11 @@ function CartRow({ item, index, onChange, onRemove }: any) {
           <button type="button" onClick={() => onRemove(index)} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
           <div className="flex items-center gap-1">
             <input type="number" min="0" value={item.discount_pct || ''} onChange={e => onChange(index, 'discount_pct', Number(e.target.value))}
-              className="w-12 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-300" placeholder="%" />
+              className="w-12 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-[var(--accent)]" placeholder="%" />
             <span className="text-xs text-slate-400">%</span>
             <span className="text-xs text-slate-300">/</span>
             <input type="number" min="0" value={item.discount || ''} onChange={e => onChange(index, 'discount', Number(e.target.value))}
-              className="w-14 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-300" placeholder="ج.م" />
+              className="w-14 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-[var(--accent)]" placeholder="ج.م" />
           </div>
         </div>
       </td>
@@ -289,7 +289,7 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-slate-600">بنود مالية إضافية</label>
           <button type="button" onClick={() => setExtraLines(p => [...p, { label: '', amount: 0, type: 'add' }])}
-            className="text-xs text-blue-600 hover:underline flex items-center gap-1"><Plus size={12} /> إضافة بند</button>
+            className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"><Plus size={12} /> إضافة بند</button>
         </div>
         {extraLines.map((line, i) => (
           <div key={i} className="flex gap-2 mb-2 items-center">
@@ -452,7 +452,7 @@ export default function QuotationsPage() {
     {
       key: 'actions', label: '', render: (r: any) => (
         <div className="flex gap-1.5 justify-end">
-          <button onClick={() => handlePrint(r.id)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="طباعة"><Printer size={14} /></button>
+          <button onClick={() => handlePrint(r.id)} className="p-1.5 rounded-lg hover:bg-[var(--primary-soft)] text-slate-400 hover:text-[var(--accent)]" title="طباعة"><Printer size={14} /></button>
           <button onClick={() => handleEdit(r)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
           <button onClick={() => setConfirmDelete(r.id)}
             className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600" title="حذف">

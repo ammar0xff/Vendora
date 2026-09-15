@@ -99,7 +99,7 @@ export default function CustomersPage() {
             {!customers?.length && <EmptyState message="لا يوجد عملاء" icon="👤" />}
             {customers?.map((c: any) => (
               <button key={c.id} onClick={() => setSelected(c)}
-                className={`w-full text-right p-3 rounded-xl border transition-all ${selected?.id === c.id ? 'border-blue-300 bg-blue-50' : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'}`}>
+                className={`w-full text-right p-3 rounded-xl border transition-all ${selected?.id === c.id ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'}`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-bold text-slate-800 text-sm">{c.name}</p>
@@ -250,8 +250,8 @@ export default function CustomersPage() {
       {/* Balance modal */}
       <Modal open={showBalance} onClose={() => setShowBalance(false)} title={`تعديل المديونية — ${selected?.name}`}>
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm">
-            المديونية الحالية: <span className="font-black text-blue-700">{Number(account?.balance_due || 0).toLocaleString('ar-EG')} ج.م</span>
+          <div className="bg-[var(--primary-soft)] border-[var(--primary-border)] rounded-xl p-3 text-sm">
+            المديونية الحالية: <span className="font-black" style={{ color: "#d97706" }}>{Number(account?.balance_due || 0).toLocaleString('ar-EG')} ج.م</span>
           </div>
           <div><label className="block text-sm font-medium text-slate-600 mb-1">المديونية الجديدة (ج.م) *</label><input type="number" className="input text-lg font-bold" value={balanceAmount} onChange={e => setBalanceAmount(e.target.value)} autoFocus /></div>
           <div className="text-xs text-slate-500">سيتم تحديث رصيد العميل مباشرة بهذه القيمة.</div>
