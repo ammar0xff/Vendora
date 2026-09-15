@@ -45,7 +45,7 @@ function CartRow({ item, index, onChange, onRemove }: any) {
       <td className="px-3 py-2">
         <input type="number" className={`w-24 text-center border rounded-lg px-2 py-1 text-sm ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
           value={item.unit_price} min="0" step="0.01" onChange={e => { onChange(index, 'unit_price', Number(e.target.value)); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} />
-        {cost > 0 && <button type="button" onClick={() => { onChange(index, 'unit_price', cost); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="block text-xs text-blue-500 hover:underline mt-0.5 mx-auto">= التكلفة</button>}
+        {cost > 0 && <button type="button" onClick={() => { onChange(index, 'unit_price', cost); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="block text-xs text-[var(--accent)] hover:underline mt-0.5 mx-auto">= التكلفة</button>}
       </td>
       <td className="px-3 py-2 text-center">
         {discountAmt > 0 && <p className="text-xs text-slate-400 line-through">{lineTotal.toLocaleString('ar-EG')}</p>}
