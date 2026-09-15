@@ -140,7 +140,7 @@ export default function SalesPage() {
         <div className="flex gap-1 justify-end">
           <button onClick={e => { e.stopPropagation(); handlePrint(s.id) }}
             title="طباعة"
-            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors">
+            className="p-1.5 rounded-lg hover:bg-[var(--primary-soft)] text-slate-400 hover:text-[var(--primary)] transition-colors">
             <Printer size={14} />
           </button>
           <a href={printUrl(`/print/pdf/sale/${s.id}`, 'A4')} target="_blank" rel="noreferrer"
@@ -359,7 +359,7 @@ export default function SalesPage() {
                       className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={12} /></button>
                     <input type="number" min="0" max={item.qty} value={returnQtys[item.product_id] || 0}
                       onChange={e => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min(Number(e.target.value), item.qty) }))}
-                      className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-blue-300" />
+                      className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
                     <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min((q[item.product_id] || 0) + 1, item.qty) }))}
                       className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={12} /></button>
                   </div>
