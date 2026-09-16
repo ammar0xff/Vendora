@@ -45,7 +45,7 @@ export default function StorefrontAboutPage() {
           <h2 className="text-xl font-black text-[var(--ink)] mb-2">جاهز لطلبك؟</h2>
           <p className="text-sm text-[var(--muted)] mb-5">تصفّح الكتالوج، أضف لعربة التسوق، وأرسل طلبك — سنتولى الباقي.</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link to="/store/catalog" className="btn btn-primary px-6 py-3">تصفح المنتجات</Link>
+            <Link to="/catalog" className="btn btn-primary px-6 py-3">تصفح المنتجات</Link>
             <Link to="/login" className="btn btn-outline px-6 py-3">دخول نظام ڤندورة</Link>
           </div>
         </div>

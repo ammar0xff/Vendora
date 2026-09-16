@@ -15,7 +15,7 @@ export default function StorefrontProductCard({ p }: { p: StorefrontProduct }) {
       >
         <Heart size={16} fill={wishlist.includes(p.id) ? 'currentColor' : 'none'} />
       </button>
-      <Link to={`/store/products/${p.id}`} className="block">
+      <Link to={`/products/${p.id}`} className="block">
         <div className="aspect-square bg-[var(--primary-soft)] flex items-center justify-center overflow-hidden">
           {p.image_url ? (
             <img src={fixUploadUrl(p.image_url)} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />

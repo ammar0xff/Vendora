@@ -35,7 +35,7 @@ export default function StorefrontWishlistPage() {
             <PackageSearch size={48} className="text-[var(--muted)]" />
             <p className="font-bold text-[var(--ink)]">لا توجد منتجات في المفضلة</p>
             <p className="text-sm text-[var(--muted)]">اضغط على أيقونة القلب في الكتالوج لإضافتها هنا</p>
-            <Link to="/store/catalog" className="btn btn-primary px-6 py-2.5 mt-2">تصفح الكتالوج</Link>
+            <Link to="/catalog" className="btn btn-primary px-6 py-2.5 mt-2">تصفح الكتالوج</Link>
           </div>
         ) : isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(8)].map((_, i) => <div key={i} className="bg-white rounded-2xl border border-[var(--border)] aspect-[3/4] animate-pulse" />)}</div>

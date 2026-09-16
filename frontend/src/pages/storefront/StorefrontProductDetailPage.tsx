@@ -47,7 +47,7 @@ export default function StorefrontProductDetailPage() {
         <div className="max-w-6xl mx-auto px-4 py-24 flex flex-col items-center gap-4 text-center">
           <Package size={48} className="text-[var(--muted)]" />
           <p className="font-bold text-[var(--ink)]">المنتج غير متوفر</p>
-          <Link to="/store/catalog" className="btn btn-primary px-6 py-2.5">العودة للكتالوج</Link>
+          <Link to="/catalog" className="btn btn-primary px-6 py-2.5">العودة للكتالوج</Link>
         </div>
       </div>
     )
@@ -59,9 +59,9 @@ export default function StorefrontProductDetailPage() {
 
       <section className="max-w-6xl mx-auto px-4 py-6">
         <nav className="text-xs text-[var(--muted)] mb-5 flex items-center gap-1 flex-wrap">
-          <Link to="/store" className="hover:text-[var(--primary)]">الرئيسية</Link>
+          <Link to="/" className="hover:text-[var(--primary)]">الرئيسية</Link>
           <span>←</span>
-          <Link to="/store/catalog" className="hover:text-[var(--primary)]">المنتجات</Link>
+          <Link to="/catalog" className="hover:text-[var(--primary)]">المنتجات</Link>
           {p.category_name && <><span>←</span><span className="text-[var(--ink)]">{p.category_name}</span></>}
         </nav>
 
@@ -149,7 +149,7 @@ export default function StorefrontProductDetailPage() {
           <section className="mt-14">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-[var(--ink)]">منتجات مشابهة</h2>
-              <Link to="/store/catalog" className="text-sm font-bold text-[var(--primary)] flex items-center gap-1">عرض الكل <ArrowRight size={14} /></Link>
+              <Link to="/catalog" className="text-sm font-bold text-[var(--primary)] flex items-center gap-1">عرض الكل <ArrowRight size={14} /></Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {related.map((r: { id: string }) => (

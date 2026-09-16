@@ -45,7 +45,7 @@ export default function StorefrontHero({ products, totalProducts, categoryCount 
             </p>
             <div className="mt-8 flex flex-wrap gap-3 justify-start">
               <Link
-                to="/store/catalog"
+                to="/catalog"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-colors"
                 style={{ background: 'var(--accent)', color: '#fff' }}
               >
@@ -53,7 +53,7 @@ export default function StorefrontHero({ products, totalProducts, categoryCount 
                 <ArrowLeft className="h-4 w-4" />
               </Link>
               <Link
-                to="/store/catalog"
+                to="/catalog"
                 className="inline-flex items-center gap-2 border border-white/25 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-white/10 transition-colors"
               >
                 عروض الجملة
@@ -90,7 +90,7 @@ export default function StorefrontHero({ products, totalProducts, categoryCount 
           >
             <div className="grid grid-cols-2 gap-4">
               {collage.map((p, i) => (
-                <Link key={p.id} to={`/store/products/${p.id}`} className="block">
+                <Link key={p.id} to={`/products/${p.id}`} className="block">
                   <div className={`rounded-2xl aspect-[4/5] overflow-hidden bg-white/10 ${i % 2 ? 'mt-10' : ''}`}>
                     {p.image_url ? (
                       <img src={fixUploadUrl(p.image_url)} alt={p.name} loading="lazy" className="h-full w-full object-cover" />

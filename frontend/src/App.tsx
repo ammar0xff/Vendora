@@ -74,8 +74,14 @@ function ProtectedRoute({ children, perm }: { children: React.ReactNode; perm?: 
 }
 
 import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { checkForDesktopUpdates } from './utils/desktopUpdate'
+
+/** Redirect a legacy /store/product/:id URL to the root path, preserving the id */
+function ProductRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/products/${id}`} replace />
+}
 
 /** Redirect /print/* → /api/print/* so nginx proxies it to the backend */
 function PrintRedirect() {
@@ -117,19 +123,27 @@ export default function App() {
         <StorefrontCartSidebar />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          {/* Public storefront — no auth */}
-          <Route path="/store" element={<StorefrontHomePage />} />
-          <Route path="/store/catalog" element={<StorefrontCatalogPage />} />
-          <Route path="/store/cart" element={<StorefrontCartPage />} />
-          <Route path="/store/wishlist" element={<StorefrontWishlistPage />} />
-          <Route path="/store/products/:id" element={<StorefrontProductDetailPage />} />
-          <Route path="/store/about" element={<StorefrontAboutPage />} />
-          <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          {/* Public storefront — no auth, served at root */}
+          <Route path="/" element={<StorefrontHomePage />} />
+          <Route path="/catalog" element={<StorefrontCatalogPage />} />
+          <Route path="/cart" element={<StorefrontCartPage />} />
+          <Route path="/wishlist" element={<StorefrontWishlistPage />} />
+          <Route path="/products/:id" element={<StorefrontProductDetailPage />} />
+          <Route path="/about" element={<StorefrontAboutPage />} />
+          {/* Legacy /store/* links → redirect to root storefront */}
+          <Route path="/store" element={<Navigate to="/" replace />} />
+          <Route path="/store/catalog" element={<Navigate to="/catalog" replace />} />
+          <Route path="/store/cart" element={<Navigate to="/cart" replace />} />
+          <Route path="/store/wishlist" element={<Navigate to="/wishlist" replace />} />
+          <Route path="/store/products/:id" element={<ProductRedirect />} />
+          <Route path="/store/about" element={<Navigate to="/about" replace />} />
+          {/* Admin panel */}
+          <Route path="/admin" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/admin/overview" element={<ProtectedRoute perm="admin"><AdminPage /></ProtectedRoute>} />
           <Route path="/pos" element={<ProtectedRoute perm="pos"><ErrorBoundary><POSPage /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/sales" element={<ProtectedRoute perm="sales"><SalesPage /></ProtectedRoute>} />
           <Route path="/quotations" element={<ProtectedRoute perm="quotations"><QuotationsPage /></ProtectedRoute>} />
           <Route path="/payroll" element={<ProtectedRoute perm="payroll"><PayrollPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute perm="admin"><AdminPage /></ProtectedRoute>} />
           <Route path="/customers" element={<ProtectedRoute perm="customers"><CustomersPage /></ProtectedRoute>} />
           <Route path="/operations" element={<ProtectedRoute perm="operations"><OperationsPage /></ProtectedRoute>} />
           <Route path="/inventory" element={<ProtectedRoute perm="inventory"><InventoryPage /></ProtectedRoute>} />

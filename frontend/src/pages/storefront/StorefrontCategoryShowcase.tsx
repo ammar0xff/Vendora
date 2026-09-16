@@ -23,7 +23,7 @@ export default function StorefrontCategoryShowcase({ categories }: { categories:
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight mt-2 text-[var(--ink)]">كل الأصناف من مكان واحد</h2>
         </div>
         <Link
-          to="/store/catalog"
+          to="/catalog"
           className="hidden sm:inline-flex items-center gap-1.5 text-sm font-bold text-[var(--primary)] hover:text-[var(--primary-strong)]"
         >
           عرض الكل <ArrowLeft className="h-4 w-4" />
@@ -42,7 +42,7 @@ export default function StorefrontCategoryShowcase({ categories }: { categories:
               transition={{ duration: 0.4, delay: (i % 6) * 0.05 }}
             >
               <Link
-                to={`/store/catalog?category=${cat.id}`}
+                to={`/catalog?category=${cat.id}`}
                 className="group block relative overflow-hidden rounded-2xl aspect-[4/5]"
                 style={{ background: GRADIENTS[i % GRADIENTS.length] }}
               >

@@ -29,7 +29,7 @@ export default function StorefrontPromo() {
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
-              to="/store/catalog"
+              to="/catalog"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-bold transition-colors"
               style={{ background: 'var(--accent)', color: '#fff' }}
             >

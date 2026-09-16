@@ -35,7 +35,7 @@ export default function StorefrontHomePage() {
               <p className="text-sm font-bold uppercase tracking-wider text-[var(--primary)]">الأكثر مبيعاً</p>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight mt-2 text-[var(--ink)]">منتجات مميزة</h2>
             </div>
-            <Link to="/store/catalog" className="text-sm font-bold text-[var(--primary)]">عرض الكل ←</Link>
+            <Link to="/catalog" className="text-sm font-bold text-[var(--primary)]">عرض الكل ←</Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {items.map((p) => (
@@ -77,10 +77,10 @@ export default function StorefrontHomePage() {
           <div className="text-right">
             <p className="font-bold mb-3">روابط سريعة</p>
             <ul className="space-y-2 text-sm text-white/70">
-              <li><Link to="/store/catalog" className="hover:text-white">المنتجات</Link></li>
-              <li><Link to="/store/cart" className="hover:text-white">عربة التسوق</Link></li>
-              <li><Link to="/store/wishlist" className="hover:text-white">المفضلة</Link></li>
-              <li><Link to="/store/about" className="hover:text-white">من نحن</Link></li>
+              <li><Link to="/catalog" className="hover:text-white">المنتجات</Link></li>
+              <li><Link to="/cart" className="hover:text-white">عربة التسوق</Link></li>
+              <li><Link to="/wishlist" className="hover:text-white">المفضلة</Link></li>
+              <li><Link to="/about" className="hover:text-white">من نحن</Link></li>
             </ul>
           </div>
           <div className="text-right">

@@ -55,7 +55,7 @@ export default function StorefrontCartSidebar() {
                         <div className="w-14 h-14 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] flex-shrink-0"><ShoppingCart size={18} /></div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <Link to={`/store/products/${i.product_id}`} onClick={closeCart} className="text-sm font-bold text-[var(--ink)] hover:text-[var(--primary)] truncate block">{i.name}</Link>
+                        <Link to={`/products/${i.product_id}`} onClick={closeCart} className="text-sm font-bold text-[var(--ink)] hover:text-[var(--primary)] truncate block">{i.name}</Link>
                         <p className="text-xs text-[var(--muted)] mt-0.5 tabular-nums">{Number(i.unit_price).toLocaleString('ar-EG')} ج.م {i.unit ? `/ ${i.unit}` : ''}</p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <button onClick={() => updateQty(i.product_id, i.qty + 1)} className="w-7 h-7 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center" aria-label="زيادة"><Plus size={13} /></button>
@@ -73,7 +73,7 @@ export default function StorefrontCartSidebar() {
                     <span className="text-sm font-bold text-[var(--ink)]">الإجمالي</span>
                     <span className="font-black text-lg text-[var(--primary)] tabular-nums">{total.toLocaleString('ar-EG')} <span className="text-xs">ج.م</span></span>
                   </div>
-                  <Link to="/store/cart" onClick={closeCart} className="btn btn-primary w-full py-3 flex items-center justify-center gap-2">
+                  <Link to="/cart" onClick={closeCart} className="btn btn-primary w-full py-3 flex items-center justify-center gap-2">
                     إتمام الطلب <ArrowLeft size={16} />
                   </Link>
                 </div>

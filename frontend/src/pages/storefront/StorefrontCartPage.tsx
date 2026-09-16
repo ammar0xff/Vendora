@@ -27,7 +27,7 @@ export default function StorefrontCartPage() {
             <PackageSearch size={48} className="text-[var(--muted)]" />
             <p className="font-bold text-[var(--ink)]">عربتك فارغة</p>
             <p className="text-sm text-[var(--muted)]">أضف بعض المنتجات من الكتالوج لتبدأ طلبك</p>
-            <Link to="/store/catalog" className="btn btn-primary px-6 py-2.5 mt-2">تصفح الكتالوج</Link>
+            <Link to="/catalog" className="btn btn-primary px-6 py-2.5 mt-2">تصفح الكتالوج</Link>
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
@@ -40,7 +40,7 @@ export default function StorefrontCartPage() {
                     <div className="w-16 h-16 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)]"><ShoppingCart size={20} /></div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <Link to={`/store/products/${i.product_id}`} className="text-sm font-bold text-[var(--ink)] hover:text-[var(--primary)] truncate block">{i.name}</Link>
+                    <Link to={`/products/${i.product_id}`} className="text-sm font-bold text-[var(--ink)] hover:text-[var(--primary)] truncate block">{i.name}</Link>
                     <p className="text-xs text-[var(--muted)] mt-0.5">{Number(i.unit_price).toLocaleString('ar-EG')} ج.م {i.unit ? `/ ${i.unit}` : ''}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <button onClick={() => updateQty(i.product_id, i.qty + 1)} className="w-8 h-8 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center" aria-label="زيادة"><Plus size={14} /></button>
@@ -77,7 +77,7 @@ export default function StorefrontCartPage() {
               <a href="tel:+" className="btn btn-outline w-full py-3 flex items-center justify-center gap-2">
                 <Phone size={16} /> اطلب هاتفياً
               </a>
-              <button onClick={() => navigate('/store/catalog')} className="mt-3 w-full text-sm font-bold text-[var(--primary)] flex items-center justify-center gap-1 hover:underline">
+              <button onClick={() => navigate('/catalog')} className="mt-3 w-full text-sm font-bold text-[var(--primary)] flex items-center justify-center gap-1 hover:underline">
                 متابعة التسوق <ArrowRight size={14} />
               </button>
             </div>

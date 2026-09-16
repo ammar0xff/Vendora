@@ -22,7 +22,7 @@ const NAV_GROUPS = [
     label: 'الرئيسية',
     icon: LayoutDashboard,
     items: [
-      { to: '/', perm: null, warehouseTypes: ['all'], label: 'لوحة التحكم', icon: LayoutDashboard },
+      { to: '/admin', perm: null, warehouseTypes: ['all'], label: 'لوحة التحكم', icon: LayoutDashboard },
     ]
   },
   {
