@@ -45,6 +45,7 @@ class ProductCreate(BaseModel):
     product_type: str | None = None
     material: str | None = None
     image_url: str | None = None
+    description: str | None = None
     shelf_number: str | None = None
     reorder_point: Decimal = Field(default=Decimal("0"), ge=0)
     reorder_qty: Decimal = Field(default=Decimal("0"), ge=0)
@@ -68,6 +69,7 @@ class ProductUpdate(BaseModel):
     reorder_point: Decimal | None = None
     reorder_qty: Decimal | None = None
     stock_status: str | None = None
+    description: str | None = None
 
     @field_validator("retail_price", "wholesale_price", "cost_price", "reorder_point", "reorder_qty")
     @classmethod
@@ -93,6 +95,7 @@ class ProductOut(BaseModel):
     material: str | None
     shelf_number: str | None
     is_active: bool
+    description: str | None = None
     reorder_point: Decimal
     reorder_qty: Decimal
     stock_status: str = "untracked"

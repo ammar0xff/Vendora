@@ -11,6 +11,7 @@ import { fixUploadUrl } from '../../utils/format'
 export default function StorefrontProductDetailPage() {
   const { id = '' } = useParams()
   const [qty, setQty] = useState(1)
+  const [activeImage, setActiveImage] = useState(0)
   const { cart, wishlist, addToCart, toggleWishlist } = useStorefrontStore()
 
   const { data: p, isLoading } = useQuery({
@@ -68,12 +69,29 @@ export default function StorefrontProductDetailPage() {
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <div className="bg-white rounded-3xl border border-[var(--border)] overflow-hidden">
             <div className="aspect-square bg-[var(--primary-soft)] flex items-center justify-center overflow-hidden">
-              {p.image_url ? (
-                <img src={fixUploadUrl(p.image_url)} alt={p.name} className="w-full h-full object-cover" />
-              ) : (
-                <Package size={80} className="text-[var(--primary)]" />
-              )}
+              {(() => {
+                const gallery = p.images?.length ? p.images : p.image_url ? [p.image_url] : []
+                const src = gallery[activeImage] || gallery[0]
+                return src ? (
+                  <img src={fixUploadUrl(src)} alt={p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Package size={80} className="text-[var(--primary)]" />
+                )
+              })()}
             </div>
+            {p.images && p.images.length > 1 && (
+              <div className="flex gap-2 p-3 overflow-x-auto">
+                {p.images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImage(i)}
+                    className={`w-16 h-16 rounded-xl shrink-0 border-2 overflow-hidden transition ${i === activeImage ? 'border-[var(--primary)]' : 'border-transparent hover:border-[var(--border-strong)]'}`}
+                  >
+                    <img src={fixUploadUrl(img)} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="text-right">
@@ -144,6 +162,13 @@ export default function StorefrontProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {p.description && (
+          <div className="mt-8 bg-white rounded-3xl border border-[var(--border)] p-6 md:p-8 text-right">
+            <h2 className="text-lg font-black text-[var(--ink)] mb-3">وصف المنتج</h2>
+            <p className="text-sm leading-7 text-slate-600 whitespace-pre-line">{p.description}</p>
+          </div>
+        )}
 
         {related.length > 0 && (
           <section className="mt-14">

@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.pagination import Page
 from app.db.base import get_db
-from app.models.product import Category, Product, Subcategory
+from app.models.product import Category, Product, ProductImage, Subcategory
 
 router = APIRouter(prefix="/store", tags=["storefront"])
 
@@ -31,6 +31,8 @@ class StoreProductOut(BaseModel):
     company: str | None
     size: str | None
     image_url: str | None
+    description: str | None = None
+    images: list[str] = []
     subcategory_id: uuid.UUID | None
     category_id: uuid.UUID | None
     category_name: str | None
@@ -56,6 +58,8 @@ def _to_store_out(p: Product) -> StoreProductOut:
         company=p.company,
         size=p.size,
         image_url=p.image_url,
+        description=p.description,
+        images=[img.image_url for img in p.images],
         subcategory_id=p.subcategory_id,
         category_id=p.subcategory.category_id if p.subcategory else None,
         category_name=p.subcategory.category.name if p.subcategory and p.subcategory.category else None,
@@ -82,7 +86,8 @@ async def store_products(
         countq = countq.join(Subcategory).where(Subcategory.category_id == category_id)
 
     base = base.options(
-        selectinload(Product.subcategory).selectinload(Subcategory.category)
+        selectinload(Product.subcategory).selectinload(Subcategory.category),
+        selectinload(Product.images),
     ).order_by(func.nullif(Product.code, "").asc().nullslast(), Product.name)
 
     total = (await db.execute(countq)).scalar_one() or 0
@@ -97,7 +102,10 @@ async def store_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db
     row = (
         await db.execute(
             select(Product)
-            .options(selectinload(Product.subcategory).selectinload(Subcategory.category))
+            .options(
+                selectinload(Product.subcategory).selectinload(Subcategory.category),
+                selectinload(Product.images),
+            )
             .where(Product.id == product_id, Product.is_active)
         )
     ).scalar_one_or_none()

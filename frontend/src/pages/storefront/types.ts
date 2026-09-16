@@ -15,6 +15,8 @@ export interface StorefrontProduct {
   company: string | null
   size: string | null
   image_url: string | null
+  description: string | null
+  images: string[]
   subcategory_id: string | null
   category_id: string | null
   category_name: string | null
