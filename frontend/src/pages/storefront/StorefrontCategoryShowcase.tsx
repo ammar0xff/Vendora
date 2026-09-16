@@ -30,7 +30,6 @@ export default function StorefrontCategoryShowcase({ categories }: { categories:
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {categories.slice(0, 12).map((cat, i) => {
-          const Icon = ICONS[i % ICONS.length]
           return (
             <motion.div
               key={cat.id}
