@@ -13,11 +13,14 @@ export interface StorefrontCartItem {
 interface StorefrontState {
   cart: StorefrontCartItem[]
   wishlist: string[]
+  isCartOpen: boolean
   addToCart: (item: StorefrontCartItem) => void
   updateQty: (product_id: string, qty: number) => void
   removeFromCart: (product_id: string) => void
   clearCart: () => void
   toggleWishlist: (product_id: string) => void
+  openCart: () => void
+  closeCart: () => void
 }
 
 export const useStorefrontStore = create<StorefrontState>()(
@@ -25,6 +28,7 @@ export const useStorefrontStore = create<StorefrontState>()(
     (set, get) => ({
       cart: [],
       wishlist: [],
+      isCartOpen: false,
 
       addToCart: (item) => {
         const existing = get().cart.find((i) => i.product_id === item.product_id)
@@ -33,6 +37,7 @@ export const useStorefrontStore = create<StorefrontState>()(
         } else {
           set({ cart: [...get().cart, { ...item, qty: item.qty || 1 }] })
         }
+        set({ isCartOpen: true })
       },
 
       updateQty: (product_id, qty) =>
@@ -43,7 +48,13 @@ export const useStorefrontStore = create<StorefrontState>()(
 
       toggleWishlist: (product_id) =>
         set({ wishlist: get().wishlist.includes(product_id) ? get().wishlist.filter((id) => id !== product_id) : [...get().wishlist, product_id] }),
+
+      openCart: () => set({ isCartOpen: true }),
+      closeCart: () => set({ isCartOpen: false }),
     }),
-    { name: 'storefront' }
+    {
+      name: 'storefront',
+      partialize: (s) => ({ cart: s.cart, wishlist: s.wishlist }) as StorefrontState,
+    }
   )
 )

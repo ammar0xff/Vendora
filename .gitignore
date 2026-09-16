@@ -50,3 +50,7 @@ firebase-service-account.json
 
 # Tooling
 .serena/
+
+# Test artifacts
+frontend/playwright-report/
+frontend/test-results/

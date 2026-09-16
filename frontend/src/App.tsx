@@ -6,6 +6,13 @@ import { useAuthStore } from './store/auth'
 import { persister } from './store/queryPersister'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
+import StorefrontHomePage from './pages/storefront/StorefrontHomePage'
+import StorefrontCatalogPage from './pages/storefront/StorefrontCatalogPage'
+import StorefrontCartPage from './pages/storefront/StorefrontCartPage'
+import StorefrontWishlistPage from './pages/storefront/StorefrontWishlistPage'
+import StorefrontProductDetailPage from './pages/storefront/StorefrontProductDetailPage'
+import StorefrontAboutPage from './pages/storefront/StorefrontAboutPage'
+import StorefrontCartSidebar from './pages/storefront/StorefrontCartSidebar'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import POSPage from './pages/pos/POSPage'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -107,8 +114,16 @@ export default function App() {
     <QueryClientProvider client={qc}>
       <FaviconUpdater />
       <BrowserRouter>
+        <StorefrontCartSidebar />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Public storefront — no auth */}
+          <Route path="/store" element={<StorefrontHomePage />} />
+          <Route path="/store/catalog" element={<StorefrontCatalogPage />} />
+          <Route path="/store/cart" element={<StorefrontCartPage />} />
+          <Route path="/store/wishlist" element={<StorefrontWishlistPage />} />
+          <Route path="/store/products/:id" element={<StorefrontProductDetailPage />} />
+          <Route path="/store/about" element={<StorefrontAboutPage />} />
           <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/pos" element={<ProtectedRoute perm="pos"><ErrorBoundary><POSPage /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/sales" element={<ProtectedRoute perm="sales"><SalesPage /></ProtectedRoute>} />

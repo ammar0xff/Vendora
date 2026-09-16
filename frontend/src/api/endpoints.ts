@@ -34,6 +34,12 @@ export const productsApi = {
   deleteBarcode: (barcodeId: string) => api.delete(`/barcodes/${barcodeId}`),
 }
 
+export const storefrontApi = {
+  products: (params?: Record<string, unknown>) => api.get('/store/products', { params }).then(r => r.data),
+  product: (id: string) => api.get(`/store/products/${id}`).then(r => r.data),
+  categories: () => api.get('/store/categories').then(r => r.data),
+}
+
 export const categoriesApi = {
   list: () => api.get('/categories').then(r => r.data),
   create: (name: string, code?: string) => api.post('/categories', { name, code }).then(r => r.data),
