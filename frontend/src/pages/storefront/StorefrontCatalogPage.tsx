@@ -26,7 +26,8 @@ export default function StorefrontCatalogPage() {
   if (categoryFromUrl) params.category_id = categoryFromUrl
 
   const { data: catList } = useQuery({ queryKey: ['storefront-categories'], queryFn: storefrontApi.categories })
-  const categoryName = catList?.find((c: { id: string }) => c.id === categoryFromUrl)?.name
+  const activeCat = catList?.find((c: { id: string }) => c.id === categoryFromUrl)
+  const categoryName = activeCat?.name
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['storefront-catalog', debounced, categoryFromUrl, page],
@@ -43,11 +44,25 @@ export default function StorefrontCatalogPage() {
       <section className="bg-white border-b" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-6xl mx-auto px-4 py-6 text-right">
           <div className="flex items-center justify-between gap-4 mb-4">
-            <h1 className="text-2xl font-black text-[var(--ink)]">
-              {categoryName ? categoryName : 'كتالوج المنتجات'}
-            </h1>
+            {categoryFromUrl && activeCat?.image_url && (
+              <div className="flex-1 flex items-center gap-4">
+                <img
+                  src={activeCat.image_url}
+                  alt={categoryName}
+                  className="w-14 h-14 rounded-xl object-cover shadow-sm"
+                  loading="lazy"
+                />
+                <div>
+                  <h1 className="text-2xl font-black text-[var(--ink)]">{categoryName}</h1>
+                  <p className="text-sm text-[var(--muted)] mt-0.5 tabular-nums">
+                    {(activeCat.product_count ?? 0).toLocaleString('ar-EG')} صنف متوفر
+                  </p>
+                </div>
+              </div>
+            )}
+            {!categoryFromUrl && <h1 className="text-2xl font-black text-[var(--ink)]">كتالوج المنتجات</h1>}
             {categoryFromUrl && (
-              <button onClick={() => setSearchParams({})} className="text-sm font-bold text-[var(--primary)] hover:underline">عرض الكل</button>
+              <button onClick={() => setSearchParams({})} className="text-sm font-bold text-[var(--primary)] hover:underline shrink-0">عرض الكل</button>
             )}
           </div>
           <div className="relative max-w-md">

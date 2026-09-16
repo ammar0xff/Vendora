@@ -2,6 +2,7 @@ export interface StorefrontCategory {
   id: string
   name: string
   code?: string | null
+  image_url?: string | null
   product_count: number
 }
 

@@ -43,6 +43,7 @@ class StoreCategoryOut(BaseModel):
     id: uuid.UUID
     name: str
     code: str | None
+    image_url: str | None = None
     product_count: int = 0
     model_config = {"from_attributes": True}
 
@@ -131,6 +132,6 @@ async def store_categories(db: AsyncSession = Depends(get_db)):
         select(Category).order_by(func.nullif(Category.code, "").asc().nullslast(), Category.name)
     )).scalars().all()
     return [
-        StoreCategoryOut(id=c.id, name=c.name, code=c.code, product_count=int(counts.get(c.id, 0)))
+        StoreCategoryOut(id=c.id, name=c.name, code=c.code, image_url=c.image_url, product_count=int(counts.get(c.id, 0)))
         for c in cats
     ]

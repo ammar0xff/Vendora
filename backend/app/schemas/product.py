@@ -8,12 +8,14 @@ from pydantic import BaseModel, Field, field_validator
 class CategoryCreate(BaseModel):
     name: str
     code: str | None = None
+    image_url: str | None = None
 
 
 class CategoryOut(BaseModel):
     id: uuid.UUID
     name: str
     code: str | None = None
+    image_url: str | None = None
     model_config = {"from_attributes": True}
 
 

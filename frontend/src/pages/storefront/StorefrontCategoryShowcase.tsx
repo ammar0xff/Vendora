@@ -1,9 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Droplets, Wrench, Hammer, Pipette, Boxes, ShowerHead, Flame, Package } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { StorefrontCategory } from './types'
-
-const ICONS = [Droplets, Wrench, Hammer, Pipette, Boxes, ShowerHead, Flame, Package]
 
 const GRADIENTS = [
   'linear-gradient(135deg, #1e3a5f, #33618f)',
@@ -44,16 +42,22 @@ export default function StorefrontCategoryShowcase({ categories }: { categories:
               <Link
                 to={`/catalog?category=${cat.id}`}
                 className="group block relative overflow-hidden rounded-2xl aspect-[4/5]"
-                style={{ background: GRADIENTS[i % GRADIENTS.length] }}
               >
+                {cat.image_url ? (
+                  <img
+                    src={cat.image_url}
+                    alt={cat.name}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="absolute inset-0" style={{ background: GRADIENTS[i % GRADIENTS.length] }} />
+                )}
                 <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 30% 20%, #fff 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                <div className="absolute top-3 right-3 w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
-                  <Icon className="h-5 w-5 text-white transition-transform duration-500 group-hover:scale-125" />
-                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <h3 className="text-white font-bold text-sm leading-snug">{cat.name}</h3>
-                  <p className="text-white/70 text-xs mt-0.5 tabular-nums">{cat.product_count.toLocaleString('ar-EG')} صنف</p>
+                  <p className="text-white/80 text-xs mt-0.5 tabular-nums">{cat.product_count.toLocaleString('ar-EG')} صنف</p>
                 </div>
               </Link>
             </motion.div>
