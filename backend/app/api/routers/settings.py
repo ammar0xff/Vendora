@@ -35,6 +35,12 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_SIZE:
         raise HTTPException(400, "حجم الملف يتجاوز 5 ميجابايت")
+    try:
+        img = Image.open(io.BytesIO(contents))
+        img.verify()
+        img = Image.open(io.BytesIO(contents))
+    except Exception:
+        raise HTTPException(400, "الملف ليس صورة صالحة") from None
     os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
     # Clean old generated PWA icons
     for f in os.listdir(cfg.UPLOAD_DIR):
@@ -46,15 +52,17 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
     with open(dest, "wb") as f:
         f.write(contents)
     # Generate square PWA icons from uploaded image
-    img = Image.open(io.BytesIO(contents))
-    w, h = img.size
-    size = min(w, h)
-    left = (w - size) // 2
-    top = (h - size) // 2
-    cropped = img.crop((left, top, left + size, top + size))
-    for icon_size in (192, 512):
-        resized = cropped.resize((icon_size, icon_size), Image.LANCZOS)
-        resized.save(os.path.join(cfg.UPLOAD_DIR, f"logo-{icon_size}x{icon_size}.png"), "PNG")
+    try:
+        w, h = img.size
+        size = min(w, h)
+        left = (w - size) // 2
+        top = (h - size) // 2
+        cropped = img.crop((left, top, left + size, top + size))
+        for icon_size in (192, 512):
+            resized = cropped.resize((icon_size, icon_size), Image.LANCZOS)
+            resized.save(os.path.join(cfg.UPLOAD_DIR, f"logo-{icon_size}x{icon_size}.png"), "PNG")
+    except Exception:
+        raise HTTPException(400, "الملف ليس صورة صالحة") from None
     url = f"/uploads/logo{ext}"
     await db.execute(text("UPDATE store_settings SET value=:v WHERE key='logo_url'"), {"v": url})
     await db.commit()

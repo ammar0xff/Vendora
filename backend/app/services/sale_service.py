@@ -263,13 +263,15 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
 
     # Idempotency: if local_id provided (offline sync), check for duplicate
     local_id = getattr(data, 'local_id', None)
+    notes_value = f"[local_id:{local_id}] {data.notes or ''}" if local_id else (data.notes or None)
     if local_id:
-        safe_local_id = local_id.replace("[", "[[]").replace("%", "[%]").replace("_", "[_]")
         existing = (await db.execute(sqlt(
-            "SELECT id FROM sales WHERE notes LIKE :pattern AND cashier_id = :cid AND created_at > NOW() - INTERVAL '1 hour'"
-        ), {"pattern": f"[local_id:{safe_local_id}]", "cid": cashier_id})).scalar_one_or_none()
+            "SELECT id FROM sales WHERE notes = :notes AND cashier_id = :cid AND created_at > NOW() - INTERVAL '1 hour'"
+        ), {"notes": notes_value, "cid": cashier_id})).scalar_one_or_none()
         if existing:
-            return await db.get(Sale, existing)
+            return (await db.execute(
+                select(Sale).options(selectinload(Sale.items)).where(Sale.id == existing)
+            )).scalar_one()
 
     # Sort items by product_id to prevent deadlocks (consistent lock ordering)
     sorted_items = sorted(data.items, key=lambda i: str(i.product_id))
@@ -311,7 +313,7 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
         is_credit=data.is_credit,
         payment_method=getattr(data, 'payment_method', 'cash') or 'cash',
         wallet_id=getattr(data, 'wallet_id', None),
-        notes=f"[local_id:{local_id}] {data.notes or ''}" if local_id else data.notes,
+        notes=notes_value,
         status=SaleStatus.confirmed,
         created_by=cashier_id,
     )

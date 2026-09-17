@@ -37,10 +37,10 @@ async def update_category(cat_id: uuid.UUID, data: FinancialCategoryUpdate, db: 
     updates = data.model_dump(exclude_unset=True)
     if not updates:
         return {"detail": "no changes"}
-    updates["id"] = cat_id
+    params = {"id": cat_id, "name": updates.get("name"), "color": updates.get("color")}
     await db.execute(text(
         "UPDATE financial_categories SET name=COALESCE(:name, name), color=COALESCE(:color, color) WHERE id=:id"
-    ), updates)
+    ), params)
     await db.commit()
     return {"detail": "updated"}
 

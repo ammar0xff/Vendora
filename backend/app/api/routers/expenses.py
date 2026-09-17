@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text as sqlt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import BusinessError, NotFoundError
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_open_period, require_perm, verify_warehouse_access
 from app.models.user import User
 from app.schemas.expense import ExpenseApprove, ExpenseCreate, ExpenseUpdate, ExpenseVendorCreate, ExpenseVendorUpdate
+from app.services.wallet_service import record_wallet_tx
 
 router = APIRouter(tags=["expenses"])
 
@@ -184,7 +185,30 @@ async def approve_expense(eid: uuid.UUID, data: ExpenseApprove, db: AsyncSession
     row = r.mappings().first()
     if not row:
         raise NotFoundError()
+
+    # Money leaves the designated wallet/safe only once the expense is approved.
+    if row["status"] == "approved":
+        amt = _to_decimal(row["amount"])
+        if row["payment_method"] == "wallet" and row["wallet_id"]:
+            await record_wallet_tx(db, row["wallet_id"], -amt, "expense", eid,
+                                   row["description"] or "مصروف", current_user.id)
+        elif row["payment_method"] == "safe" and row["safe_id"]:
+            await db.execute(sqlt("UPDATE safes SET balance = balance - :amt WHERE id = :sid"),
+                             {"amt": amt, "sid": row["safe_id"]})
+            new_balance = (await db.execute(sqlt("SELECT balance FROM safes WHERE id=:id"),
+                                            {"id": row["safe_id"]})).scalar()
+            await db.execute(sqlt("""
+                INSERT INTO safe_transactions (safe_id, tx_type, amount, balance_after, note, created_by)
+                VALUES (:sid, 'withdraw', :amt, :bal, :note, :by)
+            """), {"sid": row["safe_id"], "amt": amt, "bal": new_balance,
+                   "note": row["description"] or "مصروف", "by": current_user.id})
+        await db.commit()
     return dict(row)
+
+
+def _to_decimal(v) -> Decimal:
+    from decimal import Decimal
+    return Decimal(str(v))
 
 
 @router.delete("/expenses/{eid}", status_code=204)

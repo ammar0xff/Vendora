@@ -155,6 +155,23 @@ async def list_attendance(employee_id: str | None = None, month: str | None = No
 
 @router.post("/attendance")
 async def add_attendance(data: AttendanceCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
+    from datetime import datetime as _dt
+
+    def _combine(value, work_date):
+        if value is None:
+            return None
+        if isinstance(value, _dt):
+            return value.replace(tzinfo=None)
+        s = str(value).strip()
+        for fmt in ("%H:%M:%S", "%H:%M"):
+            try:
+                return _dt.combine(work_date, _dt.strptime(s, fmt).time())
+            except ValueError:
+                continue
+        return None
+
+    check_in = _combine(data.check_in, data.work_date)
+    check_out = _combine(data.check_out, data.work_date)
     await db.execute(text("""
         INSERT INTO hr_attendance (employee_id, work_date, check_in, check_out, status, notes)
         VALUES (:eid, :dt, :ci, :co, :st, :notes)
@@ -162,7 +179,7 @@ async def add_attendance(data: AttendanceCreate, db: AsyncSession = Depends(get_
         SET check_in=EXCLUDED.check_in, check_out=EXCLUDED.check_out,
             status=EXCLUDED.status, notes=EXCLUDED.notes
     """), {'eid': data.employee_id, 'dt': data.work_date,
-           'ci': data.check_in, 'co': data.check_out,
+           'ci': check_in, 'co': check_out,
            'st': data.status, 'notes': data.notes or ''})
     await db.commit()
     return {"detail": "saved"}
@@ -483,7 +500,7 @@ async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db),
             "cid": cat_id,
             "amt": float(total),
             "desc": f"رواتب شهر {month}",
-            "dt": f"{month}-01",
+            "dt": date(int(month[:4]), int(month[5:7]), 1),
             "by": current_user.id,
             "notes": marker,
         })
@@ -606,7 +623,7 @@ async def add_advance(data: AdvanceCreate, db: AsyncSession = Depends(get_db), c
         INSERT INTO hr_advances (employee_id, amount, date, note, created_by, record_type)
         VALUES (:eid, :amt, :dt, :note, :by, :rt)
     """), {'eid': data.employee_id, 'amt': data.amount,
-           'dt': adv_date.isoformat(), 'note': data.note or '',
+           'dt': adv_date, 'note': data.note or '',
            'by': current_user.id, 'rt': record_type})
     await db.execute(text("""
         INSERT INTO hr_audit_log (action_type, entity_type, entity_id, performed_by, reason, details)
