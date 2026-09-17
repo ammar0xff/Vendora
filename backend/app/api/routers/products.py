@@ -117,7 +117,7 @@ async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db),
         raise BusinessError(f"لا يمكن حذف التصنيف — يوجد {count} منتج نشط مرتبط به")
     # Detach soft-deleted (inactive) products so FK RESTRICT doesn't block deletion
     await db.execute(sqlt(
-        "UPDATE products p SET p.subcategory_id = NULL FROM subcategories s WHERE s.category_id = :id AND p.subcategory_id = s.id AND p.is_active = false"
+        "UPDATE products SET subcategory_id = NULL FROM subcategories s WHERE s.category_id = :id AND products.subcategory_id = s.id AND products.is_active = false"
     ), {"id": cat_id})
     await db.delete(cat)
     await db.commit()

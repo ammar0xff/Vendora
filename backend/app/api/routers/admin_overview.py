@@ -115,7 +115,7 @@ async def company_overview(
     cash_drawers = await db.execute(text("""
         SELECT w.name, s.initial_amount,
             COALESCE((SELECT SUM(CASE WHEN dt.type='sale' OR dt.type='deposit' THEN dt.amount
-                                      WHEN dt.type IN ('expense','withdrawal','return_','revenue_delivery') THEN -dt.amount
+                                      WHEN dt.type IN ('expense','withdrawal','return_') THEN -dt.amount
                                       ELSE 0 END)
                       FROM drawer_transactions dt WHERE dt.shift_id = s.id), 0) as net_movement
         FROM shifts s JOIN warehouses w ON w.id = s.warehouse_id

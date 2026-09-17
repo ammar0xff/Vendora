@@ -9,8 +9,7 @@ from app.api.routers import (
     hr,
     notifications,
     operations,
-    parties,
-    payroll,
+parties,
     periods,
     print_router,
     products,
@@ -43,7 +42,6 @@ router.include_router(reports.router)
 router.include_router(parties.router)
 router.include_router(purchases.router)
 router.include_router(archive.router)
-router.include_router(payroll.router)
 router.include_router(settings.router)
 router.include_router(operations.router)
 router.include_router(ledger_router.router)

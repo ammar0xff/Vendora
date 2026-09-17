@@ -270,8 +270,8 @@ async def update_sale(sale_id: uuid.UUID, data: UpdateSale, db: AsyncSession = D
         disc = item.get("discount", 0) or 0
         total += line - disc
         await db.execute(sqlt("""
-            INSERT INTO sale_items (sale_id, product_id, qty, unit_price, unit_cost, discount)
-            VALUES (:sid, :pid, :qty, :price, :cost, :disc)
+            INSERT INTO sale_items (id, sale_id, product_id, qty, unit_price, unit_cost, discount)
+            VALUES (gen_random_uuid(), :sid, :pid, :qty, :price, :cost, :disc)
         """), {"sid": sale_id, "pid": item["product_id"], "qty": item["qty"],
                "price": item["unit_price"], "cost": item.get("unit_cost", 0),
                "disc": disc})
