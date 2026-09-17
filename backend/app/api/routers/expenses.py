@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text as sqlt
@@ -207,7 +208,6 @@ async def approve_expense(eid: uuid.UUID, data: ExpenseApprove, db: AsyncSession
 
 
 def _to_decimal(v) -> Decimal:
-    from decimal import Decimal
     return Decimal(str(v))
 
 
