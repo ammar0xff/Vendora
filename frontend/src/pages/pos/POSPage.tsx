@@ -812,7 +812,7 @@ export default function POSPage() {
             onClick={() => setShowOpenShift(true)}
             className="btn btn-success w-full btn-lg"
           >
-            <Wallet size={22} /> فتح الوردية
+            <WalletIcon size={22} /> فتح الوردية
           </button>
           {lastDrawer?.amount > 0 && (
             <p className="text-slate-400 text-xs mt-4">
