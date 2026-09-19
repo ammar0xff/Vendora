@@ -86,9 +86,9 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     })
 
   const isPresetActive = (p: ThemePreset) =>
-    normalizeHex(form.theme_primary, '') === p.primary &&
-    normalizeHex(form.theme_accent, '') === p.accent &&
-    normalizeHex(form.theme_bg, '') === p.bg &&
+    normalizeHex(form.theme_primary, '') === normalizeHex(p.primary, '') &&
+    normalizeHex(form.theme_accent, '') === normalizeHex(p.accent, '') &&
+    normalizeHex(form.theme_bg, '') === normalizeHex(p.bg, '') &&
     !form.theme_ink
 
   const sections = (form.storefront_sections as SectionConfig[]) || []
