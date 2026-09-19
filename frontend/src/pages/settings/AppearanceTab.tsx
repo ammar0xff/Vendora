@@ -6,6 +6,7 @@ import { Save, RotateCcw, Check, ExternalLink, GripVertical, Eye, EyeOff, X, Plu
 import { settingsApi } from '../../api/endpoints'
 import { writeThemeDraft } from '../../utils/storefrontDraft'
 import { DEFAULT_THEME, FONT_OPTIONS, normalizeHex, resolveTheme, contrastRatio, applyThemeVars, buildCacheCode, cacheTheme } from '../../utils/theme'
+import { THEME_PRESETS, type ThemePreset } from '../../utils/themes'
 import { TEMPLATES, type Tone } from '../../pages/storefront/templates'
 import TemplateThumb from '../../pages/storefront/templates/TemplateThumb'
 import { SECTION_META, SECTION_ORDER, parseSections, defaultSectionsFor } from '../../pages/storefront/templates/sections'
@@ -66,13 +67,29 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     cacheTheme(buildCacheCode(t.vars))
   }
 
-  const update = (key: string, value: any) => {
-    const next = { ...form, [key]: value }
+  const setThemeForm = (patch: Record<string, any>) => {
+    const next = { ...form, ...patch }
     setForm(next)
     applyDraft(next)
     pushTheme(next)
     setPreviewKey((k) => k + 1)
   }
+
+  const update = (key: string, value: any) => setThemeForm({ [key]: value })
+
+  const applyPreset = (p: ThemePreset) =>
+    setThemeForm({
+      theme_primary: p.primary,
+      theme_accent: p.accent,
+      theme_bg: p.bg,
+      theme_ink: '',
+    })
+
+  const isPresetActive = (p: ThemePreset) =>
+    normalizeHex(form.theme_primary, '') === p.primary &&
+    normalizeHex(form.theme_accent, '') === p.accent &&
+    normalizeHex(form.theme_bg, '') === p.bg &&
+    !form.theme_ink
 
   const sections = (form.storefront_sections as SectionConfig[]) || []
   const updateSection = (cfg: SectionConfig, next: SectionConfig) => update('storefront_sections', sections.map((x) => (x.id === cfg.id ? next : x)))
@@ -232,6 +249,34 @@ export default function AppearanceTab({ settings }: { settings: any }) {
         <div className="border-t mb-5" style={{ borderColor: 'var(--border)' }} />
 
         <h3 className="font-bold text-slate-700 mb-5">الهوية البصرية — الألوان والخطوط</h3>
+
+        <div className="mb-5">
+          <label className="block text-xs font-medium text-slate-600 mb-1">ألوان جاهزة — 50 ثيمًا شهيرًا</label>
+          <p className="text-[11px] text-slate-400 mb-2">اضغط أي ثيم لتطبيقه فورًا في المعاينة، ويمكنك تعديل كل لون يدويًا من الأسفل.</p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-64 overflow-y-auto pl-0.5 pb-1">
+            {THEME_PRESETS.map((p) => {
+              const active = isPresetActive(p)
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => applyPreset(p)}
+                  title={p.nameEn}
+                  className={`rounded-xl border-2 p-1.5 text-right transition-colors ${active ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-slate-200 hover:border-slate-300'}`}
+                >
+                  <div className="overflow-hidden rounded-lg border border-black/5">
+                    <div className="h-4" style={{ background: p.bg }} />
+                    <div className="flex h-4">
+                      <div className="flex-1" style={{ background: p.primary }} />
+                      <div className="flex-1" style={{ background: p.accent }} />
+                    </div>
+                  </div>
+                  <span className={`block text-[11px] font-bold mt-1.5 truncate ${active ? 'text-[var(--primary)]' : 'text-slate-600'}`}>{p.name}</span>
+                  <span className="block text-[10px] text-slate-400 truncate" dir="ltr">{p.nameEn}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
         <div className="space-y-4">
           {COLOR_FIELDS.map(({ key, label }) => (
