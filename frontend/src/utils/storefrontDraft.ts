@@ -202,10 +202,10 @@ const CUSTOM_THEME_RUNTIME = `(function(){
  * template. Live store data is injected as JSON + hydrated by the runtime.
  */
 export function buildCustomThemeDoc(themeHtml: string, data: CustomThemeData): string {
-  const safe = JSON.stringify(data).replace(/</g, '\\u003c')
+  const safe = JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
   const CLOSE = '</scr' + 'ipt>'
   const scripts =
-    `<script id="vendora-data" type="application/json">${safe}${CLOSE}` +
+    `<script>\nwindow.__VENDORA__ = ${safe};\n${CLOSE}` +
     `<script>\n${CUSTOM_THEME_RUNTIME}\n${CLOSE}`
   if (themeHtml.indexOf('</body>') !== -1) {
     return themeHtml.replace('</body>', scripts + '\n</body>')
