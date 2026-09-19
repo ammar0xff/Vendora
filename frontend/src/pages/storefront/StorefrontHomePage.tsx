@@ -7,9 +7,15 @@ import { defaultSectionsFor, parseSections } from './templates/sections'
 import StorefrontSections from './templates/StorefrontSections'
 import StorefrontNav from './StorefrontNav'
 import Footer from './sections/StorefrontFooter'
+import CustomTemplatePage from './templates/custom/CustomTemplatePage'
 
 export default function StorefrontHomePage() {
   const merged = useMergedSettings()
+
+  if (merged.storefront_template === 'custom') {
+    return <CustomTemplatePage />
+  }
+
   const tone = getTone(merged.storefront_template as string | undefined)
   const sections = parseSections(merged.storefront_sections) ?? defaultSectionsFor(tone)
 

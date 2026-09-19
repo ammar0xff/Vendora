@@ -120,6 +120,12 @@ export const settingsApi = {
   update: (data: Record<string, unknown>) => api.put('/settings', { settings: data }),
   getOptions: () => api.get('/settings/product-options').then(r => r.data),
   updateOptions: (data: Record<string, unknown>) => api.put('/settings/product-options', data),
+  importTheme: (file: File) => {
+    const fd = new FormData(); fd.append('file', file)
+    return api.post('/settings/storefront-theme/import', fd).then(r => r.data)
+  },
+  getTheme: () => api.get('/settings/storefront-theme').then(r => r.data),
+  deleteTheme: () => api.delete('/settings/storefront-theme').then(r => r.data),
 }
 
 export const expensesApi = {

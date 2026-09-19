@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useRef } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Reorder } from 'framer-motion'
-import { Save, RotateCcw, Check, ExternalLink, GripVertical, Eye, EyeOff, X, Plus } from 'lucide-react'
+import { Save, RotateCcw, Check, ExternalLink, GripVertical, Eye, EyeOff, X, Plus, UploadCloud, Trash2, LayoutTemplate } from 'lucide-react'
 import { settingsApi } from '../../api/endpoints'
 import { writeThemeDraft } from '../../utils/storefrontDraft'
 import { DEFAULT_THEME, FONT_OPTIONS, normalizeHex, resolveTheme, contrastRatio, applyThemeVars, buildCacheCode, cacheTheme } from '../../utils/theme'
@@ -29,6 +29,13 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       storefront_sections: parseSections(s.storefront_sections) ?? defaultSectionsFor(s.storefront_template || 'classic'),
       storefront_hero_title: s.storefront_hero_title || '',
       storefront_hero_subtitle: s.storefront_hero_subtitle || '',
+      storefront_tagline: s.storefront_tagline || '',
+      storefront_menu: Array.isArray(s.storefront_menu) ? s.storefront_menu : [],
+      storefront_socials: Array.isArray(s.storefront_socials) ? s.storefront_socials : [],
+      storefront_posts: Array.isArray(s.storefront_posts) ? s.storefront_posts : [],
+      store_email: s.store_email || '',
+      store_hours: s.store_hours || '',
+      store_map_url: s.store_map_url || '',
       theme_primary: s.theme_primary || DEFAULT_THEME.primary,
       theme_accent: s.theme_accent || DEFAULT_THEME.accent,
       theme_bg: s.theme_bg || DEFAULT_THEME.bg,
@@ -38,12 +45,58 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     }
   })
 
+  const { data: customTheme } = useQuery({
+    queryKey: ['storefront-custom-theme'],
+    queryFn: settingsApi.getTheme,
+    retry: false,
+    staleTime: 60_000,
+  })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const importThemeMut = useMutation({
+    mutationFn: (file: File) => settingsApi.importTheme(file),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['settings'] })
+      qc.invalidateQueries({ queryKey: ['storefront-custom-theme'] })
+      if (r?.html) setThemeForm({ storefront_template: 'custom', customImportName: String(r.name || '') })
+      toast.success(`تم استيراد القالب "${r?.name}" وتفعيله — احفظه ليظهر للمتسوقين`)
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'فشل استيراد القالب'),
+  })
+
+  const deleteThemeMut = useMutation({
+    mutationFn: () => settingsApi.deleteTheme(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['settings'] })
+      qc.invalidateQueries({ queryKey: ['storefront-custom-theme'] })
+      const next = { ...form, storefront_template: 'classic', customImportName: '' }
+      setForm(next)
+      applyDraft(next)
+      setPreviewKey((k) => k + 1)
+      toast.success('تم حذف القالب المستورد والعودة للقالب الكلاسيكي')
+    },
+    onError: () => toast.error('فشل حذف القالب المستورد'),
+  })
+
+  const onPickZip = (file: File | undefined | null) => {
+    if (!file) return
+    importThemeMut.mutate(file)
+  }
+
   const applyDraft = (next: Record<string, any>) => {
     writeThemeDraft({
       storefront_template: next.storefront_template,
       storefront_sections: next.storefront_sections,
       storefront_hero_title: next.storefront_hero_title,
       storefront_hero_subtitle: next.storefront_hero_subtitle,
+      storefront_tagline: next.storefront_tagline,
+      storefront_menu: next.storefront_menu,
+      storefront_socials: next.storefront_socials,
+      storefront_posts: next.storefront_posts,
+      store_email: next.store_email,
+      store_hours: next.store_hours,
+      store_map_url: next.store_map_url,
       theme_primary: next.theme_primary,
       theme_accent: next.theme_accent,
       theme_bg: next.theme_bg,
@@ -104,6 +157,13 @@ export default function AppearanceTab({ settings }: { settings: any }) {
         storefront_sections: form.storefront_sections,
         storefront_hero_title: form.storefront_hero_title || '',
         storefront_hero_subtitle: form.storefront_hero_subtitle || '',
+        storefront_tagline: form.storefront_tagline || '',
+        storefront_menu: form.storefront_menu || [],
+        storefront_socials: form.storefront_socials || [],
+        storefront_posts: form.storefront_posts || [],
+        store_email: form.store_email || '',
+        store_hours: form.store_hours || '',
+        store_map_url: form.store_map_url || '',
         theme_primary: normalizeHex(form.theme_primary, DEFAULT_THEME.primary),
         theme_accent: normalizeHex(form.theme_accent, DEFAULT_THEME.accent),
         theme_bg: normalizeHex(form.theme_bg, DEFAULT_THEME.bg),
@@ -128,6 +188,13 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       storefront_sections: defaultSectionsFor('classic'),
       storefront_hero_title: '',
       storefront_hero_subtitle: '',
+      storefront_tagline: '',
+      storefront_menu: [],
+      storefront_socials: [],
+      storefront_posts: [],
+      store_email: '',
+      store_hours: '',
+      store_map_url: '',
       theme_primary: DEFAULT_THEME.primary,
       theme_accent: DEFAULT_THEME.accent,
       theme_bg: DEFAULT_THEME.bg,
@@ -178,8 +245,52 @@ export default function AppearanceTab({ settings }: { settings: any }) {
                 <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === t.id ? 'text-[var(--primary)]' : 'text-slate-600'}`}>{t.name}</span>
               </button>
             ))}
+            <button
+              onClick={() => update('storefront_template', 'custom')}
+              className={`rounded-xl border-2 p-1.5 text-center transition-colors ${form.storefront_template === 'custom' ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-slate-200 hover:border-slate-300'}`}
+              title="قالب مستورد — واجهة كاملة من ملف ZIP (WordPress أو موقع ثابت)"
+            >
+              <div className="rounded-lg border-b border-black/5 overflow-hidden bg-[linear-gradient(135deg,#1e293b_0%,#334155_55%,#475569_100%)] h-14 flex items-center justify-center">
+                <LayoutTemplate size={18} className="text-white/80" />
+              </div>
+              <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === 'custom' ? 'text-[var(--primary)]' : 'text-slate-600'}`}>مستورد</span>
+            </button>
           </div>
         </div>
+
+        {form.storefront_template === 'custom' && (
+          <div className="mb-5 rounded-2xl border-2 border-dashed p-3 space-y-3" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-bold text-slate-700">استيراد قالب من ملف ZIP — WordPress أو موقع ثابت</label>
+              {customTheme?.imported && (
+                <button
+                  onClick={() => deleteThemeMut.mutate()}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-red-500 hover:text-red-600"
+                >
+                  <Trash2 size={12} /> حذف القالب المستورد
+                </button>
+              )}
+            </div>
+            {customTheme?.imported && (
+              <p className="text-[11px] text-slate-500">
+                القالب الحالي: <span className="font-bold text-slate-700">{customTheme.name}</span> — {Math.round((customTheme.size || 0) / 1024)} ك.ب في {customTheme.assets || 0} ملف
+              </p>
+            )}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-xl bg-slate-50 py-5 cursor-pointer hover:bg-slate-100 transition-colors"
+            >
+              <UploadCloud size={22} className="text-slate-400" />
+              <span className="text-xs font-bold text-slate-600">{importThemeMut.isPending ? 'جاري الاستيراد وتضمين الملفات...' : 'اختر ملف ZIP أو اسحبه هنا'}</span>
+              <span className="text-[10px] text-slate-400">يحوّل الملف إلى صفحة واحدة مضمنة (حتى 30 م.ب، بدون PHP)</span>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={(e) => { onPickZip(e.target.files?.[0]); e.target.value = '' }} />
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              أي نصوص في القالب بصيغة <code className="font-mono" dir="ltr">{'{{store_name}}'}</code>، <code className="font-mono" dir="ltr">{'{{products}}'}</code> تُستبدل ببيانات متجرك الحية تلقائياً.
+              قوائم المنتجات والفئات والمقالات والقوائم والسوشيال تُربط عبر <code className="font-mono" dir="ltr">data-vendora-repeat</code> و <code className="font-mono" dir="ltr">data-vendora-mount</code>.
+            </p>
+          </div>
+        )}
 
         {/* Section builder */}
         <div className="mb-6">
@@ -316,6 +427,69 @@ export default function AppearanceTab({ settings }: { settings: any }) {
                   <option key={f.id} value={f.id}>{f.label}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
+            <h3 className="font-bold text-slate-700 text-sm">بيانات المتجر للقالب المستورد</h3>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">الوصف القصير / الشعار النصي (tagline)</label>
+              <input className="input text-sm" value={form.storefront_tagline} onChange={(e) => update('storefront_tagline', e.target.value)} placeholder="كل لوازم السباكة ومواد البناء — توريد جملة وتجزئة" />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">قائمة التنقل</label>
+              {((form.storefront_menu || []) as any[]).map((m: any, i: number) => (
+                <div key={i} className="flex gap-2 mb-1.5" dir="ltr">
+                  <input className="input text-xs flex-1" value={m.label || ''} placeholder="اسم الرابط" onChange={(e) => update('storefront_menu', (form.storefront_menu || []).map((x: any, j: number) => (j === i ? { ...x, label: e.target.value } : x)))} />
+                  <input className="input text-xs flex-1" value={m.href || ''} placeholder="/catalog" onChange={(e) => update('storefront_menu', (form.storefront_menu || []).map((x: any, j: number) => (j === i ? { ...x, href: e.target.value } : x)))} />
+                  <button onClick={() => update('storefront_menu', (form.storefront_menu || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+                </div>
+              ))}
+              <button onClick={() => update('storefront_menu', [...(form.storefront_menu || []), { label: '', href: '' }])} className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)]"><Plus size={12} /> إضافة رابط</button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">روابط التواصل الاجتماعي</label>
+              {((form.storefront_socials || []) as any[]).map((m: any, i: number) => (
+                <div key={i} className="flex gap-2 mb-1.5" dir="ltr">
+                  <input className="input text-xs flex-1" value={m.name || ''} placeholder="فيسبوك" onChange={(e) => update('storefront_socials', (form.storefront_socials || []).map((x: any, j: number) => (j === i ? { ...x, name: e.target.value } : x)))} />
+                  <input className="input text-xs flex-1" value={m.href || ''} placeholder="https://facebook.com/..." onChange={(e) => update('storefront_socials', (form.storefront_socials || []).map((x: any, j: number) => (j === i ? { ...x, href: e.target.value } : x)))} />
+                  <button onClick={() => update('storefront_socials', (form.storefront_socials || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+                </div>
+              ))}
+              <button onClick={() => update('storefront_socials', [...(form.storefront_socials || []), { name: '', href: '' }])} className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)]"><Plus size={12} /> إضافة تواصل</button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">مقالات / أخبار</label>
+              {((form.storefront_posts || []) as any[]).map((p: any, i: number) => (
+                <div key={i} className="space-y-1.5 mb-2 rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex gap-2" dir="ltr">
+                    <input className="input text-xs flex-1" value={p.title || ''} placeholder="عنوان المقال" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, title: e.target.value } : x)))} />
+                    <button onClick={() => update('storefront_posts', (form.storefront_posts || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+                  </div>
+                  <textarea className="input text-xs w-full" rows={2} value={p.excerpt || ''} placeholder="ملخص قصير" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, excerpt: e.target.value } : x)))} />
+                  <input className="input text-xs w-full" dir="ltr" value={p.image_url || ''} placeholder="https://...-image.jpg" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, image_url: e.target.value } : x)))} />
+                </div>
+              ))}
+              <button onClick={() => update('storefront_posts', [...(form.storefront_posts || []), { title: '', excerpt: '', image_url: '' }])} className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)]"><Plus size={12} /> إضافة مقال</button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">البريد الإلكتروني</label>
+                <input className="input text-sm" dir="ltr" value={form.store_email} onChange={(e) => update('store_email', e.target.value)} placeholder="sales@store.com" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">ساعات العمل</label>
+                <input className="input text-sm" value={form.store_hours} onChange={(e) => update('store_hours', e.target.value)} placeholder="السبت - الخميس، 9 ص - 6 م" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">رابط الخريطة</label>
+              <input className="input text-sm" dir="ltr" value={form.store_map_url} onChange={(e) => update('store_map_url', e.target.value)} placeholder="https://maps.app.goo.gl/..." />
             </div>
           </div>
 

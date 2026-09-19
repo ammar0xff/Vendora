@@ -69,6 +69,62 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
     return {"logo_url": url}
 
 
+async def _upsert_setting(db: AsyncSession, key: str, value: Any) -> None:
+    from app.models.settings import StoreSetting
+    row = (await db.execute(select(StoreSetting).where(StoreSetting.key == key))).scalar_one_or_none()
+    if row:
+        row.value = value
+    else:
+        db.add(StoreSetting(key=key, value=value))
+
+
+@router.post("/storefront-theme/import")
+async def import_storefront_theme(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
+    """Import a WordPress/static HTML template ZIP into a self-contained custom theme."""
+    import json as _json
+    from datetime import datetime, timezone
+
+    from app.services.storefront_theme import ThemeImportError, import_theme_zip
+
+    contents = await file.read()
+    if len(contents) > 20 * 1024 * 1024:
+        raise HTTPException(413, "حجم الملف يتجاوز 20 ميجابايت")
+    try:
+        result = import_theme_zip(contents, file.filename or "theme.zip")
+    except ThemeImportError as e:
+        raise HTTPException(400, str(e)) from None
+    result["imported_at"] = datetime.now(timezone.utc).isoformat()
+    await _upsert_setting(db, "storefront_custom_theme", _json.dumps(result, ensure_ascii=False))
+    await _upsert_setting(db, "storefront_template", "custom")
+    await db.commit()
+    return result
+
+
+@router.get("/storefront-theme")
+async def get_storefront_theme(db: AsyncSession = Depends(get_db)):
+    """Public — the imported custom template (only fetched by the store window itself)."""
+    import json as _json
+
+    from app.models.settings import StoreSetting
+    row = (await db.execute(select(StoreSetting).where(StoreSetting.key == "storefront_custom_theme"))).scalar_one_or_none()
+    if not row or not row.value:
+        return {"imported": False, "name": "", "html": "", "size": 0, "assets": 0, "imported_at": None}
+    try:
+        data = _json.loads(row.value)
+    except (_json.JSONDecodeError, TypeError):
+        return {"imported": False, "name": "", "html": "", "size": 0, "assets": 0, "imported_at": None}
+    return {"imported": True, **data}
+
+
+@router.delete("/storefront-theme")
+async def delete_storefront_theme(db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
+    from app.models.settings import StoreSetting
+    await db.execute(StoreSetting.__table__.delete().where(StoreSetting.key == "storefront_custom_theme"))
+    await _upsert_setting(db, "storefront_template", "classic")
+    await db.commit()
+    return {"detail": "تم حذف القالب المستورد"}
+
+
 @router.get("/manifest.json", include_in_schema=False)
 async def pwa_manifest(db: AsyncSession = Depends(get_db)):
     """Dynamic PWA manifest using logo from settings."""
