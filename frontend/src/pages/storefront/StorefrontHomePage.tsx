@@ -11,20 +11,21 @@ import CustomTemplatePage from './templates/custom/CustomTemplatePage'
 
 export default function StorefrontHomePage() {
   const merged = useMergedSettings()
+  const isCustom = merged?.storefront_template === 'custom'
 
-  if (merged.storefront_template === 'custom') {
+  const { data } = useQuery({ queryKey: ['storefront-home'], queryFn: () => storefrontApi.products({ page: 1, page_size: 8 }), enabled: !isCustom })
+  const items = data?.items ?? []
+  const totalProducts = data?.total ?? 0
+
+  const { data: categories } = useQuery({ queryKey: ['storefront-categories'], queryFn: storefrontApi.categories, enabled: !isCustom })
+  const catList = categories ?? []
+
+  if (isCustom) {
     return <CustomTemplatePage />
   }
 
   const tone = getTone(merged.storefront_template as string | undefined)
   const sections = parseSections(merged.storefront_sections) ?? defaultSectionsFor(tone)
-
-  const { data } = useQuery({ queryKey: ['storefront-home'], queryFn: () => storefrontApi.products({ page: 1, page_size: 8 }) })
-  const items = data?.items ?? []
-  const totalProducts = data?.total ?? 0
-
-  const { data: categories } = useQuery({ queryKey: ['storefront-categories'], queryFn: storefrontApi.categories })
-  const catList = categories ?? []
 
   const homeData: HomeData = {
     items,
