@@ -6,6 +6,9 @@ import { PageLoader } from '../../components/ui/Loaders'
 import toast from 'react-hot-toast'
 import { Save, Trash2 } from 'lucide-react'
 import { fixUploadUrl } from '../../utils/format'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Select } from '../../components/ui/select'
 
 export default function GeneralSettingsPage() {
   const qc = useQueryClient()
@@ -54,11 +57,11 @@ export default function GeneralSettingsPage() {
               <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-2xl border-2 border-dashed border-slate-300">🏢</div>
             )}
             <div className="flex-1 space-y-2">
-              <input className="input text-sm" value={sf.logo_url || ''} onChange={e => setStoreForm({ ...sf, logo_url: e.target.value })} placeholder="رابط الصورة (URL)" />
+ <Input className="text-sm" value={sf.logo_url || ''} onChange={e => setStoreForm({ ...sf, logo_url: e.target.value })} placeholder="رابط الصورة (URL)"/>
               <div className="flex items-center gap-2">
                 <label className="cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
                   📁 رفع صورة
-                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                  <input type="file" accept="image/*" className="hidden" aria-label="رفع صورة الشعار" onChange={e => {
                     const file = e.target.files?.[0]
                     if (file) uploadLogo(file)
                     e.target.value = ''
@@ -77,54 +80,54 @@ export default function GeneralSettingsPage() {
         ].map(({ key, label }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-slate-600 mb-1">{label}</label>
-            <input className="input" value={sf[key] || ''} onChange={e => setStoreForm({ ...sf, [key]: e.target.value })} />
+ <Input value={sf[key] || ''} onChange={e => setStoreForm({ ...sf, [key]: e.target.value })}/>
           </div>
         ))}
 
         {/* Paper size */}
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">حجم ورق الطباعة والـ PDF</label>
-          <select className="input" value={sf.paper_size || 'A4'} onChange={e => setStoreForm({ ...sf, paper_size: e.target.value })}>
+          <Select value={sf.paper_size || 'A4'} onChange={e => setStoreForm({ ...sf, paper_size: e.target.value })}>
             <option value="A4">A4 (210 × 297 mm) — الأكثر شيوعاً</option>
             <option value="A5">A5 (148 × 210 mm) — فواتير صغيرة</option>
             <option value="Letter">Letter (216 × 279 mm) — أمريكي</option>
-          </select>
+          </Select>
         </div>
 
         {/* Contact phones */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-slate-600">أرقام التواصل (تظهر في الفواتير)</label>
-            <button onClick={() => {
+            <Button variant="secondary" size="sm" onClick={() => {
               const arr = [...(sf.contact_phones || []), { name: '', phone: '' }]
               setStoreForm({ ...sf, contact_phones: arr })
-            }} className="text-xs px-2 py-1 rounded bg-[var(--primary-soft)] text-[var(--accent)] font-medium">+ إضافة رقم</button>
+            }} className="text-xs">+ إضافة رقم</Button>
           </div>
           <div className="space-y-2">
             {(sf.contact_phones || [{ name: '', phone: '' }]).map((c: any, i: number) => (
               <div key={i} className="flex gap-2">
-                <input className="input flex-1 text-sm" placeholder="الاسم" value={c.name || ''} onChange={e => {
+ <Input className="flex-1 text-sm" placeholder="الاسم" value={c.name || ''} onChange={e => {
                   const arr = [...(sf.contact_phones || [])]
                   arr[i] = { ...arr[i], name: e.target.value }
                   setStoreForm({ ...sf, contact_phones: arr })
                 }} />
-                <input className="input flex-1 text-sm" placeholder="رقم التليفون" value={c.phone || ''} onChange={e => {
+ <Input className="flex-1 text-sm" placeholder="رقم التليفون" value={c.phone || ''} onChange={e => {
                   const arr = [...(sf.contact_phones || [])]
                   arr[i] = { ...arr[i], phone: e.target.value }
                   setStoreForm({ ...sf, contact_phones: arr })
                 }} />
-                <button onClick={() => {
+                <Button variant="ghost" size="icon-sm" onClick={() => {
                   const arr = sf.contact_phones?.filter((_: any, j: number) => j !== i) || []
                   setStoreForm({ ...sf, contact_phones: arr })
-                }} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 flex-shrink-0"><Trash2 size={14} /></button>
+                }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 flex-shrink-0"><Trash2 size={14} /></Button>
               </div>
             ))}
           </div>
         </div>
 
-        <button onClick={() => saveSettings.mutate(sf)} disabled={saveSettings.isPending} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white w-full flex items-center justify-center gap-2" style={{ background: 'var(--primary)' }}>
+        <Button onClick={() => saveSettings.mutate(sf)} disabled={saveSettings.isPending} className="w-full flex items-center justify-center gap-2">
           <Save size={16} /> {saveSettings.isPending ? 'جاري...' : 'حفظ الإعدادات'}
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -8,6 +8,10 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { format, startOfMonth } from 'date-fns'
 import { Plus, Trash2, TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronLeft } from 'lucide-react'
+import { Input } from '../../components/ui/input'
+import { Select } from '../../components/ui/select'
+import { Badge } from '../../components/ui/badge'
+import { Button } from '../../components/ui/button'
 
 export default function FinanceLedgerContent() {
   const [from, setFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -54,19 +58,19 @@ export default function FinanceLedgerContent() {
     <div>
       <div className="page-header">
         <div>
-          <p className="text-slate-500 text-sm">تتبع كل جنيه داخل وخارج الشركة بالتفصيل</p>
+          <p className="text-[var(--muted)] text-sm">تتبع كل جنيه داخل وخارج الشركة بالتفصيل</p>
         </div>
-        <button onClick={() => setShowManageCats(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
+        <Button onClick={() => setShowManageCats(true)} className="gap-2 text-white bg-[var(--primary)]">
           <Plus size={15} /> إدارة الفئات
-        </button>
+        </Button>
       </div>
 
       {/* Date filter */}
       <div className="flex gap-3 items-center mb-6 flex-wrap">
-        <label className="text-sm text-slate-500">من</label>
-        <input type="date" className="input w-40" value={from} onChange={e => setFrom(e.target.value)} />
-        <label className="text-sm text-slate-500">إلى</label>
-        <input type="date" className="input w-40" value={to} onChange={e => setTo(e.target.value)} />
+        <label className="text-sm text-[var(--muted)]">من</label>
+ <Input type="date" className="w-40" value={from} onChange={e => setFrom(e.target.value)}/>
+        <label className="text-sm text-[var(--muted)]">إلى</label>
+ <Input type="date" className="w-40" value={to} onChange={e => setTo(e.target.value)}/>
       </div>
 
       {/* Company view notice */}
@@ -81,15 +85,15 @@ export default function FinanceLedgerContent() {
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="stat-card">
             <div className="stat-icon" style={{ background: '#fef2f2' }}><TrendingDown size={20} style={{ color: '#dc2626' }} /></div>
-            <div><p className="text-slate-500 text-xs mb-1">إجمالي الخوارج</p><p className="text-xl font-black text-red-600">{Number(ledger.total_expense).toLocaleString('ar-EG')} ج.م</p></div>
+            <div><p className="text-[var(--muted)] text-xs mb-1">إجمالي الخوارج</p><p className="text-xl font-black text-red-600">{Number(ledger.total_expense).toLocaleString('ar-EG')} ج.م</p></div>
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: '#f0fdf4' }}><TrendingUp size={20} style={{ color: '#16a34a' }} /></div>
-            <div><p className="text-slate-500 text-xs mb-1">إجمالي الدواخل</p><p className="text-xl font-black text-green-600">{Number(ledger.total_income).toLocaleString('ar-EG')} ج.م</p></div>
+            <div><p className="text-[var(--muted)] text-xs mb-1">إجمالي الدواخل</p><p className="text-xl font-black text-green-600">{Number(ledger.total_income).toLocaleString('ar-EG')} ج.م</p></div>
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: Number(ledger.net) >= 0 ? '#f0fdf4' : '#fef2f2' }}><DollarSign size={20} style={{ color: Number(ledger.net) >= 0 ? '#16a34a' : '#dc2626' }} /></div>
-            <div><p className="text-slate-500 text-xs mb-1">الصافي</p><p className={`text-xl font-black ${Number(ledger.net) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{Number(ledger.net).toLocaleString('ar-EG')} ج.م</p></div>
+            <div><p className="text-[var(--muted)] text-xs mb-1">الصافي</p><p className={`text-xl font-black ${Number(ledger.net) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{Number(ledger.net).toLocaleString('ar-EG')} ج.م</p></div>
           </div>
         </div>
       )}
@@ -103,27 +107,27 @@ export default function FinanceLedgerContent() {
               {!expenses.length && <EmptyState message="لا توجد خوارج" icon="💸" />}
               {expenses.map((cat: any) => (
                 <div key={cat.name} className="card p-0 overflow-hidden">
-                  <button onClick={() => setExpandedCat(expandedCat === cat.name + 'e' ? null : cat.name + 'e')}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                  <Button variant="ghost" onClick={() => setExpandedCat(expandedCat === cat.name + 'e' ? null : cat.name + 'e')}
+                    className="w-full justify-between p-4 hover:bg-[var(--surface-2)] transition-colors h-auto">
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 rounded-full" style={{ background: cat.color }} />
                       <div className="text-right">
-                        <p className="font-bold text-slate-800">{cat.name}</p>
-                        <p className="text-xs text-slate-400">{cat.count} عملية</p>
+                        <p className="font-bold text-[var(--text)]">{cat.name}</p>
+                        <p className="text-xs text-[var(--muted)]">{cat.count} عملية</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-black text-red-600">{Number(cat.total).toLocaleString('ar-EG')} ج.م</span>
-                      {expandedCat === cat.name + 'e' ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronLeft size={16} className="text-slate-400" />}
+                      {expandedCat === cat.name + 'e' ? <ChevronDown size={16} className="text-[var(--muted)]" /> : <ChevronLeft size={16} className="text-[var(--muted)]" />}
                     </div>
-                  </button>
-                  {expandedCat === cat.name + 'e' && (
-                    <div className="border-t border-slate-100">
+                  </Button>
+                    {expandedCat === cat.name + 'e' && (
+                    <div className="border-t border-[var(--border-faint)]">
                       {cat.entries.map((e: any) => (
-                        <div key={e.id} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                        <div key={e.id} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-[var(--surface-2)]">
                           <div>
-                            <p className="text-sm font-medium text-slate-700">{e.note || txTypeLabel[e.type] || e.type}</p>
-                            <p className="text-xs text-slate-400">{isCompanyView && e.warehouse_name && <span className="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
+                            <p className="text-sm font-medium text-[var(--text)]">{e.note || txTypeLabel[e.type] || e.type}</p>
+                            <p className="text-xs text-[var(--muted)]">{isCompanyView && e.warehouse_name && <span className="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
                           </div>
                           <span className="font-bold text-red-600 text-sm">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
                         </div>
@@ -142,27 +146,27 @@ export default function FinanceLedgerContent() {
               {!incomes.length && <EmptyState message="لا توجد دواخل" icon="💰" />}
               {incomes.map((cat: any) => (
                 <div key={cat.name} className="card p-0 overflow-hidden">
-                  <button onClick={() => setExpandedCat(expandedCat === cat.name + 'i' ? null : cat.name + 'i')}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                  <Button variant="ghost" onClick={() => setExpandedCat(expandedCat === cat.name + 'i' ? null : cat.name + 'i')}
+                    className="w-full justify-between p-4 hover:bg-[var(--surface-2)] transition-colors h-auto">
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 rounded-full" style={{ background: cat.color }} />
                       <div className="text-right">
-                        <p className="font-bold text-slate-800">{cat.name}</p>
-                        <p className="text-xs text-slate-400">{cat.count} عملية</p>
+                        <p className="font-bold text-[var(--text)]">{cat.name}</p>
+                        <p className="text-xs text-[var(--muted)]">{cat.count} عملية</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-black text-green-600">{Number(cat.total).toLocaleString('ar-EG')} ج.م</span>
-                      {expandedCat === cat.name + 'i' ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronLeft size={16} className="text-slate-400" />}
+                      {expandedCat === cat.name + 'i' ? <ChevronDown size={16} className="text-[var(--muted)]" /> : <ChevronLeft size={16} className="text-[var(--muted)]" />}
                     </div>
-                  </button>
-                  {expandedCat === cat.name + 'i' && (
-                    <div className="border-t border-slate-100">
+                  </Button>
+                    {expandedCat === cat.name + 'i' && (
+                    <div className="border-t border-[var(--border-faint)]">
                       {cat.entries.map((e: any) => (
-                        <div key={e.id} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                        <div key={e.id} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-[var(--surface-2)]">
                           <div>
-                            <p className="text-sm font-medium text-slate-700">{e.note || txTypeLabel[e.type] || e.type}</p>
-                            <p className="text-xs text-slate-400">{isCompanyView && e.warehouse_name && <span className="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
+                            <p className="text-sm font-medium text-[var(--text)]">{e.note || txTypeLabel[e.type] || e.type}</p>
+                            <p className="text-xs text-[var(--muted)]">{isCompanyView && e.warehouse_name && <span className="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium ml-1">{e.warehouse_name}</span>}{new Date(e.created_at).toLocaleString('ar-EG')}</p>
                           </div>
                           <span className="font-bold text-green-600 text-sm">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
                         </div>
@@ -180,32 +184,32 @@ export default function FinanceLedgerContent() {
       <Modal open={showManageCats} onClose={() => setShowManageCats(false)} title="إدارة الفئات المالية" size="lg">
         <div className="space-y-4">
           {/* Add new */}
-          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-            <p className="text-sm font-bold text-slate-600">إضافة فئة جديدة</p>
+          <div className="bg-[var(--surface-2)] rounded-xl p-4 space-y-3">
+            <p className="text-sm font-bold text-[var(--text-soft)]">إضافة فئة جديدة</p>
             <div className="grid grid-cols-3 gap-3">
-              <input className="input col-span-1" placeholder="اسم الفئة" value={newCatName} onChange={e => setNewCatName(e.target.value)} />
-              <select className="input" value={newCatType} onChange={e => setNewCatType(e.target.value)}>
+ <Input className="col-span-1" placeholder="اسم الفئة" value={newCatName} onChange={e => setNewCatName(e.target.value)}/>
+              <Select value={newCatType} onChange={e => setNewCatType(e.target.value)}>
                 <option value="expense">خوارج</option>
                 <option value="income">دواخل</option>
-              </select>
+              </Select>
               <div className="flex gap-2 items-center">
-                <input type="color" value={newCatColor} onChange={e => setNewCatColor(e.target.value)} className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer" />
-                <button onClick={() => addCatMut.mutate()} disabled={!newCatName} className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
+                <input type="color" value={newCatColor} onChange={e => setNewCatColor(e.target.value)} className="w-10 h-10 rounded-lg border border-[var(--border)] cursor-pointer" />
+                <Button size="sm" onClick={() => addCatMut.mutate()} disabled={!newCatName} className="flex-1 text-white bg-[var(--primary)]">إضافة</Button>
               </div>
             </div>
           </div>
           {/* List */}
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {categories?.map((c: any) => (
-              <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+              <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-2)]">
                 <div className="flex items-center gap-3">
                   <div className="w-4 h-4 rounded-full" style={{ background: c.color }} />
                   <div>
-                    <p className="font-semibold text-sm text-slate-800">{c.name}</p>
-                    <span className={c.type === 'expense' ? 'badge-red text-xs' : 'badge-green text-xs'}>{c.type === 'expense' ? 'خوارج' : 'دواخل'}</span>
+                    <p className="font-semibold text-sm text-[var(--text)]">{c.name}</p>
+                    <Badge variant={c.type === 'expense' ? 'red' : 'green'} className="text-xs">{c.type === 'expense' ? 'خوارج' : 'دواخل'}</Badge>
                   </div>
                 </div>
-                <button onClick={() => setConfirmDelCat(c.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                <Button variant="ghost" size="icon-sm" onClick={() => setConfirmDelCat(c.id)} className="text-[var(--faint)] hover:text-red-500"><Trash2 size={14} /></Button>
               </div>
             ))}
           </div>

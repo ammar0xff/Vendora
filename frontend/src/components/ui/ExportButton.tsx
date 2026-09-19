@@ -1,4 +1,5 @@
 import { Download, FileSpreadsheet } from 'lucide-react'
+import { Button } from './button'
 
 interface ExportColumn {
   label: string
@@ -60,15 +61,13 @@ export default function ExportButton({ data, columns, filename = 'export', excel
 
   return (
     <div className="flex gap-1">
-      <button onClick={handleCsv} disabled={!data?.length}
-        className="btn btn-outline btn-sm">
+      <Button variant="outline" size="sm" onClick={handleCsv} disabled={!data?.length}>
         <Download size={13} /> CSV
-      </button>
+      </Button>
       {excelEndpoint && (
-        <button onClick={handleExcel}
-          className="btn btn-success-soft btn-sm">
+        <Button variant="outline" size="sm" className="text-success hover:bg-success-soft" onClick={handleExcel}>
           <FileSpreadsheet size={13} /> Excel
-        </button>
+        </Button>
       )}
     </div>
   )

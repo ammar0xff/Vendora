@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, Package, Layers, Grid3X3, Box, ShoppingCart } from 'lucide-react'
+import { ChevronRight, Package, Layers, Grid3X3 } from 'lucide-react'
+import { Button } from '../../components/ui/button'
 import { productsApi, categoriesApi, subcategoriesApi } from '../../api/endpoints'
 import { stockApi } from '../../api/endpoints'
 
@@ -65,25 +66,25 @@ export default function CategoryCardBrowser({
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-          <button onClick={handleBack}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+          <Button variant="secondary" size="sm" onClick={handleBack}
+            className="gap-1 text-xs font-bold bg-[var(--surface-3)] text-[var(--text-soft)] hover:bg-[var(--surface-3)]">
             <ChevronRight size={14} /> رجوع
-          </button>
-          <div className="text-xs text-slate-400">/</div>
-          <span className="text-xs font-bold text-slate-600">{selectedCat?.name}</span>
-          <div className="text-xs text-slate-400">/</div>
-          <span className="text-xs font-bold text-slate-800">
+          </Button>
+          <div className="text-xs text-[var(--muted)]">/</div>
+          <span className="text-xs font-bold text-[var(--text-soft)]">{selectedCat?.name}</span>
+          <div className="text-xs text-[var(--muted)]">/</div>
+          <span className="text-xs font-bold text-[var(--text)]">
             {selectedSub?.name || 'الكل'}
-            {selectedSub?.code ? <span className="font-mono font-bold text-slate-400 ml-1" dir="ltr">{selectedSub.code}</span> : null}
+            {selectedSub?.code ? <span className="font-mono font-bold text-[var(--muted)] ml-1" dir="ltr">{selectedSub.code}</span> : null}
           </span>
         </div>
 
         {loadingProducts ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-sm text-slate-400 animate-pulse">جاري تحميل المنتجات...</div>
+            <div className="text-sm text-[var(--muted)] animate-pulse">جاري تحميل المنتجات...</div>
           </div>
         ) : subProducts.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">لا توجد منتجات</div>
+          <div className="flex-1 flex items-center justify-center text-[var(--muted)] text-sm">لا توجد منتجات</div>
         ) : (
           <div className="flex-1 overflow-y-auto">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
@@ -91,8 +92,8 @@ export default function CategoryCardBrowser({
                 const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
                 const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                 return (
-                  <button key={p.id} onClick={() => onAddProduct(p)}
-                    className="bg-white rounded-xl border border-slate-200 p-3 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95 flex flex-col">
+                  <Button key={p.id} variant="outline" onClick={() => onAddProduct(p)}
+                    className="bg-[var(--surface)] rounded-xl border-[var(--border)] p-3 text-right hover:border-blue-300 hover:shadow-md active:scale-95 flex flex-col h-auto items-start justify-start">
                     <div className="flex items-start justify-between mb-1.5">
                       <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
                         <Package size={14} className="text-blue-600" />
@@ -105,17 +106,17 @@ export default function CategoryCardBrowser({
                         }`}>{qty}</span>
                       )}
                     </div>
-                    <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">
-                      {p.code ? <span className="font-mono text-[10px] font-bold text-slate-400 ml-1" dir="ltr">{p.code}</span> : null}{p.name}
+                    <p className="text-xs font-bold text-[var(--text)] leading-tight line-clamp-2 mb-0.5">
+                      {p.code ? <span className="font-mono text-[10px] font-bold text-[var(--muted)] ml-1" dir="ltr">{p.code}</span> : null}{p.name}
                     </p>
-                    {p.company && <p className="text-[10px] text-slate-400 mb-1.5">{p.company}</p>}
+                    {p.company && <p className="text-[10px] text-[var(--muted)] mb-1.5">{p.company}</p>}
                     {p.shelf_number && <p className="text-[10px] font-bold text-indigo-500 mb-1.5">الرف: {p.shelf_number}</p>}
                     <div className="mt-auto">
                       <p className="text-sm font-black leading-none" style={{ color: 'var(--accent)' }}>
                         {price.toLocaleString('ar-EG')} <span className="text-[10px] font-normal">ج.م</span>
                       </p>
                     </div>
-                  </button>
+                  </Button>
                 )
               })}
             </div>
@@ -129,28 +130,28 @@ export default function CategoryCardBrowser({
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-          <button onClick={handleBack}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+          <Button variant="secondary" size="sm" onClick={handleBack}
+            className="gap-1 text-xs font-bold bg-[var(--surface-3)] text-[var(--text-soft)] hover:bg-[var(--surface-3)]">
             <ChevronRight size={14} /> رجوع
-          </button>
-          <div className="text-xs text-slate-400">/</div>
-          <span className="text-xs font-bold text-slate-800">{selectedCat?.name}</span>
-          {selectedCat?.code ? <span className="font-mono text-[10px] font-bold text-slate-400" dir="ltr">{selectedCat.code}</span> : null}
+          </Button>
+          <div className="text-xs text-[var(--muted)]">/</div>
+          <span className="text-xs font-bold text-[var(--text)]">{selectedCat?.name}</span>
+          {selectedCat?.code ? <span className="font-mono text-[10px] font-bold text-[var(--muted)]" dir="ltr">{selectedCat.code}</span> : null}
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {subsOfSelected.map((sub: any, i: number) => (
-              <button key={sub.id} onClick={() => setSelectedSubId(sub.id)}
-                className="bg-white rounded-xl border border-slate-200 p-4 text-center hover:border-blue-300 hover:shadow-md transition-all active:scale-95">
+              <Button key={sub.id} variant="outline" onClick={() => setSelectedSubId(sub.id)}
+                className="bg-[var(--surface)] rounded-xl border-[var(--border)] p-4 text-center hover:border-blue-300 hover:shadow-md active:scale-95 flex flex-col h-auto items-center justify-start">
                 <div className={`w-12 h-12 mx-auto rounded-xl bg-gradient-to-br ${catColor(i)} flex items-center justify-center mb-2`}>
                   <Layers size={18} className="text-white" />
                 </div>
-                <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-2">
+                <p className="text-xs font-bold text-[var(--text)] leading-tight line-clamp-2">
                   {sub.name}
-                  {sub.code ? <span className="font-mono text-[10px] font-bold text-slate-400 ml-1" dir="ltr">{sub.code}</span> : null}
+                  {sub.code ? <span className="font-mono text-[10px] font-bold text-[var(--muted)] ml-1" dir="ltr">{sub.code}</span> : null}
                 </p>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -165,17 +166,17 @@ export default function CategoryCardBrowser({
           {(categories as any[])?.map((cat: any, i: number) => {
             const subs = getSubsForCat(cat.id)
             return (
-              <button key={cat.id} onClick={() => handleCatClick(cat.id)}
-                className="bg-white rounded-xl border border-slate-200 p-4 text-right hover:border-blue-300 hover:shadow-md transition-all active:scale-95">
+              <Button key={cat.id} variant="outline" onClick={() => handleCatClick(cat.id)}
+                className="bg-[var(--surface)] rounded-xl border-[var(--border)] p-4 text-right hover:border-blue-300 hover:shadow-md active:scale-95 flex flex-col h-auto items-start justify-start">
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${catColor(i)} flex items-center justify-center mb-2`}>
                   <Grid3X3 size={18} className="text-white" />
                 </div>
-                <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-2 mb-0.5">
+                <p className="text-xs font-bold text-[var(--text)] leading-tight line-clamp-2 mb-0.5">
                   {cat.name}
-                  {cat.code ? <span className="font-mono text-[10px] font-bold text-slate-400 ml-1" dir="ltr">{cat.code}</span> : null}
+                  {cat.code ? <span className="font-mono text-[10px] font-bold text-[var(--muted)] ml-1" dir="ltr">{cat.code}</span> : null}
                 </p>
-                <p className="text-[10px] text-slate-400">{subs.length || 0} قسم</p>
-              </button>
+                <p className="text-[10px] text-[var(--muted)]">{subs.length || 0} قسم</p>
+              </Button>
             )
           })}
         </div>

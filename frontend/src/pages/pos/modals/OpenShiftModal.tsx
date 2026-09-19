@@ -1,5 +1,7 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
 import { Wallet } from 'lucide-react'
+import { Select } from '../../../components/ui/select'
 
 interface Props {
   showOpenShift: boolean
@@ -29,19 +31,18 @@ export function OpenShiftModal({ showOpenShift, onClose, mainWh, lastDrawer, sup
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">المشرف العام (اختياري)</label>
-          <select className="input" value={supervisorId} onChange={e => setSupervisorId(e.target.value)}>
+          <Select value={supervisorId} onChange={e => setSupervisorId(e.target.value)}>
             <option value="">بدون مشرف</option>
             {(allUsers as any[])?.map((u: any) => (
               <option key={u.id} value={u.id}>{u.full_name}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
-          <button onClick={() => openShiftMut.mutate()} disabled={openShiftMut.isPending || !mainWh?.id}
-            className="btn btn-success">
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button variant="default" onClick={() => openShiftMut.mutate()} disabled={openShiftMut.isPending || !mainWh?.id}>
             <Wallet size={15} /> تأكيد فتح الوردية
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

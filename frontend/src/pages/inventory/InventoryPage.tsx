@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { productsApi, categoriesApi, subcategoriesApi, stockApi } from '../../api/endpoints'
+import { productsApi, categoriesApi, subcategoriesApi } from '../../api/endpoints'
 import { useAppStore } from '../../store/app'
 import { useAuthStore } from '../../store/auth'
-import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import { SkeletonRow, SkeletonSidebar } from '../../components/ui/Skeleton'
 import ProductForm from '../../components/ui/ProductForm'
 import DataTable from '../../components/ui/DataTable'
@@ -14,7 +13,11 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { Plus, Edit2, Trash2, ChevronDown, ChevronLeft, Package, TrendingUp, Search, Layers, Tag, BarChart2 } from 'lucide-react'
 import ExportButton from '../../components/ui/ExportButton'
+import { Button } from '../../components/ui/button'
 import { clsx } from 'clsx'
+import { Input } from '../../components/ui/input'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
+import { Badge } from '../../components/ui/badge'
 
 function BreakdownModal({ productId, unit }: { productId?: string; unit?: string }) {
   const { data, isLoading } = useQuery({
@@ -22,22 +25,22 @@ function BreakdownModal({ productId, unit }: { productId?: string; unit?: string
     queryFn: () => api.get(`/stock/balance/breakdown/${productId}`).then(r => r.data),
     enabled: !!productId,
   })
-  if (isLoading) return <p className="text-center py-8 text-slate-400">جاري التحميل...</p>
+  if (isLoading) return <p className="text-center py-8 text-[var(--muted)]">جاري التحميل...</p>
   const total = data?.reduce((s: number, r: any) => s + Number(r.qty), 0) || 0
   return (
     <div className="space-y-2">
       {data?.map((r: any) => (
-        <div key={r.warehouse_name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+        <div key={r.warehouse_name} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-faint)]">
           <div className="flex items-center gap-2">
             <span>{r.warehouse_type === 'showroom' ? '🏪' : '🏭'}</span>
-            <span className="font-semibold text-slate-700">{r.warehouse_name}</span>
+            <span className="font-semibold text-[var(--text)]">{r.warehouse_name}</span>
           </div>
           <span className={`font-black ${Number(r.qty) <= 0 ? 'text-red-500' : 'text-green-700'}`}>
             {Number(r.qty).toLocaleString('ar-EG')} {unit}
           </span>
         </div>
       ))}
-      <div className="flex justify-between pt-3 border-t border-slate-200 font-black text-slate-800">
+      <div className="flex justify-between pt-3 border-t border-[var(--border)] font-black text-[var(--text)]">
         <span>الإجمالي</span>
         <span>{total.toLocaleString('ar-EG')} {unit}</span>
       </div>
@@ -129,16 +132,16 @@ export default function InventoryPage() {
     <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-3rem)]">
       {( !categories || !subcategories || !products ) ? (
         <>
-          <aside className="w-full lg:w-52 flex-shrink-0 bg-white rounded-2xl border border-slate-100 p-4"><SkeletonSidebar /></aside>
+          <aside className="w-full lg:w-52 flex-shrink-0 bg-[var(--surface)] rounded-2xl border border-[var(--border-faint)] p-4"><SkeletonSidebar /></aside>
           <div className="flex-1 min-w-0 space-y-3 p-1">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <div className="h-7 w-32 bg-slate-200 rounded-2xl animate-pulse" />
-                <div className="h-4 w-48 bg-slate-200 rounded-xl animate-pulse" />
+                <div className="h-7 w-32 bg-[var(--surface-3)] rounded-2xl animate-pulse" />
+                <div className="h-4 w-48 bg-[var(--surface-3)] rounded-xl animate-pulse" />
               </div>
-              <div className="h-10 w-40 bg-slate-200 rounded-2xl animate-pulse" />
+              <div className="h-10 w-40 bg-[var(--surface-3)] rounded-2xl animate-pulse" />
             </div>
-            <div className="h-10 w-full bg-slate-200 rounded-2xl animate-pulse" />
+            <div className="h-10 w-full bg-[var(--surface-3)] rounded-2xl animate-pulse" />
             <div className="space-y-2">
               {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
             </div>
@@ -147,19 +150,20 @@ export default function InventoryPage() {
       ) : (
         <>
           {/* ── Tree Sidebar ── */}
-      <aside className="w-full lg:w-52 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">التصنيفات</p>
+      <aside className="w-full lg:w-52 flex-shrink-0 flex flex-col bg-[var(--surface)] rounded-2xl border border-[var(--border-faint)] shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--border-faint)] flex-shrink-0">
+          <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">التصنيفات</p>
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           {/* All */}
-          <button
+          <Button
+            variant={!selectedCatId && !selectedSubId ? 'default' : 'ghost'}
             onClick={() => { setSelectedCatId(null); setSelectedSubId(null) }}
-            className={clsx('w-full text-right px-4 py-2 text-sm font-semibold transition-colors flex items-center gap-2',
-              !selectedCatId && !selectedSubId ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)] bg-[var(--primary)]' : 'text-slate-600 hover:bg-slate-50')}
+            className={clsx('w-full text-right justify-start gap-2',
+              !selectedCatId && !selectedSubId ? 'rounded-lg mx-2 w-[calc(100%-1rem)]' : '')}
           >
             <Package size={14} /> الكل
-          </button>
+          </Button>
 
           {categories?.map((cat: any) => {
             const subs = getSubsForCat(cat.id)
@@ -170,20 +174,21 @@ export default function InventoryPage() {
               <div key={cat.id}>
                 {/* Category row */}
                 <div className="flex items-center group">
-                  <button
+                  <Button
+                    variant={isCatActive ? 'default' : 'ghost'}
                     onClick={() => { setSelectedCatId(cat.id); setSelectedSubId(null); if (!isExpanded) toggleCat(cat.id) }}
                     title={cat.name}
-                    className={clsx('flex-1 text-right px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2',
-                      isCatActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)] bg-[var(--primary)]' : 'text-slate-700 hover:bg-slate-50')}
+                    className={clsx('flex-1 text-right justify-start gap-2',
+                      isCatActive ? 'rounded-lg mx-2 w-[calc(100%-1rem)]' : '')}
                   >
                     <Tag size={12} className="flex-shrink-0 opacity-60" />
                     {cat.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{cat.code}</span> : null}
                     <span className="truncate leading-tight">{cat.name}</span>
-                  </button>
+                  </Button>
                   {subs.length > 0 && (
-                    <button onClick={() => toggleCat(cat.id)} className="pr-3 text-slate-400 hover:text-slate-600 flex-shrink-0">
+                    <Button variant="ghost" size="icon-sm" onClick={() => toggleCat(cat.id)} className="text-[var(--muted)] hover:text-[var(--text-soft)] flex-shrink-0">
                       {isExpanded ? <ChevronDown size={13} /> : <ChevronLeft size={13} />}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -191,17 +196,18 @@ export default function InventoryPage() {
                 {isExpanded && subs.map((sub: any) => {
                   const isSubActive = selectedSubId === sub.id
                   return (
-                    <button
+                    <Button
                       key={sub.id}
+                      variant={isSubActive ? 'default' : 'ghost'}
                       onClick={() => { setSelectedCatId(cat.id); setSelectedSubId(sub.id) }}
                       title={sub.name}
-                      className={clsx('w-full text-right pl-3 pr-7 py-1.5 text-xs font-medium transition-colors flex items-center gap-2',
-                        isSubActive ? 'text-white rounded-lg mx-2 w-[calc(100%-1rem)] bg-[var(--primary)]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700')}
+                      className={clsx('w-full text-right justify-start gap-2 text-xs',
+                        isSubActive ? 'rounded-lg mx-2 w-[calc(100%-1rem)]' : '')}
                     >
                       <Layers size={10} className="flex-shrink-0 opacity-50" />
                       {sub.code ? <span className="font-mono text-[10px] font-bold opacity-60 flex-shrink-0" dir="ltr">{sub.code}</span> : null}
                       <span className="truncate leading-tight">{sub.name}</span>
-                    </button>
+                    </Button>
                   )
                 })}
               </div>
@@ -217,16 +223,16 @@ export default function InventoryPage() {
           <div>
             <h1 className="page-title">المخزون</h1>
             {activeCrumb && (
-              <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1">
-                <span className="text-slate-400">الكل</span>
-                <ChevronLeft size={12} className="text-slate-300" />
-                <span className="font-medium text-slate-600">{activeCrumb}</span>
+              <p className="text-sm text-[var(--muted)] mt-0.5 flex items-center gap-1">
+                <span className="text-[var(--muted)]">الكل</span>
+                <ChevronLeft size={12} className="text-[var(--faint)]" />
+                <span className="font-medium text-[var(--text-soft)]">{activeCrumb}</span>
               </p>
             )}
           </div>
-          <button onClick={() => setShowCollection(true)} className="btn btn-outline">
+          <Button variant="outline" onClick={() => setShowCollection(true)}>
             <Package size={15} /> كوليكشن جديد
-          </button>
+          </Button>
           <ExportButton
             data={products || []}
             columns={[
@@ -238,62 +244,62 @@ export default function InventoryPage() {
               { label: 'سعر التكلفة', accessor: p => Number(p.cost_price) },
             ]}
             filename="products" excelEndpoint="/export/products" />
-          <button onClick={() => setShowAdd(true)} className="btn btn-primary">
+          <Button onClick={() => setShowAdd(true)}>
             <Plus size={15} /> إضافة منتج
-          </button>
+          </Button>
         </div>
 
         {/* Search */}
         <div className="relative mb-4 flex-shrink-0">
-          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pr-10" placeholder="بحث عن منتج..." value={search} onChange={e => { setSearch(e.target.value); setSelectedCatId(null); setSelectedSubId(null) }} />
+          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+ <Input className="pr-10" placeholder="بحث عن منتج..." value={search} onChange={e => { setSearch(e.target.value); setSelectedCatId(null); setSelectedSubId(null) }}/>
         </div>
 
         {/* Products table */}
-        <p className="text-xs text-slate-400 mb-2">إجمالي: {productsTotal} منتج</p>
+        <p className="text-xs text-[var(--muted)] mb-2">إجمالي: {productsTotal} منتج</p>
         <div className="flex-1 overflow-y-auto">
           <DataTable
             columns={[
               { key: 'name', label: 'المنتج', sortable: true, render: (p: any) => (
                 <div className="flex items-center gap-2">
                   {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-100 flex-shrink-0" />
+                    <img src={p.image_url} alt={p.name} className="w-8 h-8 rounded-lg object-contain bg-[var(--surface)] border border-[var(--border-faint)] flex-shrink-0" />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-100 flex items-center justify-center text-xs font-bold text-slate-300 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--surface-3)] border border-[var(--border-faint)] flex items-center justify-center text-xs font-bold text-[var(--faint)] flex-shrink-0">
                       {p.name?.[0]}
                     </div>
                   )}
                   <div>
-                    <p className="font-bold text-slate-800">
-                      {p.code ? <span className="font-mono text-xs font-bold text-slate-400 ml-1.5" dir="ltr">{p.code}</span> : null}{p.name}
+                    <p className="font-bold text-[var(--text)]">
+                      {p.code ? <span className="font-mono text-xs font-bold text-[var(--muted)] ml-1.5" dir="ltr">{p.code}</span> : null}{p.name}
                     </p>
-                    {p.company && <p className="text-xs text-slate-400">{p.company}</p>}
+                    {p.company && <p className="text-xs text-[var(--muted)]">{p.company}</p>}
                   </div>
                 </div>
               )},
               { key: 'qty', label: 'المخزون', sortable: true, render: (p: any) => {
                 if (p.stock_status === 'untracked') return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
                 const qty = p.current_qty ?? 0
-                if (p.stock_status === 'tracked' && qty === 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium whitespace-nowrap">لم يُجرد هنا</span>
+                if (p.stock_status === 'tracked' && qty === 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--surface-3)] text-[var(--muted)] font-medium whitespace-nowrap">لم يُجرد هنا</span>
                 const low = qty <= 5
                 return <span className={`font-black text-sm ${low ? 'text-red-600' : 'text-green-700'}`}>{Number(qty).toLocaleString('ar-EG')} {p.unit}</span>
               }},
               { key: 'retail_price', label: 'سعر القطاعي', sortable: true, render: (p: any) => <span className="font-bold text-[var(--accent)]">{Number(p.retail_price).toLocaleString('ar-EG')} ج.م</span> },
-              { key: 'wholesale_price', label: 'سعر الجملة', sortable: true, render: (p: any) => <span className="text-slate-600">{Number(p.wholesale_price).toLocaleString('ar-EG')} ج.م</span> },
-              { key: 'cost_price', label: 'التكلفة', sortable: true, render: (p: any) => <span className="text-slate-500 text-sm">{Number(p.cost_price).toLocaleString('ar-EG')} ج.م</span> },
-              { key: 'shelf_number', label: 'الرف', sortable: true, render: (p: any) => p.shelf_number ? <span className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 font-bold whitespace-nowrap">{p.shelf_number}</span> : <span className="text-xs text-slate-300">—</span> },
+              { key: 'wholesale_price', label: 'سعر الجملة', sortable: true, render: (p: any) => <span className="text-[var(--text-soft)]">{Number(p.wholesale_price).toLocaleString('ar-EG')} ج.م</span> },
+              { key: 'cost_price', label: 'التكلفة', sortable: true, render: (p: any) => <span className="text-[var(--muted)] text-sm">{Number(p.cost_price).toLocaleString('ar-EG')} ج.م</span> },
+              { key: 'shelf_number', label: 'الرف', sortable: true, render: (p: any) => p.shelf_number ? <span className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 font-bold whitespace-nowrap">{p.shelf_number}</span> : <span className="text-xs text-[var(--faint)]">—</span> },
               { key: 'actions', label: '', render: (p: any) => (
                 <div className="flex gap-1 justify-end">
                   {p.stock_status === 'untracked' && (
-                    <button onClick={() => { setOpeningStockProduct(p); setOpeningQty(''); setOpeningCost(String(p.cost_price || 0)) }}
-                      className="px-2 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200" title="إدخال رصيد افتتاحي">رصيد</button>
+                    <Button variant="outline" size="sm" onClick={() => { setOpeningStockProduct(p); setOpeningQty(''); setOpeningCost(String(p.cost_price || 0)) }}
+                      className="text-amber-700 border-amber-200 hover:bg-amber-50" title="إدخال رصيد افتتاحي">رصيد</Button>
                   )}
                   {isManager && isCompanyView && (
-                    <button onClick={() => setBreakdownProduct(p)} className="p-1.5 rounded-lg hover:bg-purple-50 text-slate-300 hover:text-purple-500" title="توزيع المخازن"><BarChart2 size={14} /></button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => setBreakdownProduct(p)} className="text-[var(--faint)] hover:text-purple-500 hover:bg-purple-50" title="توزيع المخازن"><BarChart2 size={14} /></Button>
                   )}
-                  <button onClick={() => setViewMovements(p)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-500" title="الحركات"><TrendingUp size={14} /></button>
-                  <button onClick={() => setEditProduct(p)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600" title="تعديل"><Edit2 size={14} /></button>
-                  <button onClick={() => setConfirmDelProduct(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف"><Trash2 size={14} /></button>
+                  <Button variant="ghost" size="icon-sm" onClick={() => setViewMovements(p)} className="text-[var(--faint)] hover:text-blue-500 hover:bg-blue-50" title="الحركات"><TrendingUp size={14} /></Button>
+                  <Button variant="ghost" size="icon-sm" onClick={() => setEditProduct(p)} className="text-[var(--faint)] hover:text-[var(--text-soft)] hover:bg-[var(--surface-3)]" title="تعديل"><Edit2 size={14} /></Button>
+                  <Button variant="ghost" size="icon-sm" onClick={() => setConfirmDelProduct(p.id)} className="text-[var(--faint)] hover:text-red-500 hover:bg-red-50" title="حذف"><Trash2 size={14} /></Button>
                 </div>
               )},
             ]}
@@ -305,17 +311,15 @@ export default function InventoryPage() {
           />
           {productPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-3 pb-1">
-              <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
-                disabled={productPage <= 1}
-                className="btn btn-outline btn-sm">
+              <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                disabled={productPage <= 1}>
                 السابق
-              </button>
-              <span className="text-xs text-slate-500 px-2">{productPage} / {productPages}</span>
-              <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
-                disabled={productPage >= productPages}
-                className="btn btn-outline btn-sm">
+              </Button>
+              <span className="text-xs text-[var(--muted)] px-2">{productPage} / {productPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                disabled={productPage >= productPages}>
                 التالي
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -329,7 +333,7 @@ export default function InventoryPage() {
       </Modal>
       <Modal open={!!editProduct} onClose={() => setEditProduct(null)} title="تعديل المنتج" size="lg">
         {editProduct && !editProductFull ? (
-          <div className="flex items-center justify-center py-12 text-slate-400 text-sm animate-pulse">جاري تحميل بيانات المنتج...</div>
+          <div className="flex items-center justify-center py-12 text-[var(--muted)] text-sm animate-pulse">جاري تحميل بيانات المنتج...</div>
         ) : (
           editProductFull && (
             <ProductForm
@@ -343,19 +347,19 @@ export default function InventoryPage() {
       </Modal>
       <Modal open={!!viewMovements} onClose={() => setViewMovements(null)} title={`حركات: ${viewMovements?.name}`} size="xl">
         <div className="table-wrap max-h-96 overflow-y-auto">
-          <table>
-            <thead><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>ملاحظة</th></tr></thead>
-            <tbody>
+          <Table>
+            <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>الكمية</TableHead><TableHead>ملاحظة</TableHead></TableRow></TableHeader>
+            <TableBody>
               {movements?.map((m: any) => (
-                <tr key={m.id}>
-                  <td className="text-xs text-slate-500">{new Date(m.created_at).toLocaleString('ar-EG')}</td>
-                  <td><span className={clsx('badge', ['transfer_in','return_in','purchase','opening_stock','adjustment_in'].includes(m.movement_type) ? 'badge-green' : 'badge-red')}>{mvTypeLabel[m.movement_type] || m.movement_type}</span></td>
-                  <td className="font-bold">{m.qty}</td>
-                  <td className="text-xs text-slate-500">{m.note || '-'}</td>
-                </tr>
+                <TableRow key={m.id}>
+                  <TableCell className="text-xs text-[var(--muted)]">{new Date(m.created_at).toLocaleString('ar-EG')}</TableCell>
+                  <TableCell><Badge variant={['transfer_in','return_in','purchase','opening_stock','adjustment_in'].includes(m.movement_type) ? 'green' : 'red'}>{mvTypeLabel[m.movement_type] || m.movement_type}</Badge></TableCell>
+                  <TableCell className="font-bold">{m.qty}</TableCell>
+                  <TableCell className="text-xs text-[var(--muted)]">{m.note || '-'}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </Modal>
 
@@ -372,17 +376,17 @@ export default function InventoryPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">الكمية الحالية *</label>
-              <input type="number" className="input" value={openingQty} onChange={e => setOpeningQty(e.target.value)} min="0" step="any" autoFocus placeholder="0" />
+              <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الكمية الحالية *</label>
+ <Input type="number" value={openingQty} onChange={e => setOpeningQty(e.target.value)} min="0" step="any" autoFocus placeholder="0"/>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">سعر التكلفة</label>
-              <input type="number" className="input" value={openingCost} onChange={e => setOpeningCost(e.target.value)} min="0" step="0.01" />
+              <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">سعر التكلفة</label>
+ <Input type="number" value={openingCost} onChange={e => setOpeningCost(e.target.value)} min="0" step="0.01"/>
             </div>
           </div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setOpeningStockProduct(null)} className="btn btn-ghost">إلغاء</button>
-            <button disabled={!openingQty || !activeWarehouseId}
+            <Button variant="ghost" onClick={() => setOpeningStockProduct(null)}>إلغاء</Button>
+            <Button disabled={!openingQty || !activeWarehouseId}
               onClick={async () => {
                 if (!activeWarehouseId) return toast.error('اختر فرعاً أولاً')
                 await api.post('/stock/movements', {
@@ -396,10 +400,9 @@ export default function InventoryPage() {
                 toast.success('تم إدخال الرصيد الافتتاحي')
                 setOpeningStockProduct(null)
                 qc.invalidateQueries({ queryKey: ['products'] })
-              }}
-              className="btn btn-success">
+              }}>
               تأكيد الرصيد
-            </button>
+            </Button>
           </div>
           {!activeWarehouseId && <p className="text-xs text-red-500 text-center">⚠️ اختر فرعاً من القائمة الجانبية أولاً</p>}
         </div>

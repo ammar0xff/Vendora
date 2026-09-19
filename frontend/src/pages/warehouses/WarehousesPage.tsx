@@ -5,8 +5,11 @@ import api from '../../api/client'
 import { Plus, Trash2, Pencil } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { Button } from '../../components/ui/button'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../../store/auth'
+import { Input } from '../../components/ui/input'
+import { Badge } from '../../components/ui/badge'
 
 export default function WarehousesPage() {
   const qc = useQueryClient()
@@ -46,29 +49,35 @@ export default function WarehousesPage() {
       <div className="card max-w-lg">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-slate-700">المخازن ({warehouses?.length || 0})</h3>
-          <button onClick={() => setShowAddWh(true)} className="btn-primary btn-sm px-3 py-1.5 rounded-lg text-xs text-white flex items-center gap-1" style={{ background: 'var(--primary)' }}>
+          <Button size="sm" onClick={() => setShowAddWh(true)}>
             <Plus size={13} /> إضافة مخزن
-          </button>
+          </Button>
         </div>
         <div className="space-y-2">
           {warehouses?.map((w: any) => (
             <div key={w.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="flex-1">
                 <p className="font-semibold text-slate-800">{w.name}</p>
-                <div className="flex gap-2 mt-0.5"><p className="text-xs text-slate-400 font-mono">{w.code}</p><span className={w.warehouse_type === 'showroom' ? 'badge-blue text-xs' : 'badge-gray text-xs'}>{w.warehouse_type === 'showroom' ? 'معرض' : 'مخزن'}</span></div>
+                <div className="flex gap-2 mt-0.5"><p className="text-xs text-slate-400 font-mono">{w.code}</p><Badge variant={w.warehouse_type === 'showroom' ? 'blue' : 'gray'} className="text-xs">{w.warehouse_type === 'showroom' ? 'معرض' : 'مخزن'}</Badge></div>
               </div>
               <div className="flex gap-1">
-                <button onClick={() => { setRenameWhId({ id: w.id, name: w.name }); setRenameWhName(w.name) }} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"><Pencil size={13} /></button>
+                <Button variant="ghost" size="icon" className="size-7" onClick={() => { setRenameWhId({ id: w.id, name: w.name }); setRenameWhName(w.name) }}>
+                  <Pencil size={13} />
+                </Button>
                 {hasPerm('settings') && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-warning hover:text-warning"
                     onClick={() => setConfirmResetWh({ id: w.id, name: w.name })}
-                    className="p-1 rounded-lg hover:bg-amber-50 text-slate-300 hover:text-amber-600"
                     title="تصفير الجرد">
                     🗑️
-                  </button>
+                  </Button>
                 )}
                 {w.code !== 'main' && (
-                  <button onClick={() => setConfirmDelWh({ id: w.id })} className="p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
+                  <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" onClick={() => setConfirmDelWh({ id: w.id })}>
+                    <Trash2 size={13} />
+                  </Button>
                 )}
               </div>
             </div>
@@ -82,26 +91,24 @@ export default function WarehousesPage() {
             <label className="block text-sm font-medium text-slate-600 mb-1">النوع</label>
             <div className="flex gap-2">
               {[{v:'showroom',l:'🏪 معرض'},{v:'warehouse',l:'🏭 مخزن'}].map(({v,l}) => (
-                <button key={v} onClick={() => setNewWhType(v)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${newWhType===v ? 'text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'}`}
-                  style={newWhType===v ? {background:'var(--primary)'} : {}}>
+                <Button key={v} variant={newWhType===v ? 'default' : 'outline'} className="flex-1" onClick={() => setNewWhType(v)}>
                   {l}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">الكود (بالإنجليزية)</label>
-            <input className="input" value={newWhCode} onChange={e => setNewWhCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder={newWhType==='showroom' ? 'مثال: SH4' : 'مثال: WH6'} />
+ <Input value={newWhCode} onChange={e => setNewWhCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder={newWhType==='showroom' ? 'مثال: SH4' : 'مثال: WH6'}/>
             {newWhCode && !/^[A-Z0-9_-]+$/.test(newWhCode) && <p className="text-xs text-red-500 mt-1">يُسمح فقط بأحرف إنجليزية وأرقام و _ و -</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">الاسم</label>
-            <input className="input" value={newWhName} onChange={e => setNewWhName(e.target.value)} placeholder={newWhType==='showroom' ? 'مثال: المعرض الرابع' : 'مثال: المخزن السادس'} />
+ <Input value={newWhName} onChange={e => setNewWhName(e.target.value)} placeholder={newWhType==='showroom' ? 'مثال: المعرض الرابع' : 'مثال: المخزن السادس'}/>
           </div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowAddWh(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold">إلغاء</button>
-            <button onClick={() => addWh.mutate()} disabled={!newWhCode || !newWhName} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
+            <Button variant="ghost" onClick={() => setShowAddWh(false)}>إلغاء</Button>
+            <Button onClick={() => addWh.mutate()} disabled={!newWhCode || !newWhName}>إضافة</Button>
           </div>
         </div>
       </Modal>
@@ -130,15 +137,14 @@ export default function WarehousesPage() {
       {/* Rename Warehouse Modal */}
       <Modal open={!!renameWhId} onClose={() => setRenameWhId(null)} title="تعديل اسم المخزن">
         <div className="space-y-4">
-          <input className="input" value={renameWhName} onChange={e => setRenameWhName(e.target.value)}
+ <Input value={renameWhName} onChange={e => setRenameWhName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && renameWhName.trim()) renameWh.mutate() }}
             placeholder="اكتب الاسم..." autoFocus />
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setRenameWhId(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">إلغاء</button>
-            <button onClick={() => renameWh.mutate()} disabled={!renameWhName.trim() || renameWh.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+            <Button variant="outline" onClick={() => setRenameWhId(null)}>إلغاء</Button>
+            <Button onClick={() => renameWh.mutate()} disabled={!renameWhName.trim() || renameWh.isPending}>
               {renameWh.isPending ? 'جاري...' : 'حفظ'}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>

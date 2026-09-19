@@ -1,5 +1,8 @@
 import Modal from '../../../components/ui/Modal'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/table'
+import { Button } from '../../../components/ui/button'
 import api from '../../../api/client'
+import { Badge } from '../../../components/ui/badge'
 import toast from 'react-hot-toast'
 import { type QueryClient } from '@tanstack/react-query'
 
@@ -17,7 +20,7 @@ interface Props {
   qc: QueryClient
 }
 
-export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, setConfirmDelItem, confirmDelReturn, setConfirmDelReturn, confirmDelTx, setConfirmDelTx, shift, qc }: Props) {
+export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem: _confirmDelItem, setConfirmDelItem, confirmDelReturn: _confirmDelReturn, setConfirmDelReturn, confirmDelTx: _confirmDelTx, setConfirmDelTx, shift, qc }: Props) {
   return (
     <Modal open={showLedger} onClose={onClose} title="سجل اليوم" size="xl">
       {todayLedger ? (
@@ -44,29 +47,29 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
 
           {/* Single unified table */}
           <div className="table-wrap max-h-[60vh] overflow-y-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th className="w-7">#</th>
-                  <th>اسم الصنف</th>
-                  <th className="text-center whitespace-nowrap">الكمية</th>
-                  <th className="text-center whitespace-nowrap">السعر</th>
-                  <th className="text-center whitespace-nowrap">المجموع</th>
-                  <th className="text-center whitespace-nowrap">النوع</th>
-                  <th className="whitespace-nowrap">الدفع</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-7">#</TableHead>
+                  <TableHead>اسم الصنف</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">الكمية</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">السعر</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">المجموع</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">النوع</TableHead>
+                  <TableHead className="whitespace-nowrap">الدفع</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {/* Sale items */}
                 {(todayLedger.sale_items || []).map((item: any, i: number) => (
-                  <tr key={`s${i}`}>
-                    <td className="text-slate-400 text-xs">{i+1}</td>
-                    <td>
+                  <TableRow key={`s${i}`}>
+                    <TableCell className="text-slate-400 text-xs">{i+1}</TableCell>
+                    <TableCell>
                       <p className="font-medium text-sm leading-tight">{item.product_name}</p>
                       <p className="text-xs text-slate-400 leading-tight">{item.invoice_number} · {item.customer}</p>
-                    </td>
-                    <td className="text-center text-sm">
-                      <button className="text-[var(--primary)] hover:underline text-xs font-bold"
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      <Button variant="link" size="xs" className="text-[var(--primary)] hover:underline text-xs font-bold p-0 h-auto"
                         onClick={() => {
                           const newQty = prompt(`كمية جديدة لـ ${item.product_name} (الحالية: ${item.qty}):`, String(item.qty))
                           if (newQty && Number(newQty) > 0 && Number(newQty) !== item.qty) {
@@ -76,60 +79,60 @@ export function LedgerModal({ showLedger, onClose, todayLedger, confirmDelItem, 
                           }
                         }}>
                         {item.qty}
-                      </button>
-                    </td>
-                    <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
-                    <td className="text-center font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</td>
-                    <td className="text-center"><span className="badge-green text-xs">مبيعات</span></td>
-                    <td className="text-xs text-slate-500 flex items-center gap-1">
+                      </Button>
+                    </TableCell>
+                    <TableCell className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</TableCell>
+                    <TableCell className="text-center font-bold text-sm text-green-700">{Number(item.total).toLocaleString('ar-EG')}</TableCell>
+                    <TableCell className="text-center"><Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 text-xs">مبيعات</Badge></TableCell>
+                    <TableCell className="text-xs text-slate-500 flex items-center gap-1">
                       {item.payment_method}
-                      <button className="text-red-400 hover:text-red-600 mr-1"
-                        onClick={() => setConfirmDelItem(item)}>✕</button>
-                    </td>
-                  </tr>
+                      <Button variant="ghost" size="xs" className="text-red-400 hover:text-red-600 mr-1 p-0 h-auto"
+                        onClick={() => setConfirmDelItem(item)}>✕</Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
 
                 {/* Returns */}
                 {(todayLedger.returns || []).map((item: any, i: number) => (
-                  <tr key={`r${i}`} className="bg-red-50">
-                    <td className="text-slate-400 text-xs">↩</td>
-                    <td>
+                  <TableRow key={`r${i}`} className="bg-red-50">
+                    <TableCell className="text-slate-400 text-xs">↩</TableCell>
+                    <TableCell>
                       <p className="font-medium text-sm leading-tight">{item.product_name}</p>
                       <p className="text-xs text-slate-400 leading-tight">{item.invoice_number}</p>
-                    </td>
-                    <td className="text-center text-sm">{item.qty}</td>
-                    <td className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
-                    <td className="text-center font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</td>
-                    <td className="text-center"><span className="badge-red text-xs">مرتجع</span></td>
-                    <td className="text-xs text-slate-500 flex items-center gap-1">—
-                      {item.item_id && <button className="text-red-400 hover:text-red-600"
-                        onClick={() => setConfirmDelReturn(item)}>✕</button>}
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-center text-sm">{item.qty}</TableCell>
+                    <TableCell className="text-center text-sm">{Number(item.unit_price).toLocaleString('ar-EG')}</TableCell>
+                    <TableCell className="text-center font-bold text-sm text-red-600">{Number(item.total).toLocaleString('ar-EG')}</TableCell>
+                    <TableCell className="text-center"><Badge className="bg-red-50 text-red-600 border-red-100 text-xs">مرتجع</Badge></TableCell>
+                    <TableCell className="text-xs text-slate-500 flex items-center gap-1">—
+                      {item.item_id && <Button variant="ghost" size="xs" className="text-red-400 hover:text-red-600 p-0 h-auto"
+                        onClick={() => setConfirmDelReturn(item)}>✕</Button>}
+                    </TableCell>
+                  </TableRow>
                 ))}
 
                 {/* Expenses/Deposits */}
                 {(todayLedger.expenses || []).map((e: any, i: number) => (
-                  <tr key={`e${i}`} className={e.entry_type === 'deposit' ? 'bg-green-50' : 'bg-amber-50'}>
-                    <td className="text-slate-400 text-xs">💸</td>
-                    <td>
+                  <TableRow key={`e${i}`} className={e.entry_type === 'deposit' ? 'bg-green-50' : 'bg-amber-50'}>
+                    <TableCell className="text-slate-400 text-xs">💸</TableCell>
+                    <TableCell>
                       <p className="font-medium text-sm leading-tight">{e.type_ar}</p>
                       <p className="text-xs text-slate-400 leading-tight">{e.note || '—'}</p>
-                    </td>
-                    <td></td>
-                    <td></td>
-                    <td className={`text-center font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : 'text-amber-700'}`}>
+                    </TableCell>
+                    <TableCell></TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className={`text-center font-bold text-sm ${e.entry_type === 'deposit' ? 'text-green-700' : 'text-amber-700'}`}>
                       {Number(e.amount).toLocaleString('ar-EG')}
-                    </td>
-                    <td className="text-center"><span className={e.entry_type === 'deposit' ? 'badge-green' : 'badge-yellow'}>{e.type_ar}</span></td>
-                    <td className="text-xs text-slate-500 flex items-center gap-1">{e.payment_method}
-                      {e.tx_id && <button className="text-red-400 hover:text-red-600"
-                        onClick={() => setConfirmDelTx(e)}>✕</button>}
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-center"><Badge variant={e.entry_type === 'deposit' ? 'green' : 'yellow'}>{e.type_ar}</Badge></TableCell>
+                    <TableCell className="text-xs text-slate-500 flex items-center gap-1">{e.payment_method}
+                      {e.tx_id && <Button variant="ghost" size="xs" className="text-red-400 hover:text-red-600 p-0 h-auto"
+                        onClick={() => setConfirmDelTx(e)}>✕</Button>}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       ) : <div className="text-center py-8 text-slate-400">جاري التحميل...</div>}

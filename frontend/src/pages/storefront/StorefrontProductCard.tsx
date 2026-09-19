@@ -3,18 +3,21 @@ import { Package, ShoppingCart, Heart } from 'lucide-react'
 import { useStorefrontStore } from '../../store/storefront'
 import { fixUploadUrl } from '../../utils/format'
 import type { StorefrontProduct } from '../storefront/types'
+import { Button } from '../../components/ui/button'
 
 export default function StorefrontProductCard({ p }: { p: StorefrontProduct }) {
   const { wishlist, addToCart, toggleWishlist } = useStorefrontStore()
   return (
     <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden hover:border-[var(--primary-border)] hover:shadow-lg transition-all group relative">
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => toggleWishlist(p.id)}
-        className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${wishlist.includes(p.id) ? 'bg-[var(--accent)] text-white' : 'bg-white/90 text-[var(--muted)] hover:text-[var(--accent)]'}`}
+        className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-xl flex items-center justify-center transition-colors p-0 ${wishlist.includes(p.id) ? 'bg-[var(--accent)] text-white' : 'bg-white/90 text-[var(--muted)] hover:text-[var(--accent)]'}`}
         aria-label="أضف للمفضلة"
       >
         <Heart size={16} fill={wishlist.includes(p.id) ? 'currentColor' : 'none'} />
-      </button>
+      </Button>
       <Link to={`/products/${p.id}`} className="block">
         <div className="aspect-square bg-[var(--primary-soft)] flex items-center justify-center overflow-hidden">
           {p.image_url ? (
@@ -28,13 +31,16 @@ export default function StorefrontProductCard({ p }: { p: StorefrontProduct }) {
           <p className="text-sm font-bold text-[var(--ink)] truncate mb-2">{p.name}</p>
           <div className="flex items-center justify-between">
             <p className="text-sm font-black text-[var(--primary)] tabular-nums">{Number(p.retail_price).toLocaleString('ar-EG')} <span className="text-[10px] font-normal">ج.م</span></p>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart({ product_id: p.id, name: p.name, unit_price: Number(p.retail_price), qty: 1, image_url: p.image_url, unit: p.unit }) }}
-              className="w-9 h-9 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center hover:bg-[var(--primary-strong)]"
+              className="w-9 h-9 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center hover:bg-[var(--primary-strong)] hover:text-white p-0"
               aria-label="أضف للعربة"
             >
               <ShoppingCart size={16} />
-            </button>
+            </Button>
           </div>
         </div>
       </Link>

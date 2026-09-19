@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import Modal from '../../components/ui/Modal'
+import { Button } from '../../components/ui/button'
 import { Landmark, Clock } from 'lucide-react'
+import { Select } from '../../components/ui/select'
 
 interface Props {
   quote: any
@@ -31,16 +33,17 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
     <Modal open={show} onClose={onClose} title="وجهة المقبوضات" size="md"
       footer={
         <div className="flex gap-3 pt-4">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             إلغاء
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
+            className="flex-1"
             onClick={() => onConfirm(destination, safeId)}
             disabled={isPending || (destination === 'safe' && (!safeId || loadingSafes))}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold btn btn-primary transition-colors disabled:opacity-50"
           >
             {isPending ? '...جارٍ التأكيد' : 'تأكيد التحويل'}
-          </button>
+          </Button>
         </div>
       }>
       <div className="space-y-4">
@@ -50,10 +53,12 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
         </div>
         <p className="text-sm text-slate-600">في أي مكان توضع المقبوضات؟</p>
 
-        <button
+        <Button
+          type="button"
           onClick={() => setDestination('drawer')}
           disabled={!hasShift}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-right transition-colors ${destination === 'drawer' ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'border-slate-200 hover:border-slate-300'} ${!hasShift ? 'opacity-50 cursor-not-allowed' : ''}`}
+          variant={destination === 'drawer' ? 'default' : 'outline'}
+          className={`w-full flex items-center justify-start gap-3 p-4 rounded-xl border-2 text-right transition-colors h-auto ${destination === 'drawer' ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-slate-800' : 'border-slate-200 hover:border-slate-300'} ${!hasShift ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#dbeafe', color: '#2563eb' }}>
             <Clock size={20} />
@@ -62,11 +67,13 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
             <p className="font-bold text-slate-800">الدرج (ورديتي المفتوحة)</p>
             <p className="text-xs text-slate-500">{hasShift ? `عدد النقود في الدرج — ${currentShift.id.slice(0, 8)}` : 'لا توجد وردية مفتوحة لك في هذا الفرع'}</p>
           </div>
-        </button>
+        </Button>
 
-        <button
+        <Button
+          type="button"
           onClick={() => setDestination('safe')}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-right transition-colors ${destination === 'safe' ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
+          variant={destination === 'safe' ? 'default' : 'outline'}
+          className={`w-full flex items-center justify-start gap-3 p-4 rounded-xl border-2 text-right transition-colors h-auto ${destination === 'safe' ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-slate-800' : 'border-slate-200 hover:border-slate-300'}`}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#dcfce7', color: '#16a34a' }}>
             <Landmark size={20} />
@@ -75,15 +82,15 @@ export default function QuoteDestinationModal({ quote, show, onClose, currentShi
             <p className="font-bold text-slate-800">الخزنة</p>
             <p className="text-xs text-slate-500">إيداع في أحد الخزنات المالية</p>
           </div>
-        </button>
+        </Button>
 
         {destination === 'safe' && (
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">اختر الخزنة *</label>
-            <select className="input" value={safeId} onChange={e => setSafeId(e.target.value)} disabled={loadingSafes}>
+            <Select value={safeId} onChange={e => setSafeId(e.target.value)} disabled={loadingSafes}>
               <option value="">{loadingSafes ? '...جارٍ التحميل' : 'اختر الخزنة...'}</option>
               {(safes as any[])?.map((s: any) => <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>)}
-            </select>
+            </Select>
           </div>
         )}
       </div>

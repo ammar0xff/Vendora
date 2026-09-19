@@ -1,6 +1,14 @@
-import { X } from 'lucide-react'
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode } from 'react'
 import { clsx } from 'clsx'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from './dialog'
+import { X } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -11,33 +19,27 @@ interface Props {
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
-const sizes = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
+const sizes = {
+  sm: 'max-w-sm',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+}
 
 export default function Modal({ open, onClose, title, children, footer, size = 'md' }: Props) {
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
-
-  if (!open) return null
   return (
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={`modal-title-${title}`}
-    >
-      <div className={clsx('modal', sizes[size])} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 id={`modal-title-${title}`} className="text-base font-black text-[var(--text)]">{title}</h2>
-          <button onClick={onClose} className="btn-ghost btn-icon" aria-label="Close"><X size={18} /></button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
-      </div>
-    </div>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
+      <DialogContent className={clsx(sizes[size], 'gap-0 p-0')}>
+        <DialogHeader className="px-6 pt-6 pb-0">
+          <DialogTitle className="text-base font-black">{title}</DialogTitle>
+          <DialogDescription className="sr-only">{title}</DialogDescription>
+        </DialogHeader>
+        <DialogClose onClick={onClose} className="absolute left-4 top-4" aria-label="Close">
+          <X size={18} />
+        </DialogClose>
+        <div className="px-6 py-4">{children}</div>
+        {footer && <div className="px-6 pb-6 pt-0">{footer}</div>}
+      </DialogContent>
+    </Dialog>
   )
 }

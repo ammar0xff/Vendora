@@ -6,6 +6,12 @@ import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { Truck, PackagePlus, Plus, Minus, X, Search } from 'lucide-react'
+import { Button } from '../../components/ui/button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
+import { Input } from '../../components/ui/input'
+import { Textarea } from '../../components/ui/textarea'
+import { Select } from '../../components/ui/select'
+import { Badge } from '../../components/ui/badge'
 
 type OpType = 'dispatch' | 'goods_receipt'
 
@@ -21,17 +27,17 @@ function ProductPicker({ onAdd }: { onAdd: (p: any) => void }) {
   return (
     <div className="relative">
       <div className="relative">
-        <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input className="input pr-9 text-sm" placeholder="ابحث عن صنف..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+ <Input className="pr-9 text-sm" placeholder="ابحث عن صنف..." value={search} onChange={e => setSearch(e.target.value)}/>
       </div>
       {products && search.length > 1 && (
-        <div className="absolute z-20 w-full bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto">
+        <div className="absolute z-20 w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto">
           {products.map((p: any) => (
-            <button key={p.id} onClick={() => { onAdd(p); setSearch('') }}
-              className="w-full text-right px-4 py-2.5 hover:bg-slate-50 flex justify-between text-sm border-b border-slate-50 last:border-0">
+            <Button key={p.id} variant="ghost" onClick={() => { onAdd(p); setSearch('') }}
+              className="w-full text-right px-4 py-2.5 hover:bg-[var(--surface-2)] justify-between text-sm border-b border-slate-50 last:border-0 h-auto">
               <span className="font-medium truncate">{p.name}</span>
-              <span className="text-slate-400 text-xs mr-2 flex-shrink-0">{p.unit}</span>
-            </button>
+              <span className="text-[var(--muted)] text-xs mr-2 flex-shrink-0">{p.unit}</span>
+            </Button>
           ))}
         </div>
       )}
@@ -43,42 +49,42 @@ function ItemsTable({ items, setItems, showCost }: { items: CartItem[]; setItems
   const update = (id: string, field: string, val: any) =>
     setItems((prev: CartItem[]) => prev.map(i => i.product_id === id ? { ...i, [field]: val } : i))
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50">
-          <tr>
-            <th className="text-right px-3 py-2">الصنف</th>
-            <th className="text-center px-3 py-2 w-28">الكمية</th>
-            {showCost && <th className="text-center px-3 py-2 w-28">سعر التكلفة</th>}
-            <th className="w-8"></th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+      <Table className="w-full text-sm">
+        <TableHeader className="bg-[var(--surface-2)]">
+          <TableRow>
+            <TableHead className="text-right px-3 py-2">الصنف</TableHead>
+            <TableHead className="text-center px-3 py-2 w-28">الكمية</TableHead>
+            {showCost && <TableHead className="text-center px-3 py-2 w-28">سعر التكلفة</TableHead>}
+            <TableHead className="w-8"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {items.map(item => (
-            <tr key={item.product_id} className="border-t border-slate-100">
-              <td className="px-3 py-2 font-medium">{item.name} <span className="text-slate-400 text-xs">({item.unit})</span></td>
-              <td className="px-3 py-2">
+            <TableRow key={item.product_id} className="border-t border-[var(--border-faint)]">
+              <TableCell className="px-3 py-2 font-medium">{item.name} <span className="text-[var(--muted)] text-xs">({item.unit})</span></TableCell>
+              <TableCell className="px-3 py-2">
                 <div className="flex items-center justify-center gap-1">
-                  <button onClick={() => update(item.product_id, 'qty', Math.max(1, item.qty - 1))} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Minus size={10} /></button>
-                  <input type="number" className="w-14 text-center border border-slate-200 rounded px-1 py-0.5 text-sm" value={item.qty}
+                  <Button variant="ghost" size="icon-sm" onClick={() => update(item.product_id, 'qty', Math.max(1, item.qty - 1))} className="w-6 h-6 rounded bg-[var(--surface-3)] hover:bg-[var(--surface-3)]"><Minus size={10} /></Button>
+                  <input type="number" aria-label={`كمية ${item.name}`} className="w-14 text-center border border-[var(--border)] rounded px-1 py-0.5 text-sm" value={item.qty}
                     onChange={e => update(item.product_id, 'qty', Number(e.target.value))} />
-                  <button onClick={() => update(item.product_id, 'qty', item.qty + 1)} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Plus size={10} /></button>
+                  <Button variant="ghost" size="icon-sm" onClick={() => update(item.product_id, 'qty', item.qty + 1)} className="w-6 h-6 rounded bg-[var(--surface-3)] hover:bg-[var(--surface-3)]"><Plus size={10} /></Button>
                 </div>
-              </td>
+              </TableCell>
               {showCost && (
-                <td className="px-3 py-2">
-                  <input type="number" step="0.01" className="w-full text-center border border-slate-200 rounded px-2 py-0.5 text-sm" value={item.unit_cost}
+                <TableCell className="px-3 py-2">
+                  <input type="number" aria-label={`تكلفة ${item.name}`} step="0.01" className="w-full text-center border border-[var(--border)] rounded px-2 py-0.5 text-sm" value={item.unit_cost}
                     onChange={e => update(item.product_id, 'unit_cost', Number(e.target.value))} />
-                </td>
+                </TableCell>
               )}
-              <td className="px-3 py-2">
-                <button onClick={() => setItems((p: CartItem[]) => p.filter(i => i.product_id !== item.product_id))} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
-              </td>
-            </tr>
+              <TableCell className="px-3 py-2">
+                <Button variant="ghost" size="icon-sm" onClick={() => setItems((p: CartItem[]) => p.filter(i => i.product_id !== item.product_id))} className="text-[var(--faint)] hover:text-red-500"><X size={14} /></Button>
+              </TableCell>
+            </TableRow>
           ))}
-          {!items.length && <tr><td colSpan={4} className="text-center py-6 text-slate-400 text-sm">أضف أصناف من البحث أعلاه</td></tr>}
-        </tbody>
-      </table>
+          {!items.length && <TableRow><TableCell colSpan={4} className="text-center py-6 text-[var(--muted)] text-sm">أضف أصناف من البحث أعلاه</TableCell></TableRow>}
+        </TableBody>
+      </Table>
     </div>
   )
 }
@@ -120,15 +126,15 @@ export default function OperationsOpsPage() {
   })
 
   const opConfig = {
-    dispatch:      { label: 'إذن صرف', icon: Truck,         iconBg: 'bg-[var(--primary-soft)]', iconColor: 'text-[var(--primary)]', btnCls: 'btn-primary', desc: 'نقل بضاعة من مخزن إلى معرض' },
-    goods_receipt: { label: 'استلام مشتريات', icon: PackagePlus, iconBg: 'bg-green-50', iconColor: 'text-green-600', btnCls: 'btn-success', desc: 'استلام بضاعة جديدة من تاجر' },
+    dispatch:      { label: 'إذن صرف', icon: Truck,         iconBg: 'bg-[var(--primary-soft)]', iconColor: 'text-[var(--primary)]', desc: 'نقل بضاعة من مخزن إلى معرض' },
+    goods_receipt: { label: 'استلام مشتريات', icon: PackagePlus, iconBg: 'bg-green-50', iconColor: 'text-green-600', desc: 'استلام بضاعة جديدة من تاجر' },
   }
 
   const docTypeLabel: Record<string, string> = {
     dispatch_order: 'إذن صرف', goods_receipt: 'استلام مشتريات', stock_request: 'استلام مشتريات'
   }
   const docTypeBadge: Record<string, string> = {
-    dispatch_order: 'badge-blue', goods_receipt: 'badge-green', stock_request: 'badge-green'
+    dispatch_order: 'blue', goods_receipt: 'green', stock_request: 'green'
   }
 
   const showrooms = warehouses?.filter((w: any) => w.warehouse_type === 'showroom') || []
@@ -139,46 +145,46 @@ export default function OperationsOpsPage() {
       {/* Operation type cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {(Object.entries(opConfig) as any[]).map(([key, cfg]) => (
-          <button key={key} onClick={() => { setActiveOp(key as OpType); reset() }}
-            className="card text-right hover:shadow-md transition-all active:scale-95 border-2 hover:border-[var(--primary-border)]">
+          <Button key={key} variant="ghost" onClick={() => { setActiveOp(key as OpType); reset() }}
+            className="card text-right hover:shadow-md transition-all active:scale-95 border-2 hover:border-[var(--primary-border)] w-full h-auto flex-col items-start bg-[var(--surface)] rounded-[var(--r-lg)] border-[var(--border)] p-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${cfg.iconBg}`}>
-              <cfg.icon size={22} className={cfg.iconColor} />
+              <cfg.icon size={22} className={cfg.iconColor + ' size-[22px]'} />
             </div>
-            <p className="font-bold text-slate-800 text-base">{cfg.label}</p>
-            <p className="text-slate-500 text-sm mt-1">{cfg.desc}</p>
-          </button>
+            <p className="font-bold text-[var(--text)] text-base">{cfg.label}</p>
+            <p className="text-[var(--muted)] text-sm mt-1">{cfg.desc}</p>
+          </Button>
         ))}
       </div>
 
       {/* Operations history */}
       <div className="card p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-700">سجل العمليات</h3>
+        <div className="px-6 py-4 border-b border-[var(--border-faint)]">
+          <h3 className="font-bold text-[var(--text)]">سجل العمليات</h3>
         </div>
         {isLoading ? <PageLoader /> : (
           <div className="table-wrap">
-            <table>
-              <thead><tr><th>رقم المستند</th><th>النوع</th><th>التفاصيل</th><th>التاريخ</th></tr></thead>
-              <tbody>
-                {!operations?.length && <tr><td colSpan={4}><EmptyState message="لا توجد عمليات بعد" icon="📋" /></td></tr>}
+            <Table>
+              <TableHeader><TableRow><TableHead>رقم المستند</TableHead><TableHead>النوع</TableHead><TableHead>التفاصيل</TableHead><TableHead>التاريخ</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {!operations?.length && <TableRow><TableCell colSpan={4}><EmptyState message="لا توجد عمليات بعد" icon="📋" /></TableCell></TableRow>}
                 {operations?.map((op: any) => (
-                  <tr key={op.id}>
-                    <td>
-                      <p className="font-semibold text-slate-800">{op.metadata?.supplier || op.metadata?.from || op.metadata?.to || '—'}</p>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">{op.doc_number}</p>
-                    </td>
-                    <td><span className={docTypeBadge[op.doc_type] || 'badge-gray'}>{docTypeLabel[op.doc_type] || op.doc_type}</span></td>
-                    <td className="text-sm text-slate-600">
+                  <TableRow key={op.id}>
+                    <TableCell>
+                      <p className="font-semibold text-[var(--text)]">{op.metadata?.supplier || op.metadata?.from || op.metadata?.to || '—'}</p>
+                      <p className="text-xs text-[var(--muted)] font-mono mt-0.5">{op.doc_number}</p>
+                    </TableCell>
+                    <TableCell><Badge variant={(docTypeBadge as any)[op.doc_type] || 'gray'}>{docTypeLabel[op.doc_type] || op.doc_type}</Badge></TableCell>
+                    <TableCell className="text-sm text-[var(--text-soft)]">
                       {op.metadata?.from && <span>من: {op.metadata.from} </span>}
                       {op.metadata?.to && <span>إلى: {op.metadata.to} </span>}
                       {op.metadata?.supplier && <span>المورد: {op.metadata.supplier} </span>}
                       {op.metadata?.items?.length && <span>({op.metadata.items.length} صنف)</span>}
-                    </td>
-                    <td className="text-sm text-slate-500">{new Date(op.created_at).toLocaleString('ar-EG')}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-sm text-[var(--muted)]">{new Date(op.created_at).toLocaleString('ar-EG')}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -191,10 +197,10 @@ export default function OperationsOpsPage() {
             <div className="grid grid-cols-2 gap-4">
               {activeOp !== 'goods_receipt' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">
+                  <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">
                     {activeOp === 'dispatch' ? 'من المخزن' : 'المخزن المطلوب منه'}
                   </label>
-                  <select className="input" value={fromWh} onChange={e => setFromWh(e.target.value)}>
+                  <Select value={fromWh} onChange={e => setFromWh(e.target.value)}>
                     <option value="">اختر...</option>
                     <optgroup label="المخازن">
                       {stores.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -202,14 +208,14 @@ export default function OperationsOpsPage() {
                     <optgroup label="المعارض">
                       {showrooms.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </optgroup>
-                  </select>
+                  </Select>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">
                   {activeOp === 'dispatch' ? 'إلى المعرض' : 'المخزن المستلِم'}
                 </label>
-                <select className="input" value={toWh} onChange={e => setToWh(e.target.value)}>
+                <Select value={toWh} onChange={e => setToWh(e.target.value)}>
                   <option value="">اختر...</option>
                   <optgroup label="المعارض">
                     {showrooms.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -217,42 +223,41 @@ export default function OperationsOpsPage() {
                   <optgroup label="المخازن">
                     {stores.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </optgroup>
-                </select>
+                </Select>
               </div>
             </div>
 
             {activeOp === 'goods_receipt' && (
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">اسم المورد / التاجر</label>
-                <input className="input" value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="اسم التاجر..." />
+                <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">اسم المورد / التاجر</label>
+ <Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="اسم التاجر..."/>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-2">إضافة أصناف</label>
+              <label className="block text-sm font-medium text-[var(--text-soft)] mb-2">إضافة أصناف</label>
               <ProductPicker onAdd={addItem} />
             </div>
 
             <ItemsTable items={items} setItems={setItems} showCost={activeOp === 'goods_receipt'} />
 
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظات</label>
-              <textarea className="input h-16 resize-none" value={notes} onChange={e => setNotes(e.target.value)} />
+              <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">ملاحظات</label>
+              <Textarea className="h-16 resize-none" value={notes} onChange={e => setNotes(e.target.value)} />
             </div>
 
             <div className="flex gap-3 justify-end pt-2">
-              <button onClick={() => setActiveOp(null)} className="btn btn-ghost">إلغاء</button>
-              <button
+              <Button variant="ghost" onClick={() => setActiveOp(null)}>إلغاء</Button>
+              <Button
                 onClick={() => {
                   if (!toWh) return toast.error('اختر المخزن المستلم أولاً')
                   if (!fromWh && activeOp !== 'goods_receipt') return toast.error('اختر المخزن المصدر أولاً')
                   submitMut.mutate()
                 }}
                 disabled={!items.length || !toWh || (!fromWh && activeOp !== 'goods_receipt') || submitMut.isPending}
-                className={`btn ${opConfig[activeOp].btnCls}`}
               >
                 {submitMut.isPending ? 'جاري...' : `إنشاء ${opConfig[activeOp].label}`}
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>

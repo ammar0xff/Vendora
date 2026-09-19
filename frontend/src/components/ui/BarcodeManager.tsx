@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi } from '../../api/endpoints'
 import toast from 'react-hot-toast'
 import { Trash2, Star, Plus } from 'lucide-react'
+import { Button } from './button'
+import { Input } from './input'
 
 export default function BarcodeManager({ productId, barcodes = [] }: any) {
   const [newBarcode, setNewBarcode] = useState('')
@@ -56,67 +58,72 @@ export default function BarcodeManager({ productId, barcodes = [] }: any) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-slate-600">الأرمز الشريطية</label>
-        <button
+        <label className="block text-sm font-medium text-[var(--text-soft)]">الأرمز الشريطية</label>
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={() => setIsAdding(!isAdding)}
-          className="btn btn-primary-soft btn-sm"
         >
           <Plus size={14} /> جديد
-        </button>
+        </Button>
       </div>
 
       {isAdding && (
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={newBarcode}
             onChange={e => setNewBarcode(e.target.value)}
             onKeyDown={handleKey}
             placeholder="أدخل الرمز الشريطي..."
-            className="input flex-1"
+            className="flex-1"
             autoFocus
           />
-          <button type="button" onClick={handleAdd} disabled={addMut.isPending} className="btn btn-primary btn-sm">
+          <Button type="button" size="sm" onClick={handleAdd} disabled={addMut.isPending}>
             {addMut.isPending ? '...' : 'إضافة'}
-          </button>
-          <button type="button" onClick={() => { setIsAdding(false); setNewBarcode('') }} className="btn btn-ghost btn-sm">
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewBarcode('') }}>
             إلغاء
-          </button>
+          </Button>
         </div>
       )}
 
       {barcodes.length === 0 ? (
-        <p className="text-sm text-slate-400">لا توجد أرمز شريطية</p>
+        <p className="text-sm text-[var(--muted)]">لا توجد أرمز شريطية</p>
       ) : (
         <div className="space-y-2">
           {barcodes.map((bc: any) => (
-            <div key={bc.id} className="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-200">
+            <div key={bc.id} className="flex items-center justify-between p-2 bg-[var(--surface-2)] rounded border border-[var(--border)]">
               <div className="flex items-center gap-2 flex-1">
                 {bc.is_primary && <Star size={14} className="text-amber-500 fill-amber-500" />}
                 <code className="text-sm font-mono">{bc.barcode}</code>
               </div>
               <div className="flex gap-1">
                 {!bc.is_primary && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
                     onClick={() => setPrimaryMut.mutate(bc.id)}
                     disabled={setPrimaryMut.isPending}
-                    className="p-1 hover:bg-slate-200 rounded text-slate-600"
                     title="اجعله الرمز الأساسي"
                   >
                     <Star size={14} />
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-destructive hover:text-destructive"
                   onClick={() => deleteMut.mutate(bc.id)}
                   disabled={deleteMut.isPending}
-                  className="p-1 hover:bg-red-100 rounded text-red-600"
                   title="حذف"
                 >
                   <Trash2 size={14} />
-                </button>
+                </Button>
               </div>
             </div>
           ))}

@@ -18,7 +18,6 @@ async function registerPWA() {
 
 async function bootstrap() {
   const isNative = window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:'
-  const isDesktop = '__TAURI__' in window
   await registerPWA()
   if (isNative) {
     const { registerForPushNotifications } = await import('./utils/pushNotifications')

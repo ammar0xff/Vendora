@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Heart, ArrowRight, PackageSearch } from 'lucide-react'
+import { Heart, PackageSearch } from 'lucide-react'
 import { storefrontApi } from '../../api/endpoints'
 import { useStorefrontStore } from '../../store/storefront'
 import StorefrontNav from './StorefrontNav'
 import StorefrontProductCard from './StorefrontProductCard'
+import { Button } from '../../components/ui/button'
 
 export default function StorefrontWishlistPage() {
   const { wishlist, cart, toggleWishlist } = useStorefrontStore()
@@ -27,7 +28,7 @@ export default function StorefrontWishlistPage() {
       <section className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-black text-[var(--ink)] flex items-center gap-2"><Heart size={22} className="text-[var(--accent)]" /> المفضلة</h1>
-          <button onClick={() => wishlist.forEach((id) => toggleWishlist(id))} className="text-sm font-bold text-[var(--danger)] hover:underline">مسح الكل</button>
+          <Button variant="link" onClick={() => wishlist.forEach((id) => toggleWishlist(id))} className="text-sm font-bold text-[var(--danger)]">مسح الكل</Button>
         </div>
 
         {wishlist.length === 0 ? (
@@ -35,7 +36,7 @@ export default function StorefrontWishlistPage() {
             <PackageSearch size={48} className="text-[var(--muted)]" />
             <p className="font-bold text-[var(--ink)]">لا توجد منتجات في المفضلة</p>
             <p className="text-sm text-[var(--muted)]">اضغط على أيقونة القلب في الكتالوج لإضافتها هنا</p>
-            <Link to="/catalog" className="btn btn-primary px-6 py-2.5 mt-2">تصفح الكتالوج</Link>
+            <Button asChild className="mt-2"><Link to="/catalog">تصفح الكتالوج</Link></Button>
           </div>
         ) : isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(8)].map((_, i) => <div key={i} className="bg-white rounded-2xl border border-[var(--border)] aspect-[3/4] animate-pulse" />)}</div>

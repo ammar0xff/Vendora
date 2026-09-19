@@ -7,7 +7,7 @@ const isCapacitor = typeof window !== 'undefined' &&
 export function useOnlineStatus() {
   const storeOnline = useOfflineStore(s => s.isOnline)
   const setOnline = useOfflineStore(s => s.setOnline)
-  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline' | 'unknown'>(
+  const [, setNetworkStatus] = useState<'online' | 'offline' | 'unknown'>(
     navigator.onLine ? 'online' : 'offline'
   )
 

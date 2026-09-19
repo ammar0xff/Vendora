@@ -7,6 +7,10 @@ import DataTable from '../../components/ui/DataTable'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { Plus, Search, TrendingUp, TrendingDown } from 'lucide-react'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Select } from '../../components/ui/select'
+import { Badge } from '../../components/ui/badge'
 
 const MOVEMENT_TYPES = [
   { value: 'adjustment_in',  label: 'تسوية إضافة +',  color: 'text-green-700' },
@@ -59,20 +63,20 @@ function AdjustmentForm({ onClose }: { onClose: () => void }) {
         {selectedProduct ? (
           <div className="flex items-center justify-between p-3 bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-xl">
             <span className="font-semibold text-[var(--primary)]">{selectedProduct.name}</span>
-            <button type="button" onClick={() => { setSelectedProduct(null); setSearch('') }} className="text-xs text-[var(--primary)] hover:underline">تغيير</button>
+            <Button size="sm" variant="link" type="button" onClick={() => { setSelectedProduct(null); setSearch('') }} className="text-xs text-[var(--primary)]">تغيير</Button>
           </div>
         ) : (
           <div className="relative">
             <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="input pr-9" placeholder="ابحث عن منتج..." value={search} onChange={e => setSearch(e.target.value)} />
+ <Input className="pr-9" placeholder="ابحث عن منتج..." value={search} onChange={e => setSearch(e.target.value)}/>
             {products && search.length > 1 && (
               <div className="absolute z-10 top-full right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-44 overflow-y-auto">
                 {products.map((p: any) => (
-                  <button key={p.id} type="button" onClick={() => { setSelectedProduct(p); setSearch('') }}
-                    className="w-full text-right px-3 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0">
+                  <Button key={p.id} variant="ghost" type="button" onClick={() => { setSelectedProduct(p); setSearch('') }}
+                    className="w-full text-right px-3 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0 justify-between h-auto">
                     <span className="font-medium">{p.name}</span>
                     <span className="text-slate-400 text-xs mr-2">{p.unit}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -83,48 +87,50 @@ function AdjustmentForm({ onClose }: { onClose: () => void }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">المخزن *</label>
-          <select className="input" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required>
+          <Select value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required>
             <option value="">اختر...</option>
             {warehouses?.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">نوع الحركة *</label>
-          <select className="input" value={movementType} onChange={e => setMovementType(e.target.value)}>
+          <Select value={movementType} onChange={e => setMovementType(e.target.value)}>
             {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">الكمية *</label>
-          <input type="number" className="input" value={qty} onChange={e => setQty(e.target.value)} min="0.001" step="any" required />
+ <Input type="number" value={qty} onChange={e => setQty(e.target.value)} min="0.001" step="any" required/>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة {['adjustment_out', 'damage'].includes(movementType) ? '*' : ''}</label>
-          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder={['adjustment_out', 'damage'].includes(movementType) ? 'سبب التسوية مطلوب...' : 'اختياري'} />
+ <Input value={note} onChange={e => setNote(e.target.value)} placeholder={['adjustment_out', 'damage'].includes(movementType) ? 'سبب التسوية مطلوب...' : 'اختياري'}/>
         </div>
       </div>
 
       <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="btn btn-ghost">إلغاء</button>
-        <button type="submit" disabled={!selectedProduct || !warehouseId || !qty || mut.isPending || (['adjustment_out', 'damage'].includes(movementType) && !note.trim())}
-          className="btn btn-primary">
+        <Button type="button" onClick={onClose} variant="ghost">إلغاء</Button>
+        <Button type="submit" disabled={!selectedProduct || !warehouseId || !qty || mut.isPending || (['adjustment_out', 'damage'].includes(movementType) && !note.trim())}
+          variant="default">
           تسجيل الحركة
-        </button>
+        </Button>
       </div>
     </form>
   )
 }
 
-const TYPE_LABELS: Record<string, { label: string; cls: string }> = {
-  adjustment_in:  { label: 'تسوية +',       cls: 'badge-green' },
-  adjustment_out: { label: 'تسوية −',       cls: 'badge-red' },
-  opening_stock:  { label: 'رصيد افتتاحي', cls: 'badge-blue' },
-  damage:         { label: 'تلف',           cls: 'badge-yellow' },
-  transfer_in:    { label: 'تحويل وارد',   cls: 'badge-blue' },
-  transfer_out:   { label: 'تحويل صادر',   cls: 'badge-gray' },
-  purchase:       { label: 'شراء',          cls: 'badge-green' },
-  sale:           { label: 'بيع',           cls: 'badge-red' },
-  return_in:      { label: 'مرتجع',         cls: 'badge-yellow' },
+type BadgeTone = 'blue' | 'green' | 'red' | 'yellow' | 'gray'
+
+const TYPE_LABELS: Record<string, { label: string; cls: BadgeTone }> = {
+  adjustment_in:  { label: 'تسوية +',       cls: 'green' },
+  adjustment_out: { label: 'تسوية −',       cls: 'red' },
+  opening_stock:  { label: 'رصيد افتتاحي', cls: 'blue' },
+  damage:         { label: 'تلف',           cls: 'yellow' },
+  transfer_in:    { label: 'تحويل وارد',   cls: 'blue' },
+  transfer_out:   { label: 'تحويل صادر',   cls: 'gray' },
+  purchase:       { label: 'شراء',          cls: 'green' },
+  sale:           { label: 'بيع',           cls: 'red' },
+  return_in:      { label: 'مرتجع',         cls: 'yellow' },
 }
 
 export default function StockAdjustmentsPage() {
@@ -152,8 +158,8 @@ export default function StockAdjustmentsPage() {
     { key: 'warehouse_name', label: 'المخزن', render: (r: any) => <span className="text-slate-500 text-sm">{r.warehouse_name}</span> },
     {
       key: 'movement_type', label: 'النوع', render: (r: any) => {
-        const t = TYPE_LABELS[r.movement_type] || { label: r.movement_type, cls: 'badge-gray' }
-        return <span className={t.cls}>{t.label}</span>
+        const t = TYPE_LABELS[r.movement_type] || { label: r.movement_type, cls: 'gray' as BadgeTone }
+        return <Badge variant={t.cls}>{t.label}</Badge>
       }
     },
     {
@@ -174,17 +180,17 @@ export default function StockAdjustmentsPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">📋 حركات المخزون</h1>
-        <button onClick={() => setShowAdd(true)} className="btn btn-primary">
+        <Button onClick={() => setShowAdd(true)} variant="default">
           <Plus size={15} /> تسوية جديدة
-        </button>
+        </Button>
       </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">
-        <input className="input max-w-xs" placeholder="بحث بالمنتج أو الملاحظة..." value={search} onChange={e => setSearch(e.target.value)} />
-        <select className="input w-44" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+ <Input className="max-w-xs" placeholder="بحث بالمنتج أو الملاحظة..." value={search} onChange={e => setSearch(e.target.value)}/>
+        <Select className="w-44" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
           <option value="">كل الأنواع</option>
           {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
+        </Select>
       </div>
 
       <DataTable columns={columns} data={filtered} loading={isLoading}

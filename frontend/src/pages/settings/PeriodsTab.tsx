@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
+import { Button } from '../../components/ui/button'
 import { Lock, Unlock, Calendar } from 'lucide-react'
 
 export default function PeriodsTab() {
   const qc = useQueryClient()
-  const { data: periods, isLoading } = useQuery({
+  const { data: periods } = useQuery({
     queryKey: ['periods'],
     queryFn: () => api.get('/periods').then(r => r.data),
   })
@@ -60,16 +61,16 @@ export default function PeriodsTab() {
               </div>
               <div>
                 {isClosed ? (
-                  <button onClick={() => reopenMut.mutate(m)} disabled={reopenMut.isPending}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+                  <Button variant="secondary" size="sm" onClick={() => reopenMut.mutate(m)} disabled={reopenMut.isPending}
+                    className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200">
                     <Unlock size={12} /> إعادة فتح
-                  </button>
+                  </Button>
                 ) : (
-                  <button onClick={() => closeMut.mutate(m)} disabled={closeMut.isPending || isCurrent || isFuture}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  <Button variant="destructive" size="sm" onClick={() => closeMut.mutate(m)} disabled={closeMut.isPending || isCurrent || isFuture}
+                    className="text-xs bg-red-100 hover:bg-red-200"
                     title={isCurrent ? 'لا يمكن إغلاق الشهر الحالي' : isFuture ? 'لا يمكن إغلاق شهر مستقبلي' : ''}>
                     <Lock size={12} /> إغلاق
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

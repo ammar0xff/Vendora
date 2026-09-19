@@ -1,5 +1,7 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
 import { customersApi } from '../../../api/endpoints'
+import { Input } from '../../../components/ui/input'
 
 interface Props {
   showPhoneModal: boolean
@@ -22,15 +24,15 @@ export function PhoneModal({ showPhoneModal, onClose, pendingCustomerName, setPe
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">الاسم</label>
-          <input className="input" value={pendingCustomerName} onChange={e => setPendingCustomerName(e.target.value)} />
+ <Input value={pendingCustomerName} onChange={e => setPendingCustomerName(e.target.value)}/>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">رقم التليفون *</label>
-          <input className="input" type="tel" value={newCustomerPhone} onChange={e => setNewCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" autoFocus />
+ <Input type="tel" value={newCustomerPhone} onChange={e => setNewCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" autoFocus/>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
-          <button
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button
             disabled={!newCustomerPhone.trim() || !pendingCustomerName.trim()}
             onClick={async () => {
               const c = await customersApi.create({ name: pendingCustomerName, phone: newCustomerPhone })
@@ -40,10 +42,9 @@ export function PhoneModal({ showPhoneModal, onClose, pendingCustomerName, setPe
               onClose()
               setPendingCustomerName('')
               setNewCustomerPhone('')
-            }}
-            className="btn btn-primary">
+            }}>
             إضافة وتأكيد
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

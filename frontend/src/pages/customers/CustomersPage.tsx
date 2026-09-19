@@ -4,8 +4,12 @@ import { customersApi } from '../../api/endpoints'
 import { PageLoader, EmptyState } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Search, Plus, ChevronLeft, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Wallet } from 'lucide-react'
+import { Search, Plus, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Wallet } from 'lucide-react'
 import ExportButton from '../../components/ui/ExportButton'
+import { Input } from '../../components/ui/input'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
+import { Badge } from '../../components/ui/badge'
+import { Button } from '../../components/ui/button'
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('')
@@ -70,7 +74,7 @@ export default function CustomersPage() {
   function openDelete(c: any) { if (confirm(`حذف العميل "${c.name}"؟`)) { setSelected(c); deleteMut.mutate() } }
 
   const typeLabel: Record<string, string> = { invoice: 'فاتورة', return: 'مرتجع', payment: 'دفعة' }
-  const typeBadge: Record<string, string> = { invoice: 'badge-blue', return: 'badge-red', payment: 'badge-green' }
+  const typeBadge: Record<string, string> = { invoice: 'blue', return: 'red', payment: 'green' }
 
   return (
     <div className="flex gap-5 h-[calc(100vh-3rem)]">
@@ -85,29 +89,29 @@ export default function CustomersPage() {
               { label: 'الرصيد', accessor: (c: any) => Number(c.balance_due) },
               { label: 'حد الائتمان', accessor: (c: any) => Number(c.credit_limit || 0) },
             ]} filename="العملاء" excelEndpoint="/export/customers" />
-            <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: 'var(--primary)' }}>
+            <Button onClick={() => setShowAdd(true)} className="px-4">
               <Plus size={14} /> إضافة
-            </button>
+            </Button>
           </div>
         </div>
         <div className="relative mb-3">
-          <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pr-9 text-sm" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+ <Input className="pr-9 text-sm" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
         {isLoading ? <PageLoader /> : (
           <div className="flex-1 overflow-y-auto space-y-2">
             {!customers?.length && <EmptyState message="لا يوجد عملاء" icon="👤" />}
             {customers?.map((c: any) => (
-              <button key={c.id} onClick={() => setSelected(c)}
-                className={`w-full text-right p-3 rounded-xl border transition-all ${selected?.id === c.id ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'}`}>
+              <Button key={c.id} onClick={() => setSelected(c)} variant="ghost"
+                className={`w-full text-right p-3 rounded-xl border transition-all h-auto ${selected?.id === c.id ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'bg-[var(--surface)] border-[var(--border-faint)] hover:border-[var(--border)] hover:shadow-sm'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800 text-sm">{c.name}</p>
-                    {c.phone && <p className="text-xs text-slate-400 mt-0.5">{c.phone}</p>}
+                    <p className="font-bold text-[var(--text)] text-sm">{c.name}</p>
+                    {c.phone && <p className="text-xs text-[var(--muted)] mt-0.5">{c.phone}</p>}
                   </div>
                   <span className="flex items-center gap-1">
                     {c.credit_limit && (
-                      <span className="text-[10px] text-slate-400 ml-1" title="حد الائتمان">{Number(c.credit_limit).toLocaleString('ar-EG')}</span>
+                      <span className="text-[10px] text-[var(--muted)] ml-1" title="حد الائتمان">{Number(c.credit_limit).toLocaleString('ar-EG')}</span>
                     )}
                     {Number(c.balance_due) > 0 && (
                       <span className="text-xs font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
@@ -116,7 +120,7 @@ export default function CustomersPage() {
                     )}
                   </span>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -125,7 +129,7 @@ export default function CustomersPage() {
       {/* Customer detail */}
       <div className="flex-1 flex flex-col min-w-0">
         {!selected ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
+          <div className="flex-1 flex items-center justify-center text-[var(--muted)]">
             <div className="text-center"><p className="text-4xl mb-3">👤</p><p>اختر عميلاً لعرض حسابه</p></div>
           </div>
         ) : (
@@ -133,22 +137,22 @@ export default function CustomersPage() {
             {/* Account summary */}
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-xl font-black text-slate-800">{selected.name}</h2>
-                {selected.phone && <p className="text-slate-500 text-sm">{selected.phone}</p>}
+                <h2 className="text-xl font-black text-[var(--text)]">{selected.name}</h2>
+                {selected.phone && <p className="text-[var(--muted)] text-sm">{selected.phone}</p>}
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => openEdit(selected)} className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-slate-600 bg-slate-100 hover:bg-slate-200">
+                <Button variant="secondary" onClick={() => openEdit(selected)} className="px-3">
                   <Pencil size={14} /> تعديل
-                </button>
-                <button onClick={() => openDelete(selected)} className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100">
+                </Button>
+                <Button variant="destructive" onClick={() => openDelete(selected)} className="px-3">
                   <Trash2 size={14} /> حذف
-                </button>
-                <button onClick={() => { setBalanceAmount(String(account?.balance_due || 0)); setShowBalance(true) }} className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-amber-700 bg-amber-50 hover:bg-amber-100">
+                </Button>
+                <Button onClick={() => { setBalanceAmount(String(account?.balance_due || 0)); setShowBalance(true) }} className="px-3 bg-amber-50 text-amber-700 hover:bg-amber-100">
                   <Wallet size={14} /> تعديل المديونية
-                </button>
-                <button onClick={() => setShowPayment(true)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: '#16a34a' }}>
+                </Button>
+                <Button onClick={() => setShowPayment(true)} className="bg-[#16a34a] hover:bg-[#16a34a]/90 px-5">
                   <DollarSign size={15} /> تسجيل دفعة
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -164,7 +168,7 @@ export default function CustomersPage() {
                     <div key={label} className="stat-card">
                       <div className="stat-icon" style={{ background: color + '20' }}><Icon size={18} style={{ color }} /></div>
                       <div>
-                        <p className="text-slate-500 text-xs mb-0.5">{label}</p>
+                        <p className="text-[var(--muted)] text-xs mb-0.5">{label}</p>
                         <p className="text-lg font-black" style={{ color }}>{Number(value).toLocaleString('ar-EG')} ج.م</p>
                       </div>
                     </div>
@@ -183,7 +187,7 @@ export default function CustomersPage() {
                     <span>المتبقي من الحد: {Math.max(0, Number(selected.credit_limit) - Number(account.balance_due)).toLocaleString('ar-EG')} ج.م</span>
                   </div>
                 ) : (
-                  <div className="mb-5 px-4 py-2 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-500">
+                  <div className="mb-5 px-4 py-2 rounded-xl text-sm bg-[var(--surface-2)] border border-[var(--border)] text-[var(--muted)]">
                     لا يوجد حد ائتمان محدد لهذا العميل
                   </div>
                 )}
@@ -192,27 +196,27 @@ export default function CustomersPage() {
 
             {/* Ledger */}
             <div className="card p-0 overflow-hidden flex-1">
-              <div className="px-5 py-3 border-b border-slate-100">
-                <h3 className="font-bold text-slate-700">سجل الحساب</h3>
+              <div className="px-5 py-3 border-b border-[var(--border-faint)]">
+                <h3 className="font-bold text-[var(--text)]">سجل الحساب</h3>
               </div>
               <div className="table-wrap overflow-y-auto" style={{ maxHeight: 'calc(100vh - 22rem)' }}>
-                <table>
-                  <thead><tr><th>التاريخ والوقت</th><th>النوع</th><th>المرجع</th><th>المبلغ</th><th>ملاحظة</th></tr></thead>
-                  <tbody>
-                    {(!ledger?.filter((e: any) => !e.__pagination)?.length) && <tr><td colSpan={5}><EmptyState message="لا توجد حركات" icon="📋" /></td></tr>}
+                <Table>
+                  <TableHeader><TableRow><TableHead>التاريخ والوقت</TableHead><TableHead>النوع</TableHead><TableHead>المرجع</TableHead><TableHead>المبلغ</TableHead><TableHead>ملاحظة</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {(!ledger?.filter((e: any) => !e.__pagination)?.length) && <TableRow><TableCell colSpan={5}><EmptyState message="لا توجد حركات" icon="📋" /></TableCell></TableRow>}
                     {ledger?.filter((e: any) => !e.__pagination)?.map((e: any, i: number) => (
-                      <tr key={i}>
-                        <td className="text-sm text-slate-600">{new Date(e.date).toLocaleString('ar-EG')}</td>
-                        <td><span className={typeBadge[e.type] || 'badge-gray'}>{typeLabel[e.type] || e.type}</span></td>
-                        <td className="font-mono text-xs text-slate-600">{e.ref}</td>
-                        <td className={`font-bold ${e.type === 'payment' ? 'text-green-700' : e.type === 'return' ? 'text-red-600' : 'text-slate-800'}`}>
+                      <TableRow key={i}>
+                        <TableCell className="text-sm text-[var(--text-soft)]">{new Date(e.date).toLocaleString('ar-EG')}</TableCell>
+                        <TableCell><Badge variant={(typeBadge as any)[e.type] || 'gray'}>{typeLabel[e.type] || e.type}</Badge></TableCell>
+                        <TableCell className="font-mono text-xs text-[var(--text-soft)]">{e.ref}</TableCell>
+                        <TableCell className={`font-bold ${e.type === 'payment' ? 'text-green-700' : e.type === 'return' ? 'text-red-600' : 'text-[var(--text)]'}`}>
                           {e.type === 'payment' ? '+' : e.type === 'return' ? '-' : ''}{Number(e.amount).toLocaleString('ar-EG')} ج.م
-                        </td>
-                        <td className="text-xs text-slate-400">{e.note || (e.items_count ? `${e.items_count} صنف` : '-')}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="text-xs text-[var(--muted)]">{e.note || (e.items_count ? `${e.items_count} صنف` : '-')}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </>
@@ -222,13 +226,13 @@ export default function CustomersPage() {
       {/* Add modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة عميل جديد">
         <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">الاسم *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">رقم الهاتف</label><input className="input" value={newPhone} onChange={e => setNewPhone(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">العنوان</label><input className="input" value={newAddress} onChange={e => setNewAddress(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م) — اختياري</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الاسم *</label><Input value={newName} onChange={e => setNewName(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">رقم الهاتف</label><Input value={newPhone} onChange={e => setNewPhone(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">العنوان</label><Input value={newAddress} onChange={e => setNewAddress(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">حد الائتمان (ج.م) — اختياري</label><Input type="number" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد"/></div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => { setShowAdd(false); resetForm() }} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => createMut.mutate()} disabled={!newName} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
+            <Button variant="secondary" onClick={() => { setShowAdd(false); resetForm() }}>إلغاء</Button>
+            <Button onClick={() => createMut.mutate()} disabled={!newName} className="px-5">إضافة</Button>
           </div>
         </div>
       </Modal>
@@ -236,13 +240,13 @@ export default function CustomersPage() {
       {/* Edit modal */}
       <Modal open={showEdit} onClose={() => setShowEdit(false)} title={`تعديل العميل — ${selected?.name}`}>
         <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">الاسم *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">رقم الهاتف</label><input className="input" value={newPhone} onChange={e => setNewPhone(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">العنوان</label><input className="input" value={newAddress} onChange={e => setNewAddress(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">حد الائتمان (ج.م)</label><input type="number" className="input" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد" /></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الاسم *</label><Input value={newName} onChange={e => setNewName(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">رقم الهاتف</label><Input value={newPhone} onChange={e => setNewPhone(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">العنوان</label><Input value={newAddress} onChange={e => setNewAddress(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">حد الائتمان (ج.م)</label><Input type="number" value={newCreditLimit} onChange={e => setNewCreditLimit(e.target.value)} placeholder="0 = بدون حد"/></div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowEdit(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => editMut.mutate()} disabled={!newName || editMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>حفظ التعديلات</button>
+            <Button variant="secondary" onClick={() => setShowEdit(false)}>إلغاء</Button>
+            <Button onClick={() => editMut.mutate()} disabled={!newName || editMut.isPending} className="px-5">حفظ التعديلات</Button>
           </div>
         </div>
       </Modal>
@@ -253,11 +257,11 @@ export default function CustomersPage() {
           <div className="bg-[var(--primary-soft)] border-[var(--primary-border)] rounded-xl p-3 text-sm">
             المديونية الحالية: <span className="font-black" style={{ color: "#d97706" }}>{Number(account?.balance_due || 0).toLocaleString('ar-EG')} ج.م</span>
           </div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">المديونية الجديدة (ج.م) *</label><input type="number" className="input text-lg font-bold" value={balanceAmount} onChange={e => setBalanceAmount(e.target.value)} autoFocus /></div>
-          <div className="text-xs text-slate-500">سيتم تحديث رصيد العميل مباشرة بهذه القيمة.</div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المديونية الجديدة (ج.م) *</label><Input type="number" className="text-lg font-bold" value={balanceAmount} onChange={e => setBalanceAmount(e.target.value)} autoFocus/></div>
+          <div className="text-xs text-[var(--muted)]">سيتم تحديث رصيد العميل مباشرة بهذه القيمة.</div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowBalance(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => balanceMut.mutate()} disabled={balanceAmount === '' || balanceMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: '#d97706' }}>حفظ المديونية</button>
+            <Button variant="secondary" onClick={() => setShowBalance(false)}>إلغاء</Button>
+            <Button onClick={() => balanceMut.mutate()} disabled={balanceAmount === '' || balanceMut.isPending} className="bg-[#d97706] hover:bg-[#d97706]/90 px-5">حفظ المديونية</Button>
           </div>
         </div>
       </Modal>
@@ -270,11 +274,11 @@ export default function CustomersPage() {
               المتبقي: <span className="font-black text-amber-700">{Number(account.balance_due).toLocaleString('ar-EG')} ج.م</span>
             </div>
           )}
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">المبلغ (ج.م) *</label><input type="number" className="input text-lg font-bold" value={payAmount} onChange={e => setPayAmount(e.target.value)} autoFocus /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label><input className="input" value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="رقم إيصال، تاريخ..." /></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المبلغ (ج.م) *</label><Input type="number" className="text-lg font-bold" value={payAmount} onChange={e => setPayAmount(e.target.value)} autoFocus/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">ملاحظة</label><Input value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="رقم إيصال، تاريخ..."/></div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowPayment(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => { if (Number(payAmount) <= 0) return toast.error('المبلغ يجب أن يكون أكبر من 0'); paymentMut.mutate() }} disabled={!payAmount || Number(payAmount) <= 0 || paymentMut.isPending} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">تسجيل الدفعة</button>
+            <Button variant="secondary" onClick={() => setShowPayment(false)}>إلغاء</Button>
+            <Button onClick={() => { if (Number(payAmount) <= 0) return toast.error('المبلغ يجب أن يكون أكبر من 0'); paymentMut.mutate() }} disabled={!payAmount || Number(payAmount) <= 0 || paymentMut.isPending} className="bg-green-600 hover:bg-green-700 px-5">تسجيل الدفعة</Button>
           </div>
         </div>
       </Modal>

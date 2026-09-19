@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import { PageLoader } from '../../components/ui/Loaders'
 import { useAppStore } from '../../store/app'
+import { Input } from '../../components/ui/input'
 
 const fmt = (n: number) => Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 
@@ -56,8 +57,8 @@ export default function CashFlowPage() {
 
       {/* Date filter */}
       <div className="flex gap-4 items-end mb-6">
-        <div><label className="block text-xs font-medium text-slate-500 mb-1">من تاريخ</label><input type="date" className="input" value={fromDate} onChange={e => setFromDate(e.target.value)} /></div>
-        <div><label className="block text-xs font-medium text-slate-500 mb-1">إلى تاريخ</label><input type="date" className="input" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
+        <div><label className="block text-xs font-medium text-slate-500 mb-1">من تاريخ</label><Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} /></div>
+        <div><label className="block text-xs font-medium text-slate-500 mb-1">إلى تاريخ</label><Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
       </div>
 
       {isLoading ? <PageLoader text="جاري تحميل التدفق النقدي..." /> : !data ? null : (

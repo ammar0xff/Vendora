@@ -1,3 +1,6 @@
+import { Button } from './button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table'
+
 interface InventoryReportData {
   store: { name: string; address: string; phone: string }
   warehouse: string
@@ -20,12 +23,12 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
   return (
     <>
       <div className="print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 flex gap-3 bg-white rounded-2xl shadow-xl p-3 border border-slate-200">
-        <button onClick={() => window.print()} className="btn btn-primary">
+        <Button onClick={() => window.print()}>
           🖨️ طباعة
-        </button>
-        <button onClick={onClose} className="btn btn-ghost">
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
           ✕ إغلاق
-        </button>
+        </Button>
       </div>
 
       <div className="min-h-screen bg-white p-8 print:p-4" style={{ fontFamily: 'Cairo, sans-serif', direction: 'rtl' }}>
@@ -71,32 +74,32 @@ export default function InventoryReportPrint({ data, onClose }: { data: Inventor
           {Object.entries(grouped).map(([cat, items]) => (
             <div key={cat} className="mb-6">
               <h3 className="font-black text-base mb-2 px-3 py-1.5 rounded-lg text-white" style={{ background: 'var(--primary)' }}>{cat}</h3>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-100">
-                    <th className="text-right px-3 py-2">المنتج</th>
-                    <th className="text-right px-3 py-2">التصنيف</th>
-                    <th className="text-center px-3 py-2">الوحدة</th>
-                    <th className="text-center px-3 py-2">الكمية</th>
-                    <th className="text-center px-3 py-2">سعر التكلفة</th>
-                    <th className="text-center px-3 py-2">سعر البيع</th>
-                    <th className="text-center px-3 py-2">القيمة (تكلفة)</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="w-full text-xs">
+                <TableHeader>
+                  <TableRow className="bg-slate-100">
+                    <TableHead className="text-right px-3 py-2">المنتج</TableHead>
+                    <TableHead className="text-right px-3 py-2">التصنيف</TableHead>
+                    <TableHead className="text-center px-3 py-2">الوحدة</TableHead>
+                    <TableHead className="text-center px-3 py-2">الكمية</TableHead>
+                    <TableHead className="text-center px-3 py-2">سعر التكلفة</TableHead>
+                    <TableHead className="text-center px-3 py-2">سعر البيع</TableHead>
+                    <TableHead className="text-center px-3 py-2">القيمة (تكلفة)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {items.map((item, i) => (
-                    <tr key={i} className={`border-b border-slate-100 ${item.qty <= 0 ? 'bg-red-50' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                      <td className="px-3 py-2 font-medium">{item.name}</td>
-                      <td className="px-3 py-2 text-slate-500">{item.subcategory}</td>
-                      <td className="px-3 py-2 text-center">{item.unit}</td>
-                      <td className={`px-3 py-2 text-center font-bold ${item.qty <= 0 ? 'text-red-600' : item.qty <= 5 ? 'text-amber-600' : 'text-green-700'}`}>{item.qty}</td>
-                      <td className="px-3 py-2 text-center">{item.cost_price.toLocaleString('ar-EG')}</td>
-                      <td className="px-3 py-2 text-center">{item.retail_price.toLocaleString('ar-EG')}</td>
-                      <td className="px-3 py-2 text-center font-semibold">{item.cost_value.toLocaleString('ar-EG')}</td>
-                    </tr>
+                    <TableRow key={i} className={`border-b border-slate-100 ${item.qty <= 0 ? 'bg-red-50' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                      <TableCell className="px-3 py-2 font-medium">{item.name}</TableCell>
+                      <TableCell className="px-3 py-2 text-slate-500">{item.subcategory}</TableCell>
+                      <TableCell className="px-3 py-2 text-center">{item.unit}</TableCell>
+                      <TableCell className={`px-3 py-2 text-center font-bold ${item.qty <= 0 ? 'text-red-600' : item.qty <= 5 ? 'text-amber-600' : 'text-green-700'}`}>{item.qty}</TableCell>
+                      <TableCell className="px-3 py-2 text-center">{item.cost_price.toLocaleString('ar-EG')}</TableCell>
+                      <TableCell className="px-3 py-2 text-center">{item.retail_price.toLocaleString('ar-EG')}</TableCell>
+                      <TableCell className="px-3 py-2 text-center font-semibold">{item.cost_value.toLocaleString('ar-EG')}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           ))}
 

@@ -6,6 +6,8 @@ import { useAuthStore } from '../store/auth'
 import { authApi, settingsApi } from '../api/endpoints'
 import toast from 'react-hot-toast'
 import { Lock, User, Store, Boxes, BarChart3, Eye, EyeOff, TrendingUp, PackageCheck, ShieldCheck } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
 
 const FEATURES = [
   { icon: Store, label: 'نقطة البيع', desc: 'مبيعات سريعة وسلسة' },
@@ -147,8 +149,8 @@ export default function LoginPage() {
               <label htmlFor="login-username" className="field-label">اسم المستخدم</label>
               <div className="relative">
                 <User size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
-                <input id="login-username" value={username} onChange={e => setUsername(e.target.value)}
-                  className="input pr-10"
+                <Input id="login-username" value={username} onChange={e => setUsername(e.target.value)}
+                  className="pr-10"
                   placeholder="أدخل اسم المستخدم" required autoFocus autoComplete="username" />
               </div>
             </div>
@@ -156,21 +158,21 @@ export default function LoginPage() {
               <label htmlFor="login-password" className="field-label">كلمة المرور</label>
               <div className="relative">
                 <Lock size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
-                <input id="login-password" type={showPassword ? 'text' : 'password'} value={password}
+                <Input id="login-password" type={showPassword ? 'text' : 'password'} value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input pr-10 pl-10"
+                  className="pr-10 pl-10"
                   placeholder="أدخل كلمة المرور" required autoComplete="current-password" />
-                <button type="button" onClick={() => setShowPassword(s => !s)}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                <Button type="button" variant="ghost" size="icon-sm" onClick={() => setShowPassword(s => !s)}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                   aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}>
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                </Button>
               </div>
             </div>
-            <button type="submit" disabled={loading}
-              className="btn-primary w-full btn-lg mt-2">
+            <Button type="submit" disabled={loading}
+              className="w-full mt-2" size="lg">
               {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
-            </button>
+            </Button>
           </form>
 
           <div className="mt-6 flex items-center gap-2.5 p-3.5 rounded-[var(--r-lg)] bg-[var(--gold-soft)] border border-[var(--gold-border)]">

@@ -9,8 +9,8 @@ export default function DebtsContent() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className="card h-24 animate-pulse bg-slate-50" />
-          <div className="card h-24 animate-pulse bg-slate-50" />
+          <div className="card h-24 animate-pulse bg-[var(--surface-2)]" />
+          <div className="card h-24 animate-pulse bg-[var(--surface-2)]" />
         </div>
       </div>
     )
@@ -29,39 +29,39 @@ export default function DebtsContent() {
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4">
         <div className="card p-4 border-r-4" style={{ borderColor: '#d97706' }}>
-          <p className="text-xs font-bold text-slate-400 uppercase mb-1">مديونية العملاء (لنا)</p>
+          <p className="text-xs font-bold text-[var(--muted)] uppercase mb-1">مديونية العملاء (لنا)</p>
           <p className="text-2xl font-black text-amber-700">{totalCustomer.toLocaleString('ar-EG')} ج.م</p>
-          <p className="text-xs text-slate-400 mt-1">{customerDebts.length} عميل</p>
+          <p className="text-xs text-[var(--muted)] mt-1">{customerDebts.length} عميل</p>
         </div>
         <div className="card p-4 border-r-4" style={{ borderColor: '#dc2626' }}>
-          <p className="text-xs font-bold text-slate-400 uppercase mb-1">مديونية الموردين (علينا)</p>
+          <p className="text-xs font-bold text-[var(--muted)] uppercase mb-1">مديونية الموردين (علينا)</p>
           <p className="text-2xl font-black text-red-600">{totalSupplier.toLocaleString('ar-EG')} ج.م</p>
-          <p className="text-xs text-slate-400 mt-1">{supplierDebts.length} مورد</p>
+          <p className="text-xs text-[var(--muted)] mt-1">{supplierDebts.length} مورد</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Customer debts */}
         <div className="card">
-          <h3 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
+          <h3 className="font-bold text-[var(--text)] mb-4 flex items-center justify-between">
             <span>👤 مديونية العملاء</span>
             <span className="text-sm font-black text-amber-700">{totalCustomer.toLocaleString('ar-EG')} ج.م</span>
           </h3>
           {!customerDebts.length
-            ? <p className="text-slate-400 text-center py-8">✅ لا توجد مديونيات</p>
+            ? <p className="text-[var(--muted)] text-center py-8">✅ لا توجد مديونيات</p>
             : (
               <div className="space-y-0">
-                <div className="grid grid-cols-3 text-xs font-bold text-slate-400 px-2 pb-2 border-b border-slate-100">
+                <div className="grid grid-cols-3 text-xs font-bold text-[var(--muted)] px-2 pb-2 border-b border-[var(--border-faint)]">
                   <span>العميل</span><span className="text-center">التليفون</span><span className="text-left">المديونية</span>
                 </div>
                 {customerDebts.map((c: any) => (
-                  <div key={c.id} className="grid grid-cols-3 items-center py-2.5 px-2 border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                    <span className="font-semibold text-slate-800 text-sm truncate">{c.name}</span>
-                    <span className="text-center text-xs text-slate-400">{c.phone || '—'}</span>
+                  <div key={c.id} className="grid grid-cols-3 items-center py-2.5 px-2 border-b border-slate-50 last:border-0 hover:bg-[var(--surface-2)]">
+                    <span className="font-semibold text-[var(--text)] text-sm truncate">{c.name}</span>
+                    <span className="text-center text-xs text-[var(--muted)]">{c.phone || '—'}</span>
                     <span className="text-left font-black text-amber-700">{Number(c.balance_due).toLocaleString('ar-EG')} ج.م</span>
                   </div>
                 ))}
-                <div className="flex justify-between pt-3 border-t-2 border-slate-200 font-black text-slate-800 px-2">
+                <div className="flex justify-between pt-3 border-t-2 border-[var(--border)] font-black text-[var(--text)] px-2">
                   <span>الإجمالي</span><span className="text-amber-700">{totalCustomer.toLocaleString('ar-EG')} ج.م</span>
                 </div>
               </div>
@@ -70,25 +70,25 @@ export default function DebtsContent() {
 
         {/* Supplier debts */}
         <div className="card">
-          <h3 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
+          <h3 className="font-bold text-[var(--text)] mb-4 flex items-center justify-between">
             <span>🏭 مديونية الموردين</span>
             <span className="text-sm font-black text-red-600">{totalSupplier.toLocaleString('ar-EG')} ج.م</span>
           </h3>
           {!supplierDebts.length
-            ? <p className="text-slate-400 text-center py-8">✅ لا توجد مديونيات</p>
+            ? <p className="text-[var(--muted)] text-center py-8">✅ لا توجد مديونيات</p>
             : (
               <div className="space-y-0">
-                <div className="grid grid-cols-3 text-xs font-bold text-slate-400 px-2 pb-2 border-b border-slate-100">
+                <div className="grid grid-cols-3 text-xs font-bold text-[var(--muted)] px-2 pb-2 border-b border-[var(--border-faint)]">
                   <span>المورد</span><span className="text-center">التليفون</span><span className="text-left">المديونية</span>
                 </div>
                 {supplierDebts.map((s: any) => (
-                  <div key={s.id} className="grid grid-cols-3 items-center py-2.5 px-2 border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                    <span className="font-semibold text-slate-800 text-sm truncate">{s.name}</span>
-                    <span className="text-center text-xs text-slate-400">{s.phone || '—'}</span>
+                  <div key={s.id} className="grid grid-cols-3 items-center py-2.5 px-2 border-b border-slate-50 last:border-0 hover:bg-[var(--surface-2)]">
+                    <span className="font-semibold text-[var(--text)] text-sm truncate">{s.name}</span>
+                    <span className="text-center text-xs text-[var(--muted)]">{s.phone || '—'}</span>
                     <span className="text-left font-black text-red-600">{Number(s.balance).toLocaleString('ar-EG')} ج.م</span>
                   </div>
                 ))}
-                <div className="flex justify-between pt-3 border-t-2 border-slate-200 font-black text-slate-800 px-2">
+                <div className="flex justify-between pt-3 border-t-2 border-[var(--border)] font-black text-[var(--text)] px-2">
                   <span>الإجمالي</span><span className="text-red-600">{totalSupplier.toLocaleString('ar-EG')} ج.م</span>
                 </div>
               </div>

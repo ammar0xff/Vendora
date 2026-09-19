@@ -4,6 +4,9 @@ import api from '../../api/client'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
+import { Input } from '../../components/ui/input'
+import { Select } from '../../components/ui/select'
+import { Button } from '../../components/ui/button'
 
 function WalletsTab() {
   const qc = useQueryClient()
@@ -27,9 +30,9 @@ function WalletsTab() {
     <div className="card max-w-lg">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-slate-700">وسائل الدفع والمحافظ الإلكترونية</h3>
-        <button onClick={() => setShowAdd(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: 'var(--primary)' }}>
+        <Button size="sm" onClick={() => setShowAdd(true)} className="text-white bg-[var(--primary)]">
           <Plus size={13} /> إضافة
-        </button>
+        </Button>
       </div>
       {isLoading ? (
         <div className="text-center py-8 text-slate-400 text-sm">جارٍ التحميل…</div>
@@ -43,7 +46,7 @@ function WalletsTab() {
                 <p className="text-xs font-bold text-green-700 mt-0.5">رصيد: {Number(w.balance).toLocaleString('ar-EG')} ج.م</p>
               </div>
               {w.type !== 'cash' && (
-                <button onClick={() => setConfirmDelWallet({ id: w.id })} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></button>
+                <Button variant="ghost" size="icon-sm" onClick={() => setConfirmDelWallet({ id: w.id })} className="hover:bg-red-50 text-slate-300 hover:text-red-500"><Trash2 size={13} /></Button>
               )}
             </div>
           ))}
@@ -54,23 +57,23 @@ function WalletsTab() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">النوع</label>
-              <select className="input text-sm" value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))}>
+              <Select className="text-sm" value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))}>
                 <option value="vodafone_cash">📱 فودافون كاش</option>
                 <option value="instapay">🏦 إنستا باي</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">الاسم *</label>
-              <input className="input text-sm" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="مثال: فودافون — عمار" />
+ <Input className="text-sm" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="مثال: فودافون — عمار"/>
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-slate-600 mb-1">رقم المحفظة *</label>
-              <input className="input text-sm" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} placeholder="01XXXXXXXXX" />
+ <Input className="text-sm" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} placeholder="01XXXXXXXXX"/>
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border">إلغاء</button>
-            <button onClick={() => createMut.mutate()} disabled={!form.name || !form.phone} className="px-4 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
+            <Button size="sm" variant="outline" onClick={() => setShowAdd(false)} className="bg-white text-slate-600">إلغاء</Button>
+            <Button size="sm" onClick={() => createMut.mutate()} disabled={!form.name || !form.phone} className="text-white bg-[var(--primary)]">إضافة</Button>
           </div>
         </div>
       )}

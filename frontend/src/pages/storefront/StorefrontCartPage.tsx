@@ -3,6 +3,7 @@ import { Minus, Plus, Trash2, ShoppingCart, ArrowRight, PackageSearch, Phone, Me
 import { useStorefrontStore } from '../../store/storefront'
 import StorefrontNav from './StorefrontNav'
 import { fixUploadUrl } from '../../utils/format'
+import { Button } from '../../components/ui/button'
 
 export default function StorefrontCartPage() {
   const { cart, updateQty, removeFromCart, clearCart, wishlist } = useStorefrontStore()
@@ -27,7 +28,7 @@ export default function StorefrontCartPage() {
             <PackageSearch size={48} className="text-[var(--muted)]" />
             <p className="font-bold text-[var(--ink)]">عربتك فارغة</p>
             <p className="text-sm text-[var(--muted)]">أضف بعض المنتجات من الكتالوج لتبدأ طلبك</p>
-            <Link to="/catalog" className="btn btn-primary px-6 py-2.5 mt-2">تصفح الكتالوج</Link>
+            <Button asChild className="mt-2"><Link to="/catalog">تصفح الكتالوج</Link></Button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
@@ -43,18 +44,18 @@ export default function StorefrontCartPage() {
                     <Link to={`/products/${i.product_id}`} className="text-sm font-bold text-[var(--ink)] hover:text-[var(--primary)] truncate block">{i.name}</Link>
                     <p className="text-xs text-[var(--muted)] mt-0.5">{Number(i.unit_price).toLocaleString('ar-EG')} ج.م {i.unit ? `/ ${i.unit}` : ''}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <button onClick={() => updateQty(i.product_id, i.qty + 1)} className="w-8 h-8 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center" aria-label="زيادة"><Plus size={14} /></button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => updateQty(i.product_id, i.qty + 1)} aria-label="زيادة"><Plus size={14} /></Button>
                       <span className="w-10 text-center text-sm font-black text-[var(--ink)] tabular-nums">{i.qty}</span>
-                      <button onClick={() => updateQty(i.product_id, i.qty - 1)} className="w-8 h-8 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center" aria-label="إنقاص"><Minus size={14} /></button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => updateQty(i.product_id, i.qty - 1)} aria-label="إنقاص"><Minus size={14} /></Button>
                     </div>
                   </div>
                   <div className="text-left">
                     <p className="font-black text-[var(--primary)] tabular-nums">{(Number(i.unit_price) * i.qty).toLocaleString('ar-EG')} <span className="text-[10px] font-normal">ج.م</span></p>
-                    <button onClick={() => removeFromCart(i.product_id)} className="mt-2 text-xs font-bold text-[var(--danger)] hover:underline flex items-center gap-1"><Trash2 size={13} /> إزالة</button>
+                    <Button variant="destructive" onClick={() => removeFromCart(i.product_id)} className="mt-2 text-xs font-bold flex items-center gap-1"><Trash2 size={13} /> إزالة</Button>
                   </div>
                 </div>
               ))}
-              <button onClick={clearCart} className="text-sm font-bold text-[var(--danger)] hover:underline flex items-center gap-1"><Trash2 size={14} /> تفريغ العربة</button>
+              <Button variant="destructive" onClick={clearCart} className="text-sm font-bold flex items-center gap-1"><Trash2 size={14} /> تفريغ العربة</Button>
             </div>
 
             <div className="bg-white rounded-2xl border border-[var(--border)] p-5 sticky top-20">
@@ -71,15 +72,11 @@ export default function StorefrontCartPage() {
                 <span className="font-bold text-[var(--ink)]">الإجمالي</span>
                 <span className="font-black text-xl text-[var(--primary)] tabular-nums">{total.toLocaleString('ar-EG')} <span className="text-xs">ج.م</span></span>
               </div>
-              <a href={orderUrl()} target="_blank" rel="noreferrer" className="btn btn-primary w-full py-3 mb-2">
-                <MessageCircle size={16} /> إرسال الطلب
-              </a>
-              <a href="tel:+" className="btn btn-outline w-full py-3 flex items-center justify-center gap-2">
-                <Phone size={16} /> اطلب هاتفياً
-              </a>
-              <button onClick={() => navigate('/catalog')} className="mt-3 w-full text-sm font-bold text-[var(--primary)] flex items-center justify-center gap-1 hover:underline">
+              <Button asChild className="w-full mb-2"><a href={orderUrl()} target="_blank" rel="noreferrer"><MessageCircle size={16} /> إرسال الطلب</a></Button>
+              <Button asChild variant="outline" className="w-full"><a href="tel:+"><Phone size={16} /> اطلب هاتفياً</a></Button>
+              <Button variant="link" onClick={() => navigate('/catalog')} className="mt-3 w-full text-sm font-bold text-[var(--primary)] flex items-center justify-center gap-1">
                 متابعة التسوق <ArrowRight size={14} />
-              </button>
+              </Button>
             </div>
           </div>
         )}

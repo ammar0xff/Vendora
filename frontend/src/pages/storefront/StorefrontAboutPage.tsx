@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Package, Truck, ShieldCheck, Headset, Building2, Sparkles } from 'lucide-react'
 import { useStorefrontStore } from '../../store/storefront'
 import StorefrontNav from './StorefrontNav'
+import { Button } from '../../components/ui/button'
 
 export default function StorefrontAboutPage() {
   const { cart, wishlist } = useStorefrontStore()
@@ -45,8 +46,8 @@ export default function StorefrontAboutPage() {
           <h2 className="text-xl font-black text-[var(--ink)] mb-2">جاهز لطلبك؟</h2>
           <p className="text-sm text-[var(--muted)] mb-5">تصفّح الكتالوج، أضف لعربة التسوق، وأرسل طلبك — سنتولى الباقي.</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link to="/catalog" className="btn btn-primary px-6 py-3">تصفح المنتجات</Link>
-            <Link to="/login" className="btn btn-outline px-6 py-3">دخول نظام ڤندورة</Link>
+            <Button asChild className="px-6 py-3"><Link to="/catalog">تصفح المنتجات</Link></Button>
+            <Button asChild variant="outline" className="px-6 py-3"><Link to="/login">دخول نظام ڤندورة</Link></Button>
           </div>
         </div>
       </section>

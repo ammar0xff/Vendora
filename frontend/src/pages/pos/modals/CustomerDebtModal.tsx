@@ -1,4 +1,6 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
 
 interface Props {
   showCustomerDebt: boolean
@@ -25,13 +27,13 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
       <div className="space-y-4">
         {/* Customer search — always visible */}
         <div className="relative">
-          <label className="block text-sm font-medium text-slate-600 mb-1">
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">
             {debtCustomer ? 'العميل المحدد' : 'ابحث عن العميل'}
           </label>
           {debtCustomer ? (
             <div className="flex items-center justify-between bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-xl px-4 py-3">
               <div>
-                <p className="font-black text-slate-800">{debtCustomer.name}</p>
+                <p className="font-black text-[var(--text)]">{debtCustomer.name}</p>
                 {debtCustomerAccount && (
                   <p className="text-sm mt-0.5">
                     المتبقي: <span className={`font-black tabular-nums ${Number(debtCustomerAccount.balance_due) > 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -40,28 +42,28 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
                   </p>
                 )}
               </div>
-              <button onClick={() => { setDebtCustomer(null); setDebtCustomerSearch('') }}
-                className="btn btn-ghost btn-sm text-slate-400">
+              <Button variant="ghost" size="sm" onClick={() => { setDebtCustomer(null); setDebtCustomerSearch('') }}
+                className="text-[var(--muted)]">
                 تغيير
-              </button>
+              </Button>
             </div>
           ) : (
-            <input className="input text-base" value={debtCustomerSearch}
+ <Input className="text-base" value={debtCustomerSearch}
               onChange={e => setDebtCustomerSearch(e.target.value)}
               placeholder="اكتب اسم العميل للبحث..." autoFocus />
           )}
 
           {/* Search results dropdown */}
           {!debtCustomer && debtCustomerSearch.length > 1 && (
-            <div className="absolute z-20 w-full bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-52 overflow-y-auto">
+            <div className="absolute z-20 w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl mt-1 max-h-52 overflow-y-auto">
               {!(debtCustomerResults as any[])?.length
-                ? <p className="text-center py-6 text-slate-400 text-sm">لا توجد نتائج</p>
+                ? <p className="text-center py-6 text-[var(--muted)] text-sm">لا توجد نتائج</p>
                 : (debtCustomerResults as any[])?.map((c: any) => (
-                  <button key={c.id} onMouseDown={() => { setDebtCustomer(c); setDebtCustomerSearch('') }}
-                    className="w-full text-right px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0 transition-colors">
-                    <p className="font-bold text-slate-800">{c.name}</p>
-                    {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
-                  </button>
+                  <Button key={c.id} variant="ghost" onMouseDown={() => { setDebtCustomer(c); setDebtCustomerSearch('') }}
+                    className="w-full text-right px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0 h-auto justify-start flex-col items-start">
+                    <p className="font-bold text-[var(--text)]">{c.name}</p>
+                    {c.phone && <p className="text-xs text-[var(--muted)]">{c.phone}</p>}
+                  </Button>
                 ))
               }
             </div>
@@ -70,7 +72,7 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
 
         {/* Empty state — show instructions when no customer yet */}
         {!debtCustomer && (
-          <div className="empty-state border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/40 py-14">
+          <div className="empty-state border-2 border-dashed border-[var(--border)] rounded-2xl bg-slate-50/40 py-14">
             <div className="empty-icon text-2xl">👤</div>
             <p className="empty-title">ابحث عن العميل أعلاه</p>
             <p className="empty-sub">سيظهر رصيده وفواتيره هنا</p>
@@ -84,15 +86,15 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
             {/* Invoices oldest→newest (pay oldest first) */}
             {debtCustomerLedger && (
               <div className="max-h-40 overflow-y-auto space-y-1">
-                <p className="text-xs font-bold text-slate-400 mb-2">الفواتير المستحقة (من الأقدم للأحدث)</p>
+                <p className="text-xs font-bold text-[var(--muted)] mb-2">الفواتير المستحقة (من الأقدم للأحدث)</p>
                 {(debtCustomerLedger as any[])
                   .filter((e: any) => e.type === 'invoice' && !e.__pagination)
                   .sort((a: any, b: any) => a.date.localeCompare(b.date))
                   .map((e: any) => (
-                    <div key={e.ref} className="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2 text-sm">
+                    <div key={e.ref} className="flex justify-between items-center bg-[var(--surface-2)] rounded-lg px-3 py-2 text-sm">
                       <span className="font-mono text-[var(--primary)] font-bold">{e.ref}</span>
-                      <span className="text-slate-500 text-xs">{new Date(e.date).toLocaleDateString('ar-EG')}</span>
-                      <span className="font-bold text-slate-800 tabular-nums">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
+                      <span className="text-[var(--muted)] text-xs">{new Date(e.date).toLocaleDateString('ar-EG')}</span>
+                      <span className="font-bold text-[var(--text)] tabular-nums">{Number(e.amount).toLocaleString('ar-EG')} ج.م</span>
                     </div>
                   ))}
               </div>
@@ -101,22 +103,22 @@ export function CustomerDebtModal({ showCustomerDebt, onClose, debtCustomer, set
             {/* Payment entry */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ المدفوع *</label>
-                <input type="number" className="input text-lg font-black" value={debtPayAmount}
+                <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المبلغ المدفوع *</label>
+ <Input type="number" className="text-lg font-black" value={debtPayAmount}
                   onChange={e => setDebtPayAmount(e.target.value)} placeholder="0.00" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label>
-                <input className="input" value={debtPayNote} onChange={e => setDebtPayNote(e.target.value)} placeholder="رقم إيصال..." />
+                <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">ملاحظة</label>
+ <Input value={debtPayNote} onChange={e => setDebtPayNote(e.target.value)} placeholder="رقم إيصال..."/>
               </div>
             </div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => { setShowCustomerDebt(false); setDebtCustomer(null) }}
-                className="btn btn-ghost">إلغاء</button>
-              <button onClick={() => debtPayMut.mutate()} disabled={!debtPayAmount || debtPayMut.isPending}
-                className="btn btn-success">
+              <Button variant="ghost" onClick={() => { setShowCustomerDebt(false); setDebtCustomer(null) }}>
+                إلغاء
+              </Button>
+              <Button variant="default" onClick={() => debtPayMut.mutate()} disabled={!debtPayAmount || debtPayMut.isPending}>
                 تسجيل الدفعة
-              </button>
+              </Button>
             </div>
           </>
         )}

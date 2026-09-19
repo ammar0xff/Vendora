@@ -4,6 +4,7 @@ import { format, subDays } from 'date-fns'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { ShoppingCart, Package, AlertTriangle, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Button } from '../../components/ui/button'
 import { useAppStore } from '../../store/app'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/auth'
@@ -11,8 +12,14 @@ import { useAuthStore } from '../../store/auth'
 const today = format(new Date(), 'yyyy-MM-dd')
 
 function StatCard({ label, value, sub, icon: Icon, color, onClick }: any) {
+  const clickable = !!onClick
   return (
-    <div onClick={onClick} className={`stat-card ${onClick ? 'cursor-pointer hover:shadow-[var(--shadow-md)] hover:border-[var(--border-strong)] transition-all' : ''}`}>
+    <div
+      onClick={onClick}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e: any) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      className={`stat-card ${clickable ? 'cursor-pointer hover:shadow-[var(--shadow-md)] hover:border-[var(--border-strong)] transition-all' : ''}`}>
       <div className="stat-icon flex-shrink-0" style={{ background: color + '12', color }}>
         <Icon size={20} />
       </div>
@@ -61,9 +68,9 @@ export default function DashboardPage() {
           <h1 className="page-title tabular">{mainWh ? `🏪 ${mainWh.name}` : '🏢 الرئيسية'}</h1>
           <p className="page-subtitle">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <button onClick={() => navigate('/pos')} className="btn-accent">
+        <Button onClick={() => navigate('/pos')}>
           <ShoppingCart size={16} /> فتح نقطة البيع
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
@@ -80,7 +87,7 @@ export default function DashboardPage() {
               <h3 className="font-bold text-[var(--text)]">المبيعات — آخر 7 أيام</h3>
               <p className="text-[11px] text-[var(--muted)] mt-0.5">إجمالي المبيعات لكل يوم</p>
             </div>
-            <button onClick={() => navigate('/accounting')} className="btn-ghost btn-sm text-[var(--primary)]">التقارير</button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/accounting')}>التقارير</Button>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={chartData}>
@@ -115,7 +122,7 @@ export default function DashboardPage() {
           <div className="card p-4 flex-1">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/> تنبيهات المخزون</h3>
-              <button onClick={() => navigate('/inventory')} className="btn-ghost btn-sm text-[var(--primary)]">عرض الكل</button>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/inventory')}>عرض الكل</Button>
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {!lowStock?.length && <p className="text-[var(--muted)] text-xs text-center py-4">✅ المخزون بخير</p>}

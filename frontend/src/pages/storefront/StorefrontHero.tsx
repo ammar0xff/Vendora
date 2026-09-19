@@ -160,7 +160,7 @@ export default function StorefrontHero({ products, totalProducts, categoryCount,
             className="pb-16"
           >
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {collage.map((p, i) => (
+              {collage.map((p, _i) => (
                 <Link key={p.id} to={`/products/${p.id}`} className="block">
                   <div className="rounded-2xl aspect-[4/5] overflow-hidden bg-white/10">
                     {p.image_url ? (

@@ -4,6 +4,7 @@ import { reportsApi } from '../../api/endpoints'
 import { useAppStore } from '../../store/app'
 import { format, startOfMonth } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Input } from '../../components/ui/input'
 
 const today = format(new Date(), 'yyyy-MM-dd')
 const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd')
@@ -28,9 +29,9 @@ export default function SalesReportContent() {
       {/* Date filter */}
       <div className="flex gap-3 items-center flex-wrap">
         <span className="text-sm text-slate-500 font-medium">الفترة:</span>
-        <input type="date" className="input w-40 text-sm" value={from} onChange={e => setFrom(e.target.value)} />
+        <Input type="date" className="w-40 text-sm" value={from} onChange={e => setFrom(e.target.value)} />
         <span className="text-slate-400 text-sm">إلى</span>
-        <input type="date" className="input w-40 text-sm" value={to} onChange={e => setTo(e.target.value)} />
+        <Input type="date" className="w-40 text-sm" value={to} onChange={e => setTo(e.target.value)} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

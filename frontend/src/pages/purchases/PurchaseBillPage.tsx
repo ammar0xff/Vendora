@@ -7,6 +7,9 @@ import { useAppStore } from '../../store/app'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 import CategoryCardBrowser from '../pos/CategoryCardBrowser'
+import { Button } from '../../components/ui/button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
+import { Input } from '../../components/ui/input'
 
 export default function PurchaseBillPage() {
   const { activeWarehouseId, setActiveWarehouse } = useAppStore()
@@ -32,9 +35,8 @@ export default function PurchaseBillPage() {
   const suppliers = Array.isArray(suppliersRaw) ? suppliersRaw : []
 
   const targetWhId = activeWarehouseId || ''
-  const targetWh = warehouses?.find((w: any) => w.id === targetWhId)
 
-  const { data: productsRaw, isLoading } = useQuery({
+  const { data: productsRaw } = useQuery({
     queryKey: ['purchase-products', debouncedSearch],
     queryFn: () => productsApi.list({ page_size: 5000, ...(debouncedSearch ? { search: debouncedSearch } : {}) }),
     staleTime: 30_000,
@@ -102,7 +104,7 @@ export default function PurchaseBillPage() {
     return q === null || q > 0
   })
 
-  const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
+  const [, setSelectedCatId] = useState<string | null>(null)
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null)
 
   const getSubsForCat = (catId: string) => subcategories.filter((s: any) => s.category_id === catId)
@@ -132,8 +134,8 @@ export default function PurchaseBillPage() {
           {showProducts.map((p: any) => {
             const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
             return (
-              <button key={p.id} onClick={() => handleAddProduct(p)}
-                className="bg-white rounded-xl border border-slate-200 p-3 text-right hover:border-[var(--primary-border)] hover:shadow-md transition-all active:scale-95 flex flex-col">
+              <Button key={p.id} onClick={() => handleAddProduct(p)} variant="ghost"
+                className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 text-right hover:border-[var(--primary-border)] hover:shadow-md transition-all active:scale-95 flex flex-col h-auto w-full">
                 <div className="flex items-start justify-between mb-1.5">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
                     <Package size={14} className="text-blue-600" />
@@ -144,68 +146,68 @@ export default function PurchaseBillPage() {
                     )}>{qty}</span>
                   )}
                 </div>
-                <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
-                {p.company && <p className="text-[10px] text-slate-400 mb-1.5">{p.company}</p>}
+                <p className="text-xs font-bold text-[var(--text)] leading-tight line-clamp-2 mb-0.5">{p.name}</p>
+                {p.company && <p className="text-[10px] text-[var(--muted)] mb-1.5">{p.company}</p>}
                 <div className="mt-auto">
-                  <p className="text-[10px] text-slate-500">التكلفة: {Number(p.cost_price || 0).toLocaleString('ar-EG')} ج.م</p>
+                  <p className="text-[10px] text-[var(--muted)]">التكلفة: {Number(p.cost_price || 0).toLocaleString('ar-EG')} ج.م</p>
                 </div>
-              </button>
+              </Button>
             )
           })}
         </div>
       ) : (
-        <table className="w-full text-right text-xs">
-          <thead className="sticky top-0 bg-slate-100 z-10">
-            <tr className="text-slate-500 font-semibold">
-              <th className="py-2 px-2">المنتج</th>
-              <th className="py-2 px-2">المخزون</th>
-              <th className="py-2 px-2">سعر التكلفة</th>
-              <th className="py-2 px-2"></th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="w-full text-right text-xs">
+          <TableHeader className="sticky top-0 bg-[var(--surface-3)] z-10">
+            <TableRow className="text-[var(--muted)] font-semibold">
+              <TableHead className="py-2 px-2">المنتج</TableHead>
+              <TableHead className="py-2 px-2">المخزون</TableHead>
+              <TableHead className="py-2 px-2">سعر التكلفة</TableHead>
+              <TableHead className="py-2 px-2"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {showProducts.map((p: any) => {
               const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
               return (
-                <tr key={p.id} onClick={() => handleAddProduct(p)}
-                  className="border-t border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors">
-                  <td className="py-2 px-2 font-semibold text-slate-800">{p.name}</td>
-                  <td className="py-2 px-2">
+                <TableRow key={p.id} onClick={() => handleAddProduct(p)}
+                  className="border-t border-[var(--border-faint)] hover:bg-blue-50 cursor-pointer transition-colors">
+                  <TableCell className="py-2 px-2 font-semibold text-[var(--text)]">{p.name}</TableCell>
+                  <TableCell className="py-2 px-2">
                     {qty !== null ? (
                       <span className={clsx('font-bold px-1 rounded', qty <= 0 ? 'text-red-500' : qty <= 5 ? 'text-amber-600' : 'text-green-600')}>{qty}</span>
-                    ) : <span className="text-slate-300">—</span>}
-                  </td>
-                  <td className="py-2 px-2 font-black text-[var(--accent)]">{Number(p.cost_price || 0).toLocaleString('ar-EG')}</td>
-                  <td className="py-2 px-2 text-blue-500 font-bold text-sm">+</td>
-                </tr>
+                    ) : <span className="text-[var(--faint)]">—</span>}
+                  </TableCell>
+                  <TableCell className="py-2 px-2 font-black text-[var(--accent)]">{Number(p.cost_price || 0).toLocaleString('ar-EG')}</TableCell>
+                  <TableCell className="py-2 px-2 text-blue-500 font-bold text-sm">+</TableCell>
+                </TableRow>
               )
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </div>
   )
 
   const cartPanel = (
-    <div className="w-full lg:w-96 flex flex-col bg-white rounded-xl border border-slate-200 min-h-0 flex-shrink-0">
+    <div className="w-full lg:w-96 flex flex-col bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-0 flex-shrink-0">
       <div className="px-4 py-3 flex-shrink-0" style={{ background: 'var(--primary)' }}>
         <div className="flex items-center justify-between mb-2">
           <span className="text-white font-bold text-sm">فاتورة مشتريات</span>
-          {items.length > 0 && <button onClick={clear} className="text-white/50 text-xs px-1">✕ مسح</button>}
+          {items.length > 0 && <Button onClick={clear} variant="ghost" size="sm" className="text-white/50 text-xs px-1 h-auto">✕ مسح</Button>}
         </div>
         <div className="space-y-2">
           <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
             className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-yellow-400">
-            <option value="" className="text-slate-800">اختر المورد (اختياري)</option>
+            <option value="" className="text-[var(--text)]">اختر المورد (اختياري)</option>
             {suppliers?.map((s: any) => (
-              <option key={s.id} value={s.id} className="text-slate-800">{s.name}</option>
+              <option key={s.id} value={s.id} className="text-[var(--text)]">{s.name}</option>
             ))}
           </select>
           <select value={targetWhId} onChange={e => handleWhChange(e.target.value)}
             className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-yellow-400">
-            <option value="" className="text-slate-800">اختر المخزن</option>
+            <option value="" className="text-[var(--text)]">اختر المخزن</option>
             {warehouses?.filter((w: any) => ['warehouse', 'showroom'].includes(w.warehouse_type)).map((w: any) => (
-              <option key={w.id} value={w.id} className="text-slate-800">{w.warehouse_type === 'showroom' ? '🏪' : '🏭'} {w.name}</option>
+              <option key={w.id} value={w.id} className="text-[var(--text)]">{w.warehouse_type === 'showroom' ? '🏪' : '🏭'} {w.name}</option>
             ))}
           </select>
         </div>
@@ -213,61 +215,63 @@ export default function PurchaseBillPage() {
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {!items.length && (
-          <div className="text-center py-16 text-slate-300">
+          <div className="text-center py-16 text-[var(--faint)]">
             <ShoppingCart size={40} className="mx-auto mb-3 opacity-30" />
             <p className="text-sm">السلة فارغة</p>
-            <p className="text-xs text-slate-400 mt-1">اختر منتجات من القائمة</p>
+            <p className="text-xs text-[var(--muted)] mt-1">اختر منتجات من القائمة</p>
           </div>
         )}
         {items.map((item) => {
           const addQty = Math.max(0, item.new_qty - item.current_stock)
           const lineTotal = addQty * item.unit_cost
           return (
-            <div key={item.product_id} className="bg-white rounded-xl border border-slate-100 p-3">
+            <div key={item.product_id} className="bg-[var(--surface)] rounded-xl border border-[var(--border-faint)] p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 text-sm leading-tight truncate">{item.name}</p>
-                  <p className="text-xs text-slate-400">{item.unit} · المخزون: {item.current_stock}</p>
+                  <p className="font-bold text-[var(--text)] text-sm leading-tight truncate">{item.name}</p>
+                  <p className="text-xs text-[var(--muted)]">{item.unit} · المخزون: {item.current_stock}</p>
                 </div>
-                <button onClick={() => removeItem(item.product_id)} className="text-slate-300 hover:text-red-500 flex-shrink-0">
+                <Button variant="ghost" size="icon-sm" onClick={() => removeItem(item.product_id)} className="text-[var(--faint)] hover:text-red-500 flex-shrink-0" aria-label="إزالة">
                   <X size={14} />
-                </button>
+                </Button>
               </div>
               <div className="flex items-center justify-between mt-2 gap-1">
                 <div className="flex items-center gap-1">
-                  <button onClick={() => updateQty(item.product_id, item.new_qty - 1)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90"><Minus size={12} /></button>
-                  <input type="number" min="1" value={item.new_qty}
+                  <Button variant="ghost" size="icon-sm" onClick={() => updateQty(item.product_id, item.new_qty - 1)} className="w-7 h-7 rounded-lg bg-[var(--surface-3)] flex items-center justify-center text-[var(--text-soft)] active:scale-90" aria-label="إنقاص"><Minus size={12} /></Button>
+                  <input type="number" aria-label={`كمية ${item.name}`} min="1" value={item.new_qty}
                     onChange={e => updateQty(item.product_id, Math.max(1, Number(e.target.value)))}
-                    className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
-                  <button onClick={() => updateQty(item.product_id, item.new_qty + 1)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90"><Plus size={12} /></button>
+                    className="w-14 text-center text-sm font-bold border border-[var(--border)] rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
+                  <Button variant="ghost" size="icon-sm" onClick={() => updateQty(item.product_id, item.new_qty + 1)} className="w-7 h-7 rounded-lg bg-[var(--surface-3)] flex items-center justify-center text-[var(--text-soft)] active:scale-90" aria-label="زيادة"><Plus size={12} /></Button>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-slate-400">تكلفة</span>
-                  <input type="number" min="0" step="0.01" value={item.unit_cost}
+                  <span className="text-[10px] text-[var(--muted)]">تكلفة</span>
+                  <input type="number" aria-label={`تكلفة ${item.name}`} min="0" step="0.01" value={item.unit_cost}
                     onChange={e => updateCost(item.product_id, Number(e.target.value))}
-                    className="w-16 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
+                    className="w-16 text-center text-sm font-bold border border-[var(--border)] rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
                 </div>
               </div>
               <div className="flex justify-between mt-1.5 text-xs">
                 <span className="text-green-600">الإضافة: +{addQty}</span>
-                <span className="font-bold text-slate-600">{lineTotal.toLocaleString('ar-EG')} ج.م</span>
+                <span className="font-bold text-[var(--text-soft)]">{lineTotal.toLocaleString('ar-EG')} ج.م</span>
               </div>
             </div>
           )
         })}
       </div>
 
-      <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-2">
+      <div className="p-3 border-t border-[var(--border-faint)] flex-shrink-0 space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-slate-500 text-sm">إجمالي الفاتورة</span>
+          <span className="text-[var(--muted)] text-sm">إجمالي الفاتورة</span>
           <span className="text-2xl font-black text-[var(--primary)]">{totalCost().toLocaleString('ar-EG')} ج.م</span>
         </div>
-        <button onClick={() => submitMut.mutate()}
+        <Button onClick={() => submitMut.mutate()}
           disabled={!items.length || !targetWhId || submitMut.isPending}
-          className={clsx('btn btn-lg w-full font-black', items.length && targetWhId ? 'btn-success text-white' : 'btn-ghost text-slate-400')}>
+          className={clsx('w-full font-black', items.length && targetWhId ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-[var(--muted)]')}
+          variant={items.length && targetWhId ? 'default' : 'ghost'}
+          size="lg">
           <CheckCircle size={20} />
           {submitMut.isPending ? 'جاري...' : !targetWhId ? '⚠️ اختر المخزن' : 'تأكيد فاتورة المشتريات'}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -277,15 +281,14 @@ export default function PurchaseBillPage() {
       {/* Desktop top bar */}
       <div className="hidden lg:flex items-center gap-3 mb-3 flex-shrink-0 flex-wrap">
         <div className="relative flex-1 max-w-md">
-          <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => handleSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:border-[var(--accent)]"
+          <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+          <Input value={search} onChange={e => handleSearch(e.target.value)}
+            className="pr-10 pl-4 py-2.5 rounded-xl"
             placeholder="ابحث عن منتج..." />
         </div>
-        <button onClick={() => setViewMode(v => v === 'cards' ? 'table' : 'cards')}
-          className="px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">
+        <Button variant="secondary" size="sm" onClick={() => setViewMode(v => v === 'cards' ? 'table' : 'cards')} className="px-3 text-xs">
           {viewMode === 'cards' ? 'جدول' : 'بطاقات'}
-        </button>
+        </Button>
         {!targetWhId && (
           <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-2 rounded-xl">⚠️ اختر المخزن من القائمة الجانبية</span>
         )}
@@ -304,10 +307,10 @@ export default function PurchaseBillPage() {
             <div className="flex-1 overflow-y-auto">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {categories?.map((cat: any) => (
-                  <button key={cat.id} onClick={() => handleCatClick(cat.id)}
-                    className="bg-white rounded-xl border border-slate-200 p-4 text-center hover:border-[var(--primary-border)] hover:shadow-md transition-all">
-                    <p className="text-xs font-bold text-slate-700">{cat.name}</p>
-                  </button>
+                  <Button key={cat.id} onClick={() => handleCatClick(cat.id)} variant="ghost"
+                    className="w-full bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4 text-center hover:border-[var(--primary-border)] hover:shadow-md transition-all h-auto">
+                    <p className="text-xs font-bold text-[var(--text)]">{cat.name}</p>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -320,13 +323,13 @@ export default function PurchaseBillPage() {
       <div className="flex lg:hidden flex-1 flex-col min-h-0">
         <div className="flex items-center gap-2 mb-2 flex-shrink-0">
           <div className="relative flex-1">
-            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={e => handleSearch(e.target.value)}
-              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-white text-xs outline-none focus:border-[var(--accent)]"
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+            <Input value={search} onChange={e => handleSearch(e.target.value)}
+              className="pr-9 pl-3 py-2 rounded-xl"
               placeholder="ابحث..." />
           </div>
           <select value={targetWhId} onChange={e => handleWhChange(e.target.value)}
-            className="px-2 py-2 rounded-xl border border-slate-200 bg-white text-xs outline-none max-w-28">
+            className="px-2 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-xs outline-none max-w-28">
             <option value="">المخزن</option>
             {warehouses?.map((w: any) => (
               <option key={w.id} value={w.id}>{w.name}</option>
@@ -349,22 +352,22 @@ export default function PurchaseBillPage() {
         {mobileTab === 'cart' && cartPanel}
 
         {/* Mobile tab bar */}
-        <div className="flex-shrink-0 border-t border-slate-200 bg-white flex">
-          <button onClick={() => setMobileTab('products')}
-            className={clsx('flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors',
-              mobileTab === 'products' ? 'text-[var(--primary)]' : 'text-slate-400')}>
-            <Package size={20} />
+        <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--surface)] flex">
+          <Button onClick={() => setMobileTab('products')} variant="ghost"
+            className={clsx('flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors h-auto rounded-none',
+              mobileTab === 'products' ? 'text-[var(--primary)]' : 'text-[var(--muted)]')}>
+            <Package size={20} className="size-5" />
             <span>منتجات</span>
-          </button>
-          <button onClick={() => setMobileTab('cart')}
-            className={clsx('flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors relative',
-              mobileTab === 'cart' ? 'text-[var(--primary)]' : 'text-slate-400')}>
-            <ShoppingCart size={20} />
+          </Button>
+          <Button onClick={() => setMobileTab('cart')} variant="ghost"
+            className={clsx('flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors relative h-auto rounded-none',
+              mobileTab === 'cart' ? 'text-[var(--primary)]' : 'text-[var(--muted)]')}>
+            <ShoppingCart size={20} className="size-5" />
             <span>السلة</span>
             {items.length > 0 && (
               <span className="absolute top-2 right-1/2 translate-x-4 -translate-y-0.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-black">{items.length}</span>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

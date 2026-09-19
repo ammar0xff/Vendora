@@ -7,6 +7,7 @@ import { useStorefrontStore } from '../../store/storefront'
 import StorefrontNav from './StorefrontNav'
 import StorefrontProductCard from './StorefrontProductCard'
 import { fixUploadUrl } from '../../utils/format'
+import { Button } from '../../components/ui/button'
 
 export default function StorefrontProductDetailPage() {
   const { id = '' } = useParams()
@@ -48,7 +49,7 @@ export default function StorefrontProductDetailPage() {
         <div className="max-w-6xl mx-auto px-4 py-24 flex flex-col items-center gap-4 text-center">
           <Package size={48} className="text-[var(--muted)]" />
           <p className="font-bold text-[var(--ink)]">المنتج غير متوفر</p>
-          <Link to="/catalog" className="btn btn-primary px-6 py-2.5">العودة للكتالوج</Link>
+          <Button asChild><Link to="/catalog">العودة للكتالوج</Link></Button>
         </div>
       </div>
     )
@@ -82,13 +83,15 @@ export default function StorefrontProductDetailPage() {
             {p.images && p.images.length > 1 && (
               <div className="flex gap-2 p-3 overflow-x-auto">
                 {p.images.map((img, i) => (
-                  <button
+                  <Button
                     key={i}
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => setActiveImage(i)}
-                    className={`w-16 h-16 rounded-xl shrink-0 border-2 overflow-hidden transition ${i === activeImage ? 'border-[var(--primary)]' : 'border-transparent hover:border-[var(--border-strong)]'}`}
+                    className={`w-16 h-16 rounded-xl shrink-0 border-2 overflow-hidden transition p-0 ${i === activeImage ? 'border-[var(--primary)]' : 'border-transparent hover:border-[var(--border-strong)]'}`}
                   >
                     <img src={fixUploadUrl(img)} alt="" className="w-full h-full object-cover" />
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -128,23 +131,25 @@ export default function StorefrontProductDetailPage() {
 
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center gap-2 bg-white rounded-xl border border-[var(--border)] p-2">
-                <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-9 h-9 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center" aria-label="إنقاص"><Minus size={15} /></button>
+                <Button variant="ghost" size="icon-sm" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="إنقاص"><Minus size={15} /></Button>
                 <span className="w-10 text-center font-black text-[var(--ink)] tabular-nums">{qty}</span>
-                <button onClick={() => setQty((q) => q + 1)} className="w-9 h-9 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center" aria-label="زيادة"><Plus size={15} /></button>
+                <Button variant="ghost" size="icon-sm" onClick={() => setQty((q) => q + 1)} aria-label="زيادة"><Plus size={15} /></Button>
               </div>
-              <button
+              <Button
                 onClick={() => addToCart({ product_id: p.id, name: p.name, unit_price: Number(p.retail_price), qty, image_url: p.image_url, unit: p.unit })}
-                className="btn btn-primary flex-1 py-3 flex items-center justify-center gap-2"
+                className="flex-1"
               >
                 <ShoppingCart size={18} />{inCart ? 'أُضيف إلى العربة ✓' : 'أضف للعربة'}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-lg"
                 onClick={() => toggleWishlist(p.id)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center border ${wishlist.includes(p.id) ? 'bg-[var(--accent)] text-white border-transparent' : 'bg-white text-slate-700 border-[var(--border)] hover:text-[var(--accent)]'}`}
+                className={`rounded-xl border ${wishlist.includes(p.id) ? 'bg-[var(--accent)] text-white border-transparent hover:bg-[var(--accent)]/80' : 'bg-white text-slate-700 border-[var(--border)] hover:text-[var(--accent)]'}`}
                 aria-label="المفضلة"
               >
                 <Heart size={18} fill={wishlist.includes(p.id) ? 'currentColor' : 'none'} />
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-3 gap-3">

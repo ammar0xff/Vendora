@@ -5,6 +5,8 @@ import { productsApi } from '../../api/endpoints'
 import toast from 'react-hot-toast'
 import { Trash2, Package } from 'lucide-react'
 import Modal from '../ui/Modal'
+import { Button } from './button'
+import { Input } from './input'
 
 interface Props {
   open: boolean
@@ -51,32 +53,32 @@ export default function CollectionModal({ open, onClose, initial }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={initial ? `تعديل ${initial.name}` : 'كوليكشن / باكيج جديد'}>
       <div className="space-y-3">
-        <input className="input" placeholder="اسم الكوليكشن *" value={name} onChange={e => setName(e.target.value)} autoFocus />
-        <input className="input" placeholder="وصف (اختياري)" value={desc} onChange={e => setDesc(e.target.value)} />
+ <Input placeholder="اسم الكوليكشن *" value={name} onChange={e => setName(e.target.value)} autoFocus/>
+ <Input placeholder="وصف (اختياري)" value={desc} onChange={e => setDesc(e.target.value)}/>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-slate-500 mb-1">سعر قطاعي</label>
-            <input type="number" className="input" placeholder="0.00" value={retail} onChange={e => setRetail(e.target.value)} />
+            <label className="block text-xs text-[var(--muted)] mb-1">سعر قطاعي</label>
+ <Input type="number" placeholder="0.00" value={retail} onChange={e => setRetail(e.target.value)}/>
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">سعر جملة</label>
-            <input type="number" className="input" placeholder="0.00" value={wholesale} onChange={e => setWholesale(e.target.value)} />
+            <label className="block text-xs text-[var(--muted)] mb-1">سعر جملة</label>
+ <Input type="number" placeholder="0.00" value={wholesale} onChange={e => setWholesale(e.target.value)}/>
           </div>
         </div>
 
         {/* Items */}
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-2">المنتجات</label>
+          <label className="block text-xs font-bold text-[var(--text-soft)] mb-2">المنتجات</label>
           <div className="relative mb-2">
-            <input className="input text-sm" placeholder="ابحث عن منتج..." value={search} onChange={e => setSearch(e.target.value)} />
+ <Input className="text-sm" placeholder="ابحث عن منتج..." value={search} onChange={e => setSearch(e.target.value)}/>
             {products?.length > 0 && search.length > 1 && (
-              <div className="absolute top-full right-0 left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto">
+              <div className="absolute top-full right-0 left-0 mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto">
                 {products.map((p: any) => (
-                  <button key={p.id} onMouseDown={() => addProduct(p)}
-                    className="w-full text-right px-3 py-2 text-sm hover:bg-slate-50 flex justify-between">
+                  <Button key={p.id} variant="ghost" type="button" onMouseDown={() => addProduct(p)}
+                    className="w-full justify-between">
                     <span>{p.name}</span>
-                    <span className="text-slate-400 text-xs">{p.unit}</span>
-                  </button>
+                    <span className="text-[var(--muted)] text-xs">{p.unit}</span>
+                  </Button>
                 ))}
               </div>
             )}
@@ -84,24 +86,24 @@ export default function CollectionModal({ open, onClose, initial }: Props) {
 
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {items.map((item, i) => (
-              <div key={item.product_id} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
-                <span className="flex-1 text-sm font-medium text-slate-700">{item.product_name}</span>
-                <span className="text-xs text-slate-400">{item.unit}</span>
-                <input type="number" className="input w-16 text-center text-sm py-1" min="0.001" step="any"
+              <div key={item.product_id} className="flex items-center gap-2 bg-[var(--surface-2)] rounded-lg px-3 py-1.5">
+                <span className="flex-1 text-sm font-medium text-[var(--text)]">{item.product_name}</span>
+                <span className="text-xs text-[var(--muted)]">{item.unit}</span>
+ <Input type="number" className="w-16 text-center text-sm py-1" min="0.001" step="any"
                   value={item.qty}
                   onChange={e => setItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: Number(e.target.value) } : it))} />
-                <button onClick={() => setItems(prev => prev.filter((_, idx) => idx !== i))}
-                  className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                <Button variant="ghost" size="icon" type="button" onClick={() => setItems(prev => prev.filter((_, idx) => idx !== i))}
+                  className="text-red-400 hover:text-red-600"><Trash2 size={14} /></Button>
               </div>
             ))}
-            {!items.length && <p className="text-xs text-slate-400 text-center py-3">أضف منتجات للكوليكشن</p>}
+            {!items.length && <p className="text-xs text-[var(--muted)] text-center py-3">أضف منتجات للكوليكشن</p>}
           </div>
         </div>
 
-        <button onClick={() => saveMut.mutate()} disabled={!name || !items.length || saveMut.isPending}
-          className="btn btn-primary w-full">
+        <Button onClick={() => saveMut.mutate()} disabled={!name || !items.length || saveMut.isPending}
+          className="w-full">
           <Package size={16} /> {saveMut.isPending ? 'جاري...' : 'حفظ الكوليكشن'}
-        </button>
+        </Button>
       </div>
     </Modal>
   )

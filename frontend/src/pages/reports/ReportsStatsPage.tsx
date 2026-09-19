@@ -1,7 +1,9 @@
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import { useAppStore } from '../../store/app'
+import { Input } from '../../components/ui/input'
 import { format } from 'date-fns'
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
@@ -25,9 +27,9 @@ export default function ReportsStatsPage() {
     <div>
       {/* Date range */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <input type="date" className="input w-40 text-sm" value={statsFrom} onChange={e => setStatsFrom(e.target.value)} />
+        <Input type="date" className="w-40 text-sm" value={statsFrom} onChange={e => setStatsFrom(e.target.value)} />
         <span className="text-slate-400 text-sm">إلى</span>
-        <input type="date" className="input w-40 text-sm" value={statsTo} onChange={e => setStatsTo(e.target.value)} />
+        <Input type="date" className="w-40 text-sm" value={statsTo} onChange={e => setStatsTo(e.target.value)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -37,20 +39,20 @@ export default function ReportsStatsPage() {
             <h3 className="font-bold text-slate-700">🏆 أكثر المنتجات مبيعاً</h3>
           </div>
           <div className="table-wrap">
-            <table>
-              <thead><tr><th>#</th><th>المنتج</th><th style={{ textAlign: 'center' }}>الكمية</th><th style={{ textAlign: 'center' }}>الإيراد</th></tr></thead>
-              <tbody>
-                {!topProducts?.length && <tr><td colSpan={4} className="text-center py-6 text-slate-400">لا توجد بيانات</td></tr>}
+            <Table>
+              <TableHeader><TableRow><TableHead>#</TableHead><TableHead>المنتج</TableHead><TableHead style={{ textAlign: 'center' }}>الكمية</TableHead><TableHead style={{ textAlign: 'center' }}>الإيراد</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {!topProducts?.length && <TableRow><TableCell colSpan={4} className="text-center py-6 text-slate-400">لا توجد بيانات</TableCell></TableRow>}
                 {topProducts?.map((p: any, i: number) => (
-                  <tr key={p.product_id}>
-                    <td className="text-slate-400 text-xs">{i + 1}</td>
-                    <td className="font-medium text-slate-800">{p.product_name}</td>
-                    <td className="text-center text-slate-600">{fmt(p.total_qty)}</td>
-                    <td className="text-center font-bold text-green-700">{fmt(p.total_revenue)} ج.م</td>
-                  </tr>
+                  <TableRow key={p.product_id}>
+                    <TableCell className="text-slate-400 text-xs">{i + 1}</TableCell>
+                    <TableCell className="font-medium text-slate-800">{p.product_name}</TableCell>
+                    <TableCell className="text-center text-slate-600">{fmt(p.total_qty)}</TableCell>
+                    <TableCell className="text-center font-bold text-green-700">{fmt(p.total_revenue)} ج.م</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
 
@@ -60,19 +62,19 @@ export default function ReportsStatsPage() {
             <h3 className="font-bold text-slate-700">👤 مبيعات الكاشيرين</h3>
           </div>
           <div className="table-wrap">
-            <table>
-              <thead><tr><th>الكاشير</th><th style={{ textAlign: 'center' }}>الفواتير</th><th style={{ textAlign: 'center' }}>الإجمالي</th></tr></thead>
-              <tbody>
-                {!byCashier?.length && <tr><td colSpan={3} className="text-center py-6 text-slate-400">لا توجد بيانات</td></tr>}
+            <Table>
+              <TableHeader><TableRow><TableHead>الكاشير</TableHead><TableHead style={{ textAlign: 'center' }}>الفواتير</TableHead><TableHead style={{ textAlign: 'center' }}>الإجمالي</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {!byCashier?.length && <TableRow><TableCell colSpan={3} className="text-center py-6 text-slate-400">لا توجد بيانات</TableCell></TableRow>}
                 {byCashier?.map((c: any, idx: number) => (
-                  <tr key={c?.cashier_id ?? idx}>
-                    <td className="font-semibold text-slate-800">{c.cashier_name}</td>
-                    <td className="text-center text-slate-500">{c.invoice_count}</td>
-                    <td className="text-center font-bold text-green-700">{fmt(c.total_sales)} ج.م</td>
-                  </tr>
+                  <TableRow key={c?.cashier_id ?? idx}>
+                    <TableCell className="font-semibold text-slate-800">{c.cashier_name}</TableCell>
+                    <TableCell className="text-center text-slate-500">{c.invoice_count}</TableCell>
+                    <TableCell className="text-center font-bold text-green-700">{fmt(c.total_sales)} ج.م</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </div>

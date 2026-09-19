@@ -90,8 +90,16 @@ export interface ResolvedTheme {
 export function resolveTheme(s?: ThemeSettings | null): ResolvedTheme {
   const primary = normalizeHex(s?.theme_primary, DEFAULT_THEME.primary)
   const accent = normalizeHex(s?.theme_accent, DEFAULT_THEME.accent)
-  const bg = normalizeHex(s?.theme_bg, DEFAULT_THEME.bg)
-  const dark = isDark(bg)
+  const rawBg = normalizeHex(s?.theme_bg, DEFAULT_THEME.bg)
+  const mode = String(s?.theme_mode ?? '').toLowerCase()
+  const autoDark = isDark(rawBg)
+  const dark = mode === 'dark' ? true : mode === 'light' ? false : autoDark
+  // When the mode is forced, synthesize a matching base so surfaces stay coherent
+  // (e.g. forced dark with a light theme_bg still produces dark backgrounds).
+  const bg =
+    mode === 'dark' ? (autoDark ? rawBg : mix(rawBg, '#0f172a', 0.86))
+    : mode === 'light' ? (autoDark ? mix(rawBg, '#ffffff', 0.9) : rawBg)
+    : rawBg
   const ink = normalizeHex(s?.theme_ink, dark ? '#f8fafc' : '#0f172a')
   const heading = fontId(s?.font_heading)
   const body = fontId(s?.font_body)
@@ -137,6 +145,14 @@ export function resolveTheme(s?: ThemeSettings | null): ResolvedTheme {
     '--faint': faint,
     '--font-heading': heading,
     '--font-body': body,
+    '--sidebar': surface,
+    '--sidebar-foreground': text,
+    '--sidebar-primary': primary,
+    '--sidebar-primary-foreground': bestText(primary),
+    '--sidebar-accent': surface3,
+    '--sidebar-accent-foreground': text,
+    '--sidebar-border': border,
+    '--sidebar-ring': primary,
   }
   return { vars, primary, accent, bg, ink, heading, body }
 }
@@ -156,6 +172,8 @@ const STYLE_KEYS = new Set([
   '--border', '--border-strong', '--border-faint',
   '--text', '--text-soft', '--ink', '--muted', '--faint',
   '--font-heading', '--font-body',
+  '--sidebar', '--sidebar-foreground', '--sidebar-primary', '--sidebar-primary-foreground',
+  '--sidebar-accent', '--sidebar-accent-foreground', '--sidebar-border', '--sidebar-ring',
 ])
 
 export function applyThemeVars(vars: Record<string, string> | null): void {

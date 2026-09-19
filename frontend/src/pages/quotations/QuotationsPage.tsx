@@ -5,11 +5,17 @@ import api from '../../api/client'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import toast from 'react-hot-toast'
-import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, TrendingUp, Edit2, Trash2 } from 'lucide-react'
+import { Plus, Printer, CheckCircle, X, Minus, FileText, Search, AlertTriangle, Edit2, Trash2 } from 'lucide-react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { Button } from '../../components/ui/button'
 import QuoteDestinationModal from './QuoteDestinationModal'
 import { shiftsApi } from '../../api/endpoints'
 import { useAuthStore } from '../../store/auth'
+import { Input } from '../../components/ui/input'
+import { Textarea } from '../../components/ui/textarea'
+import { Select } from '../../components/ui/select'
+import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from '../../components/ui/table'
+import { Badge } from '../../components/ui/badge'
 
 // ── Profit helpers ────────────────────────────────────────────────────────────
 function profitColor(margin: number) {
@@ -29,43 +35,45 @@ function CartRow({ item, index, onChange, onRemove }: any) {
   const belowCost = netLine / item.qty < cost
 
   return (
-    <tr className={belowCost ? 'bg-red-50' : ''}>
-      <td className="px-3 py-2">
-        <p className="font-semibold text-slate-800 text-sm">{item.product.name}</p>
-        <p className="text-xs text-slate-400">حد أدنى: <span className="font-bold text-slate-600">{cost.toLocaleString('ar-EG')} ج.م</span></p>
+    <TableRow className={belowCost ? 'bg-red-50' : ''}>
+      <TableCell className="px-3 py-2">
+        <p className="font-semibold text-[var(--text)] text-sm">{item.product.name}</p>
+        <p className="text-xs text-[var(--muted)]">حد أدنى: <span className="font-bold text-[var(--text-soft)]">{cost.toLocaleString('ar-EG')} ج.م</span></p>
         {belowCost && <p className="text-xs text-red-600 font-bold flex items-center gap-1 mt-0.5"><AlertTriangle size={10} /> أقل من التكلفة!</p>}
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell className="px-3 py-2">
         <div className="flex items-center justify-center gap-1">
-          <button type="button" onClick={() => onChange(index, 'qty', Math.max(0.001, item.qty - 1))} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Minus size={10} /></button>
-          <input type="number" className="w-16 text-center border border-slate-200 rounded-lg px-1 py-1 text-sm font-bold" value={item.qty} min="0.001" step="any" onChange={e => { onChange(index, 'qty', Number(e.target.value)); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} />
-          <button type="button" onClick={() => { onChange(index, 'qty', item.qty + 1); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><Plus size={10} /></button>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => onChange(index, 'qty', Math.max(0.001, item.qty - 1))} className="w-6 h-6"><Minus size={10} /></Button>
+          <input type="number" aria-label={`كمية ${item.product.name}`} className="w-16 text-center border border-[var(--border)] rounded-lg px-1 py-1 text-sm font-bold" value={item.qty} min="0.001" step="any" onChange={e => { onChange(index, 'qty', Number(e.target.value)); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} />
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => { onChange(index, 'qty', item.qty + 1); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="w-6 h-6"><Plus size={10} /></Button>
         </div>
-      </td>
-      <td className="px-3 py-2">
-        <input type="number" className={`w-24 text-center border rounded-lg px-2 py-1 text-sm ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
+      </TableCell>
+      <TableCell className="px-3 py-2">
+        <input type="number" aria-label={`سعر ${item.product.name}`} className={`w-24 text-center border rounded-lg px-2 py-1 text-sm ${belowCost ? 'border-red-300 bg-red-50' : 'border-[var(--border)]'}`}
           value={item.unit_price} min="0" step="0.01" onChange={e => { onChange(index, 'unit_price', Number(e.target.value)); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} />
-        {cost > 0 && <button type="button" onClick={() => { onChange(index, 'unit_price', cost); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="block text-xs text-[var(--accent)] hover:underline mt-0.5 mx-auto">= التكلفة</button>}
-      </td>
-      <td className="px-3 py-2 text-center">
-        {discountAmt > 0 && <p className="text-xs text-slate-400 line-through">{lineTotal.toLocaleString('ar-EG')}</p>}
-        <p className="font-bold text-slate-800">{netLine.toLocaleString('ar-EG')}</p>
+        {cost > 0 && <Button type="button" variant="link" size="sm" onClick={() => { onChange(index, 'unit_price', cost); onChange(index, 'discount_pct', 0); onChange(index, 'discount', 0) }} className="text-xs mt-0.5 mx-auto">= التكلفة</Button>}
+      </TableCell>
+      <TableCell className="px-3 py-2 text-center">
+        {discountAmt > 0 && <p className="text-xs text-[var(--muted)] line-through">{lineTotal.toLocaleString('ar-EG')}</p>}
+        <p className="font-bold text-[var(--text)]">{netLine.toLocaleString('ar-EG')}</p>
         <p className={`text-xs font-semibold ${profitColor(margin)}`}>{profit >= 0 ? '+' : ''}{profit.toLocaleString('ar-EG')} ({margin.toFixed(0)}%)</p>
-      </td>
-      <td className="px-3 py-2 align-middle">
+      </TableCell>
+      <TableCell className="px-3 py-2 align-middle">
         <div className="flex flex-col gap-1 items-center">
-          <button type="button" onClick={() => onRemove(index)} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => onRemove(index)} className="text-[var(--faint)] hover:text-red-500"><X size={14} /></Button>
           <div className="flex items-center gap-1">
             <input type="number" min="0" value={item.discount_pct || ''} onChange={e => onChange(index, 'discount_pct', Number(e.target.value))}
-              className="w-12 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-[var(--accent)]" placeholder="%" />
-            <span className="text-xs text-slate-400">%</span>
-            <span className="text-xs text-slate-300">/</span>
+              aria-label={`خصم نسبة ${item.product.name}`}
+              className="w-12 text-center text-xs border border-[var(--border)] rounded px-1 py-0.5 outline-none focus:border-[var(--accent)]" placeholder="%" />
+            <span className="text-xs text-[var(--muted)]">%</span>
+            <span className="text-xs text-[var(--faint)]">/</span>
             <input type="number" min="0" value={item.discount || ''} onChange={e => onChange(index, 'discount', Number(e.target.value))}
-              className="w-14 text-center text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-[var(--accent)]" placeholder="ج.م" />
+              aria-label={`خصم مبلغ ${item.product.name}`}
+              className="w-14 text-center text-xs border border-[var(--border)] rounded px-1 py-0.5 outline-none focus:border-[var(--accent)]" placeholder="ج.م" />
           </div>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -162,37 +170,37 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
       {/* Customer */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">العميل</label>
-          <select className="input" value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">العميل</label>
+          <Select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
             <option value="">اختر عميل...</option>
             {customers?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">أو اسم عميل جديد</label>
-          <input className="input" value={customerName} onChange={e => setCustomerName(e.target.value)}
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">أو اسم عميل جديد</label>
+ <Input value={customerName} onChange={e => setCustomerName(e.target.value)}
             placeholder="اسم الشركة / العميل" disabled={!!selectedCustomer} />
         </div>
       </div>
 
       {/* Product search */}
       <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">إضافة منتجات</label>
+        <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">إضافة منتجات</label>
         <div className="relative">
-          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pr-9" placeholder="ابحث عن منتج..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+ <Input className="pr-9" placeholder="ابحث عن منتج..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
         {products && search.length > 1 && (
-          <div className="border border-slate-200 rounded-xl mt-1 max-h-44 overflow-y-auto shadow-lg bg-white z-10 relative">
+          <div className="border border-[var(--border)] rounded-xl mt-1 max-h-44 overflow-y-auto shadow-lg bg-[var(--surface)] z-10 relative">
             {products.map((p: any) => (
-              <button key={p.id} type="button" onClick={() => addToCart(p)}
-                className="w-full text-right px-4 py-2.5 hover:bg-slate-50 flex items-center justify-between text-sm border-b border-slate-50 last:border-0">
+              <Button key={p.id} type="button" variant="ghost" onClick={() => addToCart(p)}
+                className="w-full text-right px-4 py-2.5 hover:bg-[var(--surface-2)] flex items-center justify-between text-sm border-b border-slate-50 last:border-0 h-auto">
                 <span className="font-medium">{p.name}</span>
                 <div className="text-left">
-                  <span className="text-slate-700 font-bold">{Number(p.wholesale_price || p.retail_price).toLocaleString('ar-EG')} ج.م</span>
-                  <span className="text-slate-400 text-xs mr-2">تكلفة: {Number(p.cost_price).toLocaleString('ar-EG')}</span>
+                  <span className="text-[var(--text)] font-bold">{Number(p.wholesale_price || p.retail_price).toLocaleString('ar-EG')} ج.م</span>
+                  <span className="text-[var(--muted)] text-xs mr-2">تكلفة: {Number(p.cost_price).toLocaleString('ar-EG')}</span>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -200,41 +208,41 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
 
       {/* Cart table */}
       {cart.length > 0 && (
-        <div className="border border-slate-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="text-right px-3 py-2 text-xs font-bold text-slate-500">المنتج</th>
-                <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">الكمية</th>
-                <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">السعر</th>
-                <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">الإجمالي / الربح</th>
-                <th className="text-center px-3 py-2 text-xs font-bold text-slate-500">خصم</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+          <Table>
+            <TableHeader className="bg-[var(--surface-2)]">
+              <TableRow>
+                <TableHead className="text-right px-3 py-2 text-xs font-bold text-[var(--muted)]">المنتج</TableHead>
+                <TableHead className="text-center px-3 py-2 text-xs font-bold text-[var(--muted)]">الكمية</TableHead>
+                <TableHead className="text-center px-3 py-2 text-xs font-bold text-[var(--muted)]">السعر</TableHead>
+                <TableHead className="text-center px-3 py-2 text-xs font-bold text-[var(--muted)]">الإجمالي / الربح</TableHead>
+                <TableHead className="text-center px-3 py-2 text-xs font-bold text-[var(--muted)]">خصم</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {cart.map((item, i) => (
                 <CartRow key={i} item={item} index={i} onChange={changeItem} onRemove={(idx: number) => setCart(p => p.filter((_, j) => j !== idx))} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
 
           {/* Summary bar */}
-          <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
+          <div className="bg-[var(--surface-2)] px-4 py-3 border-t border-[var(--border)]">
             <div className="grid grid-cols-4 gap-4 mb-3">
               <div className="text-center">
-                <p className="text-xs text-slate-500">إجمالي الأصناف</p>
-                <p className="font-black text-slate-800">{totalRevenue.toLocaleString('ar-EG')} ج.م</p>
+                <p className="text-xs text-[var(--muted)]">إجمالي الأصناف</p>
+                <p className="font-black text-[var(--text)]">{totalRevenue.toLocaleString('ar-EG')} ج.م</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500">بنود إضافية</p>
+                <p className="text-xs text-[var(--muted)]">بنود إضافية</p>
                 <p className={`font-black ${extraTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{extraTotal >= 0 ? '+' : ''}{extraTotal.toLocaleString('ar-EG')} ج.م</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500">الإجمالي الكلي</p>
+                <p className="text-xs text-[var(--muted)]">الإجمالي الكلي</p>
                 <p className="font-black" style={{ color: 'var(--primary)' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500">صافي الربح</p>
+                <p className="text-xs text-[var(--muted)]">صافي الربح</p>
                 <p className={`font-black ${profitColor(totalMargin)}`}>
                   {totalProfit.toLocaleString('ar-EG')} ج.م
                   <span className="text-xs mr-1">({totalMargin.toFixed(0)}%)</span>
@@ -242,8 +250,8 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
               </div>
             </div>
             {/* Invoice-level discount */}
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-200 flex-wrap">
-              <label className="text-sm font-bold text-slate-600 whitespace-nowrap">خصم على الإجمالي:</label>
+            <div className="flex items-center gap-3 pt-2 border-t border-[var(--border)] flex-wrap">
+              <label className="text-sm font-bold text-[var(--text-soft)] whitespace-nowrap">خصم على الإجمالي:</label>
               <div className="flex items-center gap-2">
                 {/* Amount input */}
                 <input
@@ -258,8 +266,8 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
                   }}
                   placeholder="0.00"
                 />
-                <span className="text-sm text-slate-400">ج.م</span>
-                <span className="text-slate-300">أو</span>
+                <span className="text-sm text-[var(--muted)]">ج.م</span>
+                <span className="text-[var(--faint)]">أو</span>
                 {/* Percentage input */}
                 <input
                   type="number" min="0" max="100" step="0.1"
@@ -273,10 +281,10 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
                   }}
                   placeholder="0"
                 />
-                <span className="text-sm text-slate-400">%</span>
+                <span className="text-sm text-[var(--muted)]">%</span>
               </div>
               <div className="mr-auto flex items-center gap-2">
-                <span className="text-sm text-slate-500">الصافي بعد الخصم:</span>
+                <span className="text-sm text-[var(--muted)]">الصافي بعد الخصم:</span>
                 <span className="text-lg font-black" style={{ color: 'var(--primary)' }}>{grandTotal.toLocaleString('ar-EG')} ج.م</span>
               </div>
             </div>
@@ -287,19 +295,19 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
       {/* Extra financial lines */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium text-slate-600">بنود مالية إضافية</label>
-          <button type="button" onClick={() => setExtraLines(p => [...p, { label: '', amount: 0, type: 'add' }])}
-            className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"><Plus size={12} /> إضافة بند</button>
+          <label className="text-sm font-medium text-[var(--text-soft)]">بنود مالية إضافية</label>
+          <Button type="button" variant="link" size="sm" onClick={() => setExtraLines(p => [...p, { label: '', amount: 0, type: 'add' }])}
+            className="text-xs flex items-center gap-1"><Plus size={12} /> إضافة بند</Button>
         </div>
         {extraLines.map((line, i) => (
           <div key={i} className="flex gap-2 mb-2 items-center">
-            <select className="input text-sm w-24 flex-shrink-0" value={line.type} onChange={e => setExtraLines(p => p.map((l, j) => j === i ? { ...l, type: e.target.value as any } : l))}>
+            <Select className="text-sm w-24 flex-shrink-0" value={line.type} onChange={e => setExtraLines(p => p.map((l, j) => j === i ? { ...l, type: e.target.value as any } : l))}>
               <option value="add">إضافة +</option>
               <option value="deduct">خصم −</option>
-            </select>
-            <input className="input text-sm flex-1" placeholder="البيان (رسوم شحن، ضريبة...)" value={line.label} onChange={e => setExtraLines(p => p.map((l, j) => j === i ? { ...l, label: e.target.value } : l))} />
-            <input type="number" className="input text-sm w-28" placeholder="المبلغ" value={line.amount} min="0" step="0.01" onChange={e => setExtraLines(p => p.map((l, j) => j === i ? { ...l, amount: Number(e.target.value) } : l))} />
-            <button type="button" onClick={() => setExtraLines(p => p.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
+            </Select>
+ <Input className="text-sm flex-1" placeholder="البيان (رسوم شحن، ضريبة...)" value={line.label} onChange={e => setExtraLines(p => p.map((l, j) => j === i ? { ...l, label: e.target.value } : l))}/>
+ <Input type="number" className="text-sm w-28" placeholder="المبلغ" value={line.amount} min="0" step="0.01" onChange={e => setExtraLines(p => p.map((l, j) => j === i ? { ...l, amount: Number(e.target.value) } : l))}/>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={() => setExtraLines(p => p.filter((_, j) => j !== i))} className="text-[var(--faint)] hover:text-red-500"><X size={14} /></Button>
           </div>
         ))}
       </div>
@@ -311,17 +319,16 @@ function QuotationModal({ initial, onClose, onCreated }: { initial?: any; onClos
       )}
 
       <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظات</label>
-        <textarea className="input h-16 resize-none" value={notes} onChange={e => setNotes(e.target.value)} placeholder="شروط الدفع، مدة الصلاحية..." />
+        <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">ملاحظات</label>
+        <Textarea className="h-16 resize-none" value={notes} onChange={e => setNotes(e.target.value)} placeholder="شروط الدفع، مدة الصلاحية..." />
       </div>
 
       <div className="flex gap-3 justify-end">
-        <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-        <button type="button" onClick={handleSubmit} disabled={!cart.length || mut.isPending}
-          className="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2 disabled:opacity-50"
-          style={{ background: 'var(--accent)', color: 'var(--primary)' }}>
+        <Button variant="secondary" size="sm" type="button" onClick={onClose}>إلغاء</Button>
+        <Button variant="default" size="sm" type="button" onClick={handleSubmit} disabled={!cart.length || mut.isPending}
+          className="flex items-center gap-2">
           <FileText size={16} /> {isEdit ? 'حفظ التعديلات' : 'إنشاء وطباعة'}
-        </button>
+        </Button>
       </div>
       <ConfirmDialog open={confirmBelowCost} onClose={() => setConfirmBelowCost(false)} onConfirm={() => { setConfirmBelowCost(false); mut.mutate() }} message="⚠️ بعض الأصناف أقل من سعر التكلفة. هل تريد المتابعة؟" confirmText="متابعة" />
     </div>
@@ -437,32 +444,31 @@ export default function QuotationsPage() {
     {
       key: 'invoice', label: 'رقم العرض', render: (r: any) => (
         <div>
-          <p className="font-bold text-slate-800">{r.invoice_number}</p>
-          <p className="text-xs text-slate-400">{new Date(r.created_at).toLocaleDateString('ar-EG')}</p>
+          <p className="font-bold text-[var(--text)]">{r.invoice_number}</p>
+          <p className="text-xs text-[var(--muted)]">{new Date(r.created_at).toLocaleDateString('ar-EG')}</p>
         </div>
       )
     },
-    { key: 'customer', label: 'العميل', render: (r: any) => <span className="text-slate-600">{r.customer_name || 'عميل عادي'}</span> },
+    { key: 'customer', label: 'العميل', render: (r: any) => <span className="text-[var(--text-soft)]">{r.customer_name || 'عميل عادي'}</span> },
     {
       key: 'total', label: 'الإجمالي', render: (r: any) => (
-        <span className="font-bold text-slate-800">{Number(r.net_total || r.total || 0).toLocaleString('ar-EG')} ج.م</span>
+        <span className="font-bold text-[var(--text)]">{Number(r.net_total || r.total || 0).toLocaleString('ar-EG')} ج.م</span>
       )
     },
-    { key: 'status', label: 'الحالة', render: () => <span className="badge-yellow">عرض سعر</span> },
+    { key: 'status', label: 'الحالة', render: () => <Badge className="bg-amber-50 text-amber-700 border-amber-100">عرض سعر</Badge> },
     {
       key: 'actions', label: '', render: (r: any) => (
         <div className="flex gap-1.5 justify-end">
-          <button onClick={() => handlePrint(r.id)} className="p-1.5 rounded-lg hover:bg-[var(--primary-soft)] text-slate-400 hover:text-[var(--accent)]" title="طباعة"><Printer size={14} /></button>
-          <button onClick={() => handleEdit(r)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" title="تعديل"><Edit2 size={14} /></button>
-          <button onClick={() => setConfirmDelete(r.id)}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600" title="حذف">
-            <Trash2 size={14} />
-          </button>
-          <button onClick={() => setConfirmQuote(r.id)}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1" style={{ background: '#16a34a' }}>
-            <CheckCircle size={12} /> تأكيد
-          </button>
-        </div>
+           <Button variant="ghost" size="icon-sm" onClick={() => handlePrint(r.id)} title="طباعة"><Printer size={14} /></Button>
+           <Button variant="ghost" size="icon-sm" onClick={() => handleEdit(r)} title="تعديل"><Edit2 size={14} /></Button>
+           <Button variant="ghost" size="icon-sm" onClick={() => setConfirmDelete(r.id)} title="حذف">
+             <Trash2 size={14} />
+           </Button>
+           <Button variant="default" size="sm" onClick={() => setConfirmQuote(r.id)}
+             className="flex items-center gap-1">
+             <CheckCircle size={12} /> تأكيد
+           </Button>
+         </div>
       )
     },
   ]
@@ -472,15 +478,15 @@ export default function QuotationsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">📋 عروض الأسعار</h1>
-          <p className="text-slate-500 text-sm mt-1">إنشاء عروض أسعار مع تتبع الربحية</p>
+          <p className="text-[var(--muted)] text-sm mt-1">إنشاء عروض أسعار مع تتبع الربحية</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
-          <Plus size={16} /> عرض سعر جديد
-        </button>
+        <Button variant="default" onClick={() => setShowCreate(true)} className="flex items-center gap-2">
+           <Plus size={16} /> عرض سعر جديد
+         </Button>
       </div>
 
       <div className="mb-4">
-        <input className="input max-w-xs" placeholder="بحث برقم العرض أو العميل..." value={search} onChange={e => setSearch(e.target.value)} />
+ <Input className="max-w-xs" placeholder="بحث برقم العرض أو العميل..." value={search} onChange={e => setSearch(e.target.value)}/>
       </div>
 
       <DataTable columns={columns} data={filtered} loading={isLoading}

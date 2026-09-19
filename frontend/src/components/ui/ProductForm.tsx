@@ -4,6 +4,9 @@ import { categoriesApi, subcategoriesApi, productsApi } from '../../api/endpoint
 import BarcodeManager from './BarcodeManager'
 import toast from 'react-hot-toast'
 import type { Category, Subcategory } from '../../types'
+import { Button } from './button'
+import { Input } from './input'
+import { Select } from './select'
 
 interface ProductFormProps {
   product?: any | null
@@ -57,71 +60,71 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
       )}
 
       <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">اسم المنتج *</label>
-        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} required autoFocus />
+        <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">اسم المنتج *</label>
+ <Input value={form.name} onChange={e => set('name', e.target.value)} required autoFocus/>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">الكود (اختياري — للتمييز والبحث)</label>
-          <input className="input font-mono" dir="ltr" value={form.code || ''} onChange={e => set('code', e.target.value)} placeholder="مثال: P-100" />
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الكود (اختياري — للتمييز والبحث)</label>
+ <Input className="font-mono" dir="ltr" value={form.code || ''} onChange={e => set('code', e.target.value)} placeholder="مثال: P-100"/>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">الشركة</label>
-          <input className="input" value={form.company || ''} onChange={e => set('company', e.target.value)} />
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الشركة</label>
+ <Input value={form.company || ''} onChange={e => set('company', e.target.value)}/>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">التصنيف الرئيسي *</label>
-          <select className="input" value={effectiveCategoryId} onChange={e => { setCategoryId(e.target.value); set('subcategory_id', '') }} required>
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">التصنيف الرئيسي *</label>
+          <Select value={effectiveCategoryId} onChange={e => { setCategoryId(e.target.value); set('subcategory_id', '') }} required>
             <option value="">اختر التصنيف...</option>
             {categories?.map(c => <option key={c.id} value={c.id}>{c.code ? `[${c.code}] ${c.name}` : c.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">التصنيف الفرعي *</label>
-          <select className="input" value={form.subcategory_id} onChange={e => set('subcategory_id', e.target.value)} required disabled={!effectiveCategoryId}>
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">التصنيف الفرعي *</label>
+          <Select value={form.subcategory_id} onChange={e => set('subcategory_id', e.target.value)} required disabled={!effectiveCategoryId}>
             <option value="">{effectiveCategoryId ? 'اختر...' : 'اختر التصنيف الرئيسي أولاً'}</option>
             {filteredSubs.map(s => <option key={s.id} value={s.id}>{s.code ? `[${s.code}] ${s.name}` : s.name}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">الوحدة</label>
-          <select className="input" value={form.unit} onChange={e => set('unit', e.target.value)}>
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الوحدة</label>
+          <Select value={form.unit} onChange={e => set('unit', e.target.value)}>
             {['عدد', 'كيلو', 'متر', 'ماسورة', 'طقم', 'علبة', 'كرتونة'].map(u => <option key={u}>{u}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">الرف</label>
-        <input className="input" value={form.shelf_number || ''} onChange={e => set('shelf_number', e.target.value)} placeholder="مثال: 5/1" />
+        <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الرف</label>
+ <Input value={form.shelf_number || ''} onChange={e => set('shelf_number', e.target.value)} placeholder="مثال: 5/1"/>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">سعر التكلفة</label>
-          <input type="number" step="0.01" min="0" className="input" value={form.cost_price} onChange={e => set('cost_price', e.target.value)} />
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">سعر التكلفة</label>
+ <Input type="number" step="0.01" min="0" value={form.cost_price} onChange={e => set('cost_price', e.target.value)}/>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">سعر القطاعي</label>
-          <input type="number" step="0.01" min="0" className="input" value={form.retail_price} onChange={e => set('retail_price', e.target.value)} />
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">سعر القطاعي</label>
+ <Input type="number" step="0.01" min="0" value={form.retail_price} onChange={e => set('retail_price', e.target.value)}/>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">سعر الجملة</label>
-          <input type="number" step="0.01" min="0" className="input" value={form.wholesale_price} onChange={e => set('wholesale_price', e.target.value)} />
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">سعر الجملة</label>
+ <Input type="number" step="0.01" min="0" value={form.wholesale_price} onChange={e => set('wholesale_price', e.target.value)}/>
         </div>
       </div>
 
       {!isEditing && (
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">الباركود (اختياري)</label>
-          <input className="input font-mono" dir="ltr" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختاري" />
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الباركود (اختياري)</label>
+ <Input className="font-mono" dir="ltr" value={form.barcode || ''} onChange={e => set('barcode', e.target.value)} placeholder="اختاري"/>
         </div>
       )}
 
@@ -133,18 +136,20 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
 
       {isEditing && (
         <div className="border-t pt-4">
-          <label className="block text-sm font-medium text-slate-600 mb-2">صورة المنتج</label>
+          <label className="block text-sm font-medium text-[var(--text-soft)] mb-2">صورة المنتج</label>
           <div className="flex items-center gap-4">
             {(uploadedImageUrl || product?.image_url) ? (
               <img src={uploadedImageUrl || product.image_url} alt={product.name}
-                className="w-20 h-20 rounded-xl object-contain border border-slate-200 bg-white" />
+                className="w-20 h-20 rounded-xl object-contain border border-[var(--border)] bg-[var(--surface)]" />
             ) : (
-              <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 text-2xl font-black">
+              <div className="w-20 h-20 rounded-xl bg-[var(--surface-3)] border border-[var(--border)] flex items-center justify-center text-[var(--faint)] text-2xl font-black">
                 {product?.name?.[0] || '?'}
               </div>
             )}
-            <label className="cursor-pointer btn btn-ghost">
-              {product?.image_url ? 'تغيير الصورة' : 'إضافة صورة'}
+            <label className="cursor-pointer">
+              <Button variant="ghost" type="button">
+                {product?.image_url ? 'تغيير الصورة' : 'إضافة صورة'}
+              </Button>
               <input type="file" accept="image/*" className="hidden"
                 onChange={async e => {
                   const file = e.target.files?.[0]
@@ -160,21 +165,21 @@ export default function ProductForm({ product, onSave, onClose }: ProductFormPro
         </div>
       )}
 
-      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+      <div className="flex items-center justify-between p-3 bg-[var(--surface-2)] rounded-xl border border-[var(--border)]">
         <div>
-          <p className="text-sm font-medium text-slate-700">تتبع المخزون</p>
-          <p className="text-xs text-slate-400">{form.stock_status === 'untracked' ? 'غير محدد — يُباع بدون خصم من الجرد' : 'محدد — يُخصم من الجرد عند البيع'}</p>
+          <p className="text-sm font-medium text-[var(--text)]">تتبع المخزون</p>
+          <p className="text-xs text-[var(--muted)]">{form.stock_status === 'untracked' ? 'غير محدد — يُباع بدون خصم من الجرد' : 'محدد — يُخصم من الجرد عند البيع'}</p>
         </div>
-        <button type="button"
+        <Button type="button" variant="outline" size="sm"
           onClick={() => set('stock_status', form.stock_status === 'untracked' ? 'tracked' : 'untracked')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${form.stock_status === 'untracked' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+          className={form.stock_status === 'untracked' ? 'text-warning border-warning bg-warning-soft' : 'text-success border-success bg-success-soft'}>
           {form.stock_status === 'untracked' ? '⚠️ غير محدد' : '✅ محدد'}
-        </button>
+        </Button>
       </div>
 
       <div className="flex gap-3 justify-end pt-2">
-        <button type="button" onClick={onClose} className="btn btn-ghost">إلغاء</button>
-        <button type="submit" className="btn btn-primary">حفظ</button>
+        <Button type="button" variant="ghost" onClick={onClose}>إلغاء</Button>
+        <Button type="submit">حفظ</Button>
       </div>
     </form>
   )

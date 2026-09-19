@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { Button } from './button'
 
 interface Props {
   children: React.ReactNode
@@ -27,24 +28,24 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center px-6">
           <div className="text-5xl">⚠️</div>
-          <h2 className="text-xl font-black text-slate-800">حدث خطأ غير متوقع</h2>
-          <p className="text-slate-500 text-sm max-w-md">
+          <h2 className="text-xl font-black text-[var(--text)]">حدث خطأ غير متوقع</h2>
+          <p className="text-[var(--muted)] text-sm max-w-md">
             {this.state.error?.message || 'حاول تحديث الصفحة أو العودة لاحقاً'}
           </p>
           <div className="flex gap-3">
-            <button
+            <Button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-6 py-3 rounded-xl font-bold text-white text-sm"
-              style={{ background: 'var(--primary)' }}
+              className="h-auto px-6 py-3 rounded-xl font-bold text-white text-sm"
             >
               إعادة المحاولة
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => window.location.reload()}
-              className="px-6 py-3 rounded-xl font-bold text-slate-600 text-sm border border-slate-300"
+              className="h-auto px-6 py-3 rounded-xl font-bold text-[var(--text-soft)] text-sm border-[var(--border-strong)]"
             >
               تحديث الصفحة
-            </button>
+            </Button>
           </div>
         </div>
       )

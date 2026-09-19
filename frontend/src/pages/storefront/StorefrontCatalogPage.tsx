@@ -6,6 +6,8 @@ import { storefrontApi } from '../../api/endpoints'
 import { useStorefrontStore } from '../../store/storefront'
 import StorefrontNav from './StorefrontNav'
 import StorefrontProductCard from './StorefrontProductCard'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
 
 const PAGE_SIZE = 24
 
@@ -62,15 +64,15 @@ export default function StorefrontCatalogPage() {
             )}
             {!categoryFromUrl && <h1 className="text-2xl font-black text-[var(--ink)]">كتالوج المنتجات</h1>}
             {categoryFromUrl && (
-              <button onClick={() => setSearchParams({})} className="text-sm font-bold text-[var(--primary)] hover:underline shrink-0">عرض الكل</button>
+              <Button variant="link" onClick={() => setSearchParams({})} className="text-sm font-bold text-[var(--primary)] shrink-0">عرض الكل</Button>
             )}
           </div>
           <div className="relative max-w-md">
-            <input
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="ابحث بالاسم أو الكود..."
-              className="input w-full"
+              className="w-full"
               style={{ paddingLeft: 40 }}
             />
             <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
@@ -96,21 +98,23 @@ export default function StorefrontCatalogPage() {
             </div>
             {pages > 1 && (
               <div className="flex items-center justify-center gap-3 mt-8">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="btn btn-outline px-4 py-2 flex items-center gap-1 disabled:opacity-40"
+                  className="px-4 py-2 flex items-center gap-1"
                 >
                   <ChevronRight size={16} /> السابق
-                </button>
+                </Button>
                 <span className="text-sm font-bold text-[var(--ink)] tabular-nums">{page} / {pages}</span>
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setPage((p) => Math.min(pages, p + 1))}
                   disabled={page >= pages}
-                  className="btn btn-outline px-4 py-2 flex items-center gap-1 disabled:opacity-40"
+                  className="px-4 py-2 flex items-center gap-1"
                 >
                   التالي <ChevronLeft size={16} />
-                </button>
+                </Button>
               </div>
             )}
           </>

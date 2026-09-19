@@ -3,15 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/endpoints'
 import { customersApi } from '../../api/endpoints'
 import api from '../../api/client'
-import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import DataTable from '../../components/ui/DataTable'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
-import { Search, Printer, RotateCcw, XCircle, Minus, Plus, Filter, FileDown, DollarSign, Eye } from 'lucide-react'
+import { Search, Printer, RotateCcw, XCircle, Minus, Plus, FileDown, DollarSign } from 'lucide-react'
 import ExportButton from '../../components/ui/ExportButton'
+import { Button } from '../../components/ui/button'
 import { printUrl, openPrint } from '../../utils/format'
 import { clsx } from 'clsx'
+import { Input } from '../../components/ui/input'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   confirmed: { label: 'مؤكدة',   bg: '#dcfce7', text: '#166534' },
@@ -101,8 +103,8 @@ export default function SalesPage() {
       key: 'customer', label: 'العميل / الفاتورة',
       render: (s: any) => (
         <div>
-          <p className="font-semibold text-slate-800">{s.customer_name || 'عميل عادي'}</p>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">{s.invoice_number}</p>
+          <p className="font-semibold text-[var(--text)]">{s.customer_name || 'عميل عادي'}</p>
+          <p className="text-xs text-[var(--muted)] font-mono mt-0.5">{s.invoice_number}</p>
         </div>
       )
     },
@@ -119,15 +121,15 @@ export default function SalesPage() {
       key: 'created_at', label: 'التاريخ والوقت',
       render: (s: any) => (
         <div>
-          <p className="text-sm text-slate-700">{new Date(s.created_at).toLocaleDateString('ar-EG')}</p>
-          <p className="text-xs text-slate-400">{new Date(s.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="text-sm text-[var(--text)]">{new Date(s.created_at).toLocaleDateString('ar-EG')}</p>
+          <p className="text-xs text-[var(--muted)]">{new Date(s.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       )
     },
     {
       key: 'net_total', label: 'الإجمالي', width: '100px',
       render: (s: any) => (
-        <span className="font-bold text-slate-800">{Number(s.net_total).toLocaleString('ar-EG')}</span>
+        <span className="font-bold text-[var(--text)]">{Number(s.net_total).toLocaleString('ar-EG')}</span>
       )
     },
     {
@@ -138,29 +140,17 @@ export default function SalesPage() {
       key: 'actions', label: '', width: '140px',
       render: (s: any) => (
         <div className="flex gap-1 justify-end">
-          <button onClick={e => { e.stopPropagation(); handlePrint(s.id) }}
-            title="طباعة"
-            className="p-1.5 rounded-lg hover:bg-[var(--primary-soft)] text-slate-400 hover:text-[var(--primary)] transition-colors">
-            <Printer size={14} />
-          </button>
+          <Button variant="ghost" size="icon-sm" onClick={e => { e.stopPropagation(); handlePrint(s.id) }} title="طباعة"><Printer size={14} /></Button>
           <a href={printUrl(`/print/pdf/sale/${s.id}`, 'A4')} target="_blank" rel="noreferrer"
             onClick={e => e.stopPropagation()}
             title="تحميل PDF"
-            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors flex items-center">
+            className="p-1.5 rounded-lg hover:bg-red-50 text-[var(--muted)] hover:text-red-600 transition-colors flex items-center">
             <FileDown size={14} />
           </a>
           {s.status === 'confirmed' && (
             <>
-              <button onClick={e => { e.stopPropagation(); setReturnSale(s); const init: Record<string,number> = {}; s.items?.forEach((i: any) => { init[i.product_id] = 0 }); setReturnQtys(init) }}
-                title="مرتجع"
-                className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-colors">
-                <RotateCcw size={14} />
-              </button>
-              <button onClick={e => { e.stopPropagation(); setConfirmCancel(s.id) }}
-                title="إلغاء"
-                className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
-                <XCircle size={14} />
-              </button>
+              <Button variant="ghost" size="icon-sm" onClick={e => { e.stopPropagation(); setReturnSale(s); const init: Record<string,number> = {}; s.items?.forEach((i: any) => { init[i.product_id] = 0 }); setReturnQtys(init) }} title="مرتجع"><RotateCcw size={14} /></Button>
+              <Button variant="ghost" size="icon-sm" onClick={e => { e.stopPropagation(); setConfirmCancel(s.id) }} title="إلغاء"><XCircle size={14} /></Button>
             </>
           )}
         </div>
@@ -178,7 +168,7 @@ export default function SalesPage() {
       <div className="page-header">
         <h1 className="page-title">سجل المبيعات والمرتجعات</h1>
         <div className="flex items-center gap-3">
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[var(--muted)]">
             {sales?.filter((s: any) => s.status !== 'quotation').length || 0} فاتورة
           </div>
           <ExportButton data={filtered || []} columns={[
@@ -194,28 +184,27 @@ export default function SalesPage() {
 
       {/* Status filter pills */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        <button onClick={() => setStatusFilter('')}
-          className={clsx('px-3 py-1.5 rounded-xl text-xs font-bold transition-all border', !statusFilter ? 'text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300')}
-          style={!statusFilter ? { background: 'var(--primary)' } : {}}>
+        <Button variant="outline" size="sm" onClick={() => setStatusFilter('')}
+          className={clsx('rounded-xl text-xs font-bold transition-all', !statusFilter ? 'text-white border-transparent bg-[var(--primary)] hover:bg-[var(--primary)]' : 'bg-[var(--surface)] text-[var(--text-soft)] border-[var(--border)] hover:border-[var(--border-strong)]')}>
           الكل ({sales?.filter((s: any) => s.status !== 'quotation').length || 0})
-        </button>
+        </Button>
         {Object.entries(STATUS_CONFIG).filter(([k]) => k !== 'quotation' && k !== 'draft').map(([status, cfg]) => {
           const count = statusCounts[status] || 0
           if (!count) return null
           return (
-            <button key={status} onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
-              className={clsx('px-3 py-1.5 rounded-xl text-xs font-bold transition-all border')}
+            <Button key={status} variant="outline" size="sm" onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
+              className={clsx('rounded-xl text-xs font-bold transition-all')}
               style={statusFilter === status ? { background: cfg.bg, color: cfg.text, borderColor: cfg.text + '40' } : { background: 'white', color: '#64748b', borderColor: '#e2e8f0' }}>
               {cfg.label} ({count})
-            </button>
+            </Button>
           )
         })}
       </div>
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input className="input pr-9" placeholder="بحث بالاسم أو رقم الفاتورة..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+ <Input className="pr-9" placeholder="بحث بالاسم أو رقم الفاتورة..." value={search} onChange={e => setSearch(e.target.value)}/>
       </div>
 
       <div className="card p-0 overflow-hidden">
@@ -239,8 +228,8 @@ export default function SalesPage() {
             {/* Invoice header */}
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-slate-500">العميل: <span className="font-bold text-slate-800">{saleDetail.customer_name || 'عميل عادي'}</span></p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-sm text-[var(--muted)]">العميل: <span className="font-bold text-[var(--text)]">{saleDetail.customer_name || 'عميل عادي'}</span></p>
+                <p className="text-xs text-[var(--muted)] mt-0.5">
                   {new Date(saleDetail.created_at).toLocaleString('ar-EG')}
                 </p>
               </div>
@@ -249,28 +238,28 @@ export default function SalesPage() {
 
             {/* Items table */}
             <div>
-              <p className="text-xs font-bold text-slate-400 mb-2">الأصناف</p>
-              <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-100">
-                      <th className="text-right px-3 py-2 text-slate-500">الصنف</th>
-                      <th className="text-right px-3 py-2 text-slate-500">الكمية</th>
-                      <th className="text-right px-3 py-2 text-slate-500">السعر</th>
-                      <th className="text-right px-3 py-2 text-slate-500">الإجمالي</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <p className="text-xs font-bold text-[var(--muted)] mb-2">الأصناف</p>
+              <div className="bg-[var(--surface-2)] rounded-xl overflow-hidden border border-[var(--border-faint)]">
+                <Table className="w-full text-sm">
+                  <TableHeader>
+                    <TableRow className="bg-[var(--surface-3)]">
+                      <TableHead className="text-right px-3 py-2 text-[var(--muted)]">الصنف</TableHead>
+                      <TableHead className="text-right px-3 py-2 text-[var(--muted)]">الكمية</TableHead>
+                      <TableHead className="text-right px-3 py-2 text-[var(--muted)]">السعر</TableHead>
+                      <TableHead className="text-right px-3 py-2 text-[var(--muted)]">الإجمالي</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {(saleDetail.items || []).map((item: any) => (
-                      <tr key={item.id} className="border-t border-slate-100">
-                        <td className="px-3 py-2 font-semibold text-slate-700">{item.product_name || item.product_id?.slice(0, 8)}</td>
-                        <td className="px-3 py-2 text-slate-600">{Number(item.qty).toLocaleString('ar-EG')}</td>
-                        <td className="px-3 py-2 text-slate-600">{Number(item.unit_price).toLocaleString('ar-EG')}</td>
-                        <td className="px-3 py-2 font-bold text-slate-800">{(Number(item.qty) * Number(item.unit_price)).toLocaleString('ar-EG')}</td>
-                      </tr>
+                      <TableRow key={item.id} className="border-t border-[var(--border-faint)]">
+                        <TableCell className="px-3 py-2 font-semibold text-[var(--text)]">{item.product_name || item.product_id?.slice(0, 8)}</TableCell>
+                        <TableCell className="px-3 py-2 text-[var(--text-soft)]">{Number(item.qty).toLocaleString('ar-EG')}</TableCell>
+                        <TableCell className="px-3 py-2 text-[var(--text-soft)]">{Number(item.unit_price).toLocaleString('ar-EG')}</TableCell>
+                        <TableCell className="px-3 py-2 font-bold text-[var(--text)]">{(Number(item.qty) * Number(item.unit_price)).toLocaleString('ar-EG')}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
@@ -282,8 +271,8 @@ export default function SalesPage() {
                 { label: 'المرتجعات', val: Number(saleDetail.returns_total || 0).toLocaleString('ar-EG'), color: '#dc2626' },
                 { label: 'المتبقي', val: Number(saleDetail.remaining || 0).toLocaleString('ar-EG'), color: '#d97706' },
               ].map(({ label, val, color }) => (
-                <div key={label} className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                  <p className="text-xs text-slate-400 mb-1">{label}</p>
+                <div key={label} className="bg-[var(--surface-2)] rounded-xl p-3 text-center border border-[var(--border-faint)]">
+                  <p className="text-xs text-[var(--muted)] mb-1">{label}</p>
                   <p className="text-lg font-black" style={{ color }}>{val} ج.م</p>
                 </div>
               ))}
@@ -292,7 +281,7 @@ export default function SalesPage() {
             {/* Payment history */}
             {(saleDetail.payment_history?.length > 0 || Number(saleDetail.returns_total) > 0) && (
               <div>
-                <p className="text-xs font-bold text-slate-400 mb-2">سجل الدفعات والمرتجعات</p>
+                <p className="text-xs font-bold text-[var(--muted)] mb-2">سجل الدفعات والمرتجعات</p>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {/* Payment entries */}
                   {(saleDetail.payment_history || []).map((p: any) => (
@@ -300,10 +289,10 @@ export default function SalesPage() {
                       <div className="flex items-center gap-2">
                         <DollarSign size={14} className="text-green-600" />
                         <span className="font-bold text-green-700">دفعة</span>
-                        <span className="text-xs text-slate-400">{p.note}</span>
+                        <span className="text-xs text-[var(--muted)]">{p.note}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400">{p.created_at ? new Date(p.created_at).toLocaleString('ar-EG') : ''}</span>
+                        <span className="text-xs text-[var(--muted)]">{p.created_at ? new Date(p.created_at).toLocaleString('ar-EG') : ''}</span>
                         <span className="font-bold text-green-700">{Number(p.amount).toLocaleString('ar-EG')} ج.م</span>
                       </div>
                     </div>
@@ -314,28 +303,29 @@ export default function SalesPage() {
 
             {/* Pay action — only for confirmed credit invoices with remaining > 0 */}
             {saleDetail.status === 'confirmed' && saleDetail.customer_id && Number(saleDetail.remaining) > 0 && (
-              <div className="border-t border-slate-200 pt-4">
-                <p className="text-sm font-bold text-slate-700 mb-3">تسديد جزء من الفاتورة</p>
+              <div className="border-t border-[var(--border)] pt-4">
+                <p className="text-sm font-bold text-[var(--text)] mb-3">تسديد جزء من الفاتورة</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ *</label>
-                    <input type="number" className="input text-lg font-black" value={salePayAmount}
+                    <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المبلغ *</label>
+ <Input type="number" className="text-lg font-black" value={salePayAmount}
                       onChange={e => setSalePayAmount(e.target.value)} placeholder="0.00" max={saleDetail.remaining} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">ملاحظة</label>
-                    <input className="input" value={salePayNote} onChange={e => setSalePayNote(e.target.value)} placeholder="رقم إيصال..." />
+                    <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">ملاحظة</label>
+ <Input value={salePayNote} onChange={e => setSalePayNote(e.target.value)} placeholder="رقم إيصال..."/>
                   </div>
                 </div>
-                <div className="flex gap-3 justify-end mt-3">
-                  <button onClick={() => { setSalePayAmount(''); setSalePayNote('') }}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-                  <button onClick={() => paySaleMut.mutate()}
-                    disabled={!salePayAmount || Number(salePayAmount) <= 0 || paySaleMut.isPending}
-                    className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
-                    <DollarSign size={14} /> تسجيل الدفعة
-                  </button>
-                </div>
+                  <div className="flex gap-3 justify-end mt-3">
+                   <Button variant="secondary" size="sm" onClick={() => { setSalePayAmount(''); setSalePayNote('') }}>
+                     إلغاء
+                   </Button>
+                   <Button variant="default" size="sm" onClick={() => paySaleMut.mutate()}
+                     disabled={!salePayAmount || Number(salePayAmount) <= 0 || paySaleMut.isPending}
+                     className="flex items-center gap-2">
+                     <DollarSign size={14} /> تسجيل الدفعة
+                   </Button>
+                 </div>
               </div>
             )}
           </div>
@@ -346,22 +336,20 @@ export default function SalesPage() {
       <Modal open={!!returnSale} onClose={() => setReturnSale(null)} title={`مرتجع من ${returnSale?.invoice_number}`} size="lg">
         {returnSale && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-500">اختر الأصناف والكميات المراد إرجاعها</p>
+            <p className="text-sm text-[var(--muted)]">اختر الأصناف والكميات المراد إرجاعها</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {returnSale.items?.map((item: any) => (
-                <div key={item.product_id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div key={item.product_id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-faint)]">
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{item.product_name || item.product_id.slice(0, 8)}</p>
-                    <p className="text-xs text-slate-400">الكمية الأصلية: {item.qty} — {Number(item.unit_price).toLocaleString('ar-EG')} ج.م</p>
+                    <p className="text-xs text-[var(--muted)]">الكمية الأصلية: {item.qty} — {Number(item.unit_price).toLocaleString('ar-EG')} ج.م</p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.max(0, (q[item.product_id] || 0) - 1) }))}
-                      className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Minus size={12} /></button>
-                    <input type="number" min="0" max={item.qty} value={returnQtys[item.product_id] || 0}
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.max(0, (q[item.product_id] || 0) - 1) }))} className="w-7 h-7"><Minus size={12} /></Button>
+                    <input type="number" aria-label={`كمية مرتجعة ${item.product_name}`} min="0" max={item.qty} value={returnQtys[item.product_id] || 0}
                       onChange={e => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min(Number(e.target.value), item.qty) }))}
-                      className="w-14 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
-                    <button onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min((q[item.product_id] || 0) + 1, item.qty) }))}
-                      className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 flex items-center justify-center"><Plus size={12} /></button>
+                      className="w-14 text-center text-sm font-bold border border-[var(--border)] rounded-lg py-1 outline-none focus:border-[var(--accent)]" />
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => setReturnQtys(q => ({ ...q, [item.product_id]: Math.min((q[item.product_id] || 0) + 1, item.qty) }))} className="w-7 h-7"><Plus size={12} /></Button>
                   </div>
                 </div>
               ))}
@@ -372,13 +360,15 @@ export default function SalesPage() {
               </span>
             </div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setReturnSale(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-              <button onClick={() => partialReturnMut.mutate()}
-                disabled={Object.values(returnQtys).every(v => v === 0) || partialReturnMut.isPending}
-                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2">
-                <RotateCcw size={14} /> تأكيد المرتجع
-              </button>
-            </div>
+               <Button variant="secondary" size="sm" onClick={() => setReturnSale(null)}>
+                 إلغاء
+               </Button>
+               <Button variant="default" size="sm" onClick={() => partialReturnMut.mutate()}
+                 disabled={Object.values(returnQtys).every(v => v === 0) || partialReturnMut.isPending}
+                 className="flex items-center gap-2">
+                 <RotateCcw size={14} /> تأكيد المرتجع
+               </Button>
+             </div>
           </div>
         )}
       </Modal>

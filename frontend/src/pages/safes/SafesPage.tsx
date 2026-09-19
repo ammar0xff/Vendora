@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Vault, Wallet, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Vault, Wallet, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { PageLoader } from '../../components/ui/Loaders'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Select } from '../../components/ui/select'
 
 const WALLET_LABELS: Record<string, string> = { cash: '💵 نقدي', vodafone_cash: '📱 فودافون كاش', instapay: '💳 إنستا باي' }
 
@@ -21,13 +24,8 @@ export default function SafesPage() {
   const { data: safes, isLoading: loadingSafes, isError: safesError } = useQuery({
     queryKey: ['safes'], queryFn: () => api.get('/safes').then(r => r.data),
   })
-  const { data: wallets, isLoading: loadingWallets, isError: walletsError } = useQuery({
+  const { data: wallets, isLoading: loadingWallets } = useQuery({
     queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data),
-  })
-  const { data: history } = useQuery({
-    queryKey: ['safe-history', action?.target?.id],
-    queryFn: () => api.get(`/safes/${action?.target?.id}/history`).then(r => r.data),
-    enabled: action?.type === 'deposit' || action?.type === 'withdraw',
   })
 
   const close = () => { setAction(null); setAmount(''); setNote(''); setToSafeId(''); setForm({}) }
@@ -69,9 +67,9 @@ export default function SafesPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">🏦 الخزن المالية</h1>
-        <button onClick={() => { setForm({}); setAction({ type: 'new-safe' }) }} className="btn-primary flex items-center gap-2">
+        <Button onClick={() => { setForm({}); setAction({ type: 'new-safe' }) }} className="flex items-center gap-2">
           <Plus size={15} /> خزنة جديدة
-        </button>
+        </Button>
       </div>
 
       {safesError && (
@@ -111,19 +109,17 @@ export default function SafesPage() {
                 <p className="font-bold text-slate-800">{s.name}</p>
                 <p className="text-xs text-slate-400">{s.location || '—'}</p>
               </div>
-              <button onClick={() => { setForm({ name: s.name, location: s.location }); setAction({ type: 'edit-safe', target: s }) }}
-                className="text-slate-400 hover:text-slate-600"><Pencil size={14} /></button>
+              <Button variant="ghost" size="icon-sm" onClick={() => { setForm({ name: s.name, location: s.location }); setAction({ type: 'edit-safe', target: s }) }}
+                className="text-slate-400 hover:text-slate-600"><Pencil size={14} /></Button>
             </div>
-            <p className="text-xl font-black mb-3" style={{ color: Number(s.balance) >= 0 ? '#16a34a' : '#dc2626' }}>
+            <p className={`text-xl font-black mb-3 ${Number(s.balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {Number(s.balance).toLocaleString('ar-EG')} ج.م
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setAction({ type: 'deposit', target: s })}
-                className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1"
-                style={{ background: '#16a34a' }}><ArrowDownCircle size={12} /> إيداع</button>
-              <button onClick={() => setAction({ type: 'withdraw', target: s })}
-                className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1"
-                style={{ background: '#dc2626' }}><ArrowUpCircle size={12} /> سحب</button>
+              <Button onClick={() => setAction({ type: 'deposit', target: s })}
+                className="flex-1 text-xs font-bold bg-green-600 hover:bg-green-700 text-white"><ArrowDownCircle size={12} /> إيداع</Button>
+              <Button onClick={() => setAction({ type: 'withdraw', target: s })}
+                className="flex-1 text-xs font-bold bg-red-600 hover:bg-red-700 text-white"><ArrowUpCircle size={12} /> سحب</Button>
             </div>
           </div>
         ))}
@@ -143,19 +139,18 @@ export default function SafesPage() {
                 <p className="font-bold text-slate-800">{w.name}</p>
                 <p className="text-xs text-slate-400">{WALLET_LABELS[w.type] || w.type}{w.phone ? ` · ${w.phone}` : ''}</p>
               </div>
-              <button onClick={() => { setForm({ name: w.name, phone: w.phone }); setAction({ type: 'edit-wallet', target: w }) }}
-                className="text-slate-400 hover:text-slate-600"><Pencil size={14} /></button>
+              <Button variant="ghost" size="icon-sm" onClick={() => { setForm({ name: w.name, phone: w.phone }); setAction({ type: 'edit-wallet', target: w }) }}
+                className="text-slate-400 hover:text-slate-600"><Pencil size={14} /></Button>
             </div>
             <p className="text-xl font-black mb-3" style={{ color: 'var(--accent)' }}>
               {Number(w.balance).toLocaleString('ar-EG')} ج.م
             </p>
-            <button onClick={() => { setToSafeId(safes?.[0]?.id || ''); setAction({ type: 'transfer', target: w }) }}
-              className="w-full py-1.5 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1 mb-1"
-              style={{ background: 'var(--primary)' }}><ArrowRightLeft size={12} /> تحويل للخزنة</button>
-            <button onClick={() => setConfirmResetWallet(w)}
-              className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 flex items-center justify-center gap-1">
+            <Button onClick={() => { setToSafeId(safes?.[0]?.id || ''); setAction({ type: 'transfer', target: w }) }}
+              className="w-full text-xs font-bold"><ArrowRightLeft size={12} /> تحويل للخزنة</Button>
+            <Button variant="destructive" onClick={() => setConfirmResetWallet(w)}
+              className="w-full text-xs font-bold">
               ✕ تصفير الرصيد
-            </button>
+            </Button>
           </div>
         ))}
       </div>
@@ -164,24 +159,24 @@ export default function SafesPage() {
       {/* Deposit Modal */}
       <Modal open={action?.type === 'deposit'} onClose={close} title={`إيداع في ${action?.target?.name}`}>
         <div className="space-y-3">
-          <input type="number" className="input" placeholder="المبلغ *" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
-          <input className="input" placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)} />
-          <button onClick={() => depositMut.mutate()} disabled={!amount || depositMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: '#16a34a' }}>
+ <Input type="number" placeholder="المبلغ *" value={amount} onChange={e => setAmount(e.target.value)} autoFocus/>
+ <Input placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)}/>
+          <Button onClick={() => depositMut.mutate()} disabled={!amount || depositMut.isPending}
+            className="w-full bg-green-600 hover:bg-green-700 text-white">
             {depositMut.isPending ? 'جاري...' : 'تأكيد الإيداع'}
-          </button>
+          </Button>
         </div>
       </Modal>
 
       {/* Withdraw Modal */}
       <Modal open={action?.type === 'withdraw'} onClose={close} title={`سحب من ${action?.target?.name}`}>
         <div className="space-y-3">
-          <input type="number" className="input" placeholder="المبلغ *" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
-          <input className="input" placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)} />
-          <button onClick={() => withdrawMut.mutate()} disabled={!amount || withdrawMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: '#dc2626' }}>
+ <Input type="number" placeholder="المبلغ *" value={amount} onChange={e => setAmount(e.target.value)} autoFocus/>
+ <Input placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)}/>
+          <Button onClick={() => withdrawMut.mutate()} disabled={!amount || withdrawMut.isPending}
+            className="w-full bg-red-600 hover:bg-red-700 text-white">
             {withdrawMut.isPending ? 'جاري...' : 'تأكيد السحب'}
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -190,18 +185,18 @@ export default function SafesPage() {
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">الخزنة المستقبِلة</label>
-            <select className="input" value={toSafeId} onChange={e => setToSafeId(e.target.value)}>
+            <Select value={toSafeId} onChange={e => setToSafeId(e.target.value)}>
               {safes?.map((s: any) => <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>)}
-            </select>
+            </Select>
           </div>
-          <input type="number" className="input" placeholder="المبلغ *"
+ <Input type="number" placeholder="المبلغ *"
             max={action?.target?.balance} value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
           <p className="text-xs text-slate-400">الرصيد المتاح: {Number(action?.target?.balance || 0).toLocaleString('ar-EG')} ج.م</p>
-          <input className="input" placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)} />
-          <button onClick={() => transferMut.mutate()} disabled={!amount || !toSafeId || transferMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+ <Input placeholder="ملاحظة" value={note} onChange={e => setNote(e.target.value)}/>
+          <Button onClick={() => transferMut.mutate()} disabled={!amount || !toSafeId || transferMut.isPending}
+            className="w-full">
             {transferMut.isPending ? 'جاري...' : 'تأكيد التحويل'}
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -209,24 +204,24 @@ export default function SafesPage() {
       <Modal open={action?.type === 'edit-safe' || action?.type === 'new-safe'} onClose={close}
         title={action?.type === 'new-safe' ? 'خزنة جديدة' : `تعديل ${action?.target?.name}`}>
         <div className="space-y-3">
-          <input className="input" placeholder="اسم الخزنة *" value={form.name || ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} autoFocus />
-          <input className="input" placeholder="الموقع (اختياري)" value={form.location || ''} onChange={e => setForm((f: any) => ({ ...f, location: e.target.value }))} />
-          <button onClick={() => saveSafeMut.mutate()} disabled={!form.name || saveSafeMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+ <Input placeholder="اسم الخزنة *" value={form.name || ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} autoFocus/>
+ <Input placeholder="الموقع (اختياري)" value={form.location || ''} onChange={e => setForm((f: any) => ({ ...f, location: e.target.value }))}/>
+          <Button onClick={() => saveSafeMut.mutate()} disabled={!form.name || saveSafeMut.isPending}
+            className="w-full">
             {saveSafeMut.isPending ? 'جاري...' : 'حفظ'}
-          </button>
+          </Button>
         </div>
       </Modal>
 
       {/* Edit Wallet Modal */}
       <Modal open={action?.type === 'edit-wallet'} onClose={close} title={`تعديل ${action?.target?.name}`}>
         <div className="space-y-3">
-          <input className="input" placeholder="الاسم *" value={form.name || ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} autoFocus />
-          <input className="input" placeholder="رقم الهاتف" value={form.phone || ''} onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
-          <button onClick={() => saveWalletMut.mutate()} disabled={!form.name || saveWalletMut.isPending}
-            className="w-full py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>
+ <Input placeholder="الاسم *" value={form.name || ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} autoFocus/>
+ <Input placeholder="رقم الهاتف" value={form.phone || ''} onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))}/>
+          <Button onClick={() => saveWalletMut.mutate()} disabled={!form.name || saveWalletMut.isPending}
+            className="w-full">
             {saveWalletMut.isPending ? 'جاري...' : 'حفظ'}
-          </button>
+          </Button>
         </div>
       </Modal>
       <ConfirmDialog open={!!confirmResetWallet} onClose={() => setConfirmResetWallet(null)} onConfirm={() => { api.post(`/wallets/${confirmResetWallet.id}/reset-balance`).then(() => { toast.success('✅ تم التصفير'); qc.invalidateQueries({ queryKey: ['wallets'] }) }).catch((e: any) => toast.error(e.response?.data?.detail || 'فشل')); setConfirmResetWallet(null) }} message={`تصفير رصيد ${confirmResetWallet?.name} (${Number(confirmResetWallet?.balance || 0).toLocaleString('ar-EG')} ج.م)؟`} danger confirmText="تصفير" />

@@ -5,6 +5,10 @@ import { useAppStore } from '../../store/app'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
 import { Search, CheckCircle } from 'lucide-react'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Select } from '../../components/ui/select'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
 
 const MOVEMENT_LABELS: Record<string, string> = {
   opening_stock: 'رصيد افتتاحي',
@@ -113,10 +117,9 @@ export default function StocktakingPage() {
           </p>
         </div>
         {pendingCount > 0 && (
-          <button onClick={saveAll} disabled={saving || !activeWarehouseId}
-            className="btn btn-success">
+          <Button onClick={saveAll} disabled={saving || !activeWarehouseId}>
             <CheckCircle size={16} /> حفظ {pendingCount} منتج {activeWh ? `في ${activeWh.name}` : ''}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -127,7 +130,7 @@ export default function StocktakingPage() {
           { key: 'tracked',   label: '✅ مجرود',      count: trackedCount,   active: 'border-green-600', text: 'text-green-600' },
           { key: 'all',       label: '📦 الكل',        count: products.length, active: 'border-[var(--primary)]', text: 'text-[var(--primary)]' },
         ].map(({ key, label, count, active, text }) => (
-          <div key={key} onClick={() => setFilter(key as any)}
+          <div key={key} role="button" tabIndex={0} onClick={() => setFilter(key as any)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilter(key as any) } }}
             className={`card p-4 text-center cursor-pointer border-2 transition-all ${filter === key ? active : 'border-transparent'}`}>
             <p className={`text-2xl font-black ${text}`}>{count}</p>
             <p className="text-xs text-slate-500 mt-1">{label}</p>
@@ -139,7 +142,7 @@ export default function StocktakingPage() {
       <div className="flex items-center gap-3 mb-4">
         <div className="relative max-w-sm flex-1">
           <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pr-9 text-sm w-full" placeholder="بحث بالاسم..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+ <Input className="pr-9 text-sm w-full" placeholder="بحث بالاسم..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}/>
         </div>
         <span className="text-xs text-slate-400">إجمالي: {pageData?.total || 0} منتج</span>
       </div>
@@ -147,60 +150,60 @@ export default function StocktakingPage() {
       {/* Table — desktop */}
       <div className="card p-0 overflow-hidden hidden sm:block">
         <div className="table-wrap" style={{ maxHeight: "calc(100vh - 300px)", overflowX: "auto" }}>
-          <table style={{ minWidth: "600px" }}>
-            <thead>
-              <tr>
-                <th style={{ minWidth: '200px' }}>المنتج</th>
-                <th style={{ width: '140px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</th>
-                <th style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</th>
-                <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية الحالية</th>
-                <th style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={{ minWidth: "600px" }}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={{ minWidth: '200px' }}>المنتج</TableHead>
+                <TableHead style={{ width: '140px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية</TableHead>
+                <TableHead style={{ width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>نوع الحركة</TableHead>
+                <TableHead style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الكمية الحالية</TableHead>
+                <TableHead style={{ width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>الحالة</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {isLoading && Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}><td colSpan={5}><div className="h-4 bg-slate-100 rounded animate-pulse my-2" /></td></tr>
+                <TableRow key={i}><TableCell colSpan={5}><div className="h-4 bg-slate-100 rounded animate-pulse my-2" /></TableCell></TableRow>
               ))}
               {!isLoading && !filtered.length && (
-                <tr><td colSpan={5} className="text-center py-12 text-slate-400">
+                <TableRow><TableCell colSpan={5} className="text-center py-12 text-slate-400">
                   {filter === 'untracked' ? '✅ كل المنتجات مجرودة!' : 'لا توجد منتجات'}
-                </td></tr>
+                </TableCell></TableRow>
               )}
               {filtered.map((p: any) => {
                 const e = entries[p.id] || {}
                 const hasEntry = !!e.qty
                 return (
-                  <tr key={p.id} className={hasEntry ? 'bg-green-50' : ''}>
-                    <td>
+                  <TableRow key={p.id} className={hasEntry ? 'bg-green-50' : ''}>
+                    <TableCell>
                       <p className="font-semibold text-slate-800 text-sm" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "280px" }}>{p.name}</p>
                       <p className="text-xs text-slate-400">{p.unit}{p.company ? ` · ${p.company}` : ''}</p>
-                    </td>
-                    <td className="text-center">
-                      <input type="number" className={`input text-sm text-center py-1 ${hasEntry ? 'border-green-400 bg-green-50' : ''}`} style={{ minWidth: "120px" }}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Input type="number" className={`text-sm text-center py-1 ${hasEntry ? 'border-green-400 bg-green-50' : ''}`} style={{ minWidth: "120px" }}
                         placeholder="0" min="0" step="any" value={e.qty || ''}
                         onChange={ev => setEntry(p.id, 'qty', ev.target.value)} />
-                    </td>
-                    <td className="text-center">
-                      <select className="input text-xs py-1 w-full" style={{ minWidth: "150px" }} value={e.type || 'opening_stock'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Select className="text-xs py-1 w-full" style={{ minWidth: "150px" }} value={e.type || 'opening_stock'}
                         onChange={ev => setEntry(p.id, 'type', ev.target.value)}>
                         {Object.entries(MOVEMENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                      </select>
-                    </td>
-                    <td className="text-center">
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-center">
                       {p.stock_status === 'untracked'
                         ? <span className="text-xs text-slate-400">—</span>
                         : <span className="font-bold text-sm text-[var(--primary)]">{balances?.[p.id] ?? '...'} {p.unit}</span>}
-                    </td>
-                    <td className="text-center">
+                    </TableCell>
+                    <TableCell className="text-center">
                       {p.stock_status === 'untracked'
                         ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold whitespace-nowrap">⚠️ غير محدد</span>
                         : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold whitespace-nowrap">✅ محدد</span>}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
 
@@ -230,11 +233,11 @@ export default function StocktakingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <select className="input text-xs py-1 w-28" value={e.type || 'opening_stock'}
+                  <Select className="text-xs py-1 w-28" value={e.type || 'opening_stock'}
                     onChange={ev => setEntry(p.id, 'type', ev.target.value)}>
                     {Object.entries(MOVEMENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                  <input type="number" className={`input text-sm text-center py-1 w-20 ${hasEntry ? 'border-green-400' : ''}`}
+                  </Select>
+                  <Input type="number" className={`text-sm text-center py-1 w-20 ${hasEntry ? 'border-green-400' : ''}`}
                     placeholder="0" min="0" step="any" value={e.qty || ''}
                     onChange={ev => setEntry(p.id, 'qty', ev.target.value)} />
                 </div>
@@ -247,11 +250,11 @@ export default function StocktakingPage() {
       {/* Floating save button */}
       {pendingCount > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <button onClick={saveAll} disabled={saving || !activeWarehouseId}
-            className="btn btn-success btn-lg shadow-2xl">
+          <Button onClick={saveAll} disabled={saving || !activeWarehouseId}
+            size="lg" className="shadow-2xl">
             <CheckCircle size={18} />
             حفظ {pendingCount} منتج {activeWh ? `في ${activeWh.name}` : '— اختر فرعاً أولاً'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

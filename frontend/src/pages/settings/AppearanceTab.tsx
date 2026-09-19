@@ -11,6 +11,10 @@ import { TEMPLATES, type Tone } from '../../pages/storefront/templates'
 import TemplateThumb from '../../pages/storefront/templates/TemplateThumb'
 import { SECTION_META, SECTION_ORDER, parseSections, defaultSectionsFor } from '../../pages/storefront/templates/sections'
 import type { SectionConfig, SectionId } from '../../pages/storefront/templates/sections'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Textarea } from '../../components/ui/textarea'
+import { Select } from '../../components/ui/select'
 
 const COLOR_FIELDS: { key: 'theme_primary' | 'theme_accent' | 'theme_bg' | 'theme_ink'; label: string }[] = [
   { key: 'theme_primary', label: 'اللون الأساسي — شريط التنقل والأزرار' },
@@ -40,6 +44,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       theme_accent: s.theme_accent || DEFAULT_THEME.accent,
       theme_bg: s.theme_bg || DEFAULT_THEME.bg,
       theme_ink: s.theme_ink || '',
+      theme_mode: s.theme_mode || 'auto',
       font_heading: s.font_heading || DEFAULT_THEME.fontHeading,
       font_body: s.font_body || DEFAULT_THEME.fontBody,
     }
@@ -101,6 +106,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       theme_accent: next.theme_accent,
       theme_bg: next.theme_bg,
       theme_ink: next.theme_ink,
+      theme_mode: next.theme_mode,
       font_heading: next.font_heading,
       font_body: next.font_body,
     })
@@ -113,6 +119,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       theme_accent: next.theme_accent,
       theme_bg: next.theme_bg,
       theme_ink: next.theme_ink,
+      theme_mode: next.theme_mode,
       font_heading: next.font_heading,
       font_body: next.font_body,
     })
@@ -167,6 +174,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
         theme_primary: normalizeHex(form.theme_primary, DEFAULT_THEME.primary),
         theme_accent: normalizeHex(form.theme_accent, DEFAULT_THEME.accent),
         theme_bg: normalizeHex(form.theme_bg, DEFAULT_THEME.bg),
+        theme_mode: form.theme_mode || 'auto',
         font_heading: form.font_heading,
         font_body: form.font_body,
       }
@@ -199,6 +207,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       theme_accent: DEFAULT_THEME.accent,
       theme_bg: DEFAULT_THEME.bg,
       theme_ink: '',
+      theme_mode: 'auto',
       font_heading: DEFAULT_THEME.fontHeading,
       font_body: DEFAULT_THEME.fontBody,
     }
@@ -214,6 +223,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     theme_accent: form.theme_accent,
     theme_bg: form.theme_bg,
     theme_ink: form.theme_ink,
+    theme_mode: form.theme_mode,
     font_heading: form.font_heading,
     font_body: form.font_body,
   })
@@ -224,68 +234,72 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       {/* Controls */}
       <div className="card xl:col-span-2">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-slate-700">ستايل متجرك</h3>
-          <button onClick={resetDefaults} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200">
+          <h3 className="font-bold text-[var(--text)]">ستايل متجرك</h3>
+          <Button variant="secondary" size="sm" onClick={resetDefaults} className="flex items-center gap-1.5 text-xs">
             <RotateCcw size={13} /> استعادة الافتراضي
-          </button>
+          </Button>
         </div>
 
         {/* Template picker */}
         <div className="mb-6">
-          <label className="block text-xs font-medium text-slate-600 mb-2">قالب الواجهة الرئيسية</label>
+          <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">قالب الواجهة الرئيسية</label>
           <div className="grid grid-cols-3 gap-2">
             {TEMPLATES.map((t) => (
-              <button
+              <Button
+                variant="outline"
                 key={t.id}
                 onClick={() => update('storefront_template', t.id)}
-                className={`rounded-xl border-2 p-1.5 text-center transition-colors ${form.storefront_template === t.id ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-slate-200 hover:border-slate-300'}`}
+                className={`rounded-xl border-2 p-1.5 text-center transition-colors h-auto ${form.storefront_template === t.id ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}
                 title={t.description}
               >
                 <TemplateThumb tone={t.id as Tone} />
-                <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === t.id ? 'text-[var(--primary)]' : 'text-slate-600'}`}>{t.name}</span>
-              </button>
+                <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === t.id ? 'text-[var(--primary)]' : 'text-[var(--text-soft)]'}`}>{t.name}</span>
+              </Button>
             ))}
-            <button
+            <Button
+              variant="outline"
               onClick={() => update('storefront_template', 'custom')}
-              className={`rounded-xl border-2 p-1.5 text-center transition-colors ${form.storefront_template === 'custom' ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-slate-200 hover:border-slate-300'}`}
+              className={`rounded-xl border-2 p-1.5 text-center transition-colors h-auto ${form.storefront_template === 'custom' ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}
               title="قالب مستورد — واجهة كاملة من ملف ZIP (WordPress أو موقع ثابت)"
             >
               <div className="rounded-lg border-b border-black/5 overflow-hidden bg-[linear-gradient(135deg,#1e293b_0%,#334155_55%,#475569_100%)] h-14 flex items-center justify-center">
                 <LayoutTemplate size={18} className="text-white/80" />
               </div>
-              <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === 'custom' ? 'text-[var(--primary)]' : 'text-slate-600'}`}>مستورد</span>
-            </button>
+              <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === 'custom' ? 'text-[var(--primary)]' : 'text-[var(--text-soft)]'}`}>مستورد</span>
+            </Button>
           </div>
         </div>
 
         {form.storefront_template === 'custom' && (
           <div className="mb-5 rounded-2xl border-2 border-dashed p-3 space-y-3" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between gap-2">
-              <label className="text-xs font-bold text-slate-700">استيراد قالب من ملف ZIP — WordPress أو موقع ثابت</label>
+              <label className="text-xs font-bold text-[var(--text)]">استيراد قالب من ملف ZIP — WordPress أو موقع ثابت</label>
               {customTheme?.imported && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => deleteThemeMut.mutate()}
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-red-500 hover:text-red-600"
+                  className="text-[11px] text-red-500 hover:text-red-600 p-0 h-auto"
                 >
                   <Trash2 size={12} /> حذف القالب المستورد
-                </button>
+                </Button>
               )}
             </div>
             {customTheme?.imported && (
-              <p className="text-[11px] text-slate-500">
-                القالب الحالي: <span className="font-bold text-slate-700">{customTheme.name}</span> — {Math.round((customTheme.size || 0) / 1024)} ك.ب في {customTheme.assets || 0} ملف
+              <p className="text-[11px] text-[var(--muted)]">
+                القالب الحالي: <span className="font-bold text-[var(--text)]">{customTheme.name}</span> — {Math.round((customTheme.size || 0) / 1024)} ك.ب في {customTheme.assets || 0} ملف
               </p>
             )}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="flex flex-col items-center justify-center gap-1.5 rounded-xl bg-slate-50 py-5 cursor-pointer hover:bg-slate-100 transition-colors"
+              className="flex flex-col items-center justify-center gap-1.5 rounded-xl bg-[var(--surface-2)] py-5 cursor-pointer hover:bg-[var(--surface-3)] transition-colors"
             >
-              <UploadCloud size={22} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-600">{importThemeMut.isPending ? 'جاري الاستيراد وتضمين الملفات...' : 'اختر ملف ZIP أو اسحبه هنا'}</span>
-              <span className="text-[10px] text-slate-400">يحوّل الملف إلى صفحة واحدة مضمنة (حتى 30 م.ب، بدون PHP)</span>
+              <UploadCloud size={22} className="text-[var(--muted)]" />
+              <span className="text-xs font-bold text-[var(--text-soft)]">{importThemeMut.isPending ? 'جاري الاستيراد وتضمين الملفات...' : 'اختر ملف ZIP أو اسحبه هنا'}</span>
+              <span className="text-[10px] text-[var(--muted)]">يحوّل الملف إلى صفحة واحدة مضمنة (حتى 30 م.ب، بدون PHP)</span>
             </div>
-            <input ref={fileInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={(e) => { onPickZip(e.target.files?.[0]); e.target.value = '' }} />
-            <p className="text-[11px] text-slate-400 leading-relaxed">
+            <input ref={fileInputRef} type="file" accept=".zip,application/zip" className="hidden" aria-label="استيراد قالب ZIP" onChange={(e) => { onPickZip(e.target.files?.[0]); e.target.value = '' }} />
+            <p className="text-[11px] text-[var(--muted)] leading-relaxed">
               أي نصوص في القالب بصيغة <code className="font-mono" dir="ltr">{'{{store_name}}'}</code>، <code className="font-mono" dir="ltr">{'{{products}}'}</code> تُستبدل ببيانات متجرك الحية تلقائياً.
               قوائم المنتجات والفئات والمقالات والقوائم والسوشيال تُربط عبر <code className="font-mono" dir="ltr">data-vendora-repeat</code> و <code className="font-mono" dir="ltr">data-vendora-mount</code>.
             </p>
@@ -294,52 +308,57 @@ export default function AppearanceTab({ settings }: { settings: any }) {
 
         {/* Section builder */}
         <div className="mb-6">
-          <label className="block text-xs font-medium text-slate-600 mb-2">مقاطع الصفحة الرئيسية — اسحب لإعادة الترتيب</label>
+          <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">مقاطع الصفحة الرئيسية — اسحب لإعادة الترتيب</label>
           <Reorder.Group axis="y" values={sections} onReorder={(v) => update('storefront_sections', v)} className="space-y-1.5">
             {sections.map((s) => (
               <Reorder.Item
                 key={s.id}
                 value={s}
-                className="flex items-center gap-2 rounded-xl border px-2.5 py-2 bg-white"
+                className="flex items-center gap-2 rounded-xl border px-2.5 py-2 bg-[var(--surface)]"
                 style={{ borderColor: 'var(--border)' }}
               >
-                <GripVertical size={16} className="text-slate-300 cursor-grab shrink-0" />
-                <span className="text-sm font-bold flex-1 text-slate-700">{SECTION_META[s.id].name}</span>
+                <GripVertical size={16} className="text-[var(--faint)] cursor-grab shrink-0" />
+                <span className="text-sm font-bold flex-1 text-[var(--text)]">{SECTION_META[s.id].name}</span>
                 {(s.id === 'categories' || s.id === 'featured') && (
-                  <input
-                    className="input text-xs w-32 text-right"
+                  <Input
+                    className="text-xs w-32 text-right"
                     placeholder="عنوان"
                     value={s.heading || ''}
                     onChange={(e) => updateSection(s, { ...s, heading: e.target.value })}
                   />
                 )}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => updateSection(s, { ...s, enabled: s.enabled === false ? undefined : false })}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-500"
                   title={s.enabled === false ? 'إظهار' : 'إخفاء'}
                 >
                   {s.enabled === false ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => removeSection(s.id)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-50 text-red-400"
+                  className="text-red-400 hover:text-red-500 hover:bg-red-50"
                   title="إزالة"
                 >
                   <X size={15} />
-                </button>
+                </Button>
               </Reorder.Item>
             ))}
           </Reorder.Group>
           {available.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {available.map((id) => (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   key={id}
                   onClick={() => addSection(id)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  className="text-xs"
                 >
                   <Plus size={13} /> {SECTION_META[id].name}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -348,31 +367,54 @@ export default function AppearanceTab({ settings }: { settings: any }) {
         {/* Hero copy */}
         <div className="grid grid-cols-1 gap-3 mb-6">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">سطر الهيرو الرئيسي (يفرغ للتلقائي)</label>
-            <input className="input text-sm" value={form.storefront_hero_title} onChange={(e) => update('storefront_hero_title', e.target.value)} placeholder="كل لوازم السباكة ومواد البناء" />
+            <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">سطر الهيرو الرئيسي (يفرغ للتلقائي)</label>
+ <Input className="text-sm" value={form.storefront_hero_title} onChange={(e) => update('storefront_hero_title', e.target.value)} placeholder="كل لوازم السباكة ومواد البناء"/>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">النص التعريفي (يفرغ للتلقائي)</label>
-            <textarea className="input text-sm" rows={2} value={form.storefront_hero_subtitle} onChange={(e) => update('storefront_hero_subtitle', e.target.value)} placeholder="أصناف حقيقية بأسعار حقيقية من نظامك — باركود موحّد، بيع جملة وتجزئة، وتوصيل خلال 24 ساعة." />
+            <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">النص التعريفي (يفرغ للتلقائي)</label>
+            <Textarea className="text-sm" rows={2} value={form.storefront_hero_subtitle} onChange={(e) => update('storefront_hero_subtitle', e.target.value)} placeholder="أصناف حقيقية بأسعار حقيقية من نظامك — باركود موحّد، بيع جملة وتجزئة، وتوصيل خلال 24 ساعة." />
           </div>
         </div>
 
         <div className="border-t mb-5" style={{ borderColor: 'var(--border)' }} />
 
-        <h3 className="font-bold text-slate-700 mb-5">الهوية البصرية — الألوان والخطوط</h3>
+        <h3 className="font-bold text-[var(--text)] mb-5">الهوية البصرية — الألوان والخطوط</h3>
+
+        {/* Mode toggle */}
+        <div className="mb-5">
+          <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">وضع العرض</label>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { id: 'auto', label: 'تلقائي', desc: 'حسب لون الخلفية' },
+              { id: 'light', label: 'فاتح', desc: 'إجبار الوضع الفاتح' },
+              { id: 'dark', label: 'داكن', desc: 'إجبار الوضع الداكن' },
+            ] as { id: string; label: string; desc: string }[]).map((m) => (
+              <Button
+                key={m.id}
+                variant={form.theme_mode === m.id ? 'default' : 'outline'}
+                onClick={() => update('theme_mode', m.id)}
+                className="rounded-xl h-auto flex-col items-center gap-0.5 py-2.5"
+              >
+                <span className="text-xs font-bold">{m.label}</span>
+                <span className={`text-[10px] ${form.theme_mode === m.id ? 'opacity-90' : 'text-[var(--muted)]'}`}>{m.desc}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
 
         <div className="mb-5">
-          <label className="block text-xs font-medium text-slate-600 mb-1">ألوان جاهزة — 50 ثيمًا شهيرًا</label>
-          <p className="text-[11px] text-slate-400 mb-2">اضغط أي ثيم لتطبيقه فورًا في المعاينة، ويمكنك تعديل كل لون يدويًا من الأسفل.</p>
+          <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">ألوان جاهزة — 50 ثيمًا شهيرًا</label>
+          <p className="text-[11px] text-[var(--muted)] mb-2">اضغط أي ثيم لتطبيقه فورًا في المعاينة، ويمكنك تعديل كل لون يدويًا من الأسفل.</p>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-64 overflow-y-auto pl-0.5 pb-1">
             {THEME_PRESETS.map((p) => {
               const active = isPresetActive(p)
               return (
-                <button
+                <Button
+                  variant="outline"
                   key={p.id}
                   onClick={() => applyPreset(p)}
                   title={p.nameEn}
-                  className={`rounded-xl border-2 p-1.5 text-right transition-colors ${active ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-slate-200 hover:border-slate-300'}`}
+                  className={`rounded-xl border-2 p-1.5 text-right transition-colors h-auto ${active ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}
                 >
                   <div className="overflow-hidden rounded-lg border border-black/5">
                     <div className="h-4" style={{ background: p.bg }} />
@@ -381,9 +423,9 @@ export default function AppearanceTab({ settings }: { settings: any }) {
                       <div className="flex-1" style={{ background: p.accent }} />
                     </div>
                   </div>
-                  <span className={`block text-[11px] font-bold mt-1.5 truncate ${active ? 'text-[var(--primary)]' : 'text-slate-600'}`}>{p.name}</span>
-                  <span className="block text-[10px] text-slate-400 truncate" dir="ltr">{p.nameEn}</span>
-                </button>
+                  <span className={`block text-[11px] font-bold mt-1.5 truncate ${active ? 'text-[var(--primary)]' : 'text-[var(--text-soft)]'}`}>{p.name}</span>
+                  <span className="block text-[10px] text-[var(--muted)] truncate" dir="ltr">{p.nameEn}</span>
+                </Button>
               )
             })}
           </div>
@@ -396,12 +438,12 @@ export default function AppearanceTab({ settings }: { settings: any }) {
                 type="color"
                 value={normalizeHex(form[key] || '', key === 'theme_ink' ? '#0f172a' : '')}
                 onChange={(e) => update(key, e.target.value)}
-                className="w-10 h-10 rounded-lg border border-slate-200 bg-white cursor-pointer shrink-0"
+                className="w-10 h-10 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer shrink-0"
               />
               <div className="flex-1">
-                <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
-                <input
-                  className="input font-mono text-sm"
+                <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">{label}</label>
+                <Input
+                  className="font-mono text-sm"
                   dir="ltr"
                   value={form[key] || ''}
                   onChange={(e) => update(key, e.target.value)}
@@ -413,94 +455,93 @@ export default function AppearanceTab({ settings }: { settings: any }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">خط العناوين</label>
-              <select className="input text-sm" value={form.font_heading} onChange={(e) => update('font_heading', e.target.value)}>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">خط العناوين</label>
+              <Select className="text-sm" value={form.font_heading} onChange={(e) => update('font_heading', e.target.value)}>
                 {FONT_OPTIONS.map((f) => (
                   <option key={f.id} value={f.id}>{f.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">خط النصوص</label>
-              <select className="input text-sm" value={form.font_body} onChange={(e) => update('font_body', e.target.value)}>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">خط النصوص</label>
+              <Select className="text-sm" value={form.font_body} onChange={(e) => update('font_body', e.target.value)}>
                 {FONT_OPTIONS.map((f) => (
                   <option key={f.id} value={f.id}>{f.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
           <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
-            <h3 className="font-bold text-slate-700 text-sm">بيانات المتجر للقالب المستورد</h3>
+            <h3 className="font-bold text-[var(--text)] text-sm">بيانات المتجر للقالب المستورد</h3>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">الوصف القصير / الشعار النصي (tagline)</label>
-              <input className="input text-sm" value={form.storefront_tagline} onChange={(e) => update('storefront_tagline', e.target.value)} placeholder="كل لوازم السباكة ومواد البناء — توريد جملة وتجزئة" />
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">الوصف القصير / الشعار النصي (tagline)</label>
+ <Input className="text-sm" value={form.storefront_tagline} onChange={(e) => update('storefront_tagline', e.target.value)} placeholder="كل لوازم السباكة ومواد البناء — توريد جملة وتجزئة"/>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">قائمة التنقل</label>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">قائمة التنقل</label>
               {((form.storefront_menu || []) as any[]).map((m: any, i: number) => (
                 <div key={i} className="flex gap-2 mb-1.5" dir="ltr">
-                  <input className="input text-xs flex-1" value={m.label || ''} placeholder="اسم الرابط" onChange={(e) => update('storefront_menu', (form.storefront_menu || []).map((x: any, j: number) => (j === i ? { ...x, label: e.target.value } : x)))} />
-                  <input className="input text-xs flex-1" value={m.href || ''} placeholder="/catalog" onChange={(e) => update('storefront_menu', (form.storefront_menu || []).map((x: any, j: number) => (j === i ? { ...x, href: e.target.value } : x)))} />
-                  <button onClick={() => update('storefront_menu', (form.storefront_menu || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+ <Input className="text-xs flex-1" value={m.label || ''} placeholder="اسم الرابط" onChange={(e) => update('storefront_menu', (form.storefront_menu || []).map((x: any, j: number) => (j === i ? { ...x, label: e.target.value } : x)))}/>
+ <Input className="text-xs flex-1" value={m.href || ''} placeholder="/catalog" onChange={(e) => update('storefront_menu', (form.storefront_menu || []).map((x: any, j: number) => (j === i ? { ...x, href: e.target.value } : x)))}/>
+                  <Button variant="ghost" size="icon-sm" onClick={() => update('storefront_menu', (form.storefront_menu || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></Button>
                 </div>
               ))}
-              <button onClick={() => update('storefront_menu', [...(form.storefront_menu || []), { label: '', href: '' }])} className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)]"><Plus size={12} /> إضافة رابط</button>
+              <Button variant="link" size="sm" onClick={() => update('storefront_menu', [...(form.storefront_menu || []), { label: '', href: '' }])} className="text-[11px] p-0 h-auto inline-flex items-center gap-1"><Plus size={12} /> إضافة رابط</Button>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">روابط التواصل الاجتماعي</label>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">روابط التواصل الاجتماعي</label>
               {((form.storefront_socials || []) as any[]).map((m: any, i: number) => (
                 <div key={i} className="flex gap-2 mb-1.5" dir="ltr">
-                  <input className="input text-xs flex-1" value={m.name || ''} placeholder="فيسبوك" onChange={(e) => update('storefront_socials', (form.storefront_socials || []).map((x: any, j: number) => (j === i ? { ...x, name: e.target.value } : x)))} />
-                  <input className="input text-xs flex-1" value={m.href || ''} placeholder="https://facebook.com/..." onChange={(e) => update('storefront_socials', (form.storefront_socials || []).map((x: any, j: number) => (j === i ? { ...x, href: e.target.value } : x)))} />
-                  <button onClick={() => update('storefront_socials', (form.storefront_socials || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+ <Input className="text-xs flex-1" value={m.name || ''} placeholder="فيسبوك" onChange={(e) => update('storefront_socials', (form.storefront_socials || []).map((x: any, j: number) => (j === i ? { ...x, name: e.target.value } : x)))}/>
+ <Input className="text-xs flex-1" value={m.href || ''} placeholder="https://facebook.com/..." onChange={(e) => update('storefront_socials', (form.storefront_socials || []).map((x: any, j: number) => (j === i ? { ...x, href: e.target.value } : x)))}/>
+                  <Button variant="ghost" size="icon-sm" onClick={() => update('storefront_socials', (form.storefront_socials || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></Button>
                 </div>
               ))}
-              <button onClick={() => update('storefront_socials', [...(form.storefront_socials || []), { name: '', href: '' }])} className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)]"><Plus size={12} /> إضافة تواصل</button>
+              <Button variant="link" size="sm" onClick={() => update('storefront_socials', [...(form.storefront_socials || []), { name: '', href: '' }])} className="text-[11px] p-0 h-auto inline-flex items-center gap-1"><Plus size={12} /> إضافة تواصل</Button>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">مقالات / أخبار</label>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">مقالات / أخبار</label>
               {((form.storefront_posts || []) as any[]).map((p: any, i: number) => (
                 <div key={i} className="space-y-1.5 mb-2 rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
                   <div className="flex gap-2" dir="ltr">
-                    <input className="input text-xs flex-1" value={p.title || ''} placeholder="عنوان المقال" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, title: e.target.value } : x)))} />
-                    <button onClick={() => update('storefront_posts', (form.storefront_posts || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></button>
+ <Input className="text-xs flex-1" value={p.title || ''} placeholder="عنوان المقال" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, title: e.target.value } : x)))}/>
+                    <Button variant="ghost" size="icon-sm" onClick={() => update('storefront_posts', (form.storefront_posts || []).filter((_: any, j: number) => j !== i))} className="text-red-400 hover:text-red-500"><X size={14} /></Button>
                   </div>
-                  <textarea className="input text-xs w-full" rows={2} value={p.excerpt || ''} placeholder="ملخص قصير" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, excerpt: e.target.value } : x)))} />
-                  <input className="input text-xs w-full" dir="ltr" value={p.image_url || ''} placeholder="https://...-image.jpg" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, image_url: e.target.value } : x)))} />
+                  <Textarea className="text-xs w-full" rows={2} value={p.excerpt || ''} placeholder="ملخص قصير" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, excerpt: e.target.value } : x)))} />
+ <Input className="text-xs w-full" dir="ltr" value={p.image_url || ''} placeholder="https://...-image.jpg" onChange={(e) => update('storefront_posts', (form.storefront_posts || []).map((x: any, j: number) => (j === i ? { ...x, image_url: e.target.value } : x)))}/>
                 </div>
               ))}
-              <button onClick={() => update('storefront_posts', [...(form.storefront_posts || []), { title: '', excerpt: '', image_url: '' }])} className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)]"><Plus size={12} /> إضافة مقال</button>
+              <Button variant="link" size="sm" onClick={() => update('storefront_posts', [...(form.storefront_posts || []), { title: '', excerpt: '', image_url: '' }])} className="text-[11px] p-0 h-auto inline-flex items-center gap-1"><Plus size={12} /> إضافة مقال</Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">البريد الإلكتروني</label>
-                <input className="input text-sm" dir="ltr" value={form.store_email} onChange={(e) => update('store_email', e.target.value)} placeholder="sales@store.com" />
+                <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">البريد الإلكتروني</label>
+ <Input className="text-sm" dir="ltr" value={form.store_email} onChange={(e) => update('store_email', e.target.value)} placeholder="sales@store.com"/>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">ساعات العمل</label>
-                <input className="input text-sm" value={form.store_hours} onChange={(e) => update('store_hours', e.target.value)} placeholder="السبت - الخميس، 9 ص - 6 م" />
+                <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">ساعات العمل</label>
+ <Input className="text-sm" value={form.store_hours} onChange={(e) => update('store_hours', e.target.value)} placeholder="السبت - الخميس، 9 ص - 6 م"/>
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">رابط الخريطة</label>
-              <input className="input text-sm" dir="ltr" value={form.store_map_url} onChange={(e) => update('store_map_url', e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">رابط الخريطة</label>
+ <Input className="text-sm" dir="ltr" value={form.store_map_url} onChange={(e) => update('store_map_url', e.target.value)} placeholder="https://maps.app.goo.gl/..."/>
             </div>
           </div>
 
-          <button
+          <Button
             onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
-            style={{ background: 'var(--primary)' }}
+            className="w-full flex items-center justify-center gap-2"
           >
             <Save size={16} /> {saveMut.isPending ? 'جاري الحفظ...' : 'حفظ الهوية وتطبيقها'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -508,7 +549,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       <div className="xl:col-span-3 space-y-4">
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-700">معاينة الصفحة الرئيسية — بحجم المتجر الحقيقي</h3>
+            <h3 className="font-bold text-[var(--text)]">معاينة الصفحة الرئيسية — بحجم المتجر الحقيقي</h3>
             <a href="/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--primary)]">
               فتح في تبويب جديد <ExternalLink size={13} />
             </a>
@@ -518,16 +559,16 @@ export default function AppearanceTab({ settings }: { settings: any }) {
             src="/"
             title="معاينة المتجر"
             sandbox="allow-scripts allow-same-origin"
-            className="w-full h-[540px] rounded-2xl border bg-white"
+            className="w-full h-[540px] rounded-2xl border bg-[var(--surface)]"
             style={{ borderColor: 'var(--border)' }}
           />
-          <p className="mt-2 text-[11px] text-slate-400">تُعرض التغييرات في القالب والألوان والخطوط فوراً هنا دون حفظ.</p>
+          <p className="mt-2 text-[11px] text-[var(--muted)]">تُعرض التغييرات في القالب والألوان والخطوط فوراً هنا دون حفظ.</p>
         </div>
 
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-700">معاينة حية</h3>
-            <span className="text-[11px] text-slate-400">تُعرض التغييرات فوراً على التطبيق كاملاً قبل الحفظ</span>
+            <h3 className="font-bold text-[var(--text)]">معاينة حية</h3>
+            <span className="text-[11px] text-[var(--muted)]">تُعرض التغييرات فوراً على التطبيق كاملاً قبل الحفظ</span>
           </div>
 
           <div
@@ -554,9 +595,9 @@ export default function AppearanceTab({ settings }: { settings: any }) {
               </p>
               <p className="text-xs mb-4" style={{ color: theme.vars['--muted'] }}>الألوان والخطوط تُطبق على الواجهة ولوحة التحكم معاً.</p>
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                <button className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: theme.primary }}>
+                <Button className="text-xs" style={{ background: theme.primary }}>
                   تسوّق الآن
-                </button>
+                </Button>
                 <span className="px-3 py-2 rounded-xl text-xs font-black" style={{ background: theme.vars['--accent-soft'], color: theme.vars['--accent-strong'], border: `1px solid ${theme.vars['--accent-border']}` }}>
                   250 ج.م
                 </span>

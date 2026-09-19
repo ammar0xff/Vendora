@@ -314,7 +314,7 @@ describe('Level 2 — subcategory drill-down', () => {
     // In CategoryCardBrowser.tsx the selected cat name renders as:
     //   <span className="text-xs font-bold text-slate-800">{selectedCat?.name}</span>
     const breadcrumbSpan = screen.getByText('فئة أ', {
-      selector: 'span.text-xs.font-bold.text-slate-800',
+      selector: 'span[class*="text-[var(--text)]"]',
     })
     expect(breadcrumbSpan).toBeTruthy()
 
@@ -417,7 +417,7 @@ describe('Empty subcategory category — jumps directly to products', () => {
     // Breadcrumb shows category name
     // In Level 3 breadcrumb: <span className="text-xs font-bold text-slate-600">{selectedCat?.name}</span>
     const catBreadcrumb = screen.getByText('فئة بلا أقسام', {
-      selector: 'span.text-xs.font-bold.text-slate-600',
+      selector: 'span[class*="text-[var(--text-soft)]"]',
     })
     expect(catBreadcrumb).toBeTruthy()
 
@@ -543,7 +543,7 @@ describe('Back navigation Level 3 → Level 2', () => {
     // Level 3 breadcrumb shows category name in the first breadcrumb slot
     // <span className="text-xs font-bold text-slate-600">{selectedCat?.name}</span>
     const catBreadcrumb = screen.getByText('فئة أ', {
-      selector: 'span.text-xs.font-bold.text-slate-600',
+      selector: 'span[class*="text-[var(--text-soft)]"]',
     })
     expect(catBreadcrumb).toBeTruthy()
 
@@ -571,7 +571,7 @@ describe('Back navigation Level 3 → Level 2', () => {
     // Level 2 breadcrumb still shows category name
     // <span className="text-xs font-bold text-slate-800">{selectedCat?.name}</span>
     const breadcrumbAtLevel2 = screen.getByText('فئة أ', {
-      selector: 'span.text-xs.font-bold.text-slate-800',
+      selector: 'span[class*="text-[var(--text)]"]',
     })
     expect(breadcrumbAtLevel2).toBeTruthy()
 

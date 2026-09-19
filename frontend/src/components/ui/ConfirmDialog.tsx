@@ -1,4 +1,5 @@
 import Modal from './Modal'
+import { Button } from './button'
 
 interface Props {
   open: boolean
@@ -17,14 +18,12 @@ export default function ConfirmDialog({ open, onClose, onConfirm, title, message
     <Modal open={open} onClose={onClose} title={title || 'تأكيد'} size="sm"
       footer={
         <div className="flex gap-3 pt-1 w-full">
-          <button onClick={onClose}
-            className="btn-outline flex-1">
+          <Button variant="outline" className="flex-1" onClick={onClose}>
             {cancelText}
-          </button>
-          <button onClick={() => { onConfirm(); if (closeOnConfirm) onClose() }}
-            className={`${danger ? 'btn-danger' : 'btn-primary'} flex-1`}>
+          </Button>
+          <Button variant={danger ? 'destructive' : 'default'} className="flex-1" onClick={() => { onConfirm(); if (closeOnConfirm) onClose() }}>
             {confirmText}
-          </button>
+          </Button>
         </div>
       }>
       <p className="text-[var(--text-soft)] text-sm leading-relaxed text-center py-2">{message}</p>

@@ -1,5 +1,9 @@
 import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown, Plus, Search } from 'lucide-react'
+import { Button } from './button'
+import { Input } from './input'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table'
+import { cn } from 'cn'
 
 interface Column<T> {
   key: string
@@ -37,9 +41,9 @@ function SkeletonRow({ cols, index }: { cols: number; index: number }) {
   ]
   const pattern = widths[index % widths.length]
   return (
-    <tr className="border-b border-[var(--border-faint)]">
+    <TableRow className="border-b border-border-faint">
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
+        <TableCell key={i} className="px-4 py-3">
           <div className="flex items-center gap-2.5">
             {i === 0 && (
               <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
@@ -49,9 +53,9 @@ function SkeletonRow({ cols, index }: { cols: number; index: number }) {
               {i <= 1 && <div className="skeleton h-2.5 rounded-md" style={{ width: '35%' }} />}
             </div>
           </div>
-        </td>
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   )
 }
 
@@ -100,13 +104,13 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = 'Ù
           <div className="flex items-center gap-3 flex-wrap flex-1">
             {searchPlaceholder && onSearchChange && (
               <div className="relative max-w-xs w-full">
-                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
-                <input
+                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
                   type="search"
                   placeholder={searchPlaceholder}
                   value={searchValue ?? ''}
                   onChange={e => onSearchChange(e.target.value)}
-                  className="input pr-9 pl-3 py-2 text-xs min-h-[34px]"
+                  className="pr-9 pl-3 py-2 text-xs min-h-[34px]"
                 />
               </div>
             )}
@@ -116,32 +120,32 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = 'Ù
       )}
 
       <div className="table-wrap" ref={wrapRef} style={maxHeight ? { maxHeight, overflowY: 'auto' } : {}}>
-        <table>
-          <thead>
-            <tr>
+        <Table>
+          <TableHeader>
+            <TableRow>
               {columns.map(col => (
-                <th key={col.key} style={col.width ? { width: col.width } : {}}
-                  className={col.sortable ? 'cursor-pointer select-none hover:bg-[var(--primary-soft)] transition-colors' : ''}
+                <TableHead key={col.key} style={col.width ? { width: col.width } : {}}
+                  className={cn(col.sortable && 'cursor-pointer select-none hover:bg-primary-soft transition-colors')}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}>
                   <div className="flex items-center gap-1">
                     {col.label}
                     {col.sortable && (
-                      <span className="text-[var(--muted)] flex-shrink-0">
+                      <span className="text-muted-foreground flex-shrink-0">
                         {sortKey === col.key
-                          ? sortDir === 'desc' ? <ChevronDown size={13} className="text-[var(--primary)]" /> : <ChevronUp size={13} className="text-[var(--primary)]" />
+                          ? sortDir === 'desc' ? <ChevronDown size={13} className="text-primary" /> : <ChevronUp size={13} className="text-primary" />
                           : <ChevronsUpDown size={13} />}
                       </span>
                     )}
                   </div>
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={columns.length} index={i} />)}
             {!loading && !sorted?.length && (
-              <tr>
-                <td colSpan={columns.length}>
+              <TableRow>
+                <TableCell colSpan={columns.length}>
                   <div className="empty-state">
                     <div className="empty-icon">
                       {emptyIcon ?? <span className="text-3xl opacity-50">ðŸ“­</span>}
@@ -149,27 +153,27 @@ export default function DataTable<T>({ columns, data, loading, emptyMessage = 'Ù
                     <p className="empty-title">{emptyMessage}</p>
                     {emptyAction && (
                       <div className="mt-3">
-                        <button onClick={emptyAction.onClick} className="btn-primary btn-sm">
+                        <Button size="sm" onClick={emptyAction.onClick}>
                           <Plus size={14} /> {emptyAction.label}
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {!loading && sorted?.map(row => (
-              <tr key={rowKey(row)} onClick={() => onRowClick?.(row)}
+              <TableRow key={rowKey(row)} onClick={() => onRowClick?.(row)}
                 className={onRowClick ? 't-row-click' : ''}>
                 {columns.map(col => (
-                  <td key={col.key}>
+                  <TableCell key={col.key}>
                     {col.render ? col.render(row) : (row as any)[col.key]}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

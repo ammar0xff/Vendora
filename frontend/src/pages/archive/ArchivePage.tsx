@@ -6,6 +6,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { Search, Trash2, Printer, FileText, Truck, Package, Handshake, BarChart2, Receipt, ShoppingBag, Wallet } from 'lucide-react'
 import { openPrint } from '../../utils/format'
+import { Input } from '../../components/ui/input'
+import { Button } from '../../components/ui/button'
 
 const DOC_CONFIG: Record<string, { label: string; icon: any; color: string; pdfPath?: (d: any) => string }> = {
   sale_invoice:    { label: 'فاتورة مبيعات',   icon: Receipt,    color: '#16a34a', pdfPath: d => `/print/pdf/sale/${d.ref_id}` },
@@ -136,16 +138,16 @@ export default function ArchivePage() {
         return (
           <div className="flex gap-1 justify-end">
             {cfg?.pdfPath && (
-              <button onClick={e => { e.stopPropagation(); setPrintingId(d.id); openPrint(cfg.pdfPath!(d)); const h = () => { setPrintingId(null); window.removeEventListener('afterprint', h) }; window.addEventListener('afterprint', h) }}
+              <Button variant="ghost" size="icon-sm" onClick={e => { e.stopPropagation(); setPrintingId(d.id); openPrint(cfg.pdfPath!(d)); const h = () => { setPrintingId(null); window.removeEventListener('afterprint', h) }; window.addEventListener('afterprint', h) }}
                 disabled={printingId === d.id}
-                className="p-1.5 rounded-lg hover:bg-[var(--primary-soft)] text-slate-300 hover:text-[var(--primary)] disabled:opacity-40" title="طباعة / PDF">
+                className="hover:bg-[var(--primary-soft)] text-slate-300 hover:text-[var(--primary)] disabled:opacity-40" title="طباعة / PDF">
                 <Printer size={14} />
-              </button>
+              </Button>
             )}
-            <button onClick={e => { e.stopPropagation(); setConfirmDelDoc(d) }}
-              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
+            <Button variant="ghost" size="icon-sm" onClick={e => { e.stopPropagation(); setConfirmDelDoc(d) }}
+              className="hover:bg-red-50 text-slate-300 hover:text-red-500" title="حذف">
               <Trash2 size={14} />
-            </button>
+            </Button>
           </div>
         )
       }
@@ -172,14 +174,14 @@ export default function ArchivePage() {
           const cfg = key ? DOC_CONFIG[key] : null
           const isActive = docType === key
           return (
-            <button key={key} onClick={() => setDocType(key)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold flex-shrink-0 transition-all border"
+            <Button key={key} variant="ghost" size="sm" onClick={() => setDocType(key)}
+              className="gap-1.5 px-3.5 text-xs font-bold flex-shrink-0 transition-all border rounded-xl"
               style={isActive
                 ? { background: cfg?.color || 'var(--primary)', color: 'white', borderColor: 'transparent' }
                 : { background: 'white', color: '#64748b', borderColor: '#e2e8f0' }}>
               {label}
               <span className={`px-1.5 py-0.5 rounded-full text-xs ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
-            </button>
+            </Button>
           )
         })}
       </div>
@@ -188,13 +190,13 @@ export default function ArchivePage() {
       <div className="flex gap-3 mb-4 flex-wrap items-center">
         <div className="relative">
           <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pr-9 text-sm w-56" placeholder="بحث برقم المستند أو العميل..." value={search} onChange={e => setSearch(e.target.value)} />
+ <Input className="pr-9 text-sm w-56" placeholder="بحث برقم المستند أو العميل..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
-        <input type="date" className="input text-sm w-40" value={fromDate} onChange={e => setFromDate(e.target.value)} />
-        <input type="date" className="input text-sm w-40" value={toDate} onChange={e => setToDate(e.target.value)} />
+ <Input type="date" className="text-sm w-40" value={fromDate} onChange={e => setFromDate(e.target.value)}/>
+ <Input type="date" className="text-sm w-40" value={toDate} onChange={e => setToDate(e.target.value)}/>
         {(fromDate || toDate || search) && (
-          <button onClick={() => { setSearch(''); setFromDate(''); setToDate('') }}
-            className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50">✕ مسح</button>
+          <Button size="sm" variant="ghost" onClick={() => { setSearch(''); setFromDate(''); setToDate('') }}
+            className="text-xs text-slate-400 hover:text-red-500 hover:bg-red-50">✕ مسح</Button>
         )}
       </div>
 

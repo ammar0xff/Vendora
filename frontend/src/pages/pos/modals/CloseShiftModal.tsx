@@ -1,6 +1,9 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
 import { Lock } from 'lucide-react'
 import { clsx } from 'clsx'
+import { Select } from '../../../components/ui/select'
+import { Input } from '../../../components/ui/input'
 
 interface Props {
   showClose: boolean
@@ -35,11 +38,11 @@ export function CloseShiftModal({ showClose, onClose, summary, closingBalance, s
         )}
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">الرصيد الفعلي في الدرج</label>
-          <input type="number" className="input text-lg font-bold" value={closingBalance} onChange={e => setClosingBalance(e.target.value)} placeholder="0.00" />
+          <Input type="number" className="text-lg font-bold" value={closingBalance} onChange={e => setClosingBalance(e.target.value)} placeholder="0.00" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">الفكة للغد (يبقى في الدرج)</label>
-          <input type="number" className="input" value={nextDayDrawer} onChange={e => setNextDayDrawer(e.target.value)} placeholder="0.00" />
+          <Input type="number" value={nextDayDrawer} onChange={e => setNextDayDrawer(e.target.value)} placeholder="0.00" />
         </div>
         {closingBalance && nextDayDrawer && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm space-y-1">
@@ -60,34 +63,33 @@ export function CloseShiftModal({ showClose, onClose, summary, closingBalance, s
           <p className="text-sm font-bold text-amber-800 flex items-center gap-2">🔐 يجب على المدير تأكيد استلام التوريد</p>
           <div>
             <label className="block text-xs font-medium text-amber-700 mb-1">توريد الدرج إلى خزنة *</label>
-            <select className="input text-sm" value={closeSafeId} onChange={e => setCloseSafeId(e.target.value)}>
+            <Select className="text-sm" value={closeSafeId} onChange={e => setCloseSafeId(e.target.value)}>
               <option value="">اختر الخزنة...</option>
               {(safes as any[])?.map((s: any) => (
                 <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-amber-700 mb-1">المدير المستلم</label>
-            <select className="input text-sm" value={managerIdForClose} onChange={e => setManagerIdForClose(e.target.value)}>
+            <Select className="text-sm" value={managerIdForClose} onChange={e => setManagerIdForClose(e.target.value)}>
               <option value="">اختر المدير...</option>
               {(allUsers as any[])?.filter((u: any) => u.is_manager).map((u: any) => (
                 <option key={u.id} value={u.id}>{u.full_name}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-amber-700 mb-1">كلمة مرور المدير</label>
-            <input type="password" className="input text-sm" value={managerPasswordForClose}
+            <Input type="password" className="text-sm" value={managerPasswordForClose}
               onChange={e => setManagerPasswordForClose(e.target.value)} placeholder="••••••••" />
           </div>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
-          <button onClick={() => closeMut.mutate()} disabled={!closingBalance || Number(closingBalance) <= 0 || !managerIdForClose || !managerPasswordForClose || !closeSafeId || closeMut.isPending}
-            className="btn btn-danger">
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button variant="destructive" onClick={() => closeMut.mutate()} disabled={!closingBalance || Number(closingBalance) <= 0 || !managerIdForClose || !managerPasswordForClose || !closeSafeId || closeMut.isPending}>
             <Lock size={15} /> إغلاق الوردية
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

@@ -1,8 +1,11 @@
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import { useAppStore } from '../../store/app'
+import { Input } from '../../components/ui/input'
 import { format } from 'date-fns'
+import { Button } from '../../components/ui/button'
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 
@@ -32,15 +35,15 @@ export default function ReportsLedgerPage() {
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <div className="flex rounded-xl overflow-hidden border border-slate-200">
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
-            <button key={p} onClick={() => setLedgerPeriod(p)}
-              className={`px-4 py-2 text-xs font-bold transition-all ${ledgerPeriod === p ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+            <Button key={p} variant="ghost" size="sm" onClick={() => setLedgerPeriod(p)}
+              className={`px-4 text-xs font-bold transition-all ${ledgerPeriod === p ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
               style={ledgerPeriod === p ? { background: 'var(--primary)' } : {}}>
               {p === 'daily' ? 'يومي' : p === 'weekly' ? 'أسبوعي' : p === 'monthly' ? 'شهري' : 'سنوي'}
-            </button>
+            </Button>
           ))}
         </div>
         {ledgerPeriod === 'daily' && (
-          <input type="date" className="input w-44 text-sm" value={date} onChange={e => setDate(e.target.value)} />
+          <Input type="date" className="w-44 text-sm" value={date} onChange={e => setDate(e.target.value)} />
         )}
       </div>
 
@@ -49,53 +52,53 @@ export default function ReportsLedgerPage() {
         <div className="space-y-4">
           <div className="card p-0 overflow-hidden">
             <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>اسم الصنف / البيان</th>
-                    <th style={{ textAlign: 'center', width: '60px' }}>الوحدة</th>
-                    <th style={{ textAlign: 'center', width: '80px' }}>السعر</th>
-                    <th style={{ textAlign: 'center', width: '70px' }}>الكمية</th>
-                    <th style={{ textAlign: 'center', width: '100px' }}>الإجمالي</th>
-                    <th style={{ textAlign: 'center', width: '90px' }}>المرتجعات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingDaily && <tr><td colSpan={6} className="text-center py-8 text-slate-400">جاري التحميل...</td></tr>}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>اسم الصنف / البيان</TableHead>
+                    <TableHead style={{ textAlign: 'center', width: '60px' }}>الوحدة</TableHead>
+                    <TableHead style={{ textAlign: 'center', width: '80px' }}>السعر</TableHead>
+                    <TableHead style={{ textAlign: 'center', width: '70px' }}>الكمية</TableHead>
+                    <TableHead style={{ textAlign: 'center', width: '100px' }}>الإجمالي</TableHead>
+                    <TableHead style={{ textAlign: 'center', width: '90px' }}>المرتجعات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingDaily && <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-400">جاري التحميل...</TableCell></TableRow>}
                   {!loadingDaily && !dailyData?.items?.length && (
-                    <tr><td colSpan={6} className="text-center py-8 text-slate-400">لا توجد مبيعات في هذا اليوم</td></tr>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-400">لا توجد مبيعات في هذا اليوم</TableCell></TableRow>
                   )}
                   {dailyData?.items?.map((item: any, i: number) => (
-                    <tr key={i}>
-                      <td className="font-medium text-slate-800">{item.name}</td>
-                      <td className="text-center text-slate-500 text-xs">{item.unit}</td>
-                      <td className="text-center text-slate-600">{fmt(item.price)}</td>
-                      <td className="text-center font-bold">{fmt(item.qty)}</td>
-                      <td className="text-center font-bold text-green-700">{fmt(item.total)}</td>
-                      <td className="text-center text-red-500">{item.returns > 0 ? fmt(item.returns) : '—'}</td>
-                    </tr>
+                    <TableRow key={i}>
+                      <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
+                      <TableCell className="text-center text-slate-500 text-xs">{item.unit}</TableCell>
+                      <TableCell className="text-center text-slate-600">{fmt(item.price)}</TableCell>
+                      <TableCell className="text-center font-bold">{fmt(item.qty)}</TableCell>
+                      <TableCell className="text-center font-bold text-green-700">{fmt(item.total)}</TableCell>
+                      <TableCell className="text-center text-red-500">{item.returns > 0 ? fmt(item.returns) : '—'}</TableCell>
+                    </TableRow>
                   ))}
                   {dailyData?.expenses?.map((e: any, i: number) => (
-                    <tr key={`exp-${i}`} className="bg-amber-50">
-                      <td className="text-amber-700 font-medium">💸 {e.note}</td>
-                      <td colSpan={3}></td>
-                      <td className="text-center font-bold text-amber-700">({fmt(e.total)})</td>
-                      <td></td>
-                    </tr>
+                    <TableRow key={`exp-${i}`} className="bg-amber-50">
+                      <TableCell className="text-amber-700 font-medium">💸 {e.note}</TableCell>
+                      <TableCell colSpan={3}></TableCell>
+                      <TableCell className="text-center font-bold text-amber-700">({fmt(e.total)})</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
                   ))}
                   {dailyData?.items?.length > 0 && (() => {
                     const totalIncome = dailyData.items.reduce((s: number, i: any) => s + i.total, 0)
                     const totalReturns = dailyData.items.reduce((s: number, i: any) => s + i.returns, 0)
                     return (
-                      <tr className="font-black" style={{ background: 'var(--primary)', color: 'white' }}>
-                        <td colSpan={4} className="text-white">الإجمالي</td>
-                        <td className="text-center text-white">{fmt(totalIncome)}</td>
-                        <td className="text-center text-red-300">{totalReturns > 0 ? fmt(totalReturns) : '—'}</td>
-                      </tr>
+                      <TableRow className="font-black" style={{ background: 'var(--primary)', color: 'white' }}>
+                        <TableCell colSpan={4} className="text-white">الإجمالي</TableCell>
+                        <TableCell className="text-center text-white">{fmt(totalIncome)}</TableCell>
+                        <TableCell className="text-center text-red-300">{totalReturns > 0 ? fmt(totalReturns) : '—'}</TableCell>
+                      </TableRow>
                     )
                   })()}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </div>
@@ -105,32 +108,32 @@ export default function ReportsLedgerPage() {
       {ledgerPeriod !== 'daily' && (
         <div className="card p-0 overflow-hidden">
           <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>{periodLabels[ledgerPeriod]}</th>
-                  <th style={{ textAlign: 'center' }}>الدواخل</th>
-                  <th style={{ textAlign: 'center' }}>المرتجعات</th>
-                  <th style={{ textAlign: 'center' }}>الخوارج</th>
-                  <th style={{ textAlign: 'center' }}>إجمالي الإيراد</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingPeriodic && <tr><td colSpan={5} className="text-center py-8 text-slate-400">جاري التحميل...</td></tr>}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{periodLabels[ledgerPeriod]}</TableHead>
+                  <TableHead style={{ textAlign: 'center' }}>الدواخل</TableHead>
+                  <TableHead style={{ textAlign: 'center' }}>المرتجعات</TableHead>
+                  <TableHead style={{ textAlign: 'center' }}>الخوارج</TableHead>
+                  <TableHead style={{ textAlign: 'center' }}>إجمالي الإيراد</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingPeriodic && <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">جاري التحميل...</TableCell></TableRow>}
                 {!loadingPeriodic && !periodicData?.length && (
-                  <tr><td colSpan={5} className="text-center py-8 text-slate-400">لا توجد بيانات</td></tr>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">لا توجد بيانات</TableCell></TableRow>
                 )}
                 {periodicData?.map((row: any, i: number) => (
-                  <tr key={i}>
-                    <td className="font-bold text-slate-800 font-mono">{row.period}</td>
-                    <td className="text-center text-green-700 font-bold">{fmt(row.income)}</td>
-                    <td className="text-center text-red-500">{row.returns > 0 ? fmt(row.returns) : '—'}</td>
-                    <td className="text-center text-amber-600">{row.expenses > 0 ? fmt(row.expenses) : '—'}</td>
-                    <td className="text-center font-black" style={{ color: row.net >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(row.net)}</td>
-                  </tr>
+                  <TableRow key={i}>
+                    <TableCell className="font-bold text-slate-800 font-mono">{row.period}</TableCell>
+                    <TableCell className="text-center text-green-700 font-bold">{fmt(row.income)}</TableCell>
+                    <TableCell className="text-center text-red-500">{row.returns > 0 ? fmt(row.returns) : '—'}</TableCell>
+                    <TableCell className="text-center text-amber-600">{row.expenses > 0 ? fmt(row.expenses) : '—'}</TableCell>
+                    <TableCell className={`text-center font-black ${row.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(row.net)}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

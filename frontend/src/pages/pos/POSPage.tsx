@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Button } from '../../components/ui/button'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi, salesApi, stockApi, shiftsApi, customersApi, categoriesApi, subcategoriesApi } from '../../api/endpoints'
 import api from '../../api/client'
@@ -6,7 +7,6 @@ import { usePOSStore, type HeldBill } from '../../store/pos'
 import { usePendingSalesStore } from '../../store/pendingSales'
 import { useLocalShiftStore } from '../../store/localShift'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
-import { offlineCache } from '../../store/offlineCache'
 import { PageLoader } from '../../components/ui/Loaders'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -23,7 +23,6 @@ import { clsx } from 'clsx'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
 import type { Warehouse, Wallet, Customer, Product, Category, Subcategory, Collection, SaleDetail, ConfirmDeleteItem, ConfirmDeleteTx, ShiftSummaryData, User } from '../../types'
-import type { CartItem } from '../../store/pos'
 import CategoryCardBrowser from './CategoryCardBrowser'
 import { HeldInvoicesModal } from './modals/HeldInvoicesModal'
 import { ReturnModal } from './modals/ReturnModal'
@@ -36,9 +35,12 @@ import { CloseShiftModal } from './modals/CloseShiftModal'
 import { RevenueDeliveryModal } from './modals/RevenueDeliveryModal'
 import { SplitPaymentModal } from './modals/SplitPaymentModal'
 import { PhoneModal } from './modals/PhoneModal'
+import { Input } from '../../components/ui/input'
+import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from '../../components/ui/table'
+import { Badge } from '../../components/ui/badge'
 
 // ── Drawer Balance Badge ──────────────────────────────────────────────────
-function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDelivery, warehouseName, supervisorName, wallets, currentUserId }: {
+function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDelivery, warehouseName, supervisorName, wallets: _wallets, currentUserId }: {
   shift: { id: string; initial_amount: number; cashier_id: string; cashier_name?: string; supervisor_id?: string | null } | null
   summary: ShiftSummaryData | null | undefined
   onOpen: () => void; onHandover: () => void; onClose: () => void;
@@ -47,17 +49,17 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
 }) {
   if (!shift) return (
     <div className="flex items-center gap-2">
-      <button onClick={onOpen} className="btn btn-success flex items-center gap-2">
+      <Button onClick={onOpen} className="flex items-center gap-2">
         <WalletIcon size={15} /> فتح وردية جديدة
-      </button>
+      </Button>
     </div>
   )
   if (!summary) return (
     <div className="flex items-center gap-2">
-      <div className="badge-primary flex items-center gap-2 opacity-70">
+      <Badge variant="primary" className="opacity-70 gap-2 flex items-center">
         <WalletIcon size={15} />
         <span className="animate-pulse">جاري تحميل الدرج...</span>
-      </div>
+      </Badge>
     </div>
   )
   const balance = Number(summary.expected_balance ?? shift.initial_amount)
@@ -80,19 +82,19 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
   return (
     <div className="flex flex-wrap items-center gap-2">
       {warehouseName && (
-        <div className="badge-primary flex items-center gap-1.5">
+        <Badge variant="primary" className="gap-1.5 flex items-center">
           <span className="text-sm">🏪</span> {warehouseName}
-        </div>
+        </Badge>
       )}
       {supervisorName && (
-        <div className="badge-accent flex items-center gap-1.5">
+        <Badge variant="accent" className="gap-1.5 flex items-center">
           <span className="text-sm">👤</span> مشرف: {supervisorName}
-        </div>
+        </Badge>
       )}
       {shift?.cashier_name && shift.cashier_id !== currentUserId && (
-        <div className="badge-yellow flex items-center gap-1.5">
+        <Badge variant="yellow" className="gap-1.5 flex items-center">
           <span className="text-sm">🧑‍💼</span> الكاشير: {shift.cashier_name}
-        </div>
+        </Badge>
       )}
       <div className="relative group">
         <div
@@ -104,24 +106,24 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
           <ChevronDown size={12} className="opacity-70" />
         </div>
         {/* Hover tooltip */}
-        <div className="absolute top-full right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 min-w-60 p-4 hidden group-hover:block fade-in">
-          <p className="text-xs font-black text-slate-500 mb-2.5">مبيعات الوردية الحالية</p>
+        <div className="absolute top-full right-0 mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl z-50 min-w-60 p-4 hidden group-hover:block fade-in">
+          <p className="text-xs font-black text-[var(--muted)] mb-2.5">مبيعات الوردية الحالية</p>
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">💵 نقدي (الدرج)</span>
-              <span className="font-bold text-slate-800 tabular-nums">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
+              <span className="text-[var(--text-soft)]">💵 نقدي (الدرج)</span>
+              <span className="font-bold text-[var(--text)] tabular-nums">{cashInDrawer.toLocaleString('ar-EG')} ج.م</span>
             </div>
             {Object.values(walletMap).map((w: { name: string; type: string; total: number }) => (
               <div key={w.name} className="flex justify-between text-xs">
-                <span className="text-slate-600">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
-                <span className="font-bold text-slate-800 tabular-nums">{Number(w.total).toLocaleString('ar-EG')} ج.م</span>
+                <span className="text-[var(--text-soft)]">{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</span>
+                <span className="font-bold text-[var(--text)] tabular-nums">{Number(w.total).toLocaleString('ar-EG')} ج.م</span>
               </div>
             ))}
-            <div className="border-t border-slate-100 pt-2 flex justify-between text-xs">
-              <span className="font-bold text-slate-700">إجمالي الوردية</span>
+            <div className="border-t border-[var(--border-faint)] pt-2 flex justify-between text-xs">
+              <span className="font-bold text-[var(--text)]">إجمالي الوردية</span>
               <span className="font-black text-[var(--accent)] tabular-nums">{Number(summary?.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
             </div>
-            <div className="border-t border-slate-200 mt-2 pt-2 text-[10px] text-slate-400 space-y-1">
+            <div className="border-t border-[var(--border)] mt-2 pt-2 text-[10px] text-[var(--muted)] space-y-1">
               <div className="flex justify-between">
                 <span>🟢 الافتتاحي:</span>
                 <span className="tabular-nums">{Number(shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
@@ -134,7 +136,7 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
                 <span>🧾 حركات:</span>
                 <span>{summary.transaction_count ?? '...'}</span>
               </div>
-              <div className="border-t border-slate-200/50 mt-1 pt-1 flex justify-between font-medium text-slate-500">
+              <div className="border-t border-slate-200/50 mt-1 pt-1 flex justify-between font-medium text-[var(--muted)]">
                 <span>📋 المتوقع:</span>
                 <span className="tabular-nums">{Number(summary.expected_balance ?? 0).toLocaleString('ar-EG')} ج.م</span>
               </div>
@@ -142,60 +144,16 @@ function DrawerBadge({ shift, summary, onOpen, onHandover, onClose, onRevenueDel
           </div>
         </div>
       </div>
-      <button onClick={onHandover} className="btn btn-accent-soft">
+      <Button onClick={onHandover} variant="secondary">
         <ArrowLeftRight size={14} /> تسليم
-      </button>
-      <button onClick={onClose} className="btn btn-danger-soft">
+      </Button>
+      <Button onClick={onClose} variant="destructive">
         <Lock size={14} /> إغلاق
-      </button>
-      <button onClick={onRevenueDelivery} className="btn btn-primary-soft">
+      </Button>
+      <Button onClick={onRevenueDelivery} variant="secondary">
         <Landmark size={14} /> توريد إيرادات
-      </button>
+      </Button>
     </div>
-  )
-}
-
-function LedgerRow({ e, hasItems, singleItem }: { e: LedgerEntry; hasItems: boolean; singleItem?: LedgerEntry['items'] extends Array<infer T> ? T : never }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <tr className={hasItems ? 'cursor-pointer hover:bg-slate-50' : ''} onClick={() => hasItems && setOpen(o => !o)}>
-        <td className="text-xs text-slate-500">{e.date ? new Date(e.date).toLocaleTimeString('ar-EG') : '—'}</td>
-        <td><span className={e.credit > 0 ? 'badge-green' : 'badge-red'}>{e.type}</span></td>
-        <td>
-          {singleItem ? (
-            <div>
-              <p className="text-sm font-medium">{singleItem.name}</p>
-              <p className="text-xs text-slate-400">{e.ref} · {singleItem.qty} × {Number(singleItem.unit_price).toLocaleString('ar-EG')} ج.م</p>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-medium">{e.ref}</span>
-              {hasItems && <span className="text-xs text-slate-400">({e.items.length} بند) {open ? '▲' : '▼'}</span>}
-              {!hasItems && e.note && <span className="text-xs text-slate-400">{e.note}</span>}
-            </div>
-          )}
-        </td>
-        <td className="text-sm text-slate-600">{e.party || '—'}</td>
-        <td className="text-green-700 font-semibold text-sm">{e.credit > 0 ? Number(e.credit).toLocaleString('ar-EG') : ''}</td>
-        <td className="text-red-600 font-semibold text-sm">{e.debit > 0 ? Number(e.debit).toLocaleString('ar-EG') : ''}</td>
-        <td className={`font-black text-sm ${e.balance >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Number(e.balance).toLocaleString('ar-EG')}</td>
-      </tr>
-      {hasItems && open && e.items?.map((item, idx) => (
-        <tr key={idx} className="bg-slate-50 border-r-2 border-blue-200">
-          <td></td>
-          <td></td>
-          <td className="text-xs text-slate-600 pr-4">
-            <span className="font-medium">{item.name}</span>
-            <span className="text-slate-400 mr-2">{item.qty} × {Number(item.unit_price).toLocaleString('ar-EG')} ج.م</span>
-          </td>
-          <td></td>
-          <td className="text-xs text-green-600">{Number(item.total).toLocaleString('ar-EG')}</td>
-          <td></td>
-          <td></td>
-        </tr>
-      ))}
-    </>
   )
 }
 
@@ -234,8 +192,7 @@ export default function POSPage() {
   const [drawerEntryPaymentMethod, setDrawerEntryPaymentMethod] = useState('cash')
   const [drawerEntryWalletId, setDrawerEntryWalletId] = useState('')
   const [drawerEntryCustomer, setDrawerEntryCustomer] = useState<Customer | null>(null)
-  const [drawerCustomerSearch, setDrawerCustomerSearch] = useState('')
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
+  const [, setDrawerCustomerSearch] = useState('')
   const [supervisorId, setSupervisorId] = useState('')
   const [managerIdForClose, setManagerIdForClose] = useState('')
   const [managerPasswordForClose, setManagerPasswordForClose] = useState('')
@@ -264,9 +221,7 @@ export default function POSPage() {
   const [nextDayDrawer, setNextDayDrawer] = useState('')
   const [expenseAmount, setExpenseAmount] = useState('')
   const [expenseNote, setExpenseNote] = useState('')
-  const [showDiscount, setShowDiscount] = useState(false)
   const [discountInput, setDiscountInput] = useState('')
-  const [discountType, setDiscountType] = useState<'pct'|'amount'>('pct')
   const searchRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
   const { user } = useAuthStore()
@@ -283,10 +238,10 @@ export default function POSPage() {
   }, [search])
 
   const {
-    items, mode, customer,
+    items, mode,
     suspended, holdCurrent, resume, deleteHeld,
     setMode, setCustomer, addItem, updateQty, updateItemDiscount, updatePrice, removeItem, clear,
-    subtotal, totalDiscount, total, invoice_discount, invoice_discount_pct, setInvoiceDiscount,
+    totalDiscount, total,
   } = usePOSStore()
 
   const { data: warehouses } = useQuery<Warehouse[]>({ queryKey: ['warehouses'], queryFn: stockApi.warehouses })
@@ -350,7 +305,6 @@ export default function POSPage() {
     staleTime: 30_000,
   })
   const products = productsPage?.items
-  const productsTotal = productsPage?.total || 0
   const productPages = productsPage?.pages || 1
 
   // Collections — shown in search results
@@ -372,7 +326,6 @@ export default function POSPage() {
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const { data: subcategories } = useQuery({ queryKey: ['subcategories'], queryFn: subcategoriesApi.list })
   const getSubsForCat = (catId: string) => (subcategories as Subcategory[])?.filter((s) => s.category_id === catId) || []
-  const toggleCat = (id: string) => setExpandedCats(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
 
   const { data: allUsers } = useQuery({ queryKey: ['users-managers'], queryFn: () => api.get('/users/staff').then(r => r.data) })
   const { data: wallets } = useQuery<Wallet[]>({ queryKey: ['wallets'], queryFn: () => api.get('/wallets').then(r => r.data), staleTime: 10_000, refetchInterval: 30_000 })
@@ -774,15 +727,15 @@ export default function POSPage() {
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black text-white shadow-lg" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%)' }}>
             {typeof shiftOwner === 'string' ? shiftOwner[0] : '؟'}
           </div>
-          <h2 className="text-xl font-black text-slate-800 mb-1">الدرج مع موظف آخر</h2>
+          <h2 className="text-xl font-black text-[var(--text)] mb-1">الدرج مع موظف آخر</h2>
           <p className="text-2xl font-black mb-1 text-[var(--primary)]">{shiftOwner}</p>
-          <p className="text-slate-400 text-sm mb-2">🏪 {mainWh?.name}</p>
-          <p className="text-slate-400 text-xs mb-8">
-            رصيد الدرج: <span className="font-bold text-slate-600 tabular-nums">{Number(summary?.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
+          <p className="text-[var(--muted)] text-sm mb-2">🏪 {mainWh?.name}</p>
+          <p className="text-[var(--muted)] text-xs mb-8">
+            رصيد الدرج: <span className="font-bold text-[var(--text-soft)] tabular-nums">{Number(summary?.expected_balance ?? shift.initial_amount).toLocaleString('ar-EG')} ج.م</span>
           </p>
-          <div className="badge-yellow p-4 rounded-2xl text-sm leading-relaxed">
+          <Badge variant="yellow" className="p-4 rounded-2xl text-sm leading-relaxed whitespace-normal">
             لإجراء أي عملية بيع، يجب أن يسلّم <strong>{shiftOwner}</strong> الدرج إليك أولاً
-          </div>
+          </Badge>
         </div>
       </div>
     </div>
@@ -803,20 +756,21 @@ export default function POSPage() {
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)' }}>
             <Lock size={36} className="text-white" />
           </div>
-          <h2 className="text-2xl font-black text-slate-800 mb-2">نقطة البيع مقفولة</h2>
-          <p className="text-slate-500 text-sm mb-2">
-            {mainWh ? <>الفرع: <span className="font-semibold text-slate-700">🏪 {mainWh.name}</span></> : 'اختر الفرع أولاً'}
+          <h2 className="text-2xl font-black text-[var(--text)] mb-2">نقطة البيع مقفولة</h2>
+          <p className="text-[var(--muted)] text-sm mb-2">
+            {mainWh ? <>الفرع: <span className="font-semibold text-[var(--text)]">🏪 {mainWh.name}</span></> : 'اختر الفرع أولاً'}
           </p>
-          <p className="text-slate-400 text-xs mb-8">لا توجد وردية مفتوحة في هذا الفرع</p>
-          <button
+          <p className="text-[var(--muted)] text-xs mb-8">لا توجد وردية مفتوحة في هذا الفرع</p>
+          <Button
             onClick={() => setShowOpenShift(true)}
-            className="btn btn-success w-full btn-lg"
+            size="lg"
+            className="w-full"
           >
             <WalletIcon size={22} /> فتح الوردية
-          </button>
+          </Button>
           {lastDrawer?.amount > 0 && (
-            <p className="text-slate-400 text-xs mt-4">
-              الفكة المتبقية: <span className="font-bold text-slate-600 tabular-nums">{Number(lastDrawer.amount).toLocaleString('ar-EG')} ج.م</span>
+            <p className="text-[var(--muted)] text-xs mt-4">
+              الفكة المتبقية: <span className="font-bold text-[var(--text-soft)] tabular-nums">{Number(lastDrawer.amount).toLocaleString('ar-EG')} ج.م</span>
             </p>
           )}
         </div>
@@ -840,15 +794,15 @@ export default function POSPage() {
           <span className="text-white">🏪</span>
         </div>
         <div>
-          <h2 className="text-xl font-black text-slate-800 mb-1">اختر الفرع أولاً</h2>
-          <p className="text-slate-500 text-sm">يجب اختيار معرض أو مخزن من القائمة الجانبية قبل فتح نقطة البيع</p>
+          <h2 className="text-xl font-black text-[var(--text)] mb-1">اختر الفرع أولاً</h2>
+          <p className="text-[var(--muted)] text-sm">يجب اختيار معرض أو مخزن من القائمة الجانبية قبل فتح نقطة البيع</p>
         </div>
         <div className="flex flex-wrap gap-3 justify-center">
           {warehouses.filter(w => w.warehouse_type === 'showroom').map(w => (
-            <button key={w.id} onClick={() => setActiveWarehouse(w.id, w.name)}
-              className="btn btn-primary btn-lg">
+            <Button key={w.id} onClick={() => setActiveWarehouse(w.id, w.name)}
+              size="lg">
               🏪 {w.name}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -867,8 +821,8 @@ export default function POSPage() {
             <ShoppingCart size={18} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-sm font-black text-slate-800 leading-tight truncate">نقطة البيع — {mainWh?.name}</h1>
-            <p className="text-[11px] text-slate-400 leading-tight hidden xl:block">فاتورة كاشير وتفاصيل الوردية الحالية</p>
+            <h1 className="text-sm font-black text-[var(--text)] leading-tight truncate">نقطة البيع — {mainWh?.name}</h1>
+            <p className="text-[11px] text-[var(--muted)] leading-tight hidden xl:block">فاتورة كاشير وتفاصيل الوردية الحالية</p>
           </div>
         </div>
         <DrawerBadge shift={shift} summary={summary} onOpen={() => setShowOpenShift(true)} onHandover={() => setShowHandover(true)} onClose={() => setShowClose(true)} onRevenueDelivery={() => setShowRevenueDelivery(true)} warehouseName={mainWh?.name}
@@ -878,20 +832,20 @@ export default function POSPage() {
 {/* ═══ Split screen: RIGHT panel (Products+Cats) | LEFT panel (Cart) ═══ */}
       <div className="flex flex-1 min-h-0 gap-2">
         {/* ══════ RIGHT PANEL (Products & Categories) ══════ */}
-        <div className="flex flex-col flex-1 min-w-0 bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="flex flex-col flex-1 min-w-0 bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
 
           {/* ── Search bar at top ── */}
           <div className="relative px-3 pt-2 pb-1 flex-shrink-0">
-            <Search size={15} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input value={search} aria-label="ابحث عن صنف أو امسح الباركود"
+            <Search size={15} className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+            <Input value={search} aria-label="ابحث عن صنف أو امسح الباركود"
               onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
               onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-              className="input w-full pr-9 text-sm"
+              className="w-full pr-9 text-sm"
               placeholder="ابحث عن صنف أو امسح الباركود..." />
           </div>
 
           {/* ── Horizontal Categories Bar ── */}
-          <div className="flex-shrink-0 px-2 py-2 border-b border-slate-100">
+          <div className="flex-shrink-0 px-2 py-2 border-b border-[var(--border-faint)]">
             {/* Main categories row */}
             {(() => {
               const allCats = (categories as Category[]) || []
@@ -900,30 +854,30 @@ export default function POSPage() {
               const visibleCats = allCats.slice(catStart, catStart + CATS_PER_PAGE)
               return (
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => setCatPage(p => Math.max(0, p - 1))}
+                  <Button variant="ghost" size="icon" onClick={() => setCatPage(p => Math.max(0, p - 1))}
                     disabled={catPage === 0}
-                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات سابقة">
+                    className="text-[var(--muted)]" aria-label="صفحة تصنيفات سابقة">
                     ▶
-                  </button>
+                  </Button>
                   <div className="flex gap-1.5 flex-1 overflow-hidden">
-                    <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
+                    <Button variant={!selectedCat ? 'default' : 'outline'} onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
                       className={clsx('chip whitespace-nowrap transition-all',
                         !selectedCat ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                       الكل
-                    </button>
+                    </Button>
                     {visibleCats.map(cat => (
-                      <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
+                      <Button key={cat.id} variant={selectedCat === cat.id && !selectedSub ? 'default' : 'outline'} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
                         className={clsx('chip whitespace-nowrap transition-all',
                           selectedCat === cat.id && !selectedSub ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                         {cat.name}
-                      </button>
+                      </Button>
                     ))}
                   </div>
-                  <button onClick={() => setCatPage(p => Math.min(totalCatPages - 1, p + 1))}
+                  <Button variant="ghost" size="icon" onClick={() => setCatPage(p => Math.min(totalCatPages - 1, p + 1))}
                     disabled={catPage >= totalCatPages - 1}
-                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات تالية">
+                    className="text-[var(--muted)]" aria-label="صفحة تصنيفات تالية">
                     ◀
-                  </button>
+                  </Button>
                 </div>
               )
             })()}
@@ -936,30 +890,30 @@ export default function POSPage() {
               const visibleSubs = subs.slice(subStart, subStart + SUBS_PER_PAGE)
               return (
                 <div className="flex items-center gap-1.5 mt-1.5">
-                  <button onClick={() => setSubPage(p => Math.max(0, p - 1))}
+                  <Button variant="ghost" size="icon" onClick={() => setSubPage(p => Math.max(0, p - 1))}
                     disabled={subPage === 0}
-                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات فرعية سابقة">
+                    className="text-[var(--muted)]" aria-label="صفحة تصنيفات فرعية سابقة">
                     ▶
-                  </button>
+                  </Button>
                   <div className="flex gap-1.5 flex-1 overflow-hidden">
-                    <button onClick={() => setSelectedSub(null)}
+                    <Button variant={!selectedSub ? 'default' : 'outline'} onClick={() => setSelectedSub(null)}
                       className={clsx('chip whitespace-nowrap transition-all',
                         !selectedSub ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                       {(categories as Category[])?.find(c => c.id === selectedCat)?.name || 'الكل'}
-                    </button>
+                    </Button>
                     {visibleSubs.map(sub => (
-                      <button key={sub.id} onClick={() => setSelectedSub(sub.id)}
+                      <Button key={sub.id} variant={selectedSub === sub.id ? 'default' : 'outline'} onClick={() => setSelectedSub(sub.id)}
                         className={clsx('chip whitespace-nowrap transition-all',
                           selectedSub === sub.id ? 'chip-active font-black text-[11px]' : 'text-[11px]')}>
                         {sub.name}
-                      </button>
+                      </Button>
                     ))}
                   </div>
-                  <button onClick={() => setSubPage(p => Math.min(totalSubPages - 1, p + 1))}
+                  <Button variant="ghost" size="icon" onClick={() => setSubPage(p => Math.min(totalSubPages - 1, p + 1))}
                     disabled={subPage >= totalSubPages - 1}
-                    className="btn-icon btn-ghost text-slate-400" aria-label="صفحة تصنيفات فرعية تالية">
+                    className="text-[var(--muted)]" aria-label="صفحة تصنيفات فرعية تالية">
                     ◀
-                  </button>
+                  </Button>
                 </div>
               )
             })()}
@@ -968,17 +922,17 @@ export default function POSPage() {
           {/* ── Center: Product display grid ── */}
           <div className="flex-1 flex flex-col bg-slate-50/60 min-w-0 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-white flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-faint)] bg-[var(--surface)] flex-shrink-0">
               <div className="flex items-center gap-2">
                 <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%)' }}>
                   <Package size={13} className="text-white" />
                 </span>
-                <h3 className="text-xs font-bold text-slate-600">أصناف المجموعة</h3>
+                <h3 className="text-xs font-bold text-[var(--text-soft)]">أصناف المجموعة</h3>
               </div>
-              <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-                className="btn btn-ghost btn-sm" aria-label="تبديل عرض الأصناف">
+              <Button variant="ghost" size="sm" onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
+                aria-label="تبديل عرض الأصناف">
                 {viewMode === 'table' ? <><LayoutGrid size={13} /> كروت</> : <><List size={13} /> جدول</>}
-              </button>
+              </Button>
             </div>
 
             {/* Product content */}
@@ -992,44 +946,42 @@ export default function POSPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
-                    {products.map((p: any) => {
-                      const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
-                      const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
-                      return (
-                        <button key={p.id} onClick={() => handleAddProduct(p)}
-                          className="card card-hover p-3 text-right active:scale-95 transition-all flex flex-col gap-1.5">
+                      {products.map((p: any) => {
+                        const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
+                        const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
+                        return (
+                          <Button key={p.id} variant="outline" onClick={() => handleAddProduct(p)}
+                            className="card card-hover p-3 text-right active:scale-95 transition-all flex flex-col gap-1.5 h-auto justify-start">
                           <div className="flex items-start justify-between">
                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--primary-soft)] to-[var(--primary-border)] flex items-center justify-center flex-shrink-0">
                               <Package size={15} className="text-[var(--primary)]" />
                             </div>
-                            {p.code && <span className="badge-neutral text-[9px] font-mono">{p.code}</span>}
+                            {p.code && <Badge variant="neutral" className="text-[9px] font-mono">{p.code}</Badge>}
                           </div>
-                          <p className="text-[11px] font-bold text-slate-800 leading-tight line-clamp-2 text-right">{p.name}</p>
-                          {p.company && <p className="text-[10px] text-slate-400 text-right">{p.company}</p>}
+                          <p className="text-[11px] font-bold text-[var(--text)] leading-tight line-clamp-2 text-right">{p.name}</p>
+                          {p.company && <p className="text-[10px] text-[var(--muted)] text-right">{p.company}</p>}
                           <div className="mt-auto flex items-center justify-between">
                             <p className="text-xs font-black text-[var(--primary)] font-normal tabular-nums">{Number(price).toLocaleString('ar-EG')} ج.م</p>
                             {qty != null && (
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${qty <= 0 ? 'bg-red-50 text-red-500' : qty <= 5 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>{qty > 0 ? qty : 'نفد'}</span>
                             )}
                           </div>
-                        </button>
+                          </Button>
                       )
                     })}
                   </div>
                 )}
                 {productPages > 1 && (
                   <div className="flex items-center justify-center gap-2 pt-3">
-                    <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
-                      disabled={productPage <= 1}
-                      className="btn btn-outline btn-sm">
+                    <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                      disabled={productPage <= 1}>
                       السابق
-                    </button>
-                    <span className="text-xs text-slate-500 px-2 tabular-nums">{productPage} / {productPages}</span>
-                    <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
-                      disabled={productPage >= productPages}
-                      className="btn btn-outline btn-sm">
+                    </Button>
+                    <span className="text-xs text-[var(--muted)] px-2 tabular-nums">{productPage} / {productPages}</span>
+                    <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                      disabled={productPage >= productPages}>
                       التالي
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -1043,38 +995,38 @@ export default function POSPage() {
                   <>
                     {filteredCollections.length > 0 && (
                       <div className="px-3 pt-3">
-                        <p className="text-[10px] font-bold text-slate-400 mb-1.5">📦 كوليكشنات</p>
+                        <p className="text-[10px] font-bold text-[var(--muted)] mb-1.5">📦 كوليكشنات</p>
                         <div className="grid grid-cols-3 gap-2 mb-3">
                           {filteredCollections.map((c) => {
                             const price = mode === 'wholesale' ? Number(c.wholesale_price) || Number(c.retail_price) : Number(c.retail_price)
                             return (
-                              <button key={c.id} onClick={() => handleAddCollection(c)}
-                                className="card card-hover border-amber-200 p-2.5 text-right active:scale-95 transition-all">
-                                <p className="text-[10px] font-bold text-slate-700 leading-tight truncate text-right">{c.name}</p>
-                                <p className="text-[10px] text-slate-400">{c.items?.length || 0} منتج</p>
+                              <Button key={c.id} variant="outline" onClick={() => handleAddCollection(c)}
+                                className="card card-hover border-amber-200 p-2.5 text-right active:scale-95 transition-all h-auto justify-start">
+                                <p className="text-[10px] font-bold text-[var(--text)] leading-tight truncate text-right">{c.name}</p>
+                                <p className="text-[10px] text-[var(--muted)]">{c.items?.length || 0} منتج</p>
                                 <p className="text-xs font-black mt-0.5 text-[var(--accent)]">{price.toLocaleString('ar-EG')} ج.م</p>
-                              </button>
-                            )
+                              </Button>
+                          )
                           })}
                         </div>
                       </div>
                     )}
                     <div className="table-wrap">
-                    <table className="w-full text-right text-[11px]">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-[var(--primary)] text-white font-bold">
-                          <th className="py-2 px-2">المنتج</th>
-                          <th className="py-2 px-2">الشركة</th>
-                          <th className="py-2 px-2">الرف</th>
-                          <th className="py-2 px-2">القطاعي</th>
-                          <th className="py-2 px-2">الجملة</th>
-                          <th className="py-2 px-2">المخزون</th>
-                          <th className="py-2 px-2 w-6"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10">
+                        <TableRow className="bg-[var(--primary)] text-white font-bold">
+                          <TableHead className="py-2 px-2">المنتج</TableHead>
+                          <TableHead className="py-2 px-2">الشركة</TableHead>
+                          <TableHead className="py-2 px-2">الرف</TableHead>
+                          <TableHead className="py-2 px-2">القطاعي</TableHead>
+                          <TableHead className="py-2 px-2">الجملة</TableHead>
+                          <TableHead className="py-2 px-2">المخزون</TableHead>
+                          <TableHead className="py-2 px-2 w-6"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {products?.length === 0 && (
-                          <tr><td colSpan={7} className="text-center py-12 text-slate-400 text-xs">لا توجد أصناف في هذه المجموعة</td></tr>
+                          <TableRow><TableCell colSpan={7} className="text-center py-12 text-[var(--muted)] text-xs">لا توجد أصناف في هذه المجموعة</TableCell></TableRow>
                         )}
                         {products?.filter((p: Product) => {
                           const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
@@ -1084,24 +1036,24 @@ export default function POSPage() {
                           const wholesalePrice = Number(p.wholesale_price) || retailPrice
                           const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                           return (
-                            <tr key={p.id} onClick={() => handleAddProduct(p)}
-                              className="border-b border-slate-100 hover:bg-[var(--primary-soft)] cursor-pointer transition-colors">
-                              <td className="py-2 px-2 font-semibold text-slate-700 text-right">{p.name}</td>
-                              <td className="py-2 px-2 text-slate-400 text-[10px]">{p.company || '—'}</td>
-                              <td className="py-2 px-2">{p.shelf_number ? <span className="badge-blue text-[10px]">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                              <td className="py-2 px-2 font-black text-[var(--primary)] tabular-nums">{retailPrice.toLocaleString('ar-EG')}</td>
-                              <td className="py-2 px-2 text-slate-600 tabular-nums">{wholesalePrice.toLocaleString('ar-EG')}</td>
-                              <td className="py-2 px-2">
+                            <TableRow key={p.id} onClick={() => handleAddProduct(p)}
+                              className="border-b border-[var(--border-faint)] hover:bg-[var(--primary-soft)] cursor-pointer transition-colors">
+                              <TableCell className="py-2 px-2 font-semibold text-[var(--text)] text-right">{p.name}</TableCell>
+                              <TableCell className="py-2 px-2 text-[var(--muted)] text-[10px]">{p.company || '—'}</TableCell>
+                              <TableCell className="py-2 px-2">{p.shelf_number ? <Badge variant="blue" className="text-[10px]">{p.shelf_number}</Badge> : <span className="text-[var(--faint)]">—</span>}</TableCell>
+                              <TableCell className="py-2 px-2 font-black text-[var(--primary)] tabular-nums">{retailPrice.toLocaleString('ar-EG')}</TableCell>
+                              <TableCell className="py-2 px-2 text-[var(--text-soft)] tabular-nums">{wholesalePrice.toLocaleString('ar-EG')}</TableCell>
+                              <TableCell className="py-2 px-2">
                                 {qty != null ? (
                                   <span className={`font-bold px-1.5 py-0.5 rounded tabular-nums ${qty <= 0 ? 'text-red-500 bg-red-50' : qty <= 5 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50'}`}>{qty}</span>
-                                ) : <span className="text-slate-300">—</span>}
-                              </td>
-                              <td className="py-2 px-2 text-[var(--primary)] font-black text-sm">+</td>
-                            </tr>
+                                ) : <span className="text-[var(--faint)]">—</span>}
+                              </TableCell>
+                              <TableCell className="py-2 px-2 text-[var(--primary)] font-black text-sm">+</TableCell>
+                            </TableRow>
                           )
                         })}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                     </div>
                   </>
                 )}
@@ -1110,95 +1062,93 @@ export default function POSPage() {
 
             {/* Pagination controls */}
             {productPages > 1 && (
-            <div className="flex items-center justify-center gap-4 py-2 border-t border-slate-100 bg-white flex-shrink-0">
-              <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
-                disabled={productPage <= 1}
-                className="btn btn-outline btn-sm">
+            <div className="flex items-center justify-center gap-4 py-2 border-t border-[var(--border-faint)] bg-[var(--surface)] flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                disabled={productPage <= 1}>
                 <ChevronDown size={12} className="rotate-90" /> أصناف سابقة
-              </button>
-              <span className="text-[10px] text-slate-500 tabular-nums">{productPage} / {productPages}</span>
-              <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
-                disabled={productPage >= productPages}
-                className="btn btn-outline btn-sm">
+              </Button>
+              <span className="text-[10px] text-[var(--muted)] tabular-nums">{productPage} / {productPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                disabled={productPage >= productPages}>
                 أصناف تالية <ChevronLeft size={12} />
-              </button>
+              </Button>
             </div>
             )}
 
             {/* Discount block */}
-            <div className="px-4 py-2.5 border-t border-slate-100 bg-white flex-shrink-0">
+            <div className="px-4 py-2.5 border-t border-[var(--border-faint)] bg-[var(--surface)] flex-shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap flex items-center gap-1.5"><Tag size={12} className="text-slate-400" /> خصم أصناف</span>
+                <span className="text-[11px] font-bold text-[var(--muted)] whitespace-nowrap flex items-center gap-1.5"><Tag size={12} className="text-[var(--muted)]" /> خصم أصناف</span>
                 <div className="relative flex-1 max-w-[120px]">
-                  <input type="number" min="0" max="100" value={discountInput} aria-label="نسبة خصم الأصناف"
+                  <Input type="number" min="0" max="100" value={discountInput} aria-label="نسبة خصم الأصناف"
                     onChange={e => setDiscountInput(e.target.value)}
-                    className="input input-sm w-full text-center tabular-nums" placeholder="0.00" />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">%</span>
+                    className="input-sm w-full text-center tabular-nums" placeholder="0.00" />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--muted)]">%</span>
                 </div>
-                <button
+                <Button
+                  variant="secondary" size="sm"
                   onClick={() => { if (!discountInput) return; const pct = Number(discountInput); items.forEach(i => updateItemDiscount(i.product_id, 0, pct)); setDiscountInput(''); toast.success('تم تطبيق الخصم') }}
-                  disabled={!discountInput || !items.length}
-                  className="btn btn-primary-soft btn-sm">
+                  disabled={!discountInput || !items.length}>
                   تطبيق خصم
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         </div>
 
         {/* ══════ LEFT PANEL (Transaction & Cart) ══════ */}
-        <div ref={cartElRef} className="relative flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden" style={{ width: cartWidth }}>
+        <div ref={cartElRef} className="relative flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden" style={{ width: cartWidth }}>
           <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group flex items-center justify-center"
             onMouseDown={handleDragStart}>
-            <div className="w-0.5 h-8 rounded-full bg-slate-200 group-hover:bg-[var(--primary)] transition-colors" />
+            <div className="w-0.5 h-8 rounded-full bg-[var(--surface-3)] group-hover:bg-[var(--primary)] transition-colors" />
           </div>
 
           {/* Top: Total display + Warehouse dropdown + mode toggles */}
-          <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
+          <div className="px-4 py-3 border-b border-[var(--border-faint)] flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 rounded-xl p-1 border border-slate-200 bg-slate-50">
-                <button onClick={() => setMode('retail')} aria-pressed={mode === 'retail'}
-                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all', mode === 'retail' ? 'bg-white text-[var(--primary)] shadow-sm' : 'text-slate-500 hover:text-slate-700')}>قطاعي</button>
-                <button onClick={() => setMode('wholesale')} aria-pressed={mode === 'wholesale'}
-                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all', mode === 'wholesale' ? 'bg-white text-[var(--primary)] shadow-sm' : 'text-slate-500 hover:text-slate-700')}>جملة</button>
-                <button onClick={() => setIsCredit(v => !v)} aria-pressed={isCredit}
-                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all border', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'text-slate-500 border-transparent hover:text-slate-700')}>
+              <div className="flex items-center gap-1.5 rounded-xl p-1 border border-[var(--border)] bg-[var(--surface-2)]">
+                <Button variant={mode === 'retail' ? 'default' : 'outline'} onClick={() => setMode('retail')} aria-pressed={mode === 'retail'}
+                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all', mode === 'retail' ? 'bg-[var(--surface)] text-[var(--primary)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--text)]')}>قطاعي</Button>
+                <Button variant={mode === 'wholesale' ? 'default' : 'outline'} onClick={() => setMode('wholesale')} aria-pressed={mode === 'wholesale'}
+                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all', mode === 'wholesale' ? 'bg-[var(--surface)] text-[var(--primary)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--text)]')}>جملة</Button>
+                <Button variant={isCredit ? 'default' : 'outline'} onClick={() => setIsCredit(v => !v)} aria-pressed={isCredit}
+                  className={clsx('px-3 py-1 rounded-lg text-[10px] font-bold transition-all border', isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'text-[var(--muted)] border-transparent hover:text-[var(--text)]')}>
                   آجل
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setShowHeld(true)} className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1">📌 معلقة <span className="font-black text-[var(--primary)] tabular-nums">{suspended.length}</span></button>
-                {items.length > 0 && <button onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }} className="text-[10px] font-bold text-slate-400 hover:text-[var(--primary)] transition-colors">تعليق</button>}
-                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="btn btn-danger-soft btn-sm">مسح الكل</button>}
+                <Button variant="ghost" size="sm" onClick={() => setShowHeld(true)} className="text-[10px] text-[var(--muted)] hover:text-[var(--text-soft)] transition-colors flex items-center gap-1">📌 معلقة <span className="font-black text-[var(--primary)] tabular-nums">{suspended.length}</span></Button>
+                {items.length > 0 && <Button variant="ghost" size="sm" onClick={() => { holdCurrent({ label: holdLabel, warehouse_id: mainWh?.id, shift_id: shift?.id }); setHoldLabel('') }} className="text-[10px] font-bold text-[var(--muted)] hover:text-[var(--primary)] transition-colors">تعليق</Button>}
+                {items.length > 0 && <Button onClick={() => setConfirmClear(true)} variant="destructive" size="sm">مسح الكل</Button>}
               </div>
             </div>
             <div className="text-center mb-2 px-2 py-2.5 rounded-xl bg-gradient-to-b from-slate-50 to-transparent">
               <p className="text-4xl font-black text-[var(--primary)] leading-none tabular-nums">{total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</p>
-              <p className="text-[10px] text-slate-400 mt-1">المبلغ الإجمالي — ج.م</p>
+              <p className="text-[10px] text-[var(--muted)] mt-1">المبلغ الإجمالي — ج.م</p>
             </div>
             {/* Customer search */}
             <div className="relative">
-              <input value={selectedCustomer ? selectedCustomer.name : customerInput} aria-label="اسم العميل"
+              <Input value={selectedCustomer ? selectedCustomer.name : customerInput} aria-label="اسم العميل"
                 onChange={e => { setCustomerSearch(e.target.value); setSelectedCustomer(null); setCustomerInput(e.target.value); setShowCustomerDrop(true) }}
                 onFocus={() => setShowCustomerDrop(true)}
                 onBlur={() => setTimeout(() => setShowCustomerDrop(false), 200)}
-                className="input w-full text-[11px]" placeholder="اسم العميل (اختياري)" />
+                className="w-full text-[11px]" placeholder="اسم العميل (اختياري)" />
               {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
-                <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-48 overflow-y-auto fade-in">
+                <div className="absolute top-full right-0 left-0 mt-1 bg-[var(--surface)] rounded-xl shadow-xl border border-[var(--border)] z-50 max-h-48 overflow-y-auto fade-in">
                   {customerResults?.map((c: Customer) => (
-                    <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
-                      className="w-full text-right px-3 py-2 hover:bg-[var(--primary-soft)] text-xs border-b border-slate-50 last:border-0 transition-colors">
-                      <p className="font-semibold text-slate-800">{c.name}</p>
-                      {c.phone && <p className="text-[10px] text-slate-400 tabular-nums">{c.phone}</p>}
-                    </button>
+                    <Button key={c.id} variant="ghost" onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
+                      className="w-full text-right px-3 py-2 hover:bg-[var(--primary-soft)] text-xs border-b border-slate-50 last:border-0 transition-colors justify-start">
+                      <p className="font-semibold text-[var(--text)]">{c.name}</p>
+                      {c.phone && <p className="text-[10px] text-[var(--muted)] tabular-nums">{c.phone}</p>}
+                    </Button>
                   ))}
                   {customerSearch.length > 1 && (
-                    <button onMouseDown={() => {
+                    <Button variant="ghost" onMouseDown={() => {
                       if (isCredit) { setPendingCustomerName(customerSearch); setNewCustomerPhone(''); setShowPhoneModal(true); setShowCustomerDrop(false); return }
                       customersApi.create({ name: customerSearch }).then(c => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) })
-                    }} className="w-full text-right px-3 py-2 hover:bg-emerald-50 text-xs text-emerald-700 font-semibold transition-colors">
+                    }} className="w-full text-right px-3 py-2 hover:bg-emerald-50 text-xs text-emerald-700 font-semibold transition-colors justify-start">
                       + إضافة "{customerSearch}"{isCredit ? ' (يلزم تليفون)' : ''}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -1206,8 +1156,8 @@ export default function POSPage() {
           </div>
 
           {/* Item counter */}
-          <div className="px-4 py-1.5 border-b border-slate-100 flex-shrink-0 bg-slate-50/60">
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5"><ShoppingCart size={11} className="text-slate-400" /> <span className="tabular-nums">{items.length}</span> صنف / الكمية <span className="tabular-nums font-black text-[var(--primary)]">{items.reduce((s, i) => s + i.qty, 0)}</span></span>
+          <div className="px-4 py-1.5 border-b border-[var(--border-faint)] flex-shrink-0 bg-slate-50/60">
+            <span className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1.5"><ShoppingCart size={11} className="text-[var(--muted)]" /> <span className="tabular-nums">{items.length}</span> صنف / الكمية <span className="tabular-nums font-black text-[var(--primary)]">{items.reduce((s, i) => s + i.qty, 0)}</span></span>
           </div>
 
           {/* Transaction table (VB6-style: كود الصنف | إسم الصنف | السعر | الكمية | الإجمالي) */}
@@ -1219,60 +1169,60 @@ export default function POSPage() {
                 <p className="empty-sub">أضف أصناف من الجانب أو امسح الباركود</p>
               </div>
             ) : (
-              <table className="w-full text-right text-[11px]">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-[var(--primary)] text-white font-bold">
-                    <th className="py-2 px-2 text-right">كود الصنف</th>
-                    <th className="py-2 px-2 text-right">إسم الصنف</th>
-                    <th className="py-2 px-2 text-center">السعر</th>
-                    <th className="py-2 px-2 text-center">الكمية</th>
-                    <th className="py-2 px-2 text-center">الإجمالي</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow className="bg-[var(--primary)] text-white font-bold">
+                    <TableHead className="py-2 px-2 text-right">كود الصنف</TableHead>
+                    <TableHead className="py-2 px-2 text-right">إسم الصنف</TableHead>
+                    <TableHead className="py-2 px-2 text-center">السعر</TableHead>
+                    <TableHead className="py-2 px-2 text-center">الكمية</TableHead>
+                    <TableHead className="py-2 px-2 text-center">الإجمالي</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {items.map((item, idx) => {
                     const lineTotal = item.qty * item.unit_price
                     const itemDiscAmt = item.item_discount_pct > 0 ? lineTotal * (item.item_discount_pct / 100) : item.item_discount
                     const lineNet = lineTotal - itemDiscAmt
                     const belowCost = lineNet < item.qty * item.unit_cost
                     return (
-                      <tr key={item.product_id} onClick={() => removeItem(item.product_id)}
-                        className={clsx('border-b border-slate-100 cursor-pointer transition-colors', belowCost ? 'bg-red-50 hover:bg-red-100/70' : 'hover:bg-[var(--primary-soft)]')}>
-                        <td className="py-2 px-2 text-slate-400 font-mono text-[10px] tabular-nums text-right">{idx + 1}</td>
-                        <td className="py-2 px-2 font-semibold text-slate-700 max-w-[100px] truncate text-right" title={item.name}>{item.name}</td>
-                        <td className="py-2 px-2 text-center">
+                      <TableRow key={item.product_id} onClick={() => removeItem(item.product_id)}
+                        className={clsx('border-b border-[var(--border-faint)] cursor-pointer transition-colors', belowCost ? 'bg-red-50 hover:bg-red-100/70' : 'hover:bg-[var(--primary-soft)]')}>
+                        <TableCell className="py-2 px-2 text-[var(--muted)] font-mono text-[10px] tabular-nums text-right">{idx + 1}</TableCell>
+                        <TableCell className="py-2 px-2 font-semibold text-[var(--text)] max-w-[100px] truncate text-right" title={item.name}>{item.name}</TableCell>
+                        <TableCell className="py-2 px-2 text-center">
                           <input type="number" min="0" step="0.5" value={item.unit_price} onClick={e => e.stopPropagation()} aria-label={`سعر ${item.name}`}
                             onChange={e => { const v = Number(e.target.value); if (v > 0) updatePrice(item.product_id, v) }}
                             onBlur={e => { if (Number(e.target.value) < item.unit_cost) updatePrice(item.product_id, item.unit_cost) }}
                             className={clsx('w-14 text-center text-[10px] font-bold border rounded-md py-1 outline-none focus:ring-2 tabular-nums',
-                              item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50 focus:ring-red-200' : 'border-slate-200 focus:ring-[var(--primary-border)]')} />
-                        </td>
-                        <td className="py-2 px-2 text-center">
+                              item.unit_price < item.unit_cost ? 'border-red-300 bg-red-50 focus:ring-red-200' : 'border-[var(--border)] focus:ring-[var(--primary-border)]')} />
+                        </TableCell>
+                        <TableCell className="py-2 px-2 text-center">
                           <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => updateQty(item.product_id, item.qty - 1)} aria-label="إنقاص الكمية" className="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"><Minus size={9} /></button>
+                            <Button variant="ghost" size="icon-sm" onClick={() => updateQty(item.product_id, item.qty - 1)} aria-label="إنقاص الكمية" className="w-5 h-5 rounded-md bg-[var(--surface-3)] hover:bg-[var(--surface-3)] flex items-center justify-center text-[var(--text-soft)] transition-colors"><Minus size={9} /></Button>
                             <span className="w-7 text-center font-bold text-[11px] tabular-nums">{item.qty}</span>
-                            <button onClick={() => updateQty(item.product_id, item.qty + 1)} aria-label="زيادة الكمية" className="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"><Plus size={9} /></button>
+                            <Button variant="ghost" size="icon-sm" onClick={() => updateQty(item.product_id, item.qty + 1)} aria-label="زيادة الكمية" className="w-5 h-5 rounded-md bg-[var(--surface-3)] hover:bg-[var(--surface-3)] flex items-center justify-center text-[var(--text-soft)] transition-colors"><Plus size={9} /></Button>
                           </div>
-                        </td>
-                        <td className={clsx('py-2 px-2 text-center font-black tabular-nums', belowCost ? 'text-red-600' : 'text-[var(--primary)]')}>
+                        </TableCell>
+                        <TableCell className={clsx('py-2 px-2 text-center font-black tabular-nums', belowCost ? 'text-red-600' : 'text-[var(--primary)]')}>
                           {lineNet.toLocaleString('ar-EG')}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
 
           {/* Bottom checkout bar */}
-          <div className="border-t border-slate-100 p-2.5 flex-shrink-0">
-            <button onClick={() => checkoutMut.mutate()}
+          <div className="border-t border-[var(--border-faint)] p-2.5 flex-shrink-0">
+            <Button onClick={() => checkoutMut.mutate()}
               disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-              className="btn btn-success w-full">
+              className="w-full">
               <Printer size={14} />
               {checkoutMut.isPending ? 'جاري...' : `طباعة حفظ — ${total().toLocaleString('ar-EG', { minimumFractionDigits: 2 })} ج.م`}
-            </button>
+            </Button>
           </div>
         </div>{/* end LEFT panel */}
 
@@ -1282,23 +1232,23 @@ export default function POSPage() {
       {items.length > 0 && (
         <div className="card flex items-center gap-3 px-4 py-2.5 rounded-xl flex-shrink-0 mt-2 fade-in">
           {splitPayments.length > 0 && !isCredit && (
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-              <span className="badge-primary">{splitPayments.length} أقساط</span>
-              <button onClick={() => setSplitPayments([])} className="text-red-400 hover:text-red-600 transition-colors" aria-label="إلغاء التقسيم">✕</button>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--muted)]">
+              <Badge variant="primary">{splitPayments.length} أقساط</Badge>
+              <Button variant="ghost" size="xs" onClick={() => setSplitPayments([])} className="text-red-400 hover:text-red-600 p-0 h-auto" aria-label="إلغاء التقسيم">✕</Button>
             </div>
           )}
           <div className="flex-1" />
-          <div className="flex items-center gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
             <span>خصم: <span className="font-bold text-red-500 tabular-nums">{totalDiscount().toLocaleString('ar-EG')} ج.م</span></span>
-            <span className="text-slate-300">|</span>
+            <span className="text-[var(--faint)]">|</span>
             <span>الإجمالي: <span className="font-black text-lg text-[var(--primary)] tabular-nums">{total().toLocaleString('ar-EG')} ج.م</span></span>
           </div>
-          <button onClick={() => checkoutMut.mutate()}
-            disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-            className={clsx('btn btn-lg', items.length ? 'btn-accent text-[var(--primary)]' : 'btn-ghost')}>
+          <Button variant={items.length ? 'secondary' : 'ghost'} size="lg"
+            onClick={() => checkoutMut.mutate()}
+            disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}>
             <CheckCircle size={16} />
             {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? 'حدد عميل' : isCredit ? 'تأكيد — آجل' : 'تأكيد الدفع'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1307,8 +1257,8 @@ export default function POSPage() {
         {/* Action buttons */}
         <div className="flex items-center gap-2 flex-wrap flex-1 card rounded-xl px-3 py-2">
           {/* Barcode / code entry */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:border-[var(--primary)] transition-colors">
-            <Search size={12} className="text-slate-400" />
+          <div className="flex items-center gap-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 focus-within:border-[var(--primary)] transition-colors">
+            <Search size={12} className="text-[var(--muted)]" />
             <input ref={searchRef} value={search} aria-label="إدخال كود أو باركود"
               onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
               onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
@@ -1316,30 +1266,25 @@ export default function POSPage() {
           </div>
 
           {/* Quick action buttons */}
-          <button onClick={() => setShowReturn(true)} className="btn btn-accent-soft btn-sm text-amber-700">
+          <Button variant="secondary" size="sm" className="text-amber-700" onClick={() => setShowReturn(true)}>
             <RotateCcw size={12} /> مرتجع
-          </button>
-          <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift}
-            className="btn btn-danger-soft btn-sm">
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift}>
             <Trash2 size={12} /> خوارج
-          </button>
-          <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift}
-            className="btn btn-success-soft btn-sm">
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift}>
             <DollarSign size={12} /> دواخل
-          </button>
-          <button onClick={() => setShowCustomerDebt(true)} disabled={!shift}
-            className="btn btn-primary-soft btn-sm">
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowCustomerDebt(true)} disabled={!shift}>
             <DollarSign size={12} /> دفع عميل
-          </button>
-          <button onClick={() => setShowLedger(true)}
-            className="btn btn-sm btn-ghost border border-slate-200">
+          </Button>
+          <Button variant="ghost" size="sm" className="border border-[var(--border)]" onClick={() => setShowLedger(true)}>
             <BookOpen size={12} /> سجل اليوم
-          </button>
+          </Button>
           {items.length > 0 && (
-            <button onClick={() => { setMode(mode === 'wholesale' ? 'retail' : 'wholesale') }}
-              className="btn btn-sm btn-ghost border border-slate-200">
+            <Button variant="ghost" size="sm" className="border border-[var(--border)]" onClick={() => { setMode(mode === 'wholesale' ? 'retail' : 'wholesale') }}>
               <Tag size={12} /> {mode === 'wholesale' ? 'جملة' : 'قطاعي'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -1360,12 +1305,12 @@ export default function POSPage() {
         <div className="flex items-center gap-1.5">
           {shift ? (
             <>
-              <button onClick={() => setShowRevenueDelivery(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-white/15 text-white active:scale-95 transition-all">💰 توريد</button>
-              <button onClick={() => setShowHandover(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-amber-400 text-slate-900 active:scale-95 transition-all">تسليم</button>
-              <button onClick={() => setShowClose(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-red-500 text-white active:scale-95 transition-all">إغلاق</button>
+              <Button variant="ghost" size="sm" onClick={() => setShowRevenueDelivery(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-white/15 text-white hover:bg-white/25 active:scale-95">💰 توريد</Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowHandover(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-amber-400 text-slate-900 hover:bg-amber-500 active:scale-95">تسليم</Button>
+              <Button variant="destructive" size="sm" onClick={() => setShowClose(true)} className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-red-500 text-white hover:bg-red-600 active:scale-95">إغلاق</Button>
             </>
           ) : (
-            <button onClick={() => setShowOpenShift(true)} className="btn btn-success btn-sm">فتح وردية</button>
+            <Button size="sm" onClick={() => setShowOpenShift(true)}>فتح وردية</Button>
           )}
         </div>
       </div>
@@ -1376,19 +1321,20 @@ export default function POSPage() {
           {/* Search + view toggle */}
           <div className="flex items-center gap-2 mb-3 flex-shrink-0">
             <div className="relative flex-1">
-              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input ref={searchRef} value={search}
+              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+              <Input ref={searchRef} value={search}
                 onChange={e => { setSearch(e.target.value); if (e.target.value) { setSelectedCat(null); setSelectedSub(null) } }}
                 onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
-                className="input pr-10" placeholder="ابحث أو امسح الباركود..." autoFocus />
+                className="pr-10" placeholder="ابحث أو امسح الباركود..." autoFocus />
             </div>
-            <button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0">
+            <Button onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
+              variant="outline" size="sm"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-3)] flex-shrink-0">
               {viewMode === 'table'
                 ? <><LayoutGrid size={14} /> عرض الفئات</>
                 : <><List size={14} /> عرض الجدول</>
               }
-            </button>
+            </Button>
           </div>
 
           {debouncedSearch ? (
@@ -1404,37 +1350,35 @@ export default function POSPage() {
                     const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
                     const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                     return (
-                      <button key={p.id} onClick={() => handleAddProduct(p)}
-                        className="card card-hover p-3 text-right active:scale-95 transition-all flex flex-col gap-1.5">
+                      <Button key={p.id} variant="outline" onClick={() => handleAddProduct(p)}
+                        className="card card-hover p-3 text-right active:scale-95 flex flex-col gap-1.5 h-auto justify-start">
                         <div className="flex items-start justify-between">
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary-soft)] to-[var(--primary-border)] flex items-center justify-center flex-shrink-0">
                             <Package size={14} className="text-[var(--primary)]" />
                           </div>
                           {qty != null && qty <= 0 && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-red-50 text-red-500">نفد</span>}
                         </div>
-                        <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2 text-right">{p.name}</p>
-                        {p.company && <p className="text-[10px] text-slate-400 text-right">{p.company}</p>}
+                        <p className="text-xs font-bold text-[var(--text)] leading-tight line-clamp-2 text-right">{p.name}</p>
+                        {p.company && <p className="text-[10px] text-[var(--muted)] text-right">{p.company}</p>}
                         <div className="mt-auto">
                           <p className="text-sm font-black text-[var(--primary)] tabular-nums">{Number(price).toLocaleString('ar-EG')} ج.م</p>
                         </div>
-                      </button>
+                      </Button>
                     )
                   })}
                 </div>
               )}
               {productPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-3 pb-1">
-                  <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
-                    disabled={productPage <= 1}
-                    className="btn btn-outline btn-sm">
+                  <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                    disabled={productPage <= 1}>
                     السابق
-                  </button>
-                  <span className="text-xs text-slate-500 px-2 tabular-nums">{productPage} / {productPages}</span>
-                  <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
-                    disabled={productPage >= productPages}
-                    className="btn btn-outline btn-sm">
+                  </Button>
+                  <span className="text-xs text-[var(--muted)] px-2 tabular-nums">{productPage} / {productPages}</span>
+                  <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                    disabled={productPage >= productPages}>
                     التالي
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1450,46 +1394,46 @@ export default function POSPage() {
               const cats = (categories as Category[]) || []
               const totalPages = Math.max(1, Math.ceil(cats.length / 6))
               return <>
-                <button onClick={() => setCatPage(p => Math.min(totalPages - 1, p + 1))}
+                <Button variant="ghost" size="icon" onClick={() => setCatPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={catPage >= totalPages - 1}
-                  className="btn-icon btn-ghost text-slate-400" aria-label="تصنيفات سابقة">
+                  className="text-[var(--muted)]" aria-label="تصنيفات سابقة">
                   ▶
-                </button>
+                </Button>
                 <div className="flex gap-1.5 flex-1 overflow-hidden">
-                  <button onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
+                  <Button variant={!selectedCat ? 'default' : 'ghost'} onClick={() => { setSelectedCat(null); setSelectedSub(null); setCatPage(0) }}
                     className={clsx('chip whitespace-nowrap transition-all', !selectedCat ? 'chip-active font-black text-xs' : 'text-xs')}>
                     الكل
-                  </button>
+                  </Button>
                   {cats.slice(catPage * 6, (catPage + 1) * 6).map((cat) => (
-                    <button key={cat.id} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
+                    <Button key={cat.id} variant={selectedCat === cat.id ? 'default' : 'ghost'} onClick={() => { setSelectedCat(cat.id); setSelectedSub(null); setSubPage(0) }}
                       className={clsx('chip whitespace-nowrap transition-all', selectedCat === cat.id ? 'chip-active font-black text-xs' : 'text-xs')}>
                       {cat.name}
-                    </button>
+                    </Button>
                   ))}
                 </div>
-                <button onClick={() => setCatPage(p => Math.max(0, p - 1))}
+                <Button variant="ghost" size="icon" onClick={() => setCatPage(p => Math.max(0, p - 1))}
                   disabled={catPage === 0}
-                  className="btn-icon btn-ghost text-slate-400" aria-label="تصنيفات تالية">
+                  className="text-[var(--muted)]" aria-label="تصنيفات تالية">
                   ◀
-                </button>
+                </Button>
               </>
             })()}
           </div>
           {/* Product table */}
-          <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-right text-xs">
-              <thead className="sticky top-0 bg-[var(--primary)] z-10">
-                <tr className="text-white font-bold">
-                  <th className="py-2 px-2 text-right">المنتج</th>
-                  <th className="py-2 px-2 text-right">الرف</th>
-                  <th className="py-2 px-2 text-right">السعر</th>
-                  <th className="py-2 px-2 text-right">المخزون</th>
-                  <th className="py-2 px-2 text-right"></th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="flex-1 overflow-y-auto border border-[var(--border)] rounded-xl">
+            <Table>
+              <TableHeader className="sticky top-0 bg-[var(--primary)] z-10">
+                <TableRow className="text-white font-bold">
+                  <TableHead className="py-2 px-2 text-right">المنتج</TableHead>
+                  <TableHead className="py-2 px-2 text-right">الرف</TableHead>
+                  <TableHead className="py-2 px-2 text-right">السعر</TableHead>
+                  <TableHead className="py-2 px-2 text-right">المخزون</TableHead>
+                  <TableHead className="py-2 px-2 text-right"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {products?.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-12 text-slate-400">لا توجد منتجات</td></tr>
+                  <TableRow><TableCell colSpan={5} className="text-center py-12 text-[var(--muted)]">لا توجد منتجات</TableCell></TableRow>
                 )}
                 {(products || []).filter((p: Product) => {
                   const q = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
@@ -1498,40 +1442,38 @@ export default function POSPage() {
                   const price = mode === 'wholesale' ? Number(p.wholesale_price) || Number(p.retail_price) : Number(p.retail_price)
                   const qty = p.stock_status === 'untracked' ? null : (stockMap?.[p.id] ?? null)
                   return (
-                    <tr key={p.id} onClick={() => handleAddProduct(p)}
-                      className="border-t border-slate-100 hover:bg-[var(--primary-soft)] cursor-pointer transition-colors">
-                      <td className="py-2 px-2 font-semibold text-slate-800 text-right">{p.name}</td>
-                      <td className="py-2 px-2 text-right">{p.shelf_number ? <span className="badge-blue text-xs">{p.shelf_number}</span> : <span className="text-slate-300">—</span>}</td>
-                      <td className="py-2 px-2 font-black text-[var(--primary)] tabular-nums">{price.toLocaleString('ar-EG')}</td>
-                      <td className="py-2 px-2 text-right">
+                    <TableRow key={p.id} onClick={() => handleAddProduct(p)}
+                      className="border-t border-[var(--border-faint)] hover:bg-[var(--primary-soft)] cursor-pointer transition-colors">
+                      <TableCell className="py-2 px-2 font-semibold text-[var(--text)] text-right">{p.name}</TableCell>
+                      <TableCell className="py-2 px-2 text-right">{p.shelf_number ? <Badge variant="blue" className="text-xs">{p.shelf_number}</Badge> : <span className="text-[var(--faint)]">—</span>}</TableCell>
+                      <TableCell className="py-2 px-2 font-black text-[var(--primary)] tabular-nums">{price.toLocaleString('ar-EG')}</TableCell>
+                      <TableCell className="py-2 px-2 text-right">
                         {qty !== null ? (
                           <span className={`font-bold px-1.5 py-0.5 rounded tabular-nums ${
                             qty <= 0 ? 'text-red-500 bg-red-50' : qty <= 5 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50'
                           }`}>{qty}</span>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2 px-2 text-[var(--primary)] font-black text-sm">+</td>
-                    </tr>
+                        ) : <span className="text-[var(--faint)]">—</span>}
+                      </TableCell>
+                      <TableCell className="py-2 px-2 text-[var(--primary)] font-black text-sm">+</TableCell>
+                    </TableRow>
                   )
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {productPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-3 pb-1">
-              <button onClick={() => setProductPage(p => Math.max(1, p - 1))}
-                disabled={productPage <= 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+              <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                disabled={productPage <= 1}>
                 السابق
-              </button>
-              <span className="text-xs text-slate-500 px-2">
+              </Button>
+              <span className="text-xs text-[var(--muted)] px-2">
                 {productPage} / {productPages}
               </span>
-              <button onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
-                disabled={productPage >= productPages}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 bg-slate-200 hover:bg-slate-300 text-slate-700">
+              <Button variant="outline" size="sm" onClick={() => setProductPage(p => Math.min(productPages, p + 1))}
+                disabled={productPage >= productPages}>
                 التالي
-              </button>
+              </Button>
             </div>
           )}
           </>
@@ -1546,31 +1488,31 @@ export default function POSPage() {
           <div className="px-4 py-3 flex-shrink-0" style={{ background: 'var(--primary)' }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex gap-1">
-                <button onClick={() => setMode('retail')} className={`px-2.5 py-1 rounded-lg text-xs font-bold ${mode === 'retail' ? 'bg-white text-slate-800' : 'text-white/60'}`}>قطاعي</button>
-                <button onClick={() => setMode('wholesale')} className={`px-2.5 py-1 rounded-lg text-xs font-bold ${mode === 'wholesale' ? 'bg-white text-slate-800' : 'text-white/60'}`}>جملة</button>
-                <button onClick={() => setIsCredit(v => !v)} className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${isCredit ? 'bg-amber-400 text-slate-900 border-amber-300' : 'border-white/20 text-white/60'}`}>آجل</button>
+                <Button variant={mode === 'retail' ? 'default' : 'ghost'} onClick={() => setMode('retail')} aria-pressed={mode === 'retail'} className={`px-2.5 py-1 rounded-lg text-xs font-bold ${mode === 'retail' ? 'bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface)]' : 'text-white/60 hover:bg-white/10 hover:text-white/90'}`}>قطاعي</Button>
+                <Button variant={mode === 'wholesale' ? 'default' : 'ghost'} onClick={() => setMode('wholesale')} aria-pressed={mode === 'wholesale'} className={`px-2.5 py-1 rounded-lg text-xs font-bold ${mode === 'wholesale' ? 'bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface)]' : 'text-white/60 hover:bg-white/10 hover:text-white/90'}`}>جملة</Button>
+                <Button variant={isCredit ? 'default' : 'ghost'} onClick={() => setIsCredit(v => !v)} aria-pressed={isCredit} className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${isCredit ? 'bg-amber-400 text-slate-900 border-amber-300 hover:bg-amber-400' : 'border-white/20 text-white/60 hover:bg-white/10 hover:text-white/90'}`}>آجل</Button>
               </div>
               <div className="flex gap-1">
                 {splitPayments.length === 0 && !isCredit ? (
                   <>
-                    <button onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'cash' ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>💵</button>
+                    <Button variant={paymentMethod === 'cash' ? 'default' : 'ghost'} onClick={() => { setPaymentMethod('cash'); setPaymentWalletId('') }} aria-pressed={paymentMethod === 'cash'}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold ${paymentMethod === 'cash' ? 'bg-blue-500 text-white hover:bg-blue-500' : 'text-white/60 border border-white/20 hover:bg-white/10 hover:text-white/90'}`}>💵</Button>
                     {(wallets || []).filter(w => w.type !== 'cash').map(w => (
-                      <button key={w.id} onClick={() => { setPaymentMethod('wallet'); setPaymentWalletId(w.id) }}
-                        className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white' : 'text-white/60 border border-white/20'}`}>
+                      <Button key={w.id} variant={paymentMethod === 'wallet' && paymentWalletId === w.id ? 'default' : 'ghost'} onClick={() => { setPaymentMethod('wallet'); setPaymentWalletId(w.id) }} aria-pressed={paymentMethod === 'wallet' && paymentWalletId === w.id}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${paymentMethod === 'wallet' && paymentWalletId === w.id ? 'bg-blue-500 text-white hover:bg-blue-500' : 'text-white/60 border border-white/20 hover:bg-white/10 hover:text-white/90'}`}>
                         {w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}
-                      </button>
+                      </Button>
                     ))}
-                    <button onClick={() => { setSplitPayments([{ method: 'cash', amount: total() }]); setPaymentMethod('cash'); setPaymentWalletId('') }}
-                      className="px-2 py-1 rounded-lg text-xs font-bold text-white/60 border border-white/20">قسط</button>
+                    <Button variant="ghost" onClick={() => { setSplitPayments([{ method: 'cash', amount: total() }]); setPaymentMethod('cash'); setPaymentWalletId('') }}
+                      className="px-2 py-1 rounded-lg text-xs font-bold text-white/60 border border-white/20 hover:bg-white/10 hover:text-white/90">قسط</Button>
                   </>
                 ) : isCredit ? null : (
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-white/50">{splitPayments.length} أقساط</span>
-                    <button onClick={() => setSplitPayments([])} className="text-white/50 text-xs px-1">✕</button>
+                    <Button variant="ghost" onClick={() => setSplitPayments([])} className="text-white/50 text-xs px-1 hover:bg-white/10 hover:text-white/80">✕</Button>
                   </div>
                 )}
-                {items.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-white/50 text-xs px-1">✕</button>}
+                {items.length > 0 && <Button variant="ghost" onClick={() => setConfirmClear(true)} className="text-white/50 text-xs px-1 hover:bg-white/10 hover:text-white/80">✕</Button>}
               </div>
             </div>
             {/* Customer */}
@@ -1583,22 +1525,22 @@ export default function POSPage() {
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-white/30 outline-none focus:border-yellow-400 transition-all"
                 placeholder="اسم العميل (اختياري)" />
               {showCustomerDrop && (customerResults?.length > 0 || customerSearch.length > 1) && (
-                <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 max-h-40 overflow-y-auto">
+                <div className="absolute top-full right-0 left-0 mt-1 bg-[var(--surface)] rounded-xl shadow-xl border border-[var(--border)] z-50 max-h-40 overflow-y-auto">
                   {customerResults?.map((c: Customer) => (
-                    <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
-                      className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0">
-                      <p className="font-semibold text-slate-800">{c.name}</p>
-                    </button>
+                    <Button key={c.id} variant="ghost" onMouseDown={() => { setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false) }}
+                      className="w-full text-right px-4 py-2.5 hover:bg-[var(--surface-2)] text-sm border-b border-slate-50 last:border-0 h-auto justify-start">
+                      <p className="font-semibold text-[var(--text)]">{c.name}</p>
+                    </Button>
                   ))}
                   {customerSearch.length > 1 && (
-                    <button onMouseDown={() => {
+                    <Button variant="ghost" onMouseDown={() => {
                       if (isCredit) { setPendingCustomerName(customerSearch); setNewCustomerPhone(''); setShowPhoneModal(true); setShowCustomerDrop(false); return }
                       customersApi.create({ name: customerSearch }).then(c => {
                         setSelectedCustomer(c); setCustomer(c.name); setCustomerSearch(''); setShowCustomerDrop(false)
                       })
-                    }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm border-t border-slate-100 flex items-center gap-2 text-blue-600">
+                    }} className="w-full text-right px-4 py-2.5 hover:bg-[var(--surface-2)] text-sm border-t border-[var(--border-faint)] flex items-center gap-2 text-blue-600 justify-start">
                       <span>+</span> إضافة "{customerSearch}" كعميل جديد{isCredit ? ' (آجل — يلزم تليفون)' : ''}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -1623,26 +1565,26 @@ export default function POSPage() {
                 <div key={item.product_id} className={`card p-3 ${belowCost ? 'border-red-200 bg-red-50/40' : ''} fade-in`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm leading-tight truncate text-right">{item.name}</p>
-                      <p className="text-xs text-slate-400">{item.unit}</p>
+                      <p className="font-bold text-[var(--text)] text-sm leading-tight truncate text-right">{item.name}</p>
+                      <p className="text-xs text-[var(--muted)]">{item.unit}</p>
                     </div>
-                    <button onClick={() => removeItem(item.product_id)} className="text-slate-300 hover:text-red-500 flex-shrink-0 transition-colors" aria-label={`حذف ${item.name}`}>
+                    <Button variant="ghost" onClick={() => removeItem(item.product_id)} className="text-[var(--faint)] hover:text-red-500 flex-shrink-0 self-start" aria-label={`حذف ${item.name}`}>
                       <X size={14} />
-                    </button>
+                    </Button>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     {/* Qty */}
                     <div className="flex items-center gap-1">
-                      <button onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90 transition-all" aria-label="إنقاص الكمية"><Minus size={12} /></button>
+                      <Button variant="ghost" onClick={() => updateQty(item.product_id, item.qty - 1)} className="w-8 h-8 rounded-lg bg-[var(--surface-3)] text-[var(--text-soft)] hover:bg-[var(--surface-3)] active:scale-90" aria-label="إنقاص الكمية"><Minus size={12} /></Button>
                       <span className="w-8 text-center font-bold text-sm tabular-nums">{item.qty}</span>
-                      <button onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 active:scale-90 transition-all" aria-label="زيادة الكمية"><Plus size={12} /></button>
+                      <Button variant="ghost" onClick={() => updateQty(item.product_id, item.qty + 1)} className="w-8 h-8 rounded-lg bg-[var(--surface-3)] text-[var(--text-soft)] hover:bg-[var(--surface-3)] active:scale-90" aria-label="زيادة الكمية"><Plus size={12} /></Button>
                     </div>
                     {/* Price */}
                     <input type="number" min="0" step="0.01" aria-label={`سعر ${item.name}`}
                       value={item.unit_price}
                       onChange={e => { const v = Number(e.target.value); if (v > 0) updatePrice(item.product_id, v) }}
                       onBlur={e => { if (Number(e.target.value) < item.unit_cost) updatePrice(item.product_id, item.unit_cost) }}
-                      className={`w-20 text-center text-sm font-bold border rounded-lg py-1.5 outline-none tabular-nums ${belowCost ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
+                      className={`w-20 text-center text-sm font-bold border rounded-lg py-1.5 outline-none tabular-nums ${belowCost ? 'border-red-300 bg-red-50' : 'border-[var(--border)]'}`} />
                     {/* Total */}
                     <p className={`font-black text-sm w-16 text-left tabular-nums ${belowCost ? 'text-red-600' : 'text-[var(--primary)]'}`}>{lineNet.toLocaleString('ar-EG')}</p>
                   </div>
@@ -1652,46 +1594,46 @@ export default function POSPage() {
           </div>
 
           {/* Checkout footer */}
-          <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-2 bg-white">
+          <div className="p-3 border-t border-[var(--border-faint)] flex-shrink-0 space-y-2 bg-[var(--surface)]">
             {totalDiscount() > 0 && (
               <div className="flex justify-between text-xs text-red-500"><span>الخصم</span><span>- {totalDiscount().toLocaleString('ar-EG')} ج.م</span></div>
             )}
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 text-sm">الإجمالي</span>
+              <span className="text-[var(--muted)] text-sm">الإجمالي</span>
               <span className="text-2xl font-black text-[var(--primary)] tabular-nums">{total().toLocaleString('ar-EG')} ج.م</span>
             </div>
-            <button onClick={() => checkoutMut.mutate()}
-              disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}
-              className={clsx('btn btn-lg w-full', items.length ? 'btn-accent text-[var(--primary)]' : 'btn-ghost')}>
+            <Button variant={items.length ? 'secondary' : 'ghost'} size="lg" className="w-full"
+              onClick={() => checkoutMut.mutate()}
+              disabled={!items.length || checkoutMut.isPending || (isCredit && !selectedCustomer)}>
               <CheckCircle size={20} />
               {checkoutMut.isPending ? 'جاري...' : isCredit && !selectedCustomer ? '⚠️ حدد عميل' : 'تأكيد الدفع'}
-            </button>
+            </Button>
             {/* Quick actions */}
             <div className="grid grid-cols-4 gap-1.5">
-              <button onClick={() => setShowReturn(true)} className="btn btn-accent-soft btn-sm text-amber-700">↩ مرتجع</button>
-              <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift} className="btn btn-danger-soft btn-sm">خوارج</button>
-              <button onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift} className="btn btn-success-soft btn-sm">دواخل</button>
-              <button onClick={() => setShowLedger(true)} className="btn btn-sm btn-ghost">سجل</button>
+              <Button variant="secondary" size="sm" className="text-amber-700" onClick={() => setShowReturn(true)}>↩ مرتجع</Button>
+              <Button variant="destructive" size="sm" onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('expense') }} disabled={!shift}>خوارج</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setShowDrawerEntry(true); setDrawerEntryType('deposit') }} disabled={!shift}>دواخل</Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowLedger(true)}>سجل</Button>
             </div>
           </div>
         </div>
       )}
 
       {/* Bottom tab bar */}
-      <div className="flex-shrink-0 border-t border-slate-200 bg-white flex rounded-xl shadow-sm" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <button onClick={() => setMobileTab('products')}
-          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors ${mobileTab === 'products' ? 'text-[var(--primary)]' : 'text-slate-400'}`}>
+      <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--surface)] flex rounded-xl shadow-sm" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <Button variant={mobileTab === 'products' ? 'default' : 'ghost'} onClick={() => setMobileTab('products')} aria-pressed={mobileTab === 'products'}
+          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-bold h-auto rounded-none ${mobileTab === 'products' ? 'text-[var(--primary)] bg-transparent hover:bg-transparent' : 'text-[var(--muted)]'}`}>
           <Search size={20} />
           <span>منتجات</span>
-        </button>
-        <button onClick={() => setMobileTab('cart')}
-          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-bold transition-colors relative ${mobileTab === 'cart' ? 'text-[var(--primary)]' : 'text-slate-400'}`}>
+        </Button>
+        <Button variant={mobileTab === 'cart' ? 'default' : 'ghost'} onClick={() => setMobileTab('cart')} aria-pressed={mobileTab === 'cart'}
+          className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-bold h-auto rounded-none relative ${mobileTab === 'cart' ? 'text-[var(--primary)] bg-transparent hover:bg-transparent' : 'text-[var(--muted)]'}`}>
           <ShoppingCart size={20} />
           <span>السلة</span>
           {items.length > 0 && (
             <span className="absolute top-1 right-1/2 translate-x-4 -translate-y-0.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-black tabular-nums">{items.length}</span>
           )}
-        </button>
+        </Button>
       </div>
     </div>{/* end mobile */}
 
@@ -1713,11 +1655,11 @@ export default function POSPage() {
       {/* Legacy expense modal — kept for backward compat, hidden */}
       <Modal open={showExpense} onClose={() => setShowExpense(false)} title="تسجيل خوارج">
         <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">المبلغ</label><input type="number" className="input" value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">البيان</label><input className="input" value={expenseNote} onChange={e => setExpenseNote(e.target.value)} /></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المبلغ</label><Input type="number" value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">البيان</label><Input value={expenseNote} onChange={e => setExpenseNote(e.target.value)}/></div>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setShowExpense(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-            <button onClick={() => expenseMut.mutate()} disabled={!expenseAmount} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-red-600">تسجيل</button>
+            <Button variant="outline" onClick={() => setShowExpense(false)}>إلغاء</Button>
+            <Button variant="destructive" onClick={() => expenseMut.mutate()} disabled={!expenseAmount}>تسجيل</Button>
           </div>
         </div>
       </Modal>

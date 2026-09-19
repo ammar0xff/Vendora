@@ -1,5 +1,7 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
 import { ArrowLeftRight } from 'lucide-react'
+import { Input } from '../../../components/ui/input'
 
 interface Props {
   showHandover: boolean
@@ -27,18 +29,17 @@ export function HandoverModal({ showHandover, onClose, summary, handoverUsername
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">اسم المستخدم للموظف المستلم</label>
-          <input className="input" value={handoverUsername} onChange={e => setHandoverUsername(e.target.value)} placeholder="username" />
+ <Input value={handoverUsername} onChange={e => setHandoverUsername(e.target.value)} placeholder="username"/>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">كلمة المرور</label>
-          <input type="password" className="input" value={handoverPassword} onChange={e => setHandoverPassword(e.target.value)} placeholder="••••••••" />
+ <Input type="password" value={handoverPassword} onChange={e => setHandoverPassword(e.target.value)} placeholder="••••••••"/>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
-          <button onClick={() => handoverMut.mutate()} disabled={!handoverUsername || !handoverPassword || handoverMut.isPending}
-            className="btn btn-accent">
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button variant="secondary" onClick={() => handoverMut.mutate()} disabled={!handoverUsername || !handoverPassword || handoverMut.isPending}>
             <ArrowLeftRight size={15} /> تأكيد التسليم
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

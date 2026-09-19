@@ -11,6 +11,7 @@ import { fixUploadUrl } from '../../utils/format'
 import { clsx } from 'clsx'
 import type { Warehouse } from '../../types'
 import { NAV_GROUPS, findNavPage } from '../../router/navTree'
+import { Button } from '../ui/button'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuthStore()
@@ -97,17 +98,18 @@ export default function Layout({ children }: { children: ReactNode }) {
                 const isActive = currentPage === item
                 const ItemIcon = item.icon
                 return (
-                  <button
+                  <Button
                     key={item.path}
+                    variant="ghost"
                     onClick={() => navigateClose(item.path)}
-                    className={clsx('quick-tile', isActive && 'active')}
+                    className={clsx('quick-tile h-auto', isActive && 'active')}
                     title={item.label}
                   >
                     <span className={clsx('quick-tile-icon', isActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--primary-soft)] text-[var(--primary)]')}>
                       <ItemIcon size={15} />
                     </span>
                     <span className="truncate-1 w-full">{item.label}</span>
-                  </button>
+                  </Button>
                 )
               })}
             </div>
@@ -125,23 +127,25 @@ export default function Layout({ children }: { children: ReactNode }) {
 
           if (isRail) {
             return (
-              <button
+              <Button
                 key={group.key}
+                variant="ghost"
                 onClick={() => { setCollapsed(false); toggleGroup(group.key); }}
-                className={clsx('sidebar-group-btn justify-center !px-2', isGroupActive && 'active')}
+                className={clsx('sidebar-group-btn h-auto justify-center !px-2', isGroupActive && 'active')}
                 title={group.label}
                 aria-label={group.label}
               >
                 <GroupIcon size={18} className={isGroupActive ? 'text-[var(--primary)]' : 'text-[var(--muted)]'} />
-              </button>
+              </Button>
             )
           }
 
           return (
             <div key={group.key}>
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => toggleGroup(group.key)}
-                className={clsx('sidebar-group-btn', isGroupActive && 'active')}
+                className={clsx('sidebar-group-btn h-auto', isGroupActive && 'active')}
                 aria-expanded={isExpanded}
               >
                 <GroupIcon size={16} className={isGroupActive ? 'text-[var(--primary)]' : 'text-[var(--muted)]'} />
@@ -153,7 +157,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     isExpanded ? 'rotate-0' : '-rotate-90'
                   )}
                 />
-              </button>
+              </Button>
 
               {isExpanded && (
                 <div className="mr-3 mt-1 space-y-0.5 border-r-2 border-[var(--primary-soft)] pr-1.5">
@@ -195,22 +199,27 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[var(--bg)]" style={{ direction: 'rtl' }}>
+      <a href="#main-content" className="skip-link">الانتقال إلى المحتوى الرئيسي</a>
       {/* ═══ Top Header Bar ═══ */}
-      <header className="h-14 flex items-center gap-3 px-4 border-b border-[var(--border)] bg-white flex-shrink-0 z-30">
-        <button
+      <header className="h-14 flex items-center gap-3 px-4 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0 z-30">
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => setCollapsed(c => !c)}
-          className="btn-ghost btn-icon hidden lg:flex"
+          className="hidden lg:flex"
           title={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
         >
           {collapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => setMobileOpen(true)}
-          className="btn-ghost btn-icon lg:hidden"
+          className="lg:hidden"
           title="فتح القائمة"
         >
           <PanelLeft size={18} />
-        </button>
+        </Button>
 
         {/* Logo + Company */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -266,10 +275,10 @@ export default function Layout({ children }: { children: ReactNode }) {
               <p className="text-[10px] font-semibold text-[var(--muted)]">{isManager ? 'مدير' : 'موظف'}</p>
             </div>
           </div>
-          <button onClick={logout} title="تسجيل الخروج" aria-label="تسجيل الخروج"
-            className="btn-ghost btn-icon text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]">
+          <Button variant="ghost" size="icon" onClick={logout} title="تسجيل الخروج" aria-label="تسجيل الخروج"
+            className="text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]">
             <LogOut size={16} />
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -277,7 +286,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 overflow-hidden">
         {/* ── Desktop Sidebar (right, RTL) ── */}
         <aside className={clsx(
-          'hidden lg:flex flex-col bg-white border-l border-[var(--border)] flex-shrink-0 transition-[width] duration-200 z-10',
+          'hidden lg:flex flex-col bg-[var(--surface)] border-l border-[var(--border)] flex-shrink-0 transition-[width] duration-200 z-10',
           collapsed ? 'w-[76px]' : 'w-60'
         )}>
           {SidebarBody}
@@ -288,7 +297,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {mobileOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <div className="absolute inset-0 bg-[rgba(15,23,42,0.5)] backdrop-blur-[2px] fade-in" onClick={() => setMobileOpen(false)} />
-            <aside className="absolute top-0 bottom-0 right-0 w-[280px] max-w-[85vw] bg-white border-l border-[var(--border)] flex flex-col shadow-[var(--shadow-lg)] slide-in">
+            <aside className="absolute top-0 bottom-0 right-0 w-[280px] max-w-[85vw] bg-[var(--surface)] border-l border-[var(--border)] flex flex-col shadow-[var(--shadow-lg)] slide-in">
               <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border)] flex-shrink-0">
                 <div className="flex items-center gap-2">
                   {logoUrl ? (
@@ -300,9 +309,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                   )}
                   <span className="text-sm font-black text-[var(--text)]">{companyName}</span>
                 </div>
-                <button onClick={() => setMobileOpen(false)} aria-label="إغلاق القائمة" className="btn-ghost btn-icon">
+                <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} aria-label="إغلاق القائمة">
                   <X size={18} />
-                </button>
+                </Button>
               </div>
               {SidebarBody}
               {SidebarFooter}
@@ -311,13 +320,13 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
 
         {/* ── Content Area ── */}
-        <main className="flex-1 overflow-y-auto bg-[var(--bg)]">
+        <main id="main-content" className="flex-1 overflow-y-auto bg-[var(--bg)]">
           <div className="p-4 lg:p-6">
             {isDenied ? (
               <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
                 <div className="text-5xl">🔒</div>
-                <h2 className="text-xl font-black text-slate-800">غير مصرح</h2>
-                <p className="text-slate-500 text-sm">ليس لديك صلاحية الوصول لهذه الصفحة</p>
+                <h2 className="text-xl font-black text-[var(--text)]">غير مصرح</h2>
+                <p className="text-[var(--muted)] text-sm">ليس لديك صلاحية الوصول لهذه الصفحة</p>
               </div>
             ) : children}
           </div>

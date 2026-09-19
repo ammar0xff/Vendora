@@ -1,5 +1,8 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
 import toast from 'react-hot-toast'
+import { Select } from '../../../components/ui/select'
+import { Input } from '../../../components/ui/input'
 
 interface Props {
   showSplitModal: boolean
@@ -17,32 +20,32 @@ interface Props {
   setShowSplitModal: (v: boolean) => void
 }
 
-export function SplitPaymentModal({ showSplitModal, onClose, splitMethod, setSplitMethod, splitAmount, setSplitAmount, splitWalletId, setSplitWalletId, wallets, total, splitPayments, setSplitPayments, setShowSplitModal }: Props) {
+export function SplitPaymentModal({ showSplitModal, onClose, splitMethod, setSplitMethod, splitAmount, setSplitAmount, splitWalletId: _splitWalletId, setSplitWalletId, wallets, total, splitPayments, setSplitPayments, setShowSplitModal }: Props) {
   return (
     <Modal open={showSplitModal} onClose={onClose} title="إضافة قسط دفع">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">طريقة الدفع</label>
-            <select className="input" value={splitMethod} onChange={e => { setSplitMethod(e.target.value); setSplitWalletId('') }}>
+            <Select value={splitMethod} onChange={e => { setSplitMethod(e.target.value); setSplitWalletId('') }}>
               <option value="cash">💵 نقدي</option>
               {(wallets || []).filter((w: any) => w.type !== 'cash').map((w: any) => (
                 <option key={w.id} value={w.id}>{w.type === 'vodafone_cash' ? '📱' : '💳'} {w.name}</option>
               ))}
               <option value="credit">📋 آجل</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ (ج.م)</label>
-            <input type="number" className="input text-lg font-bold" value={splitAmount} onChange={e => setSplitAmount(e.target.value)} autoFocus />
+            <Input type="number" className="text-lg font-bold" value={splitAmount} onChange={e => setSplitAmount(e.target.value)} autoFocus />
           </div>
         </div>
         <div className="text-xs text-slate-400">
           المتبقي من الفاتورة: {(total() - splitPayments.reduce((s, p) => s + p.amount, 0)).toLocaleString('ar-EG')} ج.م
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
-          <button onClick={() => {
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button onClick={() => {
             const amt = Number(splitAmount)
             const maxRemaining = total() - splitPayments.reduce((s, p) => s + p.amount, 0)
             if (!amt || amt <= 0) { toast.error('المبلغ يجب أن يكون أكبر من 0'); return }
@@ -50,10 +53,9 @@ export function SplitPaymentModal({ showSplitModal, onClose, splitMethod, setSpl
             const isWalletMethod = splitMethod !== 'cash' && splitMethod !== 'credit'
             setSplitPayments((p: any) => [...p, { method: isWalletMethod ? 'wallet' : splitMethod, amount: amt, walletId: isWalletMethod ? splitMethod : undefined }])
             setSplitAmount(''); setShowSplitModal(false)
-          }} disabled={!splitAmount || Number(splitAmount) <= 0}
-            className="btn btn-primary">
+          }} disabled={!splitAmount || Number(splitAmount) <= 0}>
             إضافة القسط
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

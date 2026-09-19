@@ -1,5 +1,8 @@
 import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/button'
 import { Landmark } from 'lucide-react'
+import { Input } from '../../../components/ui/input'
+import { Select } from '../../../components/ui/select'
 
 interface Props {
   showRevenueDelivery: boolean
@@ -30,38 +33,37 @@ export function RevenueDeliveryModal({ showRevenueDelivery, onClose, summary, re
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">المبلغ المسلَّم *</label>
-          <input type="number" className="input" value={revenueAmount} onChange={e => setRevenueAmount(e.target.value)} placeholder="0.00" autoFocus />
+ <Input type="number" value={revenueAmount} onChange={e => setRevenueAmount(e.target.value)} placeholder="0.00" autoFocus/>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">الخزنة المستقبِلة *</label>
-          <select className="input" value={revenueSafeId} onChange={e => setRevenueSafeId(e.target.value)}>
+          <Select value={revenueSafeId} onChange={e => setRevenueSafeId(e.target.value)}>
             <option value="">اختر الخزنة...</option>
             {(safes as any[])?.map((s: any) => <option key={s.id} value={s.id}>{s.name} — {Number(s.balance).toLocaleString('ar-EG')} ج.م</option>)}
-          </select>
+          </Select>
         </div>
-        <input className="input" value={revenueNotes} onChange={e => setRevenueNotes(e.target.value)} placeholder="ملاحظات (اختياري)" />
+ <Input value={revenueNotes} onChange={e => setRevenueNotes(e.target.value)} placeholder="ملاحظات (اختياري)"/>
         <div className="border-t border-slate-200 pt-4">
           <p className="text-xs font-bold text-slate-500 mb-3">توقيع المدير</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">المدير *</label>
-              <select className="input" value={revenueManagerId} onChange={e => setRevenueManagerId(e.target.value)}>
+              <Select value={revenueManagerId} onChange={e => setRevenueManagerId(e.target.value)}>
                 <option value="">اختر مديراً...</option>
                 {(allUsers as any[])?.filter((u: any) => u.is_manager).map((u: any) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">كلمة مرور المدير *</label>
-              <input type="password" className="input" value={revenueManagerPassword} onChange={e => setRevenueManagerPassword(e.target.value)} placeholder="••••••" />
+ <Input type="password" value={revenueManagerPassword} onChange={e => setRevenueManagerPassword(e.target.value)} placeholder="••••••"/>
             </div>
           </div>
         </div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="btn btn-ghost">إلغاء</button>
-          <button onClick={() => revenueMut.mutate()} disabled={revenueMut.isPending || !revenueAmount || !revenueSafeId || !revenueManagerId || !revenueManagerPassword}
-            className="btn btn-primary">
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button onClick={() => revenueMut.mutate()} disabled={revenueMut.isPending || !revenueAmount || !revenueSafeId || !revenueManagerId || !revenueManagerPassword}>
             <Landmark size={15} /> تأكيد التوريد
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

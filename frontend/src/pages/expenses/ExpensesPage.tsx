@@ -7,7 +7,13 @@ import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
 import ExportButton from '../../components/ui/ExportButton'
-import { Plus, Search, Filter, DollarSign, CheckCircle, XCircle, ChevronLeft } from 'lucide-react'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
+import { Plus, Search, CheckCircle, XCircle } from 'lucide-react'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Textarea } from '../../components/ui/textarea'
+import { Select } from '../../components/ui/select'
+import { Badge } from '../../components/ui/badge'
 
 export default function ExpensesPage() {
   const qc = useQueryClient()
@@ -75,7 +81,7 @@ export default function ExpensesPage() {
     setFormMethod(''); setFormRecurring(false); setFormRecInterval(''); setFormNotes('')
   }
 
-  const statusBadge: Record<string, string> = { draft: 'badge-gray', approved: 'badge-green', rejected: 'badge-red' }
+  const statusBadge: Record<string, string> = { draft: 'bg-[var(--surface-3)] text-[var(--text-soft)] border-[var(--border)]', approved: 'bg-emerald-50 text-emerald-700 border-emerald-100', rejected: 'bg-red-50 text-red-600 border-red-100' }
   const statusLabel: Record<string, string> = { draft: 'مسودة', approved: 'معتمد', rejected: 'مرفوض' }
 
   return (
@@ -91,64 +97,64 @@ export default function ExpensesPage() {
             { label: 'الحالة', accessor: (r: any) => statusLabel[r.status] || r.status },
             { label: 'ملاحظات', accessor: (r: any) => r.notes || '' },
           ]} filename="المصروفات" excelEndpoint="/export/expenses" />
-          <button onClick={() => setShowAdd(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-1.5" style={{ background: 'var(--primary)' }}>
+          <Button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5">
             <Plus size={14} /> إضافة مصروف
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Summary */}
       {summary && (
         <div className="grid grid-cols-4 gap-4 mb-5">
-          <div className="stat-card"><p className="text-xs text-slate-500 mb-0.5">إجمالي المصروفات</p><p className="text-lg font-black text-slate-800">{Number(summary.total).toLocaleString('ar-EG')} ج.م</p></div>
-          <div className="stat-card"><p className="text-xs text-slate-500 mb-0.5">عدد العمليات</p><p className="text-lg font-black text-slate-800">{summary.count}</p></div>
-          <div className="stat-card"><p className="text-xs text-slate-500 mb-0.5">مصروفات متكررة</p><p className="text-lg font-black text-amber-700">{Number(summary.recurring_total).toLocaleString('ar-EG')} ج.م</p></div>
-          <div className="stat-card"><p className="text-xs text-slate-500 mb-0.5">عدد المتكرر</p><p className="text-lg font-black text-amber-700">{summary.recurring_count}</p></div>
+          <div className="stat-card"><p className="text-xs text-[var(--muted)] mb-0.5">إجمالي المصروفات</p><p className="text-lg font-black text-[var(--text)]">{Number(summary.total).toLocaleString('ar-EG')} ج.م</p></div>
+          <div className="stat-card"><p className="text-xs text-[var(--muted)] mb-0.5">عدد العمليات</p><p className="text-lg font-black text-[var(--text)]">{summary.count}</p></div>
+          <div className="stat-card"><p className="text-xs text-[var(--muted)] mb-0.5">مصروفات متكررة</p><p className="text-lg font-black text-amber-700">{Number(summary.recurring_total).toLocaleString('ar-EG')} ج.م</p></div>
+          <div className="stat-card"><p className="text-xs text-[var(--muted)] mb-0.5">عدد المتكرر</p><p className="text-lg font-black text-amber-700">{summary.recurring_count}</p></div>
         </div>
       )}
 
       {/* Filters */}
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pr-9 text-sm" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+ <Input className="pr-9 text-sm" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
-        <select className="input w-40 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <Select className="w-40 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">كل الحالات</option>
           <option value="draft">مسودة</option>
           <option value="approved">معتمد</option>
           <option value="rejected">مرفوض</option>
-        </select>
-        <button onClick={() => setShowVendors(true)} className="px-3 py-2 rounded-xl text-sm font-semibold border border-slate-200 hover:bg-slate-50">
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => setShowVendors(true)}>
           الموردون
-        </button>
+        </Button>
       </div>
 
       {/* Table */}
       <div className="card p-0 overflow-hidden">
         {isLoading ? <PageLoader /> : (
           <div className="table-wrap overflow-x-auto">
-            <table>
-              <thead><tr><th>التاريخ</th><th>البيان</th><th>الفئة</th><th>الفرع</th><th>المورد</th><th>المبلغ</th><th>الحالة</th><th>متكرر</th><th></th></tr></thead>
-              <tbody>
-                {!expensesData?.data?.length && <tr><td colSpan={9}><EmptyState message="لا توجد مصروفات" icon="💸" /></td></tr>}
+            <Table>
+              <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>البيان</TableHead><TableHead>الفئة</TableHead><TableHead>الفرع</TableHead><TableHead>المورد</TableHead><TableHead>المبلغ</TableHead><TableHead>الحالة</TableHead><TableHead>متكرر</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>
+                {!expensesData?.data?.length && <TableRow><TableCell colSpan={9}><EmptyState message="لا توجد مصروفات" icon="💸" /></TableCell></TableRow>}
                 {expensesData?.data?.map((e: any) => (
-                  <tr key={e.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setShowDetail(e)}>
-                    <td className="text-sm text-slate-600">{e.date}</td>
-                    <td className="font-semibold text-slate-800 max-w-[200px] truncate">{e.description}</td>
-                    <td className="text-sm text-slate-500">{e.category_name || '-'}</td>
-                    <td className="text-sm text-slate-500">{e.warehouse_name || '-'}</td>
-                    <td className="text-sm text-slate-500">{e.vendor_name || '-'}</td>
-                    <td className="font-bold text-slate-800">{Number(e.amount).toLocaleString('ar-EG')}</td>
-                    <td><span className={statusBadge[e.status] || 'badge-gray'}>{statusLabel[e.status] || e.status}</span></td>
-                    <td className="text-center">{e.is_recurring ? <span className="text-amber-600 text-sm">🔄 {e.recurring_interval}</span> : '-'}</td>
-                    <td>
-                      <button onClick={ev => { ev.stopPropagation(); setConfirmDelete(e) }} className="text-red-500 hover:text-red-700 text-xs">حذف</button>
-                    </td>
-                  </tr>
+                  <TableRow key={e.id} className="cursor-pointer hover:bg-[var(--surface-2)]" onClick={() => setShowDetail(e)}>
+                    <TableCell className="text-sm text-[var(--text-soft)]">{e.date}</TableCell>
+                    <TableCell className="font-semibold text-[var(--text)] max-w-[200px] truncate">{e.description}</TableCell>
+                    <TableCell className="text-sm text-[var(--muted)]">{e.category_name || '-'}</TableCell>
+                    <TableCell className="text-sm text-[var(--muted)]">{e.warehouse_name || '-'}</TableCell>
+                    <TableCell className="text-sm text-[var(--muted)]">{e.vendor_name || '-'}</TableCell>
+                    <TableCell className="font-bold text-[var(--text)]">{Number(e.amount).toLocaleString('ar-EG')}</TableCell>
+                    <TableCell><Badge className={statusBadge[e.status] || 'bg-[var(--surface-3)] text-[var(--text-soft)] border-[var(--border)]'}>{statusLabel[e.status] || e.status}</Badge></TableCell>
+                    <TableCell className="text-center">{e.is_recurring ? <span className="text-amber-600 text-sm">🔄 {e.recurring_interval}</span> : '-'}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={ev => { ev.stopPropagation(); setConfirmDelete(e) }} className="text-red-500 hover:text-red-700 text-xs h-auto p-0">حذف</Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -156,54 +162,54 @@ export default function ExpensesPage() {
       {/* Add Modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة مصروف جديد" size="lg">
         <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2"><label className="block text-sm font-medium text-slate-600 mb-1">البيان *</label><input className="input" value={formDesc} onChange={e => setFormDesc(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">المبلغ (ج.م) *</label><input type="number" className="input text-lg font-bold" value={formAmount} onChange={e => setFormAmount(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">التاريخ</label><input type="date" className="input" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">الفئة</label>
-            <select className="input" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+ <div className="col-span-2"><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">البيان *</label><Input value={formDesc} onChange={e => setFormDesc(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المبلغ (ج.م) *</label><Input type="number" className="text-lg font-bold" value={formAmount} onChange={e => setFormAmount(e.target.value)}/></div>
+ <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">التاريخ</label><Input type="date" value={formDate} onChange={e => setFormDate(e.target.value)}/></div>
+          <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الفئة</label>
+            <Select value={formCategory} onChange={e => setFormCategory(e.target.value)}>
               <option value="">—</option>
               {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </Select>
           </div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">الفرع</label>
-            <select className="input" value={formWarehouse} onChange={e => setFormWarehouse(e.target.value)}>
+          <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">الفرع</label>
+            <Select value={formWarehouse} onChange={e => setFormWarehouse(e.target.value)}>
               <option value="">—</option>
               {warehouses?.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            </Select>
           </div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">المورد</label>
-            <select className="input" value={formVendor} onChange={e => setFormVendor(e.target.value)}>
+          <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">المورد</label>
+            <Select value={formVendor} onChange={e => setFormVendor(e.target.value)}>
               <option value="">—</option>
               {vendors?.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
+            </Select>
           </div>
-          <div><label className="block text-sm font-medium text-slate-600 mb-1">طريقة الدفع</label>
-            <select className="input" value={formMethod} onChange={e => setFormMethod(e.target.value)}>
+          <div><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">طريقة الدفع</label>
+            <Select value={formMethod} onChange={e => setFormMethod(e.target.value)}>
               <option value="">—</option>
               <option value="cash">نقدي</option>
               <option value="wallet">محفظة</option>
               <option value="bank">بنك</option>
               <option value="cheque">شيك</option>
-            </select>
+            </Select>
           </div>
           <div className="flex items-end gap-3">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={formRecurring} onChange={e => setFormRecurring(e.target.checked)} className="w-4 h-4" />
-              <span className="text-sm text-slate-600">مصروف متكرر</span>
+              <input type="checkbox" aria-label="مصروف متكرر" checked={formRecurring} onChange={e => setFormRecurring(e.target.checked)} className="w-4 h-4" />
+              <span className="text-sm text-[var(--text-soft)]">مصروف متكرر</span>
             </label>
             {formRecurring && (
-              <select className="input flex-1 text-sm" value={formRecInterval} onChange={e => setFormRecInterval(e.target.value)}>
+              <Select className="flex-1 text-sm" value={formRecInterval} onChange={e => setFormRecInterval(e.target.value)}>
                 <option value="monthly">شهري</option>
                 <option value="quarterly">ربع سنوي</option>
                 <option value="yearly">سنوي</option>
-              </select>
+              </Select>
             )}
           </div>
-          <div className="col-span-2"><label className="block text-sm font-medium text-slate-600 mb-1">ملاحظات</label><textarea className="input" rows={2} value={formNotes} onChange={e => setFormNotes(e.target.value)} /></div>
+          <div className="col-span-2"><label className="block text-sm font-medium text-[var(--text-soft)] mb-1">ملاحظات</label><Textarea rows={2} value={formNotes} onChange={e => setFormNotes(e.target.value)} /></div>
         </div>
         <div className="flex gap-3 justify-end mt-6">
-          <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600">إلغاء</button>
-          <button onClick={() => createMut.mutate()} disabled={!formAmount || !formDesc} className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
+          <Button variant="secondary" size="sm" onClick={() => setShowAdd(false)}>إلغاء</Button>
+          <Button size="sm" onClick={() => createMut.mutate()} disabled={!formAmount || !formDesc}>إضافة</Button>
         </div>
       </Modal>
 
@@ -212,28 +218,28 @@ export default function ExpensesPage() {
         {showDetail && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-xs text-slate-400">البيان</p><p className="font-semibold">{showDetail.description}</p></div>
-              <div><p className="text-xs text-slate-400">المبلغ</p><p className="font-bold text-lg">{Number(showDetail.amount).toLocaleString('ar-EG')} ج.م</p></div>
-              <div><p className="text-xs text-slate-400">التاريخ</p><p>{showDetail.date}</p></div>
-              <div><p className="text-xs text-slate-400">الحالة</p><p><span className={statusBadge[showDetail.status]}>{statusLabel[showDetail.status]}</span></p></div>
-              <div><p className="text-xs text-slate-400">الفئة</p><p>{showDetail.category_name || '-'}</p></div>
-              <div><p className="text-xs text-slate-400">الفرع</p><p>{showDetail.warehouse_name || '-'}</p></div>
-              <div><p className="text-xs text-slate-400">المورد</p><p>{showDetail.vendor_name || '-'}</p></div>
-              <div><p className="text-xs text-slate-400">طريقة الدفع</p><p>{showDetail.payment_method || '-'}</p></div>
-              {showDetail.is_recurring && <div className="col-span-2"><p className="text-xs text-slate-400">مصروف متكرر</p><p>🔄 {showDetail.recurring_interval}</p></div>}
-              {showDetail.notes && <div className="col-span-2"><p className="text-xs text-slate-400">ملاحظات</p><p className="text-sm text-slate-600">{showDetail.notes}</p></div>}
-              {showDetail.created_by_name && <div className="col-span-2"><p className="text-xs text-slate-400">أضيف بواسطة</p><p className="text-sm">{showDetail.created_by_name}</p></div>}
+              <div><p className="text-xs text-[var(--muted)]">البيان</p><p className="font-semibold">{showDetail.description}</p></div>
+              <div><p className="text-xs text-[var(--muted)]">المبلغ</p><p className="font-bold text-lg">{Number(showDetail.amount).toLocaleString('ar-EG')} ج.م</p></div>
+              <div><p className="text-xs text-[var(--muted)]">التاريخ</p><p>{showDetail.date}</p></div>
+              <div><p className="text-xs text-[var(--muted)]">الحالة</p><p><Badge className={statusBadge[showDetail.status]}>{statusLabel[showDetail.status]}</Badge></p></div>
+              <div><p className="text-xs text-[var(--muted)]">الفئة</p><p>{showDetail.category_name || '-'}</p></div>
+              <div><p className="text-xs text-[var(--muted)]">الفرع</p><p>{showDetail.warehouse_name || '-'}</p></div>
+              <div><p className="text-xs text-[var(--muted)]">المورد</p><p>{showDetail.vendor_name || '-'}</p></div>
+              <div><p className="text-xs text-[var(--muted)]">طريقة الدفع</p><p>{showDetail.payment_method || '-'}</p></div>
+              {showDetail.is_recurring && <div className="col-span-2"><p className="text-xs text-[var(--muted)]">مصروف متكرر</p><p>🔄 {showDetail.recurring_interval}</p></div>}
+              {showDetail.notes && <div className="col-span-2"><p className="text-xs text-[var(--muted)]">ملاحظات</p><p className="text-sm text-[var(--text-soft)]">{showDetail.notes}</p></div>}
+              {showDetail.created_by_name && <div className="col-span-2"><p className="text-xs text-[var(--muted)]">أضيف بواسطة</p><p className="text-sm">{showDetail.created_by_name}</p></div>}
             </div>
             {showDetail.status === 'draft' && (
-              <div className="flex gap-3 pt-4 border-t border-slate-100">
-                <button onClick={() => { approveMut.mutate({ id: showDetail.id, approved: true }); setShowDetail(null) }}
-                  className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 flex items-center gap-2">
+              <div className="flex gap-3 pt-4 border-t border-[var(--border-faint)]">
+                <Button onClick={() => { approveMut.mutate({ id: showDetail.id, approved: true }); setShowDetail(null) }}
+                  className="bg-green-600 hover:bg-green-700 flex items-center gap-2">
                   <CheckCircle size={14} /> اعتماد
-                </button>
-                <button onClick={() => { approveMut.mutate({ id: showDetail.id, approved: false }); setShowDetail(null) }}
-                  className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 flex items-center gap-2">
+                </Button>
+                <Button variant="destructive" onClick={() => { approveMut.mutate({ id: showDetail.id, approved: false }); setShowDetail(null) }}
+                  className="flex items-center gap-2">
                   <XCircle size={14} /> رفض
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -244,25 +250,25 @@ export default function ExpensesPage() {
       <Modal open={showVendors} onClose={() => setShowVendors(false)} title="موردو المصروفات" size="lg">
         <div className="space-y-4">
           <div className="flex gap-3">
-            <input className="input flex-1" placeholder="اسم المورد" value={vendorName} onChange={e => setVendorName(e.target.value)} />
-            <input className="input w-40" placeholder="رقم الهاتف" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} />
-            <button onClick={() => vendorMut.mutate()} disabled={!vendorName} className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--primary)' }}>إضافة</button>
+ <Input className="flex-1" placeholder="اسم المورد" value={vendorName} onChange={e => setVendorName(e.target.value)}/>
+ <Input className="w-40" placeholder="رقم الهاتف" value={vendorPhone} onChange={e => setVendorPhone(e.target.value)}/>
+            <Button onClick={() => vendorMut.mutate()} disabled={!vendorName}>إضافة</Button>
           </div>
           <div className="table-wrap max-h-80 overflow-y-auto">
-            <table>
-              <thead><tr><th>الاسم</th><th>الهاتف</th><th>عدد المصروفات</th><th>الحالة</th></tr></thead>
-              <tbody>
-                {!vendors?.length && <tr><td colSpan={4}><EmptyState message="لا يوجد موردون" icon="🏢" /></td></tr>}
+            <Table>
+              <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>الهاتف</TableHead><TableHead>عدد المصروفات</TableHead><TableHead>الحالة</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {!vendors?.length && <TableRow><TableCell colSpan={4}><EmptyState message="لا يوجد موردون" icon="🏢" /></TableCell></TableRow>}
                 {vendors?.map((v: any) => (
-                  <tr key={v.id}>
-                    <td className="font-semibold">{v.name}</td>
-                    <td className="text-sm text-slate-500">{v.phone || '-'}</td>
-                    <td className="text-sm">{v.expense_count || 0}</td>
-                    <td>{v.is_active ? <span className="badge-green">نشط</span> : <span className="badge-gray">غير نشط</span>}</td>
-                  </tr>
+                  <TableRow key={v.id}>
+                    <TableCell className="font-semibold">{v.name}</TableCell>
+                    <TableCell className="text-sm text-[var(--muted)]">{v.phone || '-'}</TableCell>
+                    <TableCell className="text-sm">{v.expense_count || 0}</TableCell>
+                    <TableCell>{v.is_active ? <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100">نشط</Badge> : <Badge className="bg-[var(--surface-3)] text-[var(--text-soft)] border-[var(--border)]">غير نشط</Badge>}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </Modal>

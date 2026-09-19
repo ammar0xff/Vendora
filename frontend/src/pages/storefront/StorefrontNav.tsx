@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Button } from '../../components/ui/button'
 import { Package, ShoppingCart, Heart, LogIn } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useStorefrontStore } from '../../store/storefront'
@@ -49,12 +50,12 @@ export default function StorefrontNav({ cartCount, wishlistCount }: StorefrontNa
               <span className="absolute -top-1 -left-1 min-w-5 h-5 px-1 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center">{wc}</span>
             )}
           </Link>
-          <button onClick={openCart} className="relative w-10 h-10 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center" aria-label="عربة التسوق">
+          <Button type="button" variant="ghost" size="icon" onClick={openCart} className="relative w-10 h-10 rounded-xl bg-[var(--primary)] text-white" aria-label="عربة التسوق">
             <ShoppingCart size={18} />
             {qty > 0 && (
               <span className="absolute -top-1 -left-1 min-w-5 h-5 px-1 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center">{qty}</span>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </header>

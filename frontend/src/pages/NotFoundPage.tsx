@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Button } from '../components/ui/button'
 
 export default function NotFoundPage() {
   return (
@@ -6,9 +7,9 @@ export default function NotFoundPage() {
       <div className="text-6xl font-black text-[var(--primary)]">404</div>
       <h1 className="text-2xl font-black text-[var(--text)]">الصفحة غير موجودة</h1>
       <p className="text-[var(--muted)] text-sm max-w-sm">عذراً، الصفحة التي تبحث عنها غير متاحة أو تم نقلها.</p>
-      <Link to="/" className="btn btn-primary px-6 py-2.5 rounded-xl font-bold">
-        العودة للرئيسية
-      </Link>
+      <Button asChild className="px-6 py-2.5 rounded-xl font-bold">
+        <Link to="/">العودة للرئيسية</Link>
+      </Button>
     </div>
   )
 }

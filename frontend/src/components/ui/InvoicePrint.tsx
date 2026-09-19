@@ -27,6 +27,9 @@ interface PrintData {
   created_by_name?: string
 }
 
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table'
+import { Button } from './button'
+
 export default function InvoicePrint({ data, onClose }: { data: PrintData; onClose: () => void }) {
   const handlePrint = () => window.print()
 
@@ -34,12 +37,12 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
     <>
       {/* Screen controls — hidden when printing */}
       <div className="print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 flex gap-3 bg-white rounded-2xl shadow-xl p-3 border border-slate-200">
-        <button onClick={handlePrint} className="px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2" style={{ background: 'var(--primary)', color: 'white' }}>
+        <Button type="button" onClick={handlePrint} className="px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2" style={{ background: 'var(--primary)', color: 'white' }}>
           🖨️ طباعة
-        </button>
-        <button onClick={onClose} className="px-6 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
+        </Button>
+        <Button type="button" onClick={onClose} className="px-6 py-2 rounded-xl font-bold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
           ✕ إغلاق
-        </button>
+        </Button>
       </div>
 
       {/* Print document */}
@@ -99,40 +102,40 @@ export default function InvoicePrint({ data, onClose }: { data: PrintData; onClo
           </div>
 
           {/* Items table */}
-          <table className="w-full mb-5 border-collapse" style={{ fontSize: '14px' }}>
-            <thead>
-              <tr style={{ background: 'var(--primary)' }}>
-                <th className="text-white text-right px-3 py-3 rounded-r-lg" style={{ fontSize: '14px' }}>#</th>
-                <th className="text-white text-right px-3 py-3" style={{ fontSize: '14px' }}>المنتج</th>
-                <th className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الوحدة</th>
-                <th className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الكمية</th>
-                <th className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>السعر</th>
+          <Table className="w-full mb-5 border-collapse" style={{ fontSize: '14px' }}>
+            <TableHeader>
+              <TableRow style={{ background: 'var(--primary)' }}>
+                <TableHead className="text-white text-right px-3 py-3 rounded-r-lg" style={{ fontSize: '14px' }}>#</TableHead>
+                <TableHead className="text-white text-right px-3 py-3" style={{ fontSize: '14px' }}>المنتج</TableHead>
+                <TableHead className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الوحدة</TableHead>
+                <TableHead className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الكمية</TableHead>
+                <TableHead className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>السعر</TableHead>
                 {data.items.some(i => i.discount > 0) && (
-                  <th className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الخصم</th>
+                  <TableHead className="text-white text-center px-3 py-3" style={{ fontSize: '14px' }}>الخصم</TableHead>
                 )}
-                <th className="text-white text-center px-3 py-3 rounded-l-lg" style={{ fontSize: '14px' }}>الإجمالي</th>
-              </tr>
-            </thead>
-            <tbody>
+                <TableHead className="text-white text-center px-3 py-3 rounded-l-lg" style={{ fontSize: '14px' }}>الإجمالي</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.items.map((item, i) => (
-                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                  <td className="px-3 py-3 text-slate-500" style={{ fontSize: '13px' }}>{i + 1}</td>
-                  <td className="px-3 py-3 font-semibold text-slate-800" style={{ fontSize: '14px' }}>{item.product_name}</td>
-                  <td className="px-3 py-3 text-center text-slate-600" style={{ fontSize: '13px' }}>{item.unit}</td>
-                  <td className="px-3 py-3 text-center font-bold" style={{ fontSize: '14px' }}>{item.qty}</td>
-                  <td className="px-3 py-3 text-center" style={{ fontSize: '13px' }}>{item.unit_price.toLocaleString('ar-EG')}</td>
+                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                  <TableCell className="px-3 py-3 text-slate-500" style={{ fontSize: '13px' }}>{i + 1}</TableCell>
+                  <TableCell className="px-3 py-3 font-semibold text-slate-800" style={{ fontSize: '14px' }}>{item.product_name}</TableCell>
+                  <TableCell className="px-3 py-3 text-center text-slate-600" style={{ fontSize: '13px' }}>{item.unit}</TableCell>
+                  <TableCell className="px-3 py-3 text-center font-bold" style={{ fontSize: '14px' }}>{item.qty}</TableCell>
+                  <TableCell className="px-3 py-3 text-center" style={{ fontSize: '13px' }}>{item.unit_price.toLocaleString('ar-EG')}</TableCell>
                   {data.items.some(i => i.discount > 0) && (
-                    <td className="px-3 py-3 text-center text-red-600" style={{ fontSize: '13px' }}>
+                    <TableCell className="px-3 py-3 text-center text-red-600" style={{ fontSize: '13px' }}>
                       {item.discount > 0 ? `- ${item.discount.toLocaleString('ar-EG')}` : '—'}
-                    </td>
+                    </TableCell>
                   )}
-                  <td className="px-3 py-3 text-center font-bold" style={{ fontSize: '14px', color: 'var(--primary)' }}>
+                  <TableCell className="px-3 py-3 text-center font-bold" style={{ fontSize: '14px', color: 'var(--primary)' }}>
                     {item.total.toLocaleString('ar-EG')}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
 
           {/* Totals */}
           <div className="flex justify-end mb-5">
