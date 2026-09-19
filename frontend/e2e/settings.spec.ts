@@ -18,7 +18,11 @@ const MOCK_SUBCATEGORIES = [
 const ADMIN_USER = {
   id: 'admin-id', username: 'admin',
   full_name: 'Admin', role: 'admin',
-  csrf_token: CSRF_TOKEN, permissions: [],
+  csrf_token: CSRF_TOKEN,
+  permissions: [
+    'pos', 'sales', 'quotations', 'inventory', 'operations', 'customers',
+    'reports', 'archive', 'payroll', 'users', 'settings', 'admin', 'shifts', 'finance',
+  ],
 }
 
 async function loginAsAdmin(page: any) {
@@ -63,7 +67,7 @@ async function setupSubcategoriesMock(page: any) {
   })
 }
 
-test.describe('Settings - Subcategory Delete Dialog', () => {
+test.describe('Subcategory Delete Dialog', () => {
   test.beforeEach(async ({ page }) => {
     await setupSettingsMock(page)
     await loginAsAdmin(page)
@@ -74,25 +78,19 @@ test.describe('Settings - Subcategory Delete Dialog', () => {
     await page.fill('input[placeholder="أدخل اسم المستخدم"]', 'admin')
     await page.fill('input[placeholder="أدخل كلمة المرور"]', 'admin')
     await page.click('button[type="submit"]')
-    await page.waitForURL('**/')
-    await page.goto('/settings')
+    await page.waitForURL('**/admin')
+    await page.goto('/categories')
     await page.waitForLoadState('networkidle')
   })
 
   test('opens delete confirmation dialog when clicking delete', async ({ page }) => {
-    await page.click('button:has-text("الفئات والتصنيفات")')
-    await page.waitForTimeout(500)
-
-    // First subcategory delete button
-    const deleteBtn = page.locator('button[title="حذف"]').first()
+    const deleteBtn = page.getByTestId('delete-subcategory').first()
     await expect(deleteBtn).toBeVisible()
     await deleteBtn.click()
 
-    // Verify only ONE dialog appears
     const dialogs = page.locator('.modal-overlay')
     await expect(dialogs).toHaveCount(1)
 
-    // Verify dialog has confirm message
     await expect(page.getByText('حذف "مواسير حديد"؟')).toBeVisible()
   })
 
@@ -108,21 +106,13 @@ test.describe('Settings - Subcategory Delete Dialog', () => {
       }
     })
 
-    await page.click('button:has-text("الفئات والتصنيفات")')
-    await page.waitForTimeout(500)
+    await page.getByTestId('delete-subcategory').first().click()
+    await expect(page.locator('.modal-overlay')).toHaveCount(1)
 
-    // Click delete on first subcategory
-    await page.locator('button[title="حذف"]').first().click()
-    await page.waitForTimeout(300)
-
-    // Click confirm
     await page.locator('button:has-text("تأكيد")').click()
 
-    // Wait for API to be called and dialog to close
     await page.waitForTimeout(1000)
     expect(deleteCalled).toBe(true)
-
-    // Dialog should be closed
     await expect(page.locator('.modal-overlay')).toHaveCount(0)
   })
 
@@ -139,33 +129,21 @@ test.describe('Settings - Subcategory Delete Dialog', () => {
       }
     })
 
-    await page.click('button:has-text("الفئات والتصنيفات")')
-    await page.waitForTimeout(500)
-
-    await page.locator('button[title="حذف"]').first().click()
-    await page.waitForTimeout(300)
+    await page.getByTestId('delete-subcategory').first().click()
+    await expect(page.locator('.modal-overlay')).toHaveCount(1)
 
     await page.locator('button:has-text("تأكيد")').click()
-    await page.waitForTimeout(500)
-
-    // Error toast should appear
-    await expect(page.getByText('فشل الحذف')).toBeVisible()
-
-    // Dialog should close after error
+    await expect(page.getByText('فشل الحذف')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('.modal-overlay')).toHaveCount(0)
   })
 
   test('does not open multiple dialogs on rapid clicks', async ({ page }) => {
-    await page.click('button:has-text("الفئات والتصنيفات")')
-    await page.waitForTimeout(500)
-
-    const deleteBtn = page.locator('button[title="حذف"]').first()
+    const deleteBtn = page.getByTestId('delete-subcategory').first()
     await deleteBtn.click()
-    await deleteBtn.click()
-    await deleteBtn.click()
+    await deleteBtn.click({ force: true })
+    await deleteBtn.click({ force: true })
     await page.waitForTimeout(300)
 
-    // Only one dialog should exist
     const dialogs = page.locator('.modal-overlay')
     await expect(dialogs).toHaveCount(1)
   })
@@ -182,17 +160,12 @@ test.describe('Settings - Subcategory Delete Dialog', () => {
       }
     })
 
-    await page.click('button:has-text("الفئات والتصنيفات")')
-    await page.waitForTimeout(500)
+    await page.getByTestId('delete-subcategory').first().click()
+    await expect(page.locator('.modal-overlay')).toHaveCount(1)
 
-    await page.locator('button[title="حذف"]').first().click()
-    await page.waitForTimeout(300)
-
-    // Click cancel
     await page.locator('button:has-text("إلغاء")').click()
-    await page.waitForTimeout(300)
+    await expect(page.locator('.modal-overlay')).toHaveCount(0)
 
     expect(deleteCalled).toBe(false)
-    await expect(page.locator('.modal-overlay')).toHaveCount(0)
   })
 })

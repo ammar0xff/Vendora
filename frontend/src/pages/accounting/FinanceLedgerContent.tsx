@@ -54,8 +54,7 @@ export default function FinanceLedgerContent() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">الميزان المالي</h1>
-          <p className="text-slate-500 text-sm mt-1">تتبع كل جنيه داخل وخارج الشركة بالتفصيل</p>
+          <p className="text-slate-500 text-sm">تتبع كل جنيه داخل وخارج الشركة بالتفصيل</p>
         </div>
         <button onClick={() => setShowManageCats(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-2" style={{ background: 'var(--primary)' }}>
           <Plus size={15} /> إدارة الفئات

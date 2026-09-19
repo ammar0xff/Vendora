@@ -1,11 +1,7 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, ShoppingCart, Package, BarChart3,
-  Archive, Settings, Users, LogOut, FileText,
-  Building2, Receipt, Truck, UserCheck, ShieldCheck,
-  DollarSign, ClipboardList, Vault, Clock, TrendingDown,
-  ChevronDown, PanelLeftClose, PanelLeft, Store, Boxes, X
+  LogOut, ChevronDown, PanelLeftClose, PanelLeft, Store, Boxes, X
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useAppStore } from '../../store/app'
@@ -14,89 +10,7 @@ import { stockApi, settingsApi } from '../../api/endpoints'
 import { fixUploadUrl } from '../../utils/format'
 import { clsx } from 'clsx'
 import type { Warehouse } from '../../types'
-
-// ── Navigation structure ─────────────────────────────────────────
-const NAV_GROUPS = [
-  {
-    key: 'home',
-    label: 'الرئيسية',
-    icon: LayoutDashboard,
-    items: [
-      { to: '/admin', perm: null, warehouseTypes: ['all'], label: 'لوحة التحكم', icon: LayoutDashboard },
-    ]
-  },
-  {
-    key: 'sales',
-    label: 'المبيعات',
-    icon: ShoppingCart,
-    items: [
-      { to: '/pos',        icon: ShoppingCart, label: 'نقطة البيع',         perm: 'pos',        warehouseTypes: ['all'] },
-      { to: '/sales',      icon: Receipt,      label: 'المبيعات والمرتجعات', perm: 'sales',      warehouseTypes: ['all'] },
-      { to: '/quotations', icon: FileText,      label: 'عروض الأسعار',      perm: 'quotations', warehouseTypes: ['all'] },
-      { to: '/customers',  icon: UserCheck,    label: 'العملاء',            perm: 'customers',  warehouseTypes: ['all'] },
-    ]
-  },
-  {
-    key: 'inventory',
-    label: 'المخزون',
-    icon: Package,
-    items: [
-      { to: '/inventory',       icon: Package,       label: 'الأصناف',               perm: 'inventory',  warehouseTypes: ['all'] },
-      { to: '/suppliers',       icon: Building2,     label: 'الموردون',              perm: 'inventory',  warehouseTypes: ['all'] },
-      { to: '/supplier-prices', icon: TrendingDown,   label: 'مقارنة أسعار الموردين', perm: 'operations', warehouseTypes: ['all'] },
-      { to: '/purchases',       icon: Receipt,        label: 'سجل المشتريات',         perm: 'inventory',  warehouseTypes: ['all'] },
-      { to: '/purchase-orders', icon: ClipboardList,  label: 'أوامر الشراء',           perm: 'inventory',  warehouseTypes: ['all'] },
-      { to: '/stock-adjustments', icon: TrendingDown,  label: 'تعديلات المخزون',       perm: 'inventory',  warehouseTypes: ['all'] },
-      { to: '/operations',      icon: Truck,          label: 'المشتريات والعمليات',   perm: 'operations', warehouseTypes: ['all'] },
-      { to: '/stocktaking',     icon: ClipboardList,  label: 'الجرد',                 perm: 'inventory',  warehouseTypes: ['all'] },
-      { to: '/purchase-bill',   icon: ShoppingCart,   label: 'فاتورة مشتريات',        perm: 'inventory',  warehouseTypes: ['all'] },
-    ]
-  },
-  {
-    key: 'finance',
-    label: 'المالية',
-    icon: BarChart3,
-    items: [
-      { to: '/accounting', icon: BarChart3, label: 'الحسابات',      perm: 'reports',  warehouseTypes: ['all'] },
-      { to: '/aging',      icon: Clock,     label: 'أعمار الديون',  perm: 'finance',  warehouseTypes: ['all'] },
-      { to: '/cashflow',   icon: BarChart3, label: 'التدفق النقدي', perm: 'finance',  warehouseTypes: ['all'] },
-      { to: '/safes',      icon: Vault,     label: 'الخزن المالية',  perm: 'finance',  warehouseTypes: ['all'] },
-      { to: '/expenses',   icon: DollarSign, label: 'المصروفات',    perm: 'finance',  warehouseTypes: ['all'] },
-      { to: '/shifts',     icon: Clock,     label: 'الورديات',      perm: 'shifts',   warehouseTypes: ['all'] },
-      { to: '/archive',    icon: Archive,   label: 'الأرشيف',       perm: 'archive',  warehouseTypes: ['all'] },
-    ]
-  },
-  {
-    key: 'hr',
-    label: 'الموارد البشرية',
-    icon: DollarSign,
-    items: [
-      { to: '/payroll', icon: DollarSign, label: 'الرواتب والحضور', perm: 'payroll', warehouseTypes: ['all'] },
-    ]
-  },
-  {
-    key: 'admin',
-    label: 'الإدارة',
-    icon: Settings,
-    items: [
-      { to: '/users',     icon: Users,       label: 'المستخدمون',  perm: 'users',    warehouseTypes: ['all'] },
-      { to: '/audit-log', icon: ShieldCheck,  label: 'سجل التدقيق', perm: 'admin',    warehouseTypes: ['all'] },
-      { to: '/settings',  icon: Settings,    label: 'الإعدادات',   perm: 'settings', warehouseTypes: ['all'] },
-    ]
-  },
-]
-
-// ── Quick-access shortcuts (merged into the sidebar) ────────────
-const QUICK_ITEMS = [
-  { to: '/pos',        icon: ShoppingCart, label: 'نقطة بيع', perm: 'pos' },
-  { to: '/inventory',  icon: Package,      label: 'الأصناف',   perm: 'inventory' },
-  { to: '/sales',      icon: Receipt,      label: 'المبيعات',  perm: 'sales' },
-  { to: '/quotations', icon: FileText,     label: 'عروض سعر',  perm: 'quotations' },
-  { to: '/purchases',  icon: Truck,        label: 'المشتريات', perm: 'inventory' },
-  { to: '/customers',  icon: UserCheck,    label: 'العملاء',   perm: 'customers' },
-  { to: '/safes',      icon: Vault,        label: 'الخزينة',   perm: 'finance' },
-  { to: '/expenses',   icon: DollarSign,   label: 'المصروفات', perm: 'finance' },
-]
+import { NAV_GROUPS, findNavPage } from '../../router/navTree'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuthStore()
@@ -122,33 +36,18 @@ export default function Layout({ children }: { children: ReactNode }) {
     }
   }, [defaultWhId, warehouses, warehouses?.length, activeWarehouseId, setActiveWarehouse])
 
-  const activeWh = warehouses?.find(w => w.id === activeWarehouseId)
-  const defaultWh = warehouses?.find(w => w.id === defaultWhId)
-  const whType = activeWh?.warehouse_type || defaultWh?.warehouse_type || 'all'
-  const isCompanyView = !activeWarehouseId
-
   const userPerms: string[] = (user as any)?.permissions || []
-  const hasPermission = (perm: string | null) => {
-    if (!perm) return true
+  const hasPermission = (perm: string | null) => {    if (!perm) return true
     return userPerms.includes(perm)
   }
-  const isVisible = (item: { perm: string | null; warehouseTypes: string[] }) => {
-    if (!hasPermission(item.perm)) return false
-    if (isManager && isCompanyView) return true
-    if (item.warehouseTypes.includes('all')) return true
-    const effectiveType = whType === 'all' ? 'showroom' : whType
-    return item.warehouseTypes.includes(effectiveType)
-  }
+  const currentPage = findNavPage(location.pathname)
+  const isDenied = currentPage?.perm ? !userPerms.includes(currentPage.perm) : false
 
   // Which group is active based on route
   const activeGroupKey = useMemo(() => {
-    for (const group of NAV_GROUPS) {
-      if (group.items.some(item => item.to === location.pathname)) {
-        return group.key
-      }
-    }
-    return 'home'
-  }, [location.pathname])
+    const group = NAV_GROUPS.find(g => g.items.some(item => item === currentPage))
+    return group?.key || 'home'
+  }, [currentPage])
 
   // Auto-expand the active group
   useEffect(() => {
@@ -171,7 +70,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const showroomCount = warehouses?.filter(w => w.warehouse_type === 'showroom').length || 0
   const warehouseCount = warehouses?.filter(w => w.warehouse_type === 'warehouse').length || 0
 
-  const quickItems = QUICK_ITEMS.filter(q => hasPermission(q.perm))
+  const quickItems = NAV_GROUPS.flatMap(g => g.items).filter(p => p.quick && hasPermission(p.perm))
 
   const navigateClose = (to: string) => {
     navigate(to)
@@ -181,10 +80,10 @@ export default function Layout({ children }: { children: ReactNode }) {
   // Desktop rail collapses to icons only; the mobile drawer stays expanded
   const isRail = collapsed && !mobileOpen
 
-  // Fully rendered group set (respects permission/visibility)
+  // Fully rendered group set (respects permissions)
   const renderableGroups = NAV_GROUPS.map(group => ({
     ...group,
-    items: group.items.filter(isVisible),
+    items: group.items.filter(item => hasPermission(item.perm)),
   })).filter(g => g.items.length > 0)
 
   const SidebarBody = (
@@ -195,16 +94,17 @@ export default function Layout({ children }: { children: ReactNode }) {
             <p className="sidebar-section-label px-3 mb-2">وصول سريع</p>
             <div className="grid grid-cols-2 gap-1.5">
               {quickItems.map(item => {
-                const isActive = location.pathname === item.to
+                const isActive = currentPage === item
+                const ItemIcon = item.icon
                 return (
                   <button
-                    key={item.to}
-                    onClick={() => navigateClose(item.to)}
+                    key={item.path}
+                    onClick={() => navigateClose(item.path)}
                     className={clsx('quick-tile', isActive && 'active')}
                     title={item.label}
                   >
                     <span className={clsx('quick-tile-icon', isActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--primary-soft)] text-[var(--primary)]')}>
-                      <item.icon size={15} />
+                      <ItemIcon size={15} />
                     </span>
                     <span className="truncate-1 w-full">{item.label}</span>
                   </button>
@@ -259,11 +159,11 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <div className="mr-3 mt-1 space-y-0.5 border-r-2 border-[var(--primary-soft)] pr-1.5">
                   {group.items.map((item) => {
                     const ItemIcon = item.icon
-                    const isActive = location.pathname === item.to
+                    const isActive = currentPage === item
                     return (
                       <NavLink
-                        key={item.to}
-                        to={item.to}
+                        key={item.path}
+                        to={item.path}
                         onClick={() => setMobileOpen(false)}
                         className={clsx('sidebar-link', isActive && 'active')}
                       >
@@ -412,7 +312,15 @@ export default function Layout({ children }: { children: ReactNode }) {
 
         {/* ── Content Area ── */}
         <main className="flex-1 overflow-y-auto bg-[var(--bg)]">
-          <div className="p-4 lg:p-6">{children}</div>
+          <div className="p-4 lg:p-6">
+            {isDenied ? (
+              <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+                <div className="text-5xl">🔒</div>
+                <h2 className="text-xl font-black text-slate-800">غير مصرح</h2>
+                <p className="text-slate-500 text-sm">ليس لديك صلاحية الوصول لهذه الصفحة</p>
+              </div>
+            ) : children}
+          </div>
         </main>
       </div>
     </div>

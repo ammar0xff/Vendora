@@ -59,7 +59,6 @@ export default function ReportsContent() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">التقارير والإحصائيات</h1>
         <div className="flex gap-3 items-center flex-wrap">
           <button onClick={handleInventoryPrint} disabled={printing} className="btn-ghost px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 border border-slate-200 disabled:opacity-50">
             <Printer size={16} /> {printing ? 'جاري التحميل...' : 'طباعة تقرير المخزون'}
