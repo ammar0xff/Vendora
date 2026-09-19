@@ -89,8 +89,7 @@ const CUSTOM_THEME_RUNTIME = `(function(){
       parts = n.nodeValue.split(/\\{\\{([^{}]+)\\}\\}/);
       if(parts.length > 1){
         for(var i=1;i<parts.length;i+=2){
-          var t = token(ctx, parts[i].trim());
-          if(t !== '') parts[i] = t;
+          parts[i] = token(ctx, parts[i].trim());
         }
         n.nodeValue = parts.join('');
       }
