@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Save, RotateCcw, Check } from 'lucide-react'
+import { Save, RotateCcw, Check, ExternalLink } from 'lucide-react'
 import { settingsApi } from '../../api/endpoints'
-import { writeThemeDraft } from '../../ThemeManager'
+import { writeThemeDraft } from '../../utils/storefrontDraft'
 import { DEFAULT_THEME, FONT_OPTIONS, normalizeHex, resolveTheme, contrastRatio, applyThemeVars, buildCacheCode, cacheTheme } from '../../utils/theme'
+import { TEMPLATES, type Tone } from '../../pages/storefront/templates'
+import TemplateThumb from '../../pages/storefront/templates/TemplateThumb'
 
 const COLOR_FIELDS: { key: 'theme_primary' | 'theme_accent' | 'theme_bg' | 'theme_ink'; label: string }[] = [
   { key: 'theme_primary', label: 'اللون الأساسي — شريط التنقل والأزرار' },
@@ -15,9 +17,13 @@ const COLOR_FIELDS: { key: 'theme_primary' | 'theme_accent' | 'theme_bg' | 'them
 
 export default function AppearanceTab({ settings }: { settings: any }) {
   const qc = useQueryClient()
+  const [previewKey, setPreviewKey] = useState(0)
   const [form, setForm] = useState<Record<string, any>>(() => {
     const s = settings || {}
     return {
+      storefront_template: s.storefront_template || 'classic',
+      storefront_hero_title: s.storefront_hero_title || '',
+      storefront_hero_subtitle: s.storefront_hero_subtitle || '',
       theme_primary: s.theme_primary || DEFAULT_THEME.primary,
       theme_accent: s.theme_accent || DEFAULT_THEME.accent,
       theme_bg: s.theme_bg || DEFAULT_THEME.bg,
@@ -29,6 +35,9 @@ export default function AppearanceTab({ settings }: { settings: any }) {
 
   const applyDraft = (next: Record<string, any>) => {
     writeThemeDraft({
+      storefront_template: next.storefront_template,
+      storefront_hero_title: next.storefront_hero_title,
+      storefront_hero_subtitle: next.storefront_hero_subtitle,
       theme_primary: next.theme_primary,
       theme_accent: next.theme_accent,
       theme_bg: next.theme_bg,
@@ -57,11 +66,15 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     setForm(next)
     applyDraft(next)
     pushTheme(next)
+    setPreviewKey((k) => k + 1)
   }
 
   const saveMut = useMutation({
     mutationFn: () => {
       const payload: Record<string, string> = {
+        storefront_template: form.storefront_template || 'classic',
+        storefront_hero_title: form.storefront_hero_title || '',
+        storefront_hero_subtitle: form.storefront_hero_subtitle || '',
         theme_primary: normalizeHex(form.theme_primary, DEFAULT_THEME.primary),
         theme_accent: normalizeHex(form.theme_accent, DEFAULT_THEME.accent),
         theme_bg: normalizeHex(form.theme_bg, DEFAULT_THEME.bg),
@@ -82,6 +95,9 @@ export default function AppearanceTab({ settings }: { settings: any }) {
   const resetDefaults = () => {
     const next = {
       ...form,
+      storefront_template: 'classic',
+      storefront_hero_title: '',
+      storefront_hero_subtitle: '',
       theme_primary: DEFAULT_THEME.primary,
       theme_accent: DEFAULT_THEME.accent,
       theme_bg: DEFAULT_THEME.bg,
@@ -92,7 +108,8 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     setForm(next)
     applyDraft(next)
     pushTheme(next)
-    toast('تمت استعادة الألوان الافتراضية — اضغط "حفظ الهوية" للتطبيق', { icon: '🎨' })
+    setPreviewKey((k) => k + 1)
+    toast('تمت استعادة الافتراضي — اضغط "حفظ الهوية" للتطبيق', { icon: '🎨' })
   }
 
   const theme = resolveTheme({
@@ -110,11 +127,45 @@ export default function AppearanceTab({ settings }: { settings: any }) {
       {/* Controls */}
       <div className="card xl:col-span-2">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-slate-700">الهوية البصرية — الألوان والخطوط</h3>
+          <h3 className="font-bold text-slate-700">ستايل متجرك</h3>
           <button onClick={resetDefaults} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200">
             <RotateCcw size={13} /> استعادة الافتراضي
           </button>
         </div>
+
+        {/* Template picker */}
+        <div className="mb-6">
+          <label className="block text-xs font-medium text-slate-600 mb-2">قالب الواجهة الرئيسية</label>
+          <div className="grid grid-cols-3 gap-2">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => update('storefront_template', t.id)}
+                className={`rounded-xl border-2 p-1.5 text-center transition-colors ${form.storefront_template === t.id ? 'border-[var(--primary)] ring-2 ring-theme-primary/30' : 'border-slate-200 hover:border-slate-300'}`}
+                title={t.description}
+              >
+                <TemplateThumb tone={t.id as Tone} />
+                <span className={`block text-xs font-bold mt-1.5 ${form.storefront_template === t.id ? 'text-[var(--primary)]' : 'text-slate-600'}`}>{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Hero copy */}
+        <div className="grid grid-cols-1 gap-3 mb-6">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">سطر الهيرو الرئيسي (يفرغ للتلقائي)</label>
+            <input className="input text-sm" value={form.storefront_hero_title} onChange={(e) => update('storefront_hero_title', e.target.value)} placeholder="كل لوازم السباكة ومواد البناء" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">النص التعريفي (يفرغ للتلقائي)</label>
+            <textarea className="input text-sm" rows={2} value={form.storefront_hero_subtitle} onChange={(e) => update('storefront_hero_subtitle', e.target.value)} placeholder="أصناف حقيقية بأسعار حقيقية من نظامك — باركود موحّد، بيع جملة وتجزئة، وتوصيل خلال 24 ساعة." />
+          </div>
+        </div>
+
+        <div className="border-t mb-5" style={{ borderColor: 'var(--border)' }} />
+
+        <h3 className="font-bold text-slate-700 mb-5">الهوية البصرية — الألوان والخطوط</h3>
 
         <div className="space-y-4">
           {COLOR_FIELDS.map(({ key, label }) => (
@@ -170,6 +221,24 @@ export default function AppearanceTab({ settings }: { settings: any }) {
 
       {/* Live preview */}
       <div className="xl:col-span-3 space-y-4">
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-700">معاينة الصفحة الرئيسية — بحجم المتجر الحقيقي</h3>
+            <a href="/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--primary)]">
+              فتح في تبويب جديد <ExternalLink size={13} />
+            </a>
+          </div>
+          <iframe
+            key={previewKey}
+            src="/"
+            title="معاينة المتجر"
+            sandbox="allow-scripts allow-same-origin"
+            className="w-full h-[540px] rounded-2xl border bg-white"
+            style={{ borderColor: 'var(--border)' }}
+          />
+          <p className="mt-2 text-[11px] text-slate-400">تُعرض التغييرات في القالب والألوان والخطوط فوراً هنا دون حفظ.</p>
+        </div>
+
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-700">معاينة حية</h3>

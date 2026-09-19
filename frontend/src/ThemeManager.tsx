@@ -1,30 +1,12 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from './api/endpoints'
+import { readThemeDraft } from './utils/storefrontDraft'
+import type { ThemeSettings } from './utils/theme'
 import {
   resolveTheme, applyThemeVars, buildCacheCode, cacheTheme,
-  readCachedThemeCode, decodeCacheCode, type ThemeSettings,
+  readCachedThemeCode, decodeCacheCode,
 } from './utils/theme'
-
-const DRAFT_KEY = 'vendora-theme-draft'
-
-export function readThemeDraft(): Partial<ThemeSettings> | null {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-export function writeThemeDraft(draft: Partial<ThemeSettings> | null): void {
-  try {
-    if (draft) localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-    else localStorage.removeItem(DRAFT_KEY)
-  } catch {
-    /* ignore */
-  }
-}
 
 /* Apply the last-known theme before first paint to avoid a flash. */
 const cachedCode = readCachedThemeCode()

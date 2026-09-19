@@ -107,13 +107,13 @@ Vendora/
 #### 🎨 Storefront Templates + Visual Identity (الجاري)
 | # | المهمة | الوصف | الحالة |
 | --- | --- | --- | --- |
-| S1 | Theme engine | utils `theme.ts` + `ThemeManager` يطبّق الألوان/الخطوط على كامل التطبيق من settings | ▪️ |
-| S2 | Fonts | رابط Google Fonts (Cairo/Tajawal/Almarai/Amiri/Noto Kufi/IBM Plex) + متغيرات `--font-heading/--font-body` | ▪️ |
-| S3 | Settings tab | تبويب «الواجهة والمظهر»: منتقي الالوان/الخطوط + زر استعادة الافتراضي | ▪️ |
-| S4 | Templates | تفكيك الواجهة لمقاطع + قوالب classic/bold/minimal + اختيار القالب | ▪️ |
-| S5 | Live preview | معاينة حية بملء الصفحة عبر iframe + localStorage draft | ▪️ |
+| S1 | Theme engine | utils `theme.ts` + `ThemeManager` يطبّق الألوان/الخطوط على كامل التطبيق من settings | ✅ |
+| S2 | Fonts | رابط Google Fonts (Cairo/Tajawal/Almarai/Amiri/Noto Kufi/IBM Plex) + متغيرات `--font-heading/--font-body` | ✅ |
+| S3 | Settings tab | تبويب «الواجهة والمظهر»: منتقي الالوان/الخطوط + زر استعادة الافتراضي | ✅ |
+| S4 | Templates | تفكيك الواجهة لمقاطع + قوالب classic/bold/minimal + اختيار القالب | ✅ |
+| S5 | Live preview | معاينة حية بملء الصفحة عبر iframe + localStorage draft | ✅ |
 | S6 | Drag-and-drop builder | محرر مقاطع الواجهة (سحب/ترتيب/إضافة/تعديل خصائص) | ▪️ |
-| S7 | Manifest | `theme_color` من settings بدل الهاردكود | ▪️ |
+| S7 | Manifest | `theme_color` من settings بدل الهاردكود | ✅ |
 
 > مرجع التفاصيل: `docs/storefront-customization-plan.md`
  
