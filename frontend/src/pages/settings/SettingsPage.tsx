@@ -7,8 +7,9 @@ import { PageLoader } from '../../components/ui/Loaders'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
-import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil, ChevronDown, ChevronLeft, Lock } from 'lucide-react'
+import { Save, Plus, Trash2, Tag, Layers, Warehouse, Wallet, Pencil, ChevronDown, ChevronLeft, Lock, Palette } from 'lucide-react'
 import PeriodsTab from './PeriodsTab'
+import AppearanceTab from './AppearanceTab'
 import { useAuthStore } from '../../store/auth'
 
 function WalletsTab() {
@@ -350,7 +351,7 @@ function CategoriesTree({ categories, subcategories }: { categories: any[], subc
 }
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'store' | 'categories' | 'options' | 'warehouses' | 'wallets' | 'periods'>('store')
+  const [tab, setTab] = useState<'store' | 'appearance' | 'categories' | 'options' | 'warehouses' | 'wallets' | 'periods'>('store')
   const [storeForm, setStoreForm] = useState<any>(null)
   const qc = useQueryClient()
 
@@ -431,6 +432,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'store', label: 'إعدادات المتجر', icon: Save },
+    { id: 'appearance', label: 'الواجهة والمظهر', icon: Palette },
     { id: 'categories', label: 'الفئات والتصنيفات', icon: Tag },
     { id: 'options', label: 'خيارات المنتجات', icon: Layers },
     ...(hasPerm('inventory') ? [{ id: 'warehouses', label: 'المخازن', icon: Warehouse }] : []),
@@ -551,6 +553,9 @@ export default function SettingsPage() {
       {tab === 'categories' && (
         <CategoriesTree categories={categories || []} subcategories={subcategories || []} />
       )}
+
+      {/* Appearance */}
+      {tab === 'appearance' && <AppearanceTab settings={sf} />}
 
       {/* Product options */}
       {tab === 'options' && options && (

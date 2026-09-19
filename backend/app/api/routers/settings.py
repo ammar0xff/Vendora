@@ -73,10 +73,12 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
 async def pwa_manifest(db: AsyncSession = Depends(get_db)):
     """Dynamic PWA manifest using logo from settings."""
     import os
-    rows = (await db.execute(text("SELECT key, value FROM store_settings WHERE key IN ('store_name','logo_url')"))).fetchall()
+    rows = (await db.execute(text("SELECT key, value FROM store_settings WHERE key IN ('store_name','logo_url','theme_color','theme_bg')"))).fetchall()
     s = {r.key: r.value for r in rows}
     name = s.get("store_name") or "Vendora"
     logo = s.get("logo_url") or ""
+    theme_color = (s.get("theme_color") or "#2b1b03").strip()
+    background_color = (s.get("theme_bg") or "#f3f5fa").strip()
     icons = []
     if logo:
         if logo.startswith("/"):
@@ -91,8 +93,8 @@ async def pwa_manifest(db: AsyncSession = Depends(get_db)):
             {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
         ]
     from fastapi.responses import JSONResponse
-    return JSONResponse({"name": name, "short_name": name[:12], "theme_color": "#2b1b03",
-                         "background_color": "#2b1b03", "display": "standalone",
+    return JSONResponse({"name": name, "short_name": name[:12], "theme_color": theme_color,
+                         "background_color": background_color, "display": "standalone",
                          "start_url": "/", "lang": "ar", "dir": "rtl", "icons": icons})
 
 

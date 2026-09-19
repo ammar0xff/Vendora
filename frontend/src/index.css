@@ -72,6 +72,7 @@
     --border-faint: #eef1f6;
     --text: #0f172a;
     --text-soft: #475569;
+    --ink: #0f172a;
     --muted: #8a94a6;
     --faint: #b4bccb;
 
@@ -87,6 +88,10 @@
     --r-lg: 16px;
     --r-xl: 20px;
 
+    /* Typography */
+    --font-heading: 'Cairo', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Cairo', 'Segoe UI', system-ui, sans-serif;
+
     /* Safe area insets (set by JS in NativeShell) */
     --sat: env(safe-area-inset-top, 0px);
     --sar: env(safe-area-inset-right, 0px);
@@ -98,10 +103,14 @@
 
   html {
     direction: rtl;
-    font-family: 'Cairo', 'Segoe UI', system-ui, sans-serif;
+    font-family: var(--font-body, 'Cairo', 'Segoe UI', system-ui, sans-serif);
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading, 'Cairo', 'Segoe UI', system-ui, sans-serif);
   }
 
   body {

@@ -90,11 +90,12 @@ function PrintRedirect() {
     const url = `/api${location.pathname}${location.search}`
     window.location.replace(url)
   }, [])
-  return <div style={{ fontFamily: 'Cairo, sans-serif', padding: 32, direction: 'rtl', fontSize: 16 }}>جارٍ فتح الفاتورة…</div>
+  return <div style={{ fontFamily: 'var(--font-body, Cairo, sans-serif)', padding: 32, direction: 'rtl', fontSize: 16 }}>جارٍ فتح الفاتورة…</div>
 }
 
 import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from './api/endpoints'
+import ThemeManager from './ThemeManager'
 
 function FaviconUpdater() {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000, retry: false })
@@ -118,6 +119,7 @@ export default function App() {
   useEffect(() => { checkForDesktopUpdates() }, [])
   return (
     <QueryClientProvider client={qc}>
+      <ThemeManager />
       <FaviconUpdater />
       <BrowserRouter>
         <StorefrontCartSidebar />
@@ -171,7 +173,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
       <Toaster position="top-center" toastOptions={{
-        style: { fontFamily: 'Cairo, sans-serif', direction: 'rtl', borderRadius: '12px' },
+        style: { fontFamily: 'var(--font-body, Cairo, sans-serif)', direction: 'rtl', borderRadius: '12px' },
         success: { style: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' } },
         error: { style: { background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' } },
       }} />
