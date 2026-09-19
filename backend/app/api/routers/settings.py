@@ -73,11 +73,11 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
 async def pwa_manifest(db: AsyncSession = Depends(get_db)):
     """Dynamic PWA manifest using logo from settings."""
     import os
-    rows = (await db.execute(text("SELECT key, value FROM store_settings WHERE key IN ('store_name','logo_url','theme_color','theme_bg')"))).fetchall()
+    rows = (await db.execute(text("SELECT key, value FROM store_settings WHERE key IN ('store_name','logo_url','theme_color','theme_primary','theme_bg')"))).fetchall()
     s = {r.key: r.value for r in rows}
     name = s.get("store_name") or "Vendora"
     logo = s.get("logo_url") or ""
-    theme_color = (s.get("theme_color") or "#2b1b03").strip()
+    theme_color = (s.get("theme_primary") or s.get("theme_color") or "#2b1b03").strip()
     background_color = (s.get("theme_bg") or "#f3f5fa").strip()
     icons = []
     if logo:

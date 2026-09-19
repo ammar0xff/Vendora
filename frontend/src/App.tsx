@@ -95,6 +95,7 @@ function PrintRedirect() {
 
 import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from './api/endpoints'
+import { normalizeHex } from './utils/theme'
 import ThemeManager from './ThemeManager'
 
 function FaviconUpdater() {
@@ -103,6 +104,10 @@ function FaviconUpdater() {
     const logo = settings?.logo_url
     const name = settings?.store_name || 'Vendora'
     document.title = name
+    const theme = settings?.theme_primary ? normalizeHex(settings.theme_primary, '#1e3a5f') : ''
+    if (theme) {
+      document.querySelector<HTMLMetaElement>("meta[name='theme-color']")?.setAttribute('content', theme)
+    }
     const href = logo ? logo + '?v=' + Date.now() : '/favicon.svg'
     const appleHref = logo ? logo + '?v=' + Date.now() : '/icon-192.png'
     const favicon = document.querySelector<HTMLLinkElement>("link[rel='icon']")
