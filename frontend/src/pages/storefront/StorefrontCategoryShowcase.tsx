@@ -12,13 +12,13 @@ const GRADIENTS = [
   'linear-gradient(135deg, #8a6d3b, #c8a84b)',
 ]
 
-export default function StorefrontCategoryShowcase({ categories }: { categories: StorefrontCategory[] }) {
+export default function StorefrontCategoryShowcase({ categories, heading }: { categories: StorefrontCategory[]; heading?: string }) {
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-14">
       <div className="flex items-end justify-between mb-8">
         <div className="text-right">
           <p className="text-sm font-bold uppercase tracking-wider text-[var(--primary)]">تصفح حسب التصنيف</p>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight mt-2 text-[var(--ink)]">كل الأصناف من مكان واحد</h2>
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight mt-2 text-[var(--ink)]">{heading || 'كل الأصناف من مكان واحد'}</h2>
         </div>
         <Link
           to="/catalog"

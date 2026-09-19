@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Save, RotateCcw, Check, ExternalLink } from 'lucide-react'
+import { Reorder } from 'framer-motion'
+import { Save, RotateCcw, Check, ExternalLink, GripVertical, Eye, EyeOff, X, Plus } from 'lucide-react'
 import { settingsApi } from '../../api/endpoints'
 import { writeThemeDraft } from '../../utils/storefrontDraft'
 import { DEFAULT_THEME, FONT_OPTIONS, normalizeHex, resolveTheme, contrastRatio, applyThemeVars, buildCacheCode, cacheTheme } from '../../utils/theme'
 import { TEMPLATES, type Tone } from '../../pages/storefront/templates'
 import TemplateThumb from '../../pages/storefront/templates/TemplateThumb'
+import { SECTION_META, SECTION_ORDER, parseSections, defaultSectionsFor } from '../../pages/storefront/templates/sections'
+import type { SectionConfig, SectionId } from '../../pages/storefront/templates/sections'
 
 const COLOR_FIELDS: { key: 'theme_primary' | 'theme_accent' | 'theme_bg' | 'theme_ink'; label: string }[] = [
   { key: 'theme_primary', label: 'اللون الأساسي — شريط التنقل والأزرار' },
@@ -22,6 +25,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     const s = settings || {}
     return {
       storefront_template: s.storefront_template || 'classic',
+      storefront_sections: parseSections(s.storefront_sections) ?? defaultSectionsFor(s.storefront_template || 'classic'),
       storefront_hero_title: s.storefront_hero_title || '',
       storefront_hero_subtitle: s.storefront_hero_subtitle || '',
       theme_primary: s.theme_primary || DEFAULT_THEME.primary,
@@ -36,6 +40,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
   const applyDraft = (next: Record<string, any>) => {
     writeThemeDraft({
       storefront_template: next.storefront_template,
+      storefront_sections: next.storefront_sections,
       storefront_hero_title: next.storefront_hero_title,
       storefront_hero_subtitle: next.storefront_hero_subtitle,
       theme_primary: next.theme_primary,
@@ -69,10 +74,17 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     setPreviewKey((k) => k + 1)
   }
 
+  const sections = (form.storefront_sections as SectionConfig[]) || []
+  const updateSection = (cfg: SectionConfig, next: SectionConfig) => update('storefront_sections', sections.map((x) => (x.id === cfg.id ? next : x)))
+  const addSection = (id: SectionId) => update('storefront_sections', [...sections, { id }])
+  const removeSection = (id: SectionId) => update('storefront_sections', sections.filter((x) => x.id !== id))
+  const available = SECTION_ORDER.filter((id) => !sections.some((x) => x.id === id))
+
   const saveMut = useMutation({
     mutationFn: () => {
-      const payload: Record<string, string> = {
+      const payload: Record<string, unknown> = {
         storefront_template: form.storefront_template || 'classic',
+        storefront_sections: form.storefront_sections,
         storefront_hero_title: form.storefront_hero_title || '',
         storefront_hero_subtitle: form.storefront_hero_subtitle || '',
         theme_primary: normalizeHex(form.theme_primary, DEFAULT_THEME.primary),
@@ -96,6 +108,7 @@ export default function AppearanceTab({ settings }: { settings: any }) {
     const next = {
       ...form,
       storefront_template: 'classic',
+      storefront_sections: defaultSectionsFor('classic'),
       storefront_hero_title: '',
       storefront_hero_subtitle: '',
       theme_primary: DEFAULT_THEME.primary,
@@ -149,6 +162,59 @@ export default function AppearanceTab({ settings }: { settings: any }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Section builder */}
+        <div className="mb-6">
+          <label className="block text-xs font-medium text-slate-600 mb-2">مقاطع الصفحة الرئيسية — اسحب لإعادة الترتيب</label>
+          <Reorder.Group axis="y" values={sections} onReorder={(v) => update('storefront_sections', v)} className="space-y-1.5">
+            {sections.map((s) => (
+              <Reorder.Item
+                key={s.id}
+                value={s}
+                className="flex items-center gap-2 rounded-xl border px-2.5 py-2 bg-white"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <GripVertical size={16} className="text-slate-300 cursor-grab shrink-0" />
+                <span className="text-sm font-bold flex-1 text-slate-700">{SECTION_META[s.id].name}</span>
+                {(s.id === 'categories' || s.id === 'featured') && (
+                  <input
+                    className="input text-xs w-32 text-right"
+                    placeholder="عنوان"
+                    value={s.heading || ''}
+                    onChange={(e) => updateSection(s, { ...s, heading: e.target.value })}
+                  />
+                )}
+                <button
+                  onClick={() => updateSection(s, { ...s, enabled: s.enabled === false ? undefined : false })}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-500"
+                  title={s.enabled === false ? 'إظهار' : 'إخفاء'}
+                >
+                  {s.enabled === false ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+                <button
+                  onClick={() => removeSection(s.id)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-50 text-red-400"
+                  title="إزالة"
+                >
+                  <X size={15} />
+                </button>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+          {available.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {available.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => addSection(id)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                >
+                  <Plus size={13} /> {SECTION_META[id].name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Hero copy */}

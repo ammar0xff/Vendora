@@ -112,7 +112,7 @@ Vendora/
 | S3 | Settings tab | تبويب «الواجهة والمظهر»: منتقي الالوان/الخطوط + زر استعادة الافتراضي | ✅ |
 | S4 | Templates | تفكيك الواجهة لمقاطع + قوالب classic/bold/minimal + اختيار القالب | ✅ |
 | S5 | Live preview | معاينة حية بملء الصفحة عبر iframe + localStorage draft | ✅ |
-| S6 | Drag-and-drop builder | محرر مقاطع الواجهة (سحب/ترتيب/إضافة/تعديل خصائص) | ▪️ |
+| S6 | Drag-and-drop builder | محرر مقاطع الواجهة (سحب/ترتيب/إضافة/تعديل خصائص) | ✅ |
 | S7 | Manifest | `theme_color` من settings بدل الهاردكود | ✅ |
 
 > مرجع التفاصيل: `docs/storefront-customization-plan.md`
