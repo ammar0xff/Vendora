@@ -84,6 +84,7 @@ export interface ResolvedTheme {
   ink: string
   heading: string
   body: string
+  dark: boolean
 }
 
 /** Map store settings → full set of CSS custom properties the app already uses. */
@@ -205,7 +206,7 @@ export function resolveTheme(s?: ThemeSettings | null): ResolvedTheme {
     '--chart-4': '#2563eb',
     '--chart-5': '#dc2626',
   }
-  return { vars, primary, accent, bg, ink, heading, body }
+  return { vars, primary, accent, bg, ink, heading, body, dark }
 }
 
 export function fontId(value: unknown): string {
