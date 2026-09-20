@@ -114,7 +114,7 @@ docker compose logs --tail=20 backend 2>&1
 
 # ── Health Check ──
 echo "[remote] ── Health Check ──"
-HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
+HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
 if [ "$HEALTH" = "200" ]; then
     echo "[remote] ✅ Backend healthy (HTTP 200)"
 else

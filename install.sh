@@ -71,7 +71,7 @@ $DOCKER_CMD compose -f "$DIR/docker-compose.yml" up -d --build
 step "Waiting for system to be ready"
 echo -n "Waiting"
 for i in $(seq 1 30); do
-    if curl -sf http://localhost/api/health &>/dev/null; then
+    if curl -sf http://localhost:8000/health &>/dev/null; then
         echo ""
         break
     fi
@@ -116,7 +116,7 @@ echo ""
 echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║     ERP System is ready! 🎉          ║${NC}"
 echo -e "${GREEN}╠══════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║  URL:      http://$(hostname -I | awk '{print $1}')         ${NC}"
+echo -e "${GREEN}║  URL:      http://$(hostname -I | awk '{print $1}'):8000        ${NC}"
 echo -e "${GREEN}║  Login:    ammar                     ║${NC}"
 echo -e "${GREEN}║  Password: changeme                  ║${NC}"
 echo -e "${GREEN}╠══════════════════════════════════════╣${NC}"

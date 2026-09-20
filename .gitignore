@@ -5,15 +5,9 @@ backend/**/__pycache__/
 backend/**/*.pyc
 backend/.env
 backend/.env.*
-frontend/.env
-frontend/.env.*
 *.env
 *.env.*
 *.log
-
-# Node
-frontend/node_modules/
-frontend/dist/
 
 # Docker volumes / uploads
 backend/uploads/
@@ -29,14 +23,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-frontend/android/gradle-8.11.1-all.zip
-frontend/android/app/build/
-frontend/android/*.zip
-frontend/android/gradle*.zip
-frontend/src-tauri/target/
-frontend/android/app/build/
-frontend/android/*.zip
-frontend/android/gradle*.zip
 .obsidian/
 
 # Temp deploy scripts
@@ -50,7 +36,3 @@ firebase-service-account.json
 
 # Tooling
 .serena/
-
-# Test artifacts
-frontend/playwright-report/
-frontend/test-results/
