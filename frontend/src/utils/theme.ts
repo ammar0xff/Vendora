@@ -104,16 +104,43 @@ export function resolveTheme(s?: ThemeSettings | null): ResolvedTheme {
   const heading = fontId(s?.font_heading)
   const body = fontId(s?.font_body)
 
-  const text = dark ? mix(bg, '#ffffff', 0.86) : '#0f172a'
-  const textSoft = dark ? mix(bg, '#ffffff', 0.58) : '#475569'
-  const muted = dark ? mix(bg, '#ffffff', 0.4) : '#8a94a6'
-  const faint = dark ? mix(bg, '#ffffff', 0.24) : '#b4bccb'
-  const surface = dark ? mix(bg, '#ffffff', 0.07) : '#ffffff'
-  const surface2 = dark ? mix(bg, '#ffffff', 0.045) : '#f8fafc'
-  const surface3 = dark ? mix(bg, '#ffffff', 0.025) : '#f1f4f9'
-  const border = dark ? mix(bg, '#ffffff', 0.16) : '#e6eaf2'
-  const borderStrong = dark ? mix(bg, '#ffffff', 0.24) : '#d3dae4'
-  const borderFaint = dark ? mix(bg, '#ffffff', 0.1) : '#eef1f6'
+  const text = dark ? mix(bg, '#ffffff', 0.9) : '#0f172a'
+  const textSoft = dark ? mix(bg, '#ffffff', 0.68) : '#475569'
+  const muted = dark ? mix(bg, '#ffffff', 0.5) : '#8a94a6'
+  const faint = dark ? mix(bg, '#ffffff', 0.3) : '#b4bccb'
+  const surface = dark ? mix(bg, '#ffffff', 0.08) : '#ffffff'
+  const surface2 = dark ? mix(bg, '#ffffff', 0.05) : '#f8fafc'
+  const surface3 = dark ? mix(bg, '#ffffff', 0.03) : '#f1f4f9'
+  const border = dark ? mix(surface, '#ffffff', 0.55) : '#e6eaf2'
+  const borderStrong = dark ? mix(surface, '#ffffff', 0.7) : '#d3dae4'
+  const borderFaint = dark ? mix(surface, '#ffffff', 0.35) : '#eef1f6'
+
+  const primaryFg = bestText(primary)
+  const accentFg = bestText(accent)
+  const background = bg
+  const foreground = text
+  const card = surface
+  const cardForeground = text
+  const popover = surface
+  const popoverForeground = text
+  const secondary = surface2
+  const secondaryForeground = text
+  const mutedBg = surface2
+  const mutedForeground = textSoft
+  const accentBg = accent
+  const accentBgFg = accentFg
+  const destructive = dark ? '#f87171' : '#dc2626'
+  const destructiveFg = dark ? '#0f172a' : '#ffffff'
+  const borderCol = border
+  const inputCol = border
+  const ringCol = primary
+  const sidebarBg = surface
+  const sidebarFg = text
+  const sidebarPrimaryFg = primaryFg
+  const sidebarAccentBg = surface3
+  const sidebarAccentFg = text
+  const sidebarBorderCol = border
+  const sidebarRingCol = primary
 
   const vars: Record<string, string> = {
     '--primary': primary,
@@ -121,12 +148,12 @@ export function resolveTheme(s?: ThemeSettings | null): ResolvedTheme {
     '--primary-deep': shade(primary, -0.24),
     '--primary-soft': mix(primary, '#ffffff', dark ? 0.06 : 0.9),
     '--primary-border': mix(primary, dark ? '#000000' : '#ffffff', dark ? 0.45 : 0.74),
-    '--primary-contrast': bestText(primary),
+    '--primary-contrast': primaryFg,
     '--accent': accent,
     '--accent-strong': shade(accent, -0.11),
     '--accent-soft': mix(accent, '#ffffff', dark ? 0.06 : 0.86),
     '--accent-border': mix(accent, dark ? '#000000' : '#ffffff', dark ? 0.42 : 0.72),
-    '--accent-contrast': bestText(accent),
+    '--accent-contrast': accentFg,
     '--gold': accent,
     '--gold-strong': shade(accent, -0.11),
     '--gold-soft': mix(accent, '#ffffff', dark ? 0.06 : 0.86),
@@ -145,14 +172,38 @@ export function resolveTheme(s?: ThemeSettings | null): ResolvedTheme {
     '--faint': faint,
     '--font-heading': heading,
     '--font-body': body,
-    '--sidebar': surface,
-    '--sidebar-foreground': text,
+    '--sidebar': sidebarBg,
+    '--sidebar-foreground': sidebarFg,
     '--sidebar-primary': primary,
-    '--sidebar-primary-foreground': bestText(primary),
-    '--sidebar-accent': surface3,
-    '--sidebar-accent-foreground': text,
-    '--sidebar-border': border,
-    '--sidebar-ring': primary,
+    '--sidebar-primary-foreground': sidebarPrimaryFg,
+    '--sidebar-accent': sidebarAccentBg,
+    '--sidebar-accent-foreground': sidebarAccentFg,
+    '--sidebar-border': sidebarBorderCol,
+    '--sidebar-ring': sidebarRingCol,
+
+    /* shadcn/ui compatible tokens */
+    '--background': background,
+    '--foreground': foreground,
+    '--card': card,
+    '--card-foreground': cardForeground,
+    '--popover': popover,
+    '--popover-foreground': popoverForeground,
+    '--secondary': secondary,
+    '--secondary-foreground': secondaryForeground,
+    '--muted': mutedBg,
+    '--muted-foreground': mutedForeground,
+    '--accent': accentBg,
+    '--accent-foreground': accentBgFg,
+    '--destructive': destructive,
+    '--destructive-foreground': destructiveFg,
+    '--border': borderCol,
+    '--input': inputCol,
+    '--ring': ringCol,
+    '--chart-1': primary,
+    '--chart-2': accent,
+    '--chart-3': '#16a34a',
+    '--chart-4': '#2563eb',
+    '--chart-5': '#dc2626',
   }
   return { vars, primary, accent, bg, ink, heading, body }
 }
@@ -174,6 +225,12 @@ const STYLE_KEYS = new Set([
   '--font-heading', '--font-body',
   '--sidebar', '--sidebar-foreground', '--sidebar-primary', '--sidebar-primary-foreground',
   '--sidebar-accent', '--sidebar-accent-foreground', '--sidebar-border', '--sidebar-ring',
+  /* shadcn/ui compatible tokens */
+  '--background', '--foreground', '--card', '--card-foreground',
+  '--popover', '--popover-foreground', '--secondary', '--secondary-foreground',
+  '--muted', '--muted-foreground', '--accent', '--accent-foreground',
+  '--destructive', '--destructive-foreground', '--border', '--input', '--ring',
+  '--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5',
 ])
 
 export function applyThemeVars(vars: Record<string, string> | null): void {
