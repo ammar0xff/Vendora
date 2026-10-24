@@ -33,6 +33,8 @@ jobs:
 
       - name: Import check
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci  # dummy — not connected at import
         run: SECRET_KEY=ci-secret-key-not-for-production-32ch python -c "import main; print(f'{len(main.app.routes)} routes')"
 
       - name: Lint
@@ -84,7 +86,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/inventory_db
           SECRET_KEY: ci-secret-key-not-for-production-32ch
         run: |
-          pip install -q pytest pytest-asyncio httpx
+          pip install -q -r requirements.txt -r requirements-dev.txt
           python -m pytest tests/ -q --no-header
 
   ci-manage:
