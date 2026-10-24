@@ -16,12 +16,18 @@ interface AuthState {
   token: string | null;
   user: User | null;
   login: (token: string, user: User) => void;
+  setToken: (token: string) => void;
   setUser: (user: User) => void;
   logout: () => void;
   can: (perm: string) => boolean;
 }
 
 const KEY = "vendora.session";
+
+function persist(token: string | null, user: User | null) {
+  if (token) localStorage.setItem(KEY, JSON.stringify({ token, user }));
+  else localStorage.removeItem(KEY);
+}
 
 function load(): { token: string | null; user: User | null } {
   try {
@@ -36,8 +42,12 @@ function load(): { token: string | null; user: User | null } {
 export const useAuth = create<AuthState>((set, get) => ({
   ...load(),
   login: (token, user) => {
-    localStorage.setItem(KEY, JSON.stringify({ token, user }));
+    persist(token, user);
     set({ token, user });
+  },
+  setToken: (token) => {
+    persist(token, get().user);
+    set({ token });
   },
   setUser: (user) => {
     const token = get().token;

@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { Button, ErrorBox, Input, Spinner } from "@/components/ui";
 import { useAuth, type User } from "@/stores/auth";
 
+const auth = () => useAuth.getState();
+
 interface LoginResponse {
   access_token: string;
   user_id: string;
@@ -20,7 +22,6 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const login = useAuth((s) => s.login);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,8 +29,15 @@ export default function LoginPage() {
     setError(null);
     try {
       const r = await api.post<LoginResponse>("/auth/login", { username, password });
-      const me = await api.get<User>("/auth/me");
-      login(r.access_token, me);
+      // store the token FIRST so the /auth/me call carries Bearer credentials
+      auth().setToken(r.access_token);
+      try {
+        const me = await api.get<User>("/auth/me");
+        auth().setUser(me);
+      } catch (meErr) {
+        auth().logout(); // token unusable — do not keep a half-session
+        throw meErr;
+      }
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تسجيل الدخول");
