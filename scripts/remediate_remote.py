@@ -39,10 +39,16 @@ CLEANUP_SQL = [
         DELETE FROM stock_movements WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')
             OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')"""),
     ("sale items/payments (e2e sales)", """
-        DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%'))"""),
+        DELETE FROM sale_items WHERE sale_id IN (
+            SELECT id FROM sales WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+                OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%'))"""),
     ("sale payments (e2e sales)", """
-        DELETE FROM sale_payments WHERE sale_id IN (SELECT id FROM sales WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%'))"""),
-    ("sales (e2e users)", "DELETE FROM sales WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"),
+        DELETE FROM sale_payments WHERE sale_id IN (
+            SELECT id FROM sales WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+                OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%'))"""),
+    ("sales (e2e)", """
+        DELETE FROM sales WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+            OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')"""),
     ("customer payments (e2e)", """
         DELETE FROM customer_payments WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
             OR customer_id IN (SELECT id FROM customers WHERE name LIKE 'E2E-%')"""),
@@ -54,17 +60,37 @@ CLEANUP_SQL = [
         DELETE FROM hr_advances WHERE employee_id IN (SELECT id FROM hr_employees WHERE name LIKE 'E2E-%')
             OR created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"""),
     ("hr employees (e2e)", "DELETE FROM hr_employees WHERE name LIKE 'E2E-%'"),
+    ("hr shifts (e2e)", "DELETE FROM hr_shifts WHERE name LIKE 'E2E-%'"),
     ("expenses (e2e users)", "DELETE FROM expenses WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"),
     ("expense vendors (e2e)", "DELETE FROM expense_vendors WHERE name LIKE 'E2E-%'"),
+    ("safe transactions (e2e)", "DELETE FROM safe_transactions WHERE safe_id IN (SELECT id FROM safes WHERE name LIKE 'E2E-%')"),
+    ("safe deposits (e2e)", """
+        DELETE FROM safe_deposits WHERE safe_id IN (SELECT id FROM safes WHERE name LIKE 'E2E-%')
+            OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')
+            OR shift_id IN (SELECT id FROM shifts WHERE warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%'))"""),
     ("safes (e2e)", "DELETE FROM safes WHERE name LIKE 'E2E-%'"),
+    ("wallet transactions (e2e)", "DELETE FROM wallet_transactions WHERE wallet_id IN (SELECT id FROM payment_wallets WHERE name LIKE 'E2E-%')"),
     ("wallets (e2e)", "DELETE FROM payment_wallets WHERE name LIKE 'E2E-%'"),
     ("shifts (e2e warehouses)", "DELETE FROM shifts WHERE warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')"),
+    ("supplier transactions (e2e suppliers)", "DELETE FROM supplier_transactions WHERE supplier_id IN (SELECT id FROM suppliers WHERE name LIKE 'E2E-%')"),
     ("supplier prices (e2e products)", "DELETE FROM supplier_prices WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')"),
+    ("purchase order items (e2e)", """
+        DELETE FROM purchase_order_items WHERE po_id IN (
+            SELECT id FROM purchase_orders WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+                OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%'))"""),
+    ("purchase orders (e2e)", """
+        DELETE FROM purchase_orders WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+            OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')"""),
     ("purchase price history (e2e)", "DELETE FROM purchase_price_history WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')"),
     ("barcodes (e2e products)", "DELETE FROM product_barcodes WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')"),
     ("product images (e2e)", "DELETE FROM product_images WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')"),
     ("warehouse product status (e2e)", "DELETE FROM warehouse_product_status WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%') OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')"),
     ("stock balances (e2e)", "DELETE FROM stock_balances WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%') OR warehouse_id IN (SELECT id FROM warehouses WHERE name LIKE 'E2E-%')"),
+    ("collection items (e2e)", """
+        DELETE FROM collection_items WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')
+            OR collection_id IN (SELECT id FROM product_collections WHERE name LIKE 'E2E-%')"""),
+    ("collections (e2e)", "DELETE FROM product_collections WHERE name LIKE 'E2E-%'"),
+    ("sale items (e2e products)", "DELETE FROM sale_items WHERE product_id IN (SELECT id FROM products WHERE name LIKE 'E2E-%')"),
     ("products (e2e)", "DELETE FROM products WHERE name LIKE 'E2E-%'"),
     ("subcategories (e2e)", "DELETE FROM subcategories WHERE name LIKE 'E2E-%'"),
     ("categories (e2e)", "DELETE FROM categories WHERE name LIKE 'E2E-%'"),
@@ -79,6 +105,15 @@ CLEANUP_SQL = [
     ("audit log (e2e users)", "DELETE FROM audit_log WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"),
     ("hr audit log (e2e)", "DELETE FROM hr_audit_log WHERE performed_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"),
     ("device tokens (e2e)", "DELETE FROM device_tokens WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"),
+    ("hr payroll entries (e2e periods)", """
+        DELETE FROM hr_payroll_entries WHERE period_id IN (
+            SELECT id FROM hr_payroll_periods WHERE submitted_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+                OR approved_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+                OR paid_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%'))"""),
+    ("hr payroll periods (e2e users)", """
+        DELETE FROM hr_payroll_periods WHERE submitted_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+            OR approved_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')
+            OR paid_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"""),
     ("users (e2e)", "DELETE FROM users WHERE username LIKE 'e2e\\_%'"),
 ]
 
