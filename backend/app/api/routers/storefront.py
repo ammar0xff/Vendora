@@ -9,6 +9,7 @@ barcodes, no stock/warehouse internals.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy import text as sqlt
@@ -18,8 +19,16 @@ from sqlalchemy.orm import selectinload
 from app.core.pagination import Page
 from app.db.base import get_db
 from app.models.product import Category, Product, Subcategory
+from app.services.storefront_page import get_storefront_html
 
 router = APIRouter(prefix="/store", tags=["storefront"])
+page_router = APIRouter(tags=["storefront"])
+
+
+@page_router.get("/storefront", response_class=HTMLResponse)
+async def storefront_page(db: AsyncSession = Depends(get_db)):
+    """The public customer-facing storefront page (custom template or built-in)."""
+    return HTMLResponse(await get_storefront_html(db))
 
 
 class StoreProductOut(BaseModel):
