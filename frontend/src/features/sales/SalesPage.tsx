@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Printer } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Printer, Undo2 } from "lucide-react";
 import { api, docUrl } from "@/lib/api";
 import { dateTime, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Spinner } from "@/components/ui";
@@ -10,14 +10,40 @@ interface SaleRow {
   status: string; is_credit: boolean; created_at: string; customer_name: string | null;
   payment_method: string | null; sale_mode: string;
 }
+interface SaleItemRow {
+  product_id?: string; product_name: string; qty: number;
+  unit_price: string; discount: string; returned_qty?: number;
+}
 interface SaleDetail extends SaleRow {
-  items?: { product_name: string; qty: number; unit_price: string; discount: string }[];
+  items?: SaleItemRow[];
 }
 
 export default function SalesPage() {
+  const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [returnQty, setReturnQty] = useState<Record<string, string>>({});
+
+  const cancelSale = useMutation({
+    mutationFn: (id: string) => api.put(`/sales/${id}/cancel`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["sales"] }); qc.invalidateQueries({ queryKey: ["sale"] }); },
+  });
+
+  const fullReturn = useMutation({
+    mutationFn: (id: string) => api.post(`/sales/${id}/return`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["sales"] }); qc.invalidateQueries({ queryKey: ["sale"] }); },
+  });
+
+  const partialReturn = useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/sales/${id}/partial-return`, {
+        items: Object.entries(returnQty)
+          .map(([product_id, q]) => ({ product_id, qty: Number(q) }))
+          .filter((i) => i.qty > 0),
+      }),
+    onSuccess: () => { setReturnQty({}); qc.invalidateQueries({ queryKey: ["sales"] }); qc.invalidateQueries({ queryKey: ["sale"] }); },
+  });
 
   const list = useQuery({
     queryKey: ["sales", page],
@@ -139,6 +165,47 @@ export default function SalesPage() {
                   ))}
                 </tbody>
               </table>
+            )}
+            {!!detail.data!.items?.length && detail.data!.status !== "cancelled" && (
+              <div className="rounded-xl border border-line p-3">
+                <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Undo2 size={15} /> مرتجع جزئي</p>
+                <div className="space-y-2">
+                  {detail.data!.items.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate">{it.product_name} <span className="num text-muted">(مبيع {it.qty})</span></span>
+                      <input
+                        className="num w-20 rounded-md border border-line bg-surface p-1.5 text-center"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={returnQty[it.product_id ?? ""] ?? ""}
+                        onChange={(e) => setReturnQty((r) => ({ ...r, [it.product_id ?? ""]: e.target.value }))}
+                        aria-label={`كمية مرتجع ${it.product_name}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                {partialReturn.isError && <p className="mt-2 text-sm text-danger">{(partialReturn.error as Error).message}</p>}
+                <Button
+                  className="mt-3 w-full"
+                  disabled={partialReturn.isPending || !Object.values(returnQty).some((v) => Number(v) > 0)}
+                  onClick={() => detailId && partialReturn.mutate(detailId)}
+                >
+                  {partialReturn.isPending ? <Spinner /> : "تنفيذ المرتجع الجزئي"}
+                </Button>
+              </div>
+            )}
+            {detail.data!.status !== "cancelled" && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => detailId && fullReturn.mutate(detailId)} disabled={fullReturn.isPending}>
+                  {fullReturn.isPending ? <Spinner /> : "مرتجع كامل"}
+                </Button>
+                <Button variant="danger" onClick={() => detailId && cancelSale.mutate(detailId)} disabled={cancelSale.isPending}>
+                  {cancelSale.isPending ? <Spinner /> : "إلغاء الفاتورة"}
+                </Button>
+              </div>
+            )}
+            {(cancelSale.isError || fullReturn.isError) && (
+              <ErrorBox message={((cancelSale.error ?? fullReturn.error) as Error).message} />
             )}
             <a
               href={docUrl(`/print/sale/${detailId}`)}

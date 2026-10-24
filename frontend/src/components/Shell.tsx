@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  Archive, BarChart3, Boxes, ChevronLeft, LayoutDashboard, LogOut, Menu, Moon,
-  Package, Receipt, Settings, ShoppingCart, Store, Sun, Truck, Users, UserSquare2,
-  Wallet, Wrench, Clock,
+  Archive, BarChart3, Boxes, ChevronLeft, Clock, Coins, LayoutDashboard, LogOut,
+  Menu, Moon, Package, Receipt, Settings, ShoppingCart, Store, Sun, Truck,
+  UserSquare2, Users, Wallet, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/stores/auth";
 
@@ -18,7 +18,8 @@ const NAV: { to: string; label: string; perm: string; icon: React.ReactNode }[] 
   { to: "/customers", label: "العملاء", perm: "customers", icon: <Users size={18} /> },
   { to: "/suppliers", label: "الموردون", perm: "customers", icon: <Truck size={18} className="rotate-180" /> },
   { to: "/finance", label: "المالية", perm: "finance", icon: <Wallet size={18} /> },
-  { to: "/hr", label: "الموارد البشرية", perm: "payroll", icon: <UserSquare2 size={18} /> },
+  { to: "/hr", label: "الموظفون", perm: "payroll", icon: <UserSquare2 size={18} /> },
+  { to: "/hr/payroll", label: "الرواتب", perm: "payroll", icon: <Coins size={18} /> },
   { to: "/shifts", label: "الورديات", perm: "shifts", icon: <Clock size={18} /> },
   { to: "/archive", label: "الأرشيف", perm: "archive", icon: <Archive size={18} /> },
   { to: "/reports", label: "التقارير", perm: "reports", icon: <BarChart3 size={18} /> },

@@ -7,6 +7,11 @@ import PosPage from "@/features/pos/PosPage";
 import ProductsPage from "@/features/products/ProductsPage";
 import SalesPage from "@/features/sales/SalesPage";
 import ListPage from "@/features/common/ListPage";
+import PurchasesPage from "@/features/purchases/PurchasesPage";
+import PayrollPage from "@/features/hr/PayrollPage";
+import ShiftsPage from "@/features/shifts/ShiftsPage";
+import CustomersPage from "@/features/customers/CustomersPage";
+import SettingsPage from "@/features/settings/SettingsPage";
 
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
   const { token, user } = useAuth();
@@ -39,16 +44,17 @@ export default function App() {
         <Route path="/sales" element={<Guard perm="sales"><SalesPage /></Guard>} />
         <Route path="/inventory" element={<Guard perm="inventory"><ListPage module="inventory" /></Guard>} />
         <Route path="/operations" element={<Guard perm="operations"><ListPage module="operations" /></Guard>} />
-        <Route path="/purchases" element={<Guard perm="purchases"><ListPage module="purchases" /></Guard>} />
-        <Route path="/customers" element={<Guard perm="customers"><ListPage module="customers" /></Guard>} />
+        <Route path="/purchases" element={<Guard perm="purchases"><PurchasesPage /></Guard>} />
+        <Route path="/customers" element={<Guard perm="customers"><CustomersPage /></Guard>} />
         <Route path="/suppliers" element={<Guard perm="customers"><ListPage module="suppliers" /></Guard>} />
         <Route path="/finance" element={<Guard perm="finance"><ListPage module="finance" /></Guard>} />
         <Route path="/hr" element={<Guard perm="payroll"><ListPage module="hr" /></Guard>} />
-        <Route path="/shifts" element={<Guard perm="shifts"><ListPage module="shifts" /></Guard>} />
+        <Route path="/hr/payroll" element={<Guard perm="payroll"><PayrollPage /></Guard>} />
+        <Route path="/shifts" element={<Guard perm="shifts"><ShiftsPage /></Guard>} />
         <Route path="/archive" element={<Guard perm="archive"><ListPage module="archive" /></Guard>} />
         <Route path="/reports" element={<Guard perm="reports"><ListPage module="reports" /></Guard>} />
         <Route path="/users" element={<Guard perm="users"><ListPage module="users" /></Guard>} />
-        <Route path="/settings" element={<Guard perm="settings"><ListPage module="settings" /></Guard>} />
+        <Route path="/settings" element={<Guard perm="settings"><SettingsPage /></Guard>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
