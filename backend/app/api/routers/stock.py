@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_open_period, require_perm, verify_warehouse_access
-from app.models.stock import IN_TYPES, StockMovement
 from app.models.user import User
 from app.models.warehouse import Warehouse
 from app.schemas.stock import StockMovementCreate, StockMovementOut, TransferRequest
@@ -78,6 +77,7 @@ async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """POST body: list of product UUIDs. Returns {product_id: qty} plus a __tracked__ map."""
     from sqlalchemy import text as sqlt
+
     from app.models.stock_balance import StockBalance
     await verify_warehouse_access(db, current_user, warehouse_id)
     if not product_ids:
@@ -98,8 +98,9 @@ async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID]
 @router.post("/balance/total")
 async def get_total_balance_bulk(product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Total stock across ALL warehouses. POST body: list of product UUIDs."""
-    from app.models.stock_balance import StockBalance
     from sqlalchemy import func
+
+    from app.models.stock_balance import StockBalance
     if not product_ids:
         return {}
     result = await db.execute(
@@ -116,8 +117,9 @@ async def get_total_balance_bulk(product_ids: list[uuid.UUID] = Body(...), db: A
 @router.get("/balance/breakdown/{product_id}")
 async def get_balance_breakdown(product_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Stock per warehouse for a single product — uses maintained balances."""
-    from app.models.stock_balance import StockBalance
     from sqlalchemy import func
+
+    from app.models.stock_balance import StockBalance
     rows = await db.execute(
         select(
             Warehouse.name.label("warehouse_name"),

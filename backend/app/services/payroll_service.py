@@ -1,9 +1,8 @@
 """Payroll service — business logic extracted from hr.py router."""
 import asyncio
 import json
-from datetime import UTC, date
+from datetime import date
 from functools import partial
-from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -32,7 +32,6 @@ from app.schemas.product import (
 )
 from app.services.audit_service import log as audit_log
 
-
 # ── Categories ──────────────────────────────────────────────────────────────
 
 async def list_categories(db: AsyncSession) -> list[CategoryOut]:
@@ -63,6 +62,7 @@ async def update_category(db: AsyncSession, cat_id: uuid.UUID, data: CategoryCre
 
 async def delete_category(db: AsyncSession, cat_id: uuid.UUID) -> None:
     from sqlalchemy import text as sqlt
+
     from app.core.exceptions import BusinessError
 
     result = await db.execute(select(Category).where(Category.id == cat_id))
@@ -115,6 +115,7 @@ async def update_subcategory(db: AsyncSession, sub_id: uuid.UUID, data: Subcateg
 
 async def delete_subcategory(db: AsyncSession, sub_id: uuid.UUID) -> None:
     from sqlalchemy import text as sqlt
+
     from app.core.exceptions import BusinessError
 
     result = await db.execute(select(Subcategory).where(Subcategory.id == sub_id))

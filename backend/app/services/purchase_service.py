@@ -18,17 +18,11 @@ from app.models.purchase import POStatus, PurchaseOrder, PurchaseOrderItem
 from app.models.stock import MovementType
 from app.models.supplier_price import SupplierPrice
 from app.models.user import User
-from app.schemas.purchase import PurchaseCreate, PurchaseReceive, PurchaseUpdate, QuickProductCreate
 from app.schemas.stock import StockMovementCreate
 from app.schemas.supplier_price import (
-    SupplierPriceComparison,
-    SupplierPriceCreate,
     SupplierPriceOut,
-    SupplierPriceUpdate,
 )
-from app.services.audit_service import log as audit_log
 from app.services.stock_service import record_movement
-
 
 # ── Purchase Suggestions ────────────────────────────────────────────────────
 
@@ -281,7 +275,6 @@ async def upload_invoice_image(
     filename: str,
     content_type: str,
 ) -> str:
-    import os
 
     ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"}
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024

@@ -9,7 +9,7 @@ from app.db.base import get_db
 from app.dependencies import get_print_user
 from app.services.shift_service import compute_summary
 
-from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, router, top_band, wrap, h
+from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, h, router, top_band, wrap
 
 
 @router.get("/shift/{shift_id}", response_class=HTMLResponse)

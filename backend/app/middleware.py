@@ -12,7 +12,7 @@ The token is stateless — no server-side session store — so it works unchange
 behind multi-worker/multi-instance deployments.
 """
 import secrets
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse

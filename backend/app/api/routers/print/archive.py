@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
 from app.dependencies import get_print_user
 
-from . import _make_pdf, ar_egp, fmt_date, fmt_dt, get_settings, router, top_band, wrap, h
+from . import _make_pdf, ar_egp, fmt_date, fmt_dt, get_settings, h, router, top_band, wrap
 
 
 @router.get("/archive/{doc_id}", response_class=HTMLResponse)

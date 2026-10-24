@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -82,7 +83,7 @@ async def _upsert_setting(db: AsyncSession, key: str, value: Any) -> None:
 async def import_storefront_theme(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _=Depends(require_perm("settings"))):
     """Import a WordPress/static HTML template ZIP into a self-contained custom theme."""
     import json as _json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from app.services.storefront_theme import ThemeImportError, import_theme_zip
 
@@ -93,7 +94,7 @@ async def import_storefront_theme(file: UploadFile = File(...), db: AsyncSession
         result = import_theme_zip(contents, file.filename or "theme.zip")
     except ThemeImportError as e:
         raise HTTPException(400, str(e)) from None
-    result["imported_at"] = datetime.now(timezone.utc).isoformat()
+    result["imported_at"] = datetime.now(UTC).isoformat()
     await _upsert_setting(db, "storefront_custom_theme", _json.dumps(result, ensure_ascii=False))
     await _upsert_setting(db, "storefront_template", "custom")
     await db.commit()

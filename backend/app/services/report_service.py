@@ -9,7 +9,6 @@ from app.models.product import Category, Product, Subcategory
 from app.models.sale import Sale, SaleItem
 from app.models.settings import StoreSetting
 from app.models.stock import IN_TYPES, StockMovement
-from app.models.user import User
 from app.models.warehouse import Warehouse
 
 
@@ -185,6 +184,7 @@ async def profit_report(db: AsyncSession, from_date: str, to_date: str, warehous
 
 async def sales_by_cashier(db: AsyncSession, from_date: str, to_date: str, warehouse_id: str | None = None) -> list[dict[str, Any]]:
     import uuid as _uuid
+
     from app.models.user import User as UserModel
     start = datetime.fromisoformat(from_date)
     end = datetime.fromisoformat(to_date)
@@ -212,9 +212,8 @@ async def sales_by_cashier(db: AsyncSession, from_date: str, to_date: str, wareh
 async def inventory_print_report(db: AsyncSession, warehouse_id: str) -> dict[str, Any]:
     """Full inventory report for printing."""
     import uuid as _uuid
+
     from sqlalchemy import case as sa_case
-    from app.models.settings import StoreSetting
-    from app.models.warehouse import Warehouse
 
     wh_id = _uuid.UUID(warehouse_id)
     wh = (await db.execute(select(Warehouse).where(Warehouse.id == wh_id))).scalar_one_or_none()

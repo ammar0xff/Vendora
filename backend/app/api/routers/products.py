@@ -1,21 +1,10 @@
-import os
-import re
 import uuid
-from datetime import datetime
-from decimal import Decimal
-from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
-from app.core.exceptions import BusinessError, NotFoundError
-from app.core.pagination import Page
 from app.db.base import get_db
-from app.dependencies import get_current_user, require_perm, verify_warehouse_access
-from app.models.product import Category, Product, ProductBarcode, Subcategory
+from app.dependencies import get_current_user, require_perm
 from app.models.user import User
 from app.schemas.product import (
     CategoryCreate,
@@ -31,7 +20,6 @@ from app.schemas.product import (
     SubcategoryOut,
 )
 from app.services import product_service
-from app.services.audit_service import log as audit_log
 
 router = APIRouter(tags=["products"])
 

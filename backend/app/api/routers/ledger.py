@@ -3,7 +3,6 @@ GET /reports/ledger
 Returns all sale items + returns + expenses for a date range.
 """
 import uuid
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession

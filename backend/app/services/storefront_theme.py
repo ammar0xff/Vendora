@@ -154,7 +154,6 @@ def import_theme_zip(contents: bytes, filename: str = 'theme.zip') -> dict:
         full = m.group(0)
         tag = m.group(1)
         attr = m.group(3)
-        quote = m.group(4)
         ref = m.group(5)
         if attr == 'src' and tag == 'script':
             return full
@@ -196,23 +195,6 @@ def import_theme_zip(contents: bytes, filename: str = 'theme.zip') -> dict:
 
     # srcset is common in exports — embed local candidates too.
     def srcset_cb(m: re.Match) -> str:
-        body = m.group(1)
-        parts = []
-        for cand in body.split(','):
-            tokens = cand.strip().split()
-            if not tokens:
-                continue
-            url = tokens[0]
-            if not url.startswith(('http://', 'https://', '//', 'data:')) and not url.startswith('/'):
-                path = _norm(base_dir, url)
-                if path in files and _ext_of(path) in MIME_TYPES:
-                    url = _data_url(files[path], MIME_TYPES[_ext_of(path)])
-            rest = tokens[1:]
-            parts.append(' '.join([url] + rest) if rest else url)
-        return 'srcset="' + ', '.join(parts) + '"'
-
-    # srcset is common in exports — embed local candidates too.
-    def srcset_cb(m: re.Match) -> str:
         return 'srcset="' + _srcset_body(m.group(1), base_dir, files) + '"'
 
     html = re.sub(r'''srcset\s*=\s*(["'])([^"']+)\1''', srcset_cb, html, flags=re.I)
@@ -240,5 +222,5 @@ def _srcset_body(body: str, base_dir: str, files: dict[str, bytes]) -> str:
             path = _norm(base_dir, url)
             if path in files and _ext_of(path) in MIME_TYPES:
                 url = _data_url(files[path], MIME_TYPES[_ext_of(path)])
-        parts.append(' '.join([url] + tokens[1:]) if len(tokens) > 1 else url)
+        parts.append(' '.join([url, *tokens[1:]]) if len(tokens) > 1 else url)
     return ', '.join(parts)

@@ -3,8 +3,9 @@
 Produces the payroll (monthly/employee/ticket) and attendance HTML reports
 served by /hr/payroll/report/* and /hr/attendance/report.
 """
-from datetime import datetime
 import html as _html
+import os
+from datetime import datetime
 
 
 class Employee:

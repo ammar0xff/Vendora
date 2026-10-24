@@ -11,7 +11,7 @@ from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.shift import DrawerTransaction, DrawerTxType, Shift
 from app.models.stock import MovementType, StockMovement
 from app.schemas.stock import StockMovementCreate
-from app.services.stock_service import get_balance, record_movement, _update_stock_balance
+from app.services.stock_service import _update_stock_balance, get_balance, record_movement
 
 
 async def _invoice_number(db) -> str:

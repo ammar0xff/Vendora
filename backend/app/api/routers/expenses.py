@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text as sqlt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import BusinessError, NotFoundError
+from app.core.exceptions import NotFoundError
 from app.db.base import get_db
 from app.dependencies import get_current_user, require_open_period, require_perm, verify_warehouse_access
 from app.models.user import User

@@ -1,12 +1,12 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import case, func, select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import BusinessError, NotFoundError
+from app.core.exceptions import BusinessError
 from app.models.product import Product
-from app.models.stock import IN_TYPES, MovementType, StockMovement
+from app.models.stock import MovementType, StockMovement
 from app.models.stock_balance import StockBalance
 
 

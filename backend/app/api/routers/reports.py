@@ -1,14 +1,11 @@
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import get_db
 from app.dependencies import get_current_user, verify_warehouse_access
-from app.models.sale import Sale, SaleItem
-from app.models.stock import IN_TYPES
 from app.models.user import User
 from app.services import report_service
 

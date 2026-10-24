@@ -10,13 +10,14 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select, text as sqlt
+from sqlalchemy import func, or_, select
+from sqlalchemy import text as sqlt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.pagination import Page
 from app.db.base import get_db
-from app.models.product import Category, Product, ProductImage, Subcategory
+from app.models.product import Category, Product, Subcategory
 
 router = APIRouter(prefix="/store", tags=["storefront"])
 
