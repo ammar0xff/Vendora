@@ -1,40 +1,23 @@
+"""Smoke test: /health reports liveness against DATABASE_URL.
+
+Requires a reachable database (the compose stack or the CI service); there is
+no in-memory fallback because the models use PostgreSQL-specific types.
+"""
+import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.db.base import Base, get_db
 from main import app
 
-TEST_DB = "sqlite+aiosqlite:///:memory:"
-
-engine = create_async_engine(TEST_DB)
-TestSession = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def override_get_db():
-    async with TestSession() as session:
-        yield session
-
-
-@pytest.fixture(autouse=True)
-async def setup_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-
-@pytest.fixture
-async def client():
-    app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        yield c
-    app.dependency_overrides.clear()
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL"), reason="DATABASE_URL not set"
+)
 
 
 @pytest.mark.asyncio
-async def test_health(client):
-    r = await client.get("/health")
+async def test_health():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"

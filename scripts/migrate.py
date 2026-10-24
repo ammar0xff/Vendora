@@ -325,6 +325,75 @@ MIGRATIONS = [
         ALTER TABLE products           ALTER COLUMN subcategory_id DROP NOT NULL;
         ALTER TABLE hr_payroll_entries ALTER COLUMN deductions DROP NOT NULL;
     """),
+
+    # v26 — columns present in models but missing from pre-refactor snapshots
+    ("v26_model_column_backfill", """
+        ALTER TABLE audit_log            ADD COLUMN IF NOT EXISTS action_type text;
+        ALTER TABLE audit_log            ADD COLUMN IF NOT EXISTS reason text;
+        ALTER TABLE audit_log            ADD COLUMN IF NOT EXISTS details text;
+        ALTER TABLE categories           ADD COLUMN IF NOT EXISTS code varchar(32);
+        ALTER TABLE categories           ADD COLUMN IF NOT EXISTS image_url varchar(512);
+        ALTER TABLE subcategories        ADD COLUMN IF NOT EXISTS code varchar(32);
+        ALTER TABLE products             ADD COLUMN IF NOT EXISTS code varchar(32);
+        ALTER TABLE products             ADD COLUMN IF NOT EXISTS shelf_number varchar(32);
+        ALTER TABLE products             ADD COLUMN IF NOT EXISTS description text;
+        ALTER TABLE sales                ADD COLUMN IF NOT EXISTS returns_total numeric(12,2) NOT NULL DEFAULT 0;
+        ALTER TABLE sales                ADD COLUMN IF NOT EXISTS last_paid_at timestamptz;
+        ALTER TABLE customer_payments    ADD COLUMN IF NOT EXISTS sale_id uuid;
+        ALTER TABLE stock_movements      ADD COLUMN IF NOT EXISTS sale_id uuid;
+        ALTER TABLE stock_movements      ADD COLUMN IF NOT EXISTS purchase_id uuid;
+        ALTER TABLE hr_advances          ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+        ALTER TABLE hr_attendance        ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+        ALTER TABLE hr_payroll           ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+        ALTER TABLE payroll_entries      ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+        ALTER TABLE supplier_transactions ADD COLUMN IF NOT EXISTS tx_type varchar(16);
+        ALTER TABLE hr_shifts            ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+        ALTER TABLE hr_shifts            ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+        ALTER TABLE hr_shifts            ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+        ALTER TABLE hr_settings          ADD COLUMN IF NOT EXISTS id uuid NOT NULL DEFAULT gen_random_uuid();
+        ALTER TABLE hr_settings          ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+        ALTER TABLE hr_settings          ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='hr_settings'::regclass AND contype='p') THEN
+                ALTER TABLE hr_settings ADD PRIMARY KEY (id);
+            END IF;
+        END $$;
+    """),
+
+    # v27 — uuid PK defaults everywhere (ORM inserts rely on them on every table)
+    ("v27_uuid_pk_defaults", """
+        ALTER TABLE categories           ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE collection_items     ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE customer_payments    ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE customers            ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE device_tokens        ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE drawer_transactions  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE employees            ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE hr_payroll_entries   ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE hr_sync_log          ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE payroll_entries      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE payroll_periods      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE product_barcodes     ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE product_collections  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE product_images       ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE products             ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE purchase_order_items ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE purchase_orders      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE sales                ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE shifts               ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE subcategories        ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE supplier_prices      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE users                ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE wallet_transactions  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE warehouses           ALTER COLUMN id SET DEFAULT gen_random_uuid();
+    """),
+
+    # v28 — hr_sync_log counters: raw-SQL failure path inserts without them
+    ("v28_sync_log_counter_defaults", """
+        ALTER TABLE hr_sync_log ALTER COLUMN fetched SET DEFAULT 0;
+        ALTER TABLE hr_sync_log ALTER COLUMN added   SET DEFAULT 0;
+        ALTER TABLE hr_sync_log ALTER COLUMN updated SET DEFAULT 0;
+    """),
 ]
 
 def run():
@@ -352,7 +421,10 @@ def run():
                            f"INSERT INTO schema_migrations (id) VALUES ('{name}') ON CONFLICT DO NOTHING"],
                 capture_output=True, text=True
             )
-    print(f"\n✅ Done — {ok}/{len(MIGRATIONS)} migrations applied.")
+    print(f"\n{'✅' if ok == len(MIGRATIONS) else '❌'} Done — {ok}/{len(MIGRATIONS)} migrations applied.")
+    if ok < len(MIGRATIONS):
+        print("Some migrations failed — check that the compose stack is running.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     run()

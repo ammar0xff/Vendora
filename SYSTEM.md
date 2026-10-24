@@ -1,8 +1,8 @@
 # Vendora — System Blueprint
 
-> Updated: 2026-09-06  
-> Stack: FastAPI (Python 3.12 / CI 3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind CSS v4 · Vite · Docker  
-> Platforms: Web PWA (offline POS) · Android (Capacitor) · Desktop (Tauri v2)
+> Updated: 2026-10-24  
+> Stack: FastAPI (Python 3.12 / CI 3.13) · SQLAlchemy 2.0 async · PostgreSQL 16 · Docker  
+> Status: Backend-only (frontend removed; rebuild planned — see docs/REFACTOR_PLAN.md P7)
 
 ---
 
@@ -12,7 +12,7 @@
 2. [Directory layout](#2-directory-layout)
 3. [Database](#3-database)
 4. [Backend — FastAPI](#4-backend--fastapi)
-5. [Frontend — React](#5-frontend--react)
+5. [API client integration](#5-api-client-integration)
 6. [Infrastructure](#6-infrastructure)
 7. [Core workflows](#7-core-workflows)
 
@@ -22,12 +22,10 @@
 
 A multi-branch ERP for a plumbing and building-supplies store. Arabic RTL UI throughout.
 
-- **Backend** - FastAPI, SQLAlchemy 2.0 (async), idempotent SQL migrations
-- **Frontend** - React 19, TypeScript, Vite, Tailwind CSS v4, Zustand
+- **Backend** - FastAPI, SQLAlchemy 2.0 (async), tracked idempotent SQL migrations
 - **Database** - PostgreSQL 16
-- **Android** - Capacitor (WebView + native plugins)
-- **Desktop** - Tauri v2 (Rust shell + WebView)
-- **PWA** - Service worker + IndexedDB persistence for offline POS
+- **Testing** - live-API e2e suite (107 tests, pytest + httpx) with per-run DB cleanup
+- **Clients** - any HTTP client; cookie auth with CSRF double-submit, or Bearer tokens
 
 ### Default seeds
 
@@ -75,30 +73,17 @@ Vendora/
 │   ├── tests/                  # backend tests
 │   ├── main.py                 # FastAPI entry point
 │   └── Dockerfile              # python:3.12-slim
-├── frontend/                   # React + TypeScript
-│   ├── src/
-│   │   ├── App.tsx             # routes + permission guards
-│   │   ├── api/                # client.ts + endpoints.ts
-│   │   ├── store/              # 9 Zustand stores
-│   │   ├── pages/              # 25 page modules
-│   │   ├── components/         # ui/ + layout/ + shared components
-│   │   ├── hooks/              # useOnlineStatus
-│   │   └── utils/              # format, native, pushNotifications, desktopUpdate
-│   ├── android/                # Capacitor Android project
-│   ├── src-tauri/              # Tauri v2 desktop project (Rust)
-│   ├── e2e/                    # Playwright specs
-│   ├── scripts/                # generate-icons.mjs
-│   ├── public/                 # static assets
-│   ├── nginx.conf              # reverse proxy + security headers
-│   └── Dockerfile              # node:20 → nginx:alpine
+├── e2e/                        # live-API e2e suite (pytest + httpx)
+│   ├── api/                    # one test file per domain (20 files, 107 tests)
+│   ├── helpers.py              # Api client (CSRF echo), DB cleanup, Registry
+│   └── tools/schema_drift.py   # model ↔ live-DB drift checker
 ├── data/sql/                   # init_data.sql, prod_db.sql, dump
-├── scripts/                    # migrate.py, setup.py, import/data helpers, zk_sync.py
-├── migrations/                 # ad-hoc SQL migrations
-├── docs/                       # AUDIT.md, AUDIT-frontend.md
+├── scripts/                    # migrate.py (28 tracked migrations), setup.py, zk_sync.py
+├── docs/                       # REFACTOR_PLAN.md, audits
 ├── manage.py                   # ops CLI
 ├── install.sh                  # fresh-server setup
 ├── deploy.sh                   # push + SSH production deploy
-├── docker-compose.yml          # 4 services: db, backend, frontend, nginxpm
+├── docker-compose.yml          # 2 services: db, backend
 ├── AGENTS.md                   # AI-agent persistent memory
 ├── SYSTEM.md                   # this file
 └── TASKS.md                    # features & bugs tracking
@@ -235,83 +220,36 @@ The former 1329-line `print_router.py` was split into a modular sub-package moun
 
 ---
 
-## 5. Frontend — React
+## 5. API client integration
 
-### API layer (`frontend/src/api/`)
+The previous React frontend was removed (history preserved in git; rebuild planned as
+[REFACTOR_PLAN](docs/REFACTOR_PLAN.md) P7). Any HTTP client integrates as follows:
 
-| File | Purpose |
-|------|---------|
-| `client.ts` | Axios instance: base URL (`VITE_API_URL || '' + /api`), JWT interceptor, CSRF header |
-| `endpoints.ts` | all typed endpoint functions |
-
-### Stores (`frontend/src/store/`, Zustand)
-
-| Store | Purpose |
-|-------|---------|
-| `auth.ts` | user, token, permissions, login/logout (persisted) |
-| `app.ts` | active warehouse / branch |
-| `pos.ts` | POS cart (items, quantities, discounts, notes) |
-| `purchaseCart.ts` | purchase cart |
-| `pendingSales.ts` | offline pending sales (persisted) |
-| `localShift.ts` | offline local shift (persisted) |
-| `offline.ts` | offline sync queue (persisted) |
-| `offlineCache.ts` | local search cache |
-| `queryPersister.ts` | TanStack Query IndexedDB persister |
-
-### Pages (`frontend/src/pages/`, 25 modules)
-
-Login, dashboard, POS, sales, quotations, payroll, admin, customers, operations (purchases/purchase-orders/
-purchase-bill/transfers/dispatch grouped), inventory (stock, stocktaking, stock-adjustments, products), shifts,
-reports (accounting/aging/cashflow), archive, expenses, safes, supplier-prices, suppliers, users, settings.
-
-### Shared UI (`frontend/src/components/`)
-
-`ui/` (Modal, DataTable, ConfirmDialog, FormField, SearchInput, BarcodeManager, ...), `layout/` (Sidebar, Layout),
-`ErrorBoundary`, `OfflineBanner`, `OfflineSync`, `NativeShell`.
-
-### PWA / offline
-
-| File | Purpose |
-|------|---------|
-| `sw.ts` (via vite-plugin-pwa) | service worker: app-shell + API caching |
-| `utils/format.ts` | number/currency formatting (signed currency strings) |
-| `utils/native.ts` | native-shell capabilities (browser vs Capacitor vs Tauri) |
-
-### Android (Capacitor) — `frontend/android/`
-
-Camera barcode ↔ `@capacitor/camera`; Bluetooth printing ↔ `@capacitor-community/bluetooth-le`; biometric auth ↔
-`@aparajita/capacitor-biometric-auth`; local/push notifications ↔ `@capacitor/local-notifications`,
-`@capacitor/push-notifications`; status bar/filesystem ↔ `@capacitor/status-bar`, `@capacitor/filesystem`.
-App icons are generated from the store logo by `scripts/generate-icons.mjs` in `prebuild:android`.
-
-### Desktop (Tauri v2) — `frontend/src-tauri/`
-
-System tray, offline indicator, notifications, auto-updater wired to the backend `/api/updater` feed.
+- **Base URL** — direct `http://host:8000` (compose) or `https://<app>/api/*` (Vercel rewrite strips `/api`).
+- **Auth** — `POST /auth/login {username, password}` sets an `HttpOnly` `access_token` cookie and returns the JWT.
+  Cookie-based clients must send **CSRF double-submit**: echo the readable `csrf_token` cookie in an `X-CSRF-Token`
+  header on every POST/PUT/PATCH/DELETE. Bearer-token clients (`Authorization: Bearer <jwt>`) are CSRF-exempt.
+- **OpenAPI** — `/docs` renders the live endpoint inventory (239 endpoints, 27 routers).
+- **Errors** — business errors are 4xx with Arabic `detail`; validation errors are FastAPI 422 payloads.
+- **Printing** — `/print/*` endpoints return self-contained HTML documents; short-lived scoped print tokens
+  (`/auth/print-token`) allow unauthenticated document views.
+- **Reference client** — `e2e/helpers.py::Api` is a minimal working example (login, cookie jar, CSRF echo).
 
 ---
 
 ## 6. Infrastructure
 
-### Docker Compose (`docker-compose.yml`) — 4 services
+### Docker Compose (`docker-compose.yml`) — 2 services
 
 | Service | Image | Host ports | Resource limits |
 |---------|-------|-----------|-----------------|
-| `db` | `postgres:16-alpine` | `5432` | 1 CPU, 512M |
-| `backend` | built from `./backend` | (internal only) `8000` | 1 CPU, 1G |
-| `frontend` | built from `./frontend` | `8080 → 80` | - |
-| `nginxpm` | `jc21/nginx-proxy-manager` | `80`, `443`, `81` | - |
+| `db` | `postgres:16-alpine` | `5433 → 5432` | 1 CPU, 512M |
+| `backend` | built from `./backend` | `8000` | 1 CPU, 1G |
 
 Backend connects via `DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/inventory_db`. `SECRET_KEY` is set
-from compose. Optional `firebase-service-account.json` mounted when FCM push is used. Volumes: `pgdata`, `uploads_data`,
-`npm_data`, `npm_letsencrypt`. `data/sql/init_data.sql` seeds the DB on first boot.
-
-### Frontend `nginx.conf`
-
-- reverse-proxies `/api/` → `backend:8000`, `/uploads/` → backend, `/manifest.json`/`/manifest.webmanifest` →
-  `/settings/manifest.json`
-- SPA fallback (`try_files ... /index.html`)
-- security headers: CSP (assets + Google Fonts), HSTS, X-Frame-Options, nosniff, referrer policy
-- `limit_req_zone login:5r/m` — 5 login requests/minute per IP
+from compose. Optional `firebase-service-account.json` mounted when FCM push is used. Volumes: `pgdata`, `uploads_data`.
+`data/sql/init_data.sql` seeds the DB on first boot. In production, put the backend behind your own reverse proxy for
+TLS (the login rate limiter honors `X-Forwarded-For`).
 
 ### Backend Dockerfile
 
@@ -321,8 +259,7 @@ serves on `8000`.
 ### manage.py
 
 CLI commmands: `setup`, `deploy`, `build`, `deploy-fresh`, `stop`, `restart`, `status`, `backup`, `restore`,
-`restore-append`, `migrate`, `update-init`, `export-clean`, `logs`, `list-backups`, `build-apk`, `build-appimage`,
-`build-exe`.
+`restore-append`, `migrate`, `update-init`, `export-clean`, `logs`, `list-backups`.
 
 ### install.sh / deploy.sh
 
@@ -335,17 +272,17 @@ images, creates an `erp` systemd service (`erp status | backup | restore | resta
 
 | Job | Runs on | Gates |
 |-----|---------|-------|
-| `ci-frontend` | push/PR on master+main | npm ci, `tsc --noEmit`, ESLint, Vitest, production build |
-| `ci-backend` | push/PR | byte-compile all `.py`, `ruff` lint |
+| `ci-backend` | push/PR | deps install, app import check, `ruff` lint |
+| `ci-e2e` | push/PR | boots the compose stack, runs migrations, live-API suite (107 tests) + unit smoke |
 | `ci-manage` | push/PR | `manage.py --help` renders |
-| `build-desktop` | `v*` tags only | Tauri builds: Linux / Windows / macOS; upload + GitHub release |
-| `build-android` | `v*` tags only | Gradle `assembleDebug` APK; upload + GitHub release |
-| `build-docker` | `v*` tags only | `backend` + `frontend` images → Docker Hub |
+| `beta-docker` | master/main push | `vendora-backend:beta` → ghcr.io |
+| `build-docker` | `v*` tags only | backend image → Docker Hub (when secrets configured) |
 
-### Playwright E2E (`frontend/e2e/`)
+### Live-API e2e (`e2e/`)
 
-`login.spec.ts`, `pos.spec.ts`, `inventory.spec.ts`, `sales.spec.ts`, `settings.spec.ts`, shared `helpers.ts`.
-Run with `npm run test:e2e` in `frontend/`.
+20 test files covering auth, POS sales, returns, quotations, purchases, inventory, payroll approval flow, shifts and
+safes, expenses, finance, permissions, print documents, and security. Every run registers created ids and deletes them
+from the DB at teardown. Run with `E2E_API_BASE` + `E2E_DATABASE_URL` (both must point at the same server).
 
 ---
 

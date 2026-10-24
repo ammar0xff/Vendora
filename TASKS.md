@@ -1,8 +1,9 @@
 # Vendora — Tasks & Status
 
-> آخر تحديث: 2026-09-06 (جلسة توثيق: README + SYSTEM.md + TASKS sync)
+> آخر تحديث: 2026-10-24 (اكتمال خطة إعادة الإعمار P0-P5 + P8 — انظر docs/REFACTOR_PLAN.md)
 > آخر جلسات فير: 2026-08-11 (Jibble CSV attendance) · 2026-08-09 (subcategory delete) · 2026-08-08 (قرار الدرج/الخزنة)
-> Stack: FastAPI (Python 3.12/3.13) · PostgreSQL 16 · React 19 · TypeScript · Tailwind v4 · Vite · Docker
+> Stack: FastAPI (Python 3.12/3.13) · SQLAlchemy 2.0 async · PostgreSQL 16 · Docker
+> الوضع الحالي: Backend فقط — الـ frontend أُزيل (تاريخه محفوظ في git) وإعادة بنائه مخططة كمرحلة P7
 
 ---
 
@@ -41,17 +42,12 @@ Vendora/
 │   ├── alembic/           Scaffold only (schema = create_all + SQL migrations)
 │   ├── migrations/        Idempotent SQL migrations
 │   └── Dockerfile
-├── frontend/         React 19 + TypeScript + Vite + Tailwind v4
-│   ├── src/pages/        25 page modules
-│   ├── src/store/        Zustand (9 stores: auth, app, pos, purchaseCart,
-│   │                     pendingSales, localShift, offline, offlineCache, queryPersister)
-│   └── src/api/          Axios client + typed endpoints
-├── docker-compose.yml   4 services (db, backend, frontend, nginxpm)
+├── e2e/                Live-API e2e suite (107 tests, pytest + httpx)
+├── docker-compose.yml   2 services (db, backend)
 ├── data/sql/init_data.sql
-├── manage.py             CLI (status/backup/restore/deploy/migrate/build-*)
+├── manage.py             CLI (status/backup/restore/deploy/migrate)
 ├── install.sh / deploy.sh
-├── frontend/android/     Capacitor (Android)
-└── frontend/src-tauri/   Tauri v2 (Desktop)
+└── scripts/migrate.py    28 tracked SQL migrations
 ```
 
 ### User Roles
