@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+
+  --color-bg: var(--vk-bg);
+  --color-surface: var(--vk-surface);
+  --color-elevated: var(--vk-elevated);
+  --color-line: var(--vk-line);
+  --color-ink: var(--vk-ink);
+  --color-muted: var(--vk-muted);
+  --color-brand: var(--vk-brand);
+  --color-brand-ink: var(--vk-brand-ink);
+  --color-success: var(--vk-success);
+  --color-warning: var(--vk-warning);
+  --color-danger: var(--vk-danger);
+}
+
+:root {
+  --vk-bg: #faf9f7;
+  --vk-surface: #ffffff;
+  --vk-elevated: #ffffff;
+  --vk-line: #e7e5e4;
+  --vk-ink: #1c1917;
+  --vk-muted: #78716c;
+  --vk-brand: #b45309;
+  --vk-brand-ink: #ffffff;
+  --vk-success: #15803d;
+  --vk-warning: #b45309;
+  --vk-danger: #b91c1c;
+}
+
+html.dark {
+  --vk-bg: #171412;
+  --vk-surface: #1e1b19;
+  --vk-elevated: #292524;
+  --vk-line: #3a3532;
+  --vk-ink: #f5f5f4;
+  --vk-muted: #a8a29e;
+  --vk-brand: #f59e0b;
+  --vk-brand-ink: #1c1917;
+  --vk-success: #4ade80;
+  --vk-warning: #fbbf24;
+  --vk-danger: #f87171;
+}
+
+html {
+  background: var(--vk-bg);
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--vk-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--vk-line);
+  border-radius: 8px;
+}
+
+input:focus-visible,
+button:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--vk-brand);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
