@@ -173,6 +173,10 @@ MIGRATIONS = [
          );
          CREATE INDEX IF NOT EXISTS idx_supplier_prices_supplier ON supplier_prices(supplier_id);
          CREATE INDEX IF NOT EXISTS idx_supplier_prices_product ON supplier_prices(product_id);
+         -- Table may pre-exist from create_all without DB-side defaults
+         ALTER TABLE supplier_prices ALTER COLUMN currency  SET DEFAULT 'EGP';
+         ALTER TABLE supplier_prices ALTER COLUMN min_qty   SET DEFAULT 1;
+         ALTER TABLE supplier_prices ALTER COLUMN is_active SET DEFAULT true;
          -- Best-effort seed from existing purchase orders if tables exist.
          DO $$
          BEGIN

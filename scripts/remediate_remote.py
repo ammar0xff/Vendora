@@ -59,6 +59,9 @@ CLEANUP_SQL = [
     ("hr advances (e2e)", """
         DELETE FROM hr_advances WHERE employee_id IN (SELECT id FROM hr_employees WHERE name LIKE 'E2E-%')
             OR created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"""),
+    ("hr payroll legacy rows (e2e)", """
+        DELETE FROM hr_payroll WHERE employee_id IN (SELECT id FROM hr_employees WHERE name LIKE 'E2E-%')
+            OR created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"""),
     ("hr employees (e2e)", "DELETE FROM hr_employees WHERE name LIKE 'E2E-%'"),
     ("hr shifts (e2e)", "DELETE FROM hr_shifts WHERE name LIKE 'E2E-%'"),
     ("expenses (e2e users)", "DELETE FROM expenses WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e\\_%')"),
