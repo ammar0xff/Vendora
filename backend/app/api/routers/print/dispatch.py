@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
 from app.dependencies import get_print_user
 
-from . import _make_pdf, ar_num, fmt_date, get_settings, router, top_band, wrap
+from . import _make_pdf, ar_num, fmt_date, get_settings, router, top_band, wrap, h
 
 
 @router.get("/dispatch/{doc_number}", response_class=HTMLResponse)
@@ -42,9 +42,9 @@ async def print_dispatch(doc_number: str,
     for idx, it in enumerate(items, 1):
         rows_html += f"""<tr>
           <td style="color:#9ca3af;font-size:9px;text-align:center">{idx}</td>
-          <td><div class="td-name">{it['product_name']}</div></td>
+          <td><div class="td-name">{h(it['product_name'])}</div></td>
           <td style="text-align:center;white-space:nowrap">{ar_num(float(it['qty']), 0)}</td>
-          <td style="text-align:center;white-space:nowrap">{it.get('unit','')}</td>
+          <td style="text-align:center;white-space:nowrap">{h(it.get('unit',''))}</td>
         </tr>"""
 
     body = f"""
@@ -53,14 +53,14 @@ async def print_dispatch(doc_number: str,
   <div class="parties">
     <div class="party-card buyer">
       <div class="party-label">صادر من</div>
-      <div class="party-name">{dm.get('from_warehouse','—')}</div>
+      <div class="party-name">{h(dm.get('from_warehouse','—'))}</div>
     </div>
     <div class="party-card">
       <div class="party-label">وارد إلى</div>
-      <div class="party-name">{dm.get('to_warehouse','—')}</div>
+      <div class="party-name">{h(dm.get('to_warehouse','—'))}</div>
     </div>
   </div>
-  {f'<div class="note-section">{dm["notes"]}</div>' if dm.get('notes') else ''}
+  {f'<div class="note-section">{h(dm["notes"])}</div>' if dm.get('notes') else ''}
   <div class="tbl-label">الأصناف</div>
   <table>
     <thead><tr><th style="text-align:center">#</th><th style="width:100%">اسم الصنف</th><th style="text-align:center">الكمية</th><th style="text-align:center">الوحدة</th></tr></thead>
@@ -112,9 +112,9 @@ async def print_handover(doc_number: str,
         qty = ar_num(float(it['qty']), 0)
         rows_html += f"""<tr>
           <td style="color:#9ca3af;font-size:9px;text-align:center">{idx}</td>
-          <td><div class="td-name">{it['product_name']}</div></td>
+          <td><div class="td-name">{h(it['product_name'])}</div></td>
           <td style="text-align:center;white-space:nowrap">{qty}</td>
-          <td style="text-align:center;white-space:nowrap">{it.get('unit','')}</td>
+          <td style="text-align:center;white-space:nowrap">{h(it.get('unit',''))}</td>
         </tr>"""
 
     body = f"""
@@ -123,14 +123,14 @@ async def print_handover(doc_number: str,
   <div class="parties">
     <div class="party-card buyer">
       <div class="party-label">المسَلِّم</div>
-      <div class="party-name">{hm.get('created_by_name','—')}</div>
+      <div class="party-name">{h(hm.get('created_by_name','—'))}</div>
     </div>
     <div class="party-card">
       <div class="party-label">المسَلَّم إليه</div>
-      <div class="party-name">{hm.get('assignee_name','—')}</div>
+      <div class="party-name">{h(hm.get('assignee_name','—'))}</div>
     </div>
   </div>
-  {f'<div class="note-section">{hm["notes"]}</div>' if hm.get('notes') else ''}
+  {f'<div class="note-section">{h(hm["notes"])}</div>' if hm.get('notes') else ''}
   <div class="tbl-label">الأصناف المسلَّمة</div>
   <table>
     <thead><tr><th style="text-align:center">#</th><th style="width:100%">اسم الصنف</th><th style="text-align:center">الكمية</th><th style="text-align:center">الوحدة</th></tr></thead>
@@ -138,8 +138,8 @@ async def print_handover(doc_number: str,
   </table>
   <div style="margin-top:6px;font-size:11px;font-weight:700;text-align:left">إجمالي الأصناف: {ar_num(len(items), 0)}</div>
   <div class="signatures">
-    <div class="signature-item"><div class="label">المسَلِّم</div><div class="signature-line"></div><div class="name">{hm.get('created_by_name','')}</div></div>
-    <div class="signature-item"><div class="label">المسَلَّم إليه</div><div class="signature-line"></div><div class="name">{hm.get('assignee_name','')}</div></div>
+<div class="signature-item"><div class="label">المسَلِّم</div><div class="signature-line"></div><div class="name">{h(hm.get('created_by_name',''))}</div></div>
+      <div class="signature-item"><div class="label">المسَلَّم إليه</div><div class="signature-line"></div><div class="name">{h(hm.get('assignee_name',''))}</div></div>
     <div class="signature-item"><div class="label">مدير الفرع</div><div class="signature-line"></div></div>
   </div>
 </div>"""

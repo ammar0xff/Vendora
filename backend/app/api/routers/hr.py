@@ -342,7 +342,13 @@ async def import_attendance_csv(file: UploadFile = File(...), db: AsyncSession =
 # ── Payroll ────────────────────────────────────────────────────────────────
 @router.get("/payroll")
 async def list_payroll(month: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    q = "SELECT p.*, e.name as emp_name, e.position FROM hr_payroll p JOIN hr_employees e ON p.employee_id=e.id WHERE 1=1"
+    q = """
+        SELECT pe.*, e.name as emp_name, e.position, p.month as period_month, p.status as period_status
+        FROM hr_payroll_entries pe
+        JOIN hr_payroll_periods p ON pe.period_id = p.id
+        JOIN hr_employees e ON pe.employee_id = e.id
+        WHERE 1=1
+    """
     params = {}
     if month:
         q += " AND p.month=:month"
@@ -412,24 +418,35 @@ async def calculate_payroll(data: PayrollCalculate, db: AsyncSession = Depends(g
             partial(calc, emp, attendances, settings, shifts_map, advance=float(adv), month=month),
         )
 
-        # Save to DB
+        # Get or create period
+        period_row = (await db.execute(text("SELECT id FROM hr_payroll_periods WHERE month=:m"), {"m": month})).fetchone()
+        if not period_row:
+            await db.execute(text("INSERT INTO hr_payroll_periods (month, status) VALUES (:m, 'draft')"), {"m": month})
+            await db.commit()
+            period_row = (await db.execute(text("SELECT id FROM hr_payroll_periods WHERE month=:m"), {"m": month})).fetchone()
+        period_id = period_row[0]
+
+        # Save to DB (hr_payroll_entries with period_id)
         await db.execute(text("""
-            INSERT INTO hr_payroll (employee_id, month, base_salary, working_days, actual_working_days,
+            INSERT INTO hr_payroll_entries (period_id, employee_id, base_salary, working_days, actual_working_days,
                 absent_days, vacation_days, total_hours, lateness_minutes, early_leave_minutes,
                 missing_scan_minutes, lateness_deduction, overtime_hours, overtime_pay,
-                bonus_days, bonus_payment, bonus, deductions, advances, drawer_variance, net_salary,
-                hourly_rate, daily_breakdown, created_by)
-            VALUES (:eid,:month,:base,:wd,:awd,:abd,:vd,:th,:lm,:elm,:msm,:ld,:oth,:otp,
-                    :bd,:bp,:bonus,:ded,:adv,0,:net,:hr,CAST(:db AS jsonb),:by)
-            ON CONFLICT (employee_id, month) DO UPDATE SET
+                bonus_days, bonus_payment, bonuses, deductions, advances, drawer_variance, net_salary,
+                hourly_rate, daily_breakdown, created_by, status)
+            VALUES (:pid, :eid, :base, :wd, :awd, :abd, :vd, :th, :lm, :elm, :msm, :ld, :oth, :otp,
+                    :bd, :bp, :bonus, :ded, :adv, 0, :net, :hr, CAST(:db AS jsonb), :by, 'draft')
+            ON CONFLICT (period_id, employee_id) DO UPDATE SET
                 working_days=EXCLUDED.working_days, actual_working_days=EXCLUDED.actual_working_days,
                 absent_days=EXCLUDED.absent_days, total_hours=EXCLUDED.total_hours,
                 lateness_minutes=EXCLUDED.lateness_minutes, lateness_deduction=EXCLUDED.lateness_deduction,
                 overtime_hours=EXCLUDED.overtime_hours, overtime_pay=EXCLUDED.overtime_pay,
+                bonus_days=EXCLUDED.bonus_days, bonus_payment=EXCLUDED.bonus_payment,
+                bonuses=EXCLUDED.bonuses, deductions=EXCLUDED.deductions,
                 advances=EXCLUDED.advances, net_salary=EXCLUDED.net_salary,
-                hourly_rate=EXCLUDED.hourly_rate, daily_breakdown=EXCLUDED.daily_breakdown
+                hourly_rate=EXCLUDED.hourly_rate, daily_breakdown=EXCLUDED.daily_breakdown,
+                status=EXCLUDED.status
         """), {
-            'eid': eid, 'month': month, 'base': result['base_salary'],
+            'pid': period_id, 'eid': eid, 'base': result['base_salary'],
             'wd': result['working_days'], 'awd': result['actual_working_days'],
             'abd': result['absent_days'], 'vd': result['vacation_days'],
             'th': result['total_hours'], 'lm': result['lateness_minutes'],
@@ -470,7 +487,10 @@ async def submit_payroll_period(month: str, db: AsyncSession = Depends(get_db), 
         VALUES (:m, 'review', :by, now())
         ON CONFLICT (month) DO UPDATE SET status='review', submitted_by=:by, submitted_at=now(), updated_at=now()
     """), {"m": month, "by": current_user.id})
-    await db.execute(text("UPDATE hr_payroll SET status='draft' WHERE month=:m"), {"m": month})
+    await db.execute(text("""
+        UPDATE hr_payroll_entries SET status='draft'
+        WHERE period_id = (SELECT id FROM hr_payroll_periods WHERE month=:m)
+    """), {"m": month})
     await db.commit()
     return {"detail": "submitted"}
 
@@ -481,7 +501,12 @@ async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db),
     if status != "review":
         raise BusinessError("لا يمكن اعتماد الشهر إلا بعد المراجعة")
 
-    total = (await db.execute(text("SELECT COALESCE(SUM(net_salary),0) FROM hr_payroll WHERE month=:m"), {"m": month})).scalar() or 0
+    total = (await db.execute(text("""
+        SELECT COALESCE(SUM(pe.net_salary),0)
+        FROM hr_payroll_entries pe
+        JOIN hr_payroll_periods p ON pe.period_id = p.id
+        WHERE p.month = :m
+    """), {"m": month})).scalar() or 0
     # Ensure expense category exists
     cat_id = (await db.execute(text("SELECT id FROM financial_categories WHERE name='رواتب' AND type='expense'"))).scalar_one_or_none()
     if not cat_id:
@@ -510,7 +535,10 @@ async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db),
         VALUES (:m, 'approved', :by, now())
         ON CONFLICT (month) DO UPDATE SET status='approved', approved_by=:by, approved_at=now(), updated_at=now()
     """), {"m": month, "by": current_user.id})
-    await db.execute(text("UPDATE hr_payroll SET status='approved' WHERE month=:m"), {"m": month})
+    await db.execute(text("""
+        UPDATE hr_payroll_entries SET status='approved'
+        WHERE period_id = (SELECT id FROM hr_payroll_periods WHERE month=:m)
+    """), {"m": month})
     await db.commit()
     return {"detail": "approved", "total": float(total)}
 
@@ -523,7 +551,10 @@ async def pay_payroll_period(month: str, db: AsyncSession = Depends(get_db), cur
     await db.execute(text("""
         UPDATE hr_payroll_periods SET status='paid', paid_by=:by, paid_at=now(), updated_at=now() WHERE month=:m
     """), {"m": month, "by": current_user.id})
-    await db.execute(text("UPDATE hr_payroll SET status='paid' WHERE month=:m"), {"m": month})
+    await db.execute(text("""
+        UPDATE hr_payroll_entries SET status='paid'
+        WHERE period_id = (SELECT id FROM hr_payroll_periods WHERE month=:m)
+    """), {"m": month})
     await db.commit()
     return {"detail": "paid"}
 
@@ -537,7 +568,10 @@ async def reopen_payroll_period(month: str, db: AsyncSession = Depends(get_db), 
         INSERT INTO hr_payroll_periods (month, status) VALUES (:m, 'draft')
         ON CONFLICT (month) DO UPDATE SET status='draft', updated_at=now()
     """), {"m": month})
-    await db.execute(text("UPDATE hr_payroll SET status='draft' WHERE month=:m"), {"m": month})
+    await db.execute(text("""
+        UPDATE hr_payroll_entries SET status='draft'
+        WHERE period_id = (SELECT id FROM hr_payroll_periods WHERE month=:m)
+    """), {"m": month})
     await db.commit()
     return {"detail": "reopened"}
 
@@ -545,7 +579,7 @@ async def reopen_payroll_period(month: str, db: AsyncSession = Depends(get_db), 
 @router.get("/payroll/{payroll_id}/breakdown")
 async def get_daily_breakdown(payroll_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Get daily attendance breakdown for a payroll record."""
-    r = await db.execute(text("SELECT p.daily_breakdown, e.name FROM hr_payroll p JOIN hr_employees e ON p.employee_id=e.id WHERE p.id=:id"), {'id': payroll_id})
+    r = await db.execute(text("SELECT pe.daily_breakdown, e.name FROM hr_payroll_entries pe JOIN hr_employees e ON pe.employee_id=e.id WHERE pe.id=:id"), {'id': payroll_id})
     row = r.fetchone()
     if not row:
         raise NotFoundError()
@@ -560,7 +594,7 @@ async def update_payroll(payroll_id: uuid.UUID, data: PayrollUpdate, db: AsyncSe
     # Fetch current engine-calculated values
     row = (await db.execute(text(
         "SELECT base_salary, lateness_deduction, overtime_pay, bonus_payment, advances, "
-        "       working_days, absent_days FROM hr_payroll WHERE id=:id"
+        "       working_days, absent_days FROM hr_payroll_entries WHERE id=:id"
     ), {"id": payroll_id})).mappings().fetchone()
     if not row:
         raise NotFoundError()
@@ -584,7 +618,7 @@ async def update_payroll(payroll_id: uuid.UUID, data: PayrollUpdate, db: AsyncSe
     )
 
     await db.execute(text("""
-        UPDATE hr_payroll
+        UPDATE hr_payroll_entries
         SET bonus=:bonus, deductions=:ded, drawer_variance=:var,
             net_salary=:net, status=:status, notes=:notes
         WHERE id=:id

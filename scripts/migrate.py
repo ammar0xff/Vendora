@@ -6,7 +6,7 @@ Each migration is idempotent (safe to run multiple times).
 import subprocess, sys
 from pathlib import Path
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).parent.parent
 COMPOSE = ["docker", "compose", "-f", str(ROOT / "docker-compose.yml")]
 
 def psql(sql: str):
@@ -20,6 +20,24 @@ def psql(sql: str):
     return result.returncode == 0
 
 MIGRATIONS = [
+    # v0 — migration tracking table
+    ("v0_schema_migrations", """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id text PRIMARY KEY,
+            applied_at timestamptz DEFAULT now()
+        );
+    """),
+
+    # v1.1 — accounting_periods: add id column and make it PK (live DB has month as PK)
+    ("v1.1_accounting_periods_pk", """
+        ALTER TABLE accounting_periods ADD COLUMN IF NOT EXISTS id uuid;
+        UPDATE accounting_periods SET id = gen_random_uuid() WHERE id IS NULL;
+        ALTER TABLE accounting_periods ALTER COLUMN id SET NOT NULL;
+        ALTER TABLE accounting_periods DROP CONSTRAINT IF EXISTS accounting_periods_pkey;
+        ALTER TABLE accounting_periods ADD PRIMARY KEY (id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_accounting_periods_month ON accounting_periods(month);
+    """),
+
     # v1 — stock_status on products
     ("v1_stock_status", """
         ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_status text NOT NULL DEFAULT 'tracked';
@@ -170,18 +188,20 @@ MIGRATIONS = [
     # v11 — HR payroll period workflow
     ("v11_hr_payroll_periods", """
         CREATE TABLE IF NOT EXISTS hr_payroll_periods (
-            month text PRIMARY KEY,
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            month text UNIQUE NOT NULL,
             status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','review','approved','paid')),
-            submitted_by uuid,
+            submitted_by uuid REFERENCES users(id),
             submitted_at timestamptz,
-            approved_by uuid,
+            approved_by uuid REFERENCES users(id),
             approved_at timestamptz,
-            paid_by uuid,
+            paid_by uuid REFERENCES users(id),
             paid_at timestamptz,
             created_at timestamptz DEFAULT now(),
             updated_at timestamptz DEFAULT now()
         );
         CREATE INDEX IF NOT EXISTS idx_hr_payroll_periods_status ON hr_payroll_periods(status);
+        CREATE INDEX IF NOT EXISTS idx_hr_payroll_periods_month ON hr_payroll_periods(month);
     """),
 
     # v12 — suppliers soft-delete
@@ -219,17 +239,70 @@ MIGRATIONS = [
         ALTER TABLE shifts ADD COLUMN IF NOT EXISTS deposit_received_by uuid REFERENCES users(id);
         ALTER TABLE shifts ADD COLUMN IF NOT EXISTS deposit_amount numeric(12,2);
     """),
+
+    # v16 — hr_payroll_entries: add missing columns from old hr_payroll table
+    ("v16_hr_payroll_entries_full", """
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS working_days integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS actual_working_days integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS absent_days integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS vacation_days integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS total_hours numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS lateness_minutes integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS early_leave_minutes integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS missing_scan_minutes integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS lateness_deduction numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS overtime_hours numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS overtime_pay numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS bonus_days integer;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS bonus_payment numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS bonus numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS deductions numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS advances numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS drawer_variance numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS net_salary numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS hourly_rate numeric(12,2);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS daily_breakdown jsonb;
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS created_by uuid REFERENCES users(id);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS status text DEFAULT 'draft';
+    """),
+
+    # v17 — unique constraint on (period_id, employee_id) for upsert
+    ("v17_hr_payroll_entries_unique", """
+        ALTER TABLE hr_payroll_entries DROP CONSTRAINT IF EXISTS hr_payroll_entries_period_id_employee_id_key;
+        ALTER TABLE hr_payroll_entries ADD CONSTRAINT hr_payroll_entries_period_id_employee_id_key UNIQUE (period_id, employee_id);
+    """),
+
+    # v18 — hr_payroll_periods: add default for id column
+    ("v18_hr_payroll_periods_id_default", """
+        ALTER TABLE hr_payroll_periods ALTER COLUMN id SET DEFAULT gen_random_uuid();
+    """),
 ]
 
 def run():
     print("🔄 Running DB migrations...")
     ok = 0
     for name, sql in MIGRATIONS:
+        # Check if already applied
+        check = subprocess.run(
+            COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-d", "inventory_db", "-t", "-c",
+                       f"SELECT 1 FROM schema_migrations WHERE id='{name}'"],
+            capture_output=True, text=True
+        )
+        if check.returncode == 0 and check.stdout.strip():
+            print(f"  ⏭️  {name} (already applied)")
+            ok += 1
+            continue
         result = psql(sql)
         status = "✅" if result else "⚠️ "
         print(f"  {status} {name}")
         if result:
             ok += 1
+            # Record as applied
+            subprocess.run(
+                COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-d", "inventory_db", "-c",
+                           f"INSERT INTO schema_migrations (id) VALUES ('{name}') ON CONFLICT DO NOTHING"],
+                capture_output=True, text=True
+            )
     print(f"\n✅ Done — {ok}/{len(MIGRATIONS)} migrations applied.")
 
 if __name__ == "__main__":

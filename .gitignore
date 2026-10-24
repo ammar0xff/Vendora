@@ -36,3 +36,6 @@ firebase-service-account.json
 
 # Tooling
 .serena/
+# Virtualenvs
+.venv/
+e2e/.venv/

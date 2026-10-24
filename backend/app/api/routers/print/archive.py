@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
 from app.dependencies import get_print_user
 
-from . import _make_pdf, ar_egp, fmt_date, fmt_dt, get_settings, router, top_band, wrap
+from . import _make_pdf, ar_egp, fmt_date, fmt_dt, get_settings, router, top_band, wrap, h
 
 
 @router.get("/archive/{doc_id}", response_class=HTMLResponse)
@@ -54,22 +54,22 @@ async def print_archive_doc(doc_id: uuid.UUID,
                          'items_count': 'عدد الأصناف', 'received_by': 'استلم', 'from_user_name': 'المُسلِّم',
                          'to_user_name': 'المُستلِم', 'amount': 'المبلغ', 'notes': 'ملاحظات'}
             label = label_map.get(k, k)
-            details_html += f'<div class="meta-cell"><div class="m-lbl">{label}</div><div class="m-val">{v}</div></div>'
+            details_html += f'<div class="meta-cell"><div class="m-lbl">{h(label)}</div><div class="m-val">{h(str(v))}</div></div>'
 
     body = f"""
 {top_band(store, doc_label, doc['doc_number'], fmt_date(doc['created_at']))}
 <div class="body">
   <div class="meta-row" style="flex-wrap:wrap">
     <div class="meta-cell"><div class="m-lbl">التاريخ</div><div class="m-val">{fmt_dt(doc['created_at'])}</div></div>
-    {f'<div class="meta-cell"><div class="m-lbl">أنشأه</div><div class="m-val">{doc["created_by_name"]}</div></div>' if doc.get('created_by_name') else ''}
+    {f'<div class="meta-cell"><div class="m-lbl">أنشأه</div><div class="m-val">{h(doc["created_by_name"])}</div></div>' if doc.get('created_by_name') else ''}
     {f'<div class="meta-cell"><div class="m-lbl">المبلغ</div><div class="m-val" style="color:#1e3a5f;font-weight:900">{ar_egp(float(doc["amount"] or 0))}</div></div>' if doc.get('amount') else ''}
     {details_html}
   </div>
-  {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{meta.get("notes","")}</div></div>' if meta.get('notes') else ''}
+  {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{h(meta.get("notes",""))}</div></div>' if meta.get('notes') else ''}
 </div>
 <div style="border-top:2px solid #94a3b8;padding:12px 36px;background:#f8fafc;display:flex;justify-content:space-between">
   <div style="font-size:10px;color:#6b7280">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
-  <div style="font-size:10px;color:#6b7280">{store.get('name','')}</div>
+  <div style="font-size:10px;color:#6b7280">{h(store.get('name',''))}</div>
 </div>"""
     return HTMLResponse(wrap(body, f"{doc_label} — {doc['doc_number']}"))
 

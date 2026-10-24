@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func, JSON
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -43,13 +43,33 @@ class HrPayrollPeriod(Base):
 
 
 class HrPayrollEntry(Base):
-    """Maps to hr_payroll_entries table — per-employee payroll entries."""
+    """Maps to hr_payroll_entries table — per-employee payroll entries (replaces old hr_payroll table)."""
     __tablename__ = "hr_payroll_entries"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     period_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hr_payroll_periods.id", ondelete="CASCADE"))
     employee_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hr_employees.id", ondelete="CASCADE"))
     base_salary: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    working_days: Mapped[int | None] = mapped_column(nullable=True)
+    actual_working_days: Mapped[int | None] = mapped_column(nullable=True)
+    absent_days: Mapped[int | None] = mapped_column(nullable=True)
+    vacation_days: Mapped[int | None] = mapped_column(nullable=True)
+    total_hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    lateness_minutes: Mapped[int | None] = mapped_column(nullable=True)
+    early_leave_minutes: Mapped[int | None] = mapped_column(nullable=True)
+    missing_scan_minutes: Mapped[int | None] = mapped_column(nullable=True)
+    lateness_deduction: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    overtime_hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    overtime_pay: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    bonus_days: Mapped[int | None] = mapped_column(nullable=True)
+    bonus_payment: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     bonuses: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    deductions: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    deductions: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    advances: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    drawer_variance: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    net_salary: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    hourly_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    daily_breakdown: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="draft")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

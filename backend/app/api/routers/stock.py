@@ -77,21 +77,14 @@ async def delete_warehouse(wh_id: uuid.UUID, db: AsyncSession = Depends(get_db),
 @router.post("/balance/bulk")
 async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """POST body: list of product UUIDs. Returns {product_id: qty} plus a __tracked__ map."""
-    from sqlalchemy import case as sa_case
-    from sqlalchemy import func
     from sqlalchemy import text as sqlt
+    from app.models.stock_balance import StockBalance
     await verify_warehouse_access(db, current_user, warehouse_id)
     if not product_ids:
         return {}
     result = await db.execute(
-        select(
-            StockMovement.product_id,
-            func.coalesce(func.sum(sa_case(
-                (StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty), else_=-StockMovement.qty
-            )), 0).label("qty")
-        )
-        .where(StockMovement.warehouse_id == warehouse_id, StockMovement.product_id.in_(product_ids))
-        .group_by(StockMovement.product_id)
+        select(StockBalance.product_id, StockBalance.qty)
+        .where(StockBalance.warehouse_id == warehouse_id, StockBalance.product_id.in_(product_ids))
     )
     out = {str(row.product_id): float(row.qty) for row in result.all()}
     st_rows = (await db.execute(sqlt(
@@ -105,36 +98,35 @@ async def get_balance_bulk(warehouse_id: uuid.UUID, product_ids: list[uuid.UUID]
 @router.post("/balance/total")
 async def get_total_balance_bulk(product_ids: list[uuid.UUID] = Body(...), db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     """Total stock across ALL warehouses. POST body: list of product UUIDs."""
-    from sqlalchemy import case as sa_case
+    from app.models.stock_balance import StockBalance
     from sqlalchemy import func
     if not product_ids:
         return {}
     result = await db.execute(
         select(
-            StockMovement.product_id,
-            func.coalesce(func.sum(sa_case(
-                (StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty), else_=-StockMovement.qty
-            )), 0).label("qty")
+            StockBalance.product_id,
+            func.coalesce(func.sum(StockBalance.qty), 0).label("qty")
         )
-        .where(StockMovement.product_id.in_(product_ids))
-        .group_by(StockMovement.product_id)
+        .where(StockBalance.product_id.in_(product_ids))
+        .group_by(StockBalance.product_id)
     )
     return {str(row.product_id): float(row.qty) for row in result.all()}
 
 
 @router.get("/balance/breakdown/{product_id}")
 async def get_balance_breakdown(product_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    """Stock per warehouse for a single product."""
-    from sqlalchemy import text as sqlt
-    rows = await db.execute(sqlt("""
-        SELECT w.name as warehouse_name, w.warehouse_type,
-               COALESCE(SUM(CASE WHEN sm.movement_type IN ('opening_stock','purchase','return_in','adjustment_in','transfer_in')
-                                 THEN sm.qty ELSE -sm.qty END), 0) as qty
-        FROM warehouses w
-        LEFT JOIN stock_movements sm ON sm.warehouse_id = w.id AND sm.product_id = :pid
-        GROUP BY w.id, w.name, w.warehouse_type
-        ORDER BY w.name
-    """), {"pid": product_id})
+    """Stock per warehouse for a single product — uses maintained balances."""
+    from app.models.stock_balance import StockBalance
+    from sqlalchemy import func
+    rows = await db.execute(
+        select(
+            Warehouse.name.label("warehouse_name"),
+            Warehouse.warehouse_type,
+            func.coalesce(StockBalance.qty, 0).label("qty")
+        )
+        .outerjoin(StockBalance, (StockBalance.product_id == product_id) & (StockBalance.warehouse_id == Warehouse.id))
+        .order_by(Warehouse.name)
+    )
     return [dict(r._mapping) for r in rows.fetchall()]
 
 
@@ -160,6 +152,7 @@ async def reset_warehouse_stock(
     if count > 1000:
         raise BusinessError(f"لا يمكن إعادة تعيين {count} حركة — تجاوز الحد الأقصى")
     await db.execute(sqlt("DELETE FROM stock_movements WHERE warehouse_id = :wid"), {"wid": warehouse_id})
+    await db.execute(sqlt("DELETE FROM stock_balances WHERE warehouse_id = :wid"), {"wid": warehouse_id})
     await db.execute(sqlt("DELETE FROM warehouse_product_status WHERE warehouse_id = :wid"), {"wid": warehouse_id})
     await db.execute(sqlt("""
         UPDATE products SET stock_status = 'untracked'

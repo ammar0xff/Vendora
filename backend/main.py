@@ -11,27 +11,45 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 import app.models.archive
+import app.models.audit_log
+import app.models.collection
 import app.models.customer_payment
 import app.models.device_token
+import app.models.employee
 import app.models.expense
 import app.models.financial_category
+import app.models.hr_advance
+import app.models.hr_attendance
+import app.models.hr_audit_log
+import app.models.hr_payroll_legacy
+import app.models.hr_settings
+import app.models.hr_shift
+import app.models.hr_sync_log
 import app.models.party
 import app.models.payment_wallet
 import app.models.payroll
+import app.models.payroll_legacy
 import app.models.period
 import app.models.product
 import app.models.purchase
+import app.models.purchase_price_history
 import app.models.safe
 import app.models.sale
 import app.models.sale_payment
+import app.models.schema_migration
 import app.models.settings
 import app.models.shift
 import app.models.stock
+import app.models.stock_balance
+import app.models.supplier_price
+import app.models.supplier_transaction
 import app.models.user
 import app.models.warehouse
+import app.models.warehouse_product_status
 from app.api.router import router
 from app.core.config import settings
 from app.db.base import Base, engine
+from app.middleware import add_csrf_middleware
 
 
 @asynccontextmanager
@@ -70,6 +88,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add CSRF protection middleware
+add_csrf_middleware(app)
+
 def _resolve_writable_dir(path: str) -> str:
     """Return the path if writable, else a writable mirror under /tmp."""
     try:
@@ -107,5 +128,5 @@ async def health():
         async with AsyncSessionLocal() as sess:
             await sess.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
-    except Exception as e:
-        return {"status": "degraded", "database": "disconnected", "detail": str(e)}
+    except Exception:
+        return {"status": "degraded", "database": "disconnected"}

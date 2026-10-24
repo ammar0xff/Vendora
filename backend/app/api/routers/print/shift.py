@@ -9,7 +9,7 @@ from app.db.base import get_db
 from app.dependencies import get_print_user
 from app.services.shift_service import compute_summary
 
-from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, router, top_band, wrap
+from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, router, top_band, wrap, h
 
 
 @router.get("/shift/{shift_id}", response_class=HTMLResponse)
@@ -117,22 +117,22 @@ async def print_shift_summary(shift_id: uuid.UUID,
         if len(items) == 1:
             it = items[0]
             all_ops.append({"time": s2["created_at"], "type": "مبيعات",
-                            "ref": f"{it['product_name']} ({ar_num(float(it['qty']),0)} {it['unit']} × {ar_egp(float(it['unit_price']))})",
-                            "party": s2["customer"], "payment": s2["wallet_name"] or "نقدي",
+                            "ref": f"{h(it['product_name'])} ({ar_num(float(it['qty']),0)} {h(it['unit'])} × {ar_egp(float(it['unit_price']))})",
+                            "party": h(s2["customer"]), "payment": h(s2["wallet_name"] or "نقدي"),
                             "credit": float(s2["total"]), "debit": 0, "sub": []})
         else:
             all_ops.append({"time": s2["created_at"], "type": "مبيعات",
-                            "ref": s2["invoice_number"], "party": s2["customer"],
-                            "payment": s2["wallet_name"] or "نقدي",
+                            "ref": h(s2["invoice_number"]), "party": h(s2["customer"]),
+                            "payment": h(s2["wallet_name"] or "نقدي"),
                             "credit": float(s2["total"]), "debit": 0, "sub": items})
     for r2 in returns:
-        all_ops.append({"time": r2["created_at"], "type": "مرتجع", "ref": r2["invoice_number"],
+        all_ops.append({"time": r2["created_at"], "type": "مرتجع", "ref": h(r2["invoice_number"]),
                         "party": "", "payment": "—", "credit": 0, "debit": float(r2["total"]), "sub": []})
     for t2 in txns:
         is_in = t2["type"] == "deposit"
         all_ops.append({"time": t2["created_at"], "type": TX_AR.get(t2["type"], t2["type"]),
-                        "ref": t2.get("note") or "—", "party": "",
-                        "payment": t2.get("wallet_name") or "نقدي",
+                        "ref": h(t2.get("note") or "—"), "party": "",
+                        "payment": h(t2.get("wallet_name") or "نقدي"),
                         "credit": float(t2["amount"]) if is_in else 0,
                         "debit": float(t2["amount"]) if not is_in else 0, "sub": []})
     all_ops.sort(key=lambda x: x["time"])
@@ -152,8 +152,8 @@ async def print_shift_summary(shift_id: uuid.UUID,
             rows += f"""
         <tr style="background:#f9f9f9">
           <td></td><td></td>
-          <td style="font-size:9px;color:#555;padding-right:16px">↳ {it['product_name']}</td>
-          <td style="font-size:9px;color:#555;text-align:center">{ar_num(float(it['qty']),0)} {it['unit']}</td>
+          <td style="font-size:9px;color:#555;padding-right:16px">↳ {h(it['product_name'])}</td>
+          <td style="font-size:9px;color:#555;text-align:center">{ar_num(float(it['qty']),0)} {h(it['unit'])}</td>
           <td style="font-size:9px;color:#555">{ar_egp(float(it['unit_price']))}</td>
           <td style="text-align:left;font-size:9px;color:#166534;white-space:nowrap">{ar_egp(float(it['line_total']))}</td>
           <td></td>
@@ -163,7 +163,7 @@ async def print_shift_summary(shift_id: uuid.UUID,
     "".join(op_row(op) for op in all_ops)
 
     wallet_summary_html = "".join(f"""
-        <tr><td style="padding:3px 10px;font-size:10px;border-bottom:1px solid #eee">{wn}</td>
+        <tr><td style="padding:3px 10px;font-size:10px;border-bottom:1px solid #eee">{h(wn)}</td>
         <td style="padding:3px 10px;text-align:left;font-weight:700;font-size:10px;border-bottom:1px solid #eee;white-space:nowrap">{ar_egp(v)}</td></tr>
     """ for wn, v in wallet_totals.items())
 
@@ -178,20 +178,20 @@ async def print_shift_summary(shift_id: uuid.UUID,
         for it in items:
             flat_rows.append({
                 "time": s2["created_at"],
-                "name": it["product_name"],
+                "name": h(it["product_name"]),
                 "qty": ar_num(float(it["qty"]), 0),
-                "unit": it["unit"],
+                "unit": h(it["unit"]),
                 "price": ar_egp(float(it["unit_price"])),
                 "total": ar_egp(float(it["line_total"])),
                 "expense": "",
                 "ret": "",
-                "note": pm if pm != "نقدي" else "",
+                "note": h(pm) if pm != "نقدي" else "",
                 "row_type": "sale"
             })
     for r2 in returns:
         flat_rows.append({
             "time": r2["created_at"],
-            "name": r2["invoice_number"],
+            "name": h(r2["invoice_number"]),
             "qty": "", "unit": "", "price": "",
             "total": "",
             "expense": "",
@@ -203,12 +203,12 @@ async def print_shift_summary(shift_id: uuid.UUID,
         is_exp = t2["type"] in ("expense", "withdrawal")
         flat_rows.append({
             "time": t2["created_at"],
-            "name": t2.get("note") or TX_AR.get(t2["type"], t2["type"]),
+            "name": h(t2.get("note") or TX_AR.get(t2["type"], t2["type"])),
             "qty": "", "unit": "", "price": "",
             "total": "" if is_exp else ar_egp(float(t2["amount"])),
             "expense": ar_egp(float(t2["amount"])) if is_exp else "",
             "ret": "",
-            "note": t2.get("wallet_name") or "نقدي",
+            "note": h(t2.get("wallet_name") or "نقدي"),
             "row_type": "expense" if is_exp else "deposit"
         })
     flat_rows.sort(key=lambda x: x["time"])
@@ -242,7 +242,7 @@ async def print_shift_summary(shift_id: uuid.UUID,
 
   <table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:8px">
     <tr>
-      <td colspan="2" style="padding:6px 10px;text-align:center;border-bottom:1px solid #ccc;font-size:13px;font-weight:900;color:#111">{shift.get('wh_name','—')}</td>
+      <td colspan="2" style="padding:6px 10px;text-align:center;border-bottom:1px solid #ccc;font-size:13px;font-weight:900;color:#111">{h(shift.get('wh_name','—'))}</td>
     </tr>
     <tr>
       <td style="padding:5px 10px;border-left:1px solid #ccc;border-bottom:1px solid #ccc;width:50%">
@@ -257,11 +257,11 @@ async def print_shift_summary(shift_id: uuid.UUID,
     <tr>
       <td style="padding:5px 10px;border-left:1px solid #ccc">
         <div style="font-size:8px;color:#999;margin-bottom:2px">من (الكاشير)</div>
-        <div style="font-size:10px;font-weight:700">{shift.get('cashier_name','—')}</div>
+        <div style="font-size:10px;font-weight:700">{h(shift.get('cashier_name','—'))}</div>
       </td>
       <td style="padding:5px 10px">
         <div style="font-size:8px;color:#999;margin-bottom:2px">إلى (المستلم)</div>
-        <div style="font-size:10px;font-weight:700">{shift.get('receiver_name') or '_________________'}</div>
+        <div style="font-size:10px;font-weight:700">{h(shift.get('receiver_name') or '_________________')}</div>
       </td>
     </tr>
   </table>

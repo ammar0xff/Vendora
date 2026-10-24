@@ -11,7 +11,7 @@ from app.models.sale import Sale, SaleItem, SaleStatus
 from app.models.shift import DrawerTransaction, DrawerTxType, Shift
 from app.models.stock import MovementType, StockMovement
 from app.schemas.stock import StockMovementCreate
-from app.services.stock_service import get_balance, record_movement
+from app.services.stock_service import get_balance, record_movement, _update_stock_balance
 
 
 async def _invoice_number(db) -> str:
@@ -105,6 +105,10 @@ async def confirm_quotation(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.
         for item in sorted_items
     ]
     db.add_all(movements)
+
+    # Update maintained stock balances for each movement
+    for mv in movements:
+        await _update_stock_balance(db, mv.product_id, mv.warehouse_id, -mv.qty)
 
     sale.status = SaleStatus.confirmed
     sale.invoice_number = await _invoice_number(db)
@@ -247,6 +251,10 @@ async def confirm_draft_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid
     ]
     db.add_all(movements)
 
+    # Update maintained stock balances for each movement
+    for mv in movements:
+        await _update_stock_balance(db, mv.product_id, mv.warehouse_id, -mv.qty)
+
     new_inv = await _invoice_number(db)
     sale.status = SaleStatus.confirmed
     sale.invoice_number = new_inv
@@ -353,6 +361,10 @@ async def create_sale(db: AsyncSession, data, cashier_id: uuid.UUID) -> Sale:
 
     db.add_all(sale_items)
     db.add_all(stock_movements)
+
+    # Update maintained stock balances for each movement
+    for mv in stock_movements:
+        await _update_stock_balance(db, mv.product_id, mv.warehouse_id, -mv.qty)
 
     net_total = gross_total - total_discount - Decimal(str(data.discount_amount))
     sale.total = Decimal(str(gross_total))
@@ -535,10 +547,12 @@ async def cancel_sale(db: AsyncSession, sale_id: uuid.UUID, user_id: uuid.UUID) 
     )).scalars().all()
     for item in items:
         await db.execute(sqlt("""
-            INSERT INTO stock_movements (product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, sale_id, created_by)
-            VALUES (:pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_cancel', :sid, :uid)
+            INSERT INTO stock_movements (id, product_id, warehouse_id, movement_type, qty, unit_cost, unit_price, ref_id, ref_type, sale_id, created_by)
+            VALUES (gen_random_uuid(), :pid, :wid, 'return_in', :qty, :cost, :price, :sid, 'sale_cancel', :sid, :uid)
         """), {"pid": item.product_id, "wid": sale.warehouse_id, "qty": item.qty,
                "cost": item.unit_cost, "price": item.unit_price, "sid": str(sale_id), "uid": str(user_id)})
+        # Update maintained stock balance (return_in increases stock)
+        await _update_stock_balance(db, item.product_id, sale.warehouse_id, item.qty)
 
     # Restore wallet balances for wallet-based drawer transactions before deleting them
     wallet_txns = (await db.execute(

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
 from app.dependencies import get_print_user
 
-from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, router, top_band, wrap
+from . import _make_pdf, ar_egp, ar_num, fmt_date, fmt_dt, get_settings, router, top_band, wrap, h
 
 
 @router.get("/sale/{sale_id}", response_class=HTMLResponse)
@@ -55,7 +55,7 @@ async def print_sale(sale_id: uuid.UUID,
                     orig_inv = ln.split('مرتجع جزئي من')[-1].strip()
                     break
         else:
-            orig_inv = sale['invoice_number']
+            orig_inv = h(sale['invoice_number'])
 
         subtotal = sum(float(i['qty']) * float(i['unit_price']) - float(i.get('discount',0)) for i in items)
         total = subtotal
@@ -65,15 +65,15 @@ async def print_sale(sale_id: uuid.UUID,
             line = float(it['qty']) * float(it['unit_price']) - float(it.get('discount',0))
             rows_html += f"""<tr>
               <td style="color:#9ca3af;font-size:9px;text-align:center;white-space:nowrap">{idx}</td>
-              <td><div class="td-name">{it['product_name']}</div></td>
+              <td><div class="td-name">{h(it['product_name'])}</div></td>
               <td style="text-align:center;white-space:nowrap;color:#374151">{ar_egp(float(it['unit_price']))}</td>
               <td style="text-align:center;white-space:nowrap;color:#374151">{ar_num(float(it['qty']), 0)}</td>
-              <td style="text-align:center;white-space:nowrap;color:#6b7280">{it.get('unit','')}</td>
+              <td style="text-align:center;white-space:nowrap;color:#6b7280">{h(it.get('unit',''))}</td>
               <td style="text-align:left;white-space:nowrap">{ar_egp(line)}</td>
             </tr>"""
 
-        customer_name = sale.get('customer_name') or 'عميل نقدي'
-        customer_detail = '  ·  '.join(filter(None, [sale.get('customer_phone',''), sale.get('customer_address','')]))
+        customer_name = h(sale.get('customer_name')) or 'عميل نقدي'
+        customer_detail = h('  ·  '.join(filter(None, [sale.get('customer_phone',''), sale.get('customer_address','')])))
 
         pmt_html = ""
         if sale.get('is_credit') or sale.get('payment_method') == 'credit':
@@ -88,6 +88,14 @@ async def print_sale(sale_id: uuid.UUID,
                 <tr><td style="padding:2px 0;color:#555">المتبقي</td><td style="font-weight:700;text-align:left;color:#dc2626">{ar_egp(max(0, net - paid))}</td></tr>
               </table>
             </div>"""
+
+        emp = h(sale.get('created_by_name') or sale.get('cashier_name') or '—')
+        now = datetime.now().strftime('%d/%m/%Y  %I:%M %p').replace('AM', 'ص').replace('PM', 'م')
+        header_meta = f"""
+        <div style="font-size:9px;color:#6b7280;text-align:left;margin-bottom:6px;line-height:1.6">
+          التاريخ: {fmt_dt(sale['created_at'])} &nbsp;|&nbsp; الموظف: {emp}
+          {f'&nbsp;|&nbsp; الفاتورة الأصلية: {orig_inv}' if orig_inv else ''}
+        </div>"""
 
         emp = sale.get('created_by_name') or sale.get('cashier_name') or '—'
         now = datetime.now().strftime('%d/%m/%Y  %I:%M %p').replace('AM', 'ص').replace('PM', 'م')
@@ -131,7 +139,7 @@ async def print_sale(sale_id: uuid.UUID,
       </tr>
     </table>
   </div>
-  <div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding:2pt 0">طُبع: {now}</td><td style="text-align:left;white-space:nowrap;padding:2pt 0">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>
+  <div class="sale-footer_info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding:2pt 0">طُبع: {now}</td><td style="text-align:left;white-space:nowrap;padding:2pt 0">{'  '.join(h(c.get('name','')) + ': ' + h(c.get('phone','')) for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>
 </div>"""
         return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
 
@@ -150,16 +158,16 @@ async def print_sale(sale_id: uuid.UUID,
         line = float(it['qty']) * float(it['unit_price']) - float(it.get('discount',0))
         rows_html += f"""<tr>
           <td style="color:#9ca3af;font-size:9px;text-align:center;white-space:nowrap">{idx}</td>
-          <td><div class="td-name">{it['product_name']}</div></td>
+          <td><div class="td-name">{h(it['product_name'])}</div></td>
           <td style="text-align:center;white-space:nowrap;color:#374151">{ar_egp(float(it['unit_price']))}</td>
           <td style="text-align:center;white-space:nowrap;color:#374151">{ar_num(float(it['qty']), 0)}</td>
-          <td style="text-align:center;white-space:nowrap;color:#6b7280">{it.get('unit','')}</td>
+          <td style="text-align:center;white-space:nowrap;color:#6b7280">{h(it.get('unit',''))}</td>
           {f'<td style="text-align:center;white-space:nowrap;color:#dc2626">({ar_egp(float(it["discount"]))})</td>' if float(it.get('discount',0)) else ''}
           <td style="text-align:left;white-space:nowrap">{ar_egp(line)}</td>
         </tr>"""
 
-    customer_name = sale.get('customer_name') or 'عميل نقدي'
-    customer_detail = '  ·  '.join(filter(None, [sale.get('customer_phone',''), sale.get('customer_address','')]))
+    customer_name = h(sale.get('customer_name')) or 'عميل نقدي'
+    customer_detail = h('  ·  '.join(filter(None, [sale.get('customer_phone',''), sale.get('customer_address','')])))
 
     body = f"""
 {top_band(store, doc_label, sale['invoice_number'], fmt_date(sale['created_at']))}
@@ -173,8 +181,8 @@ async def print_sale(sale_id: uuid.UUID,
       </td>
       <td style="width:42%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:top">
         <div class="party-label">صادرة من</div>
-        <div class="party-name">{sale.get('warehouse_name','—')}</div>
-        <div class="party-detail">{store['name']}</div>
+        <div class="party-name">{h(sale.get('warehouse_name','—'))}</div>
+        <div class="party-detail">{h(store['name'])}</div>
       </td>
       <td style="width:16%;padding:6px 10px;border:1px solid #ccc;border-right:none;vertical-align:middle;text-align:center">
         <div class="party-label">الحالة</div>
@@ -195,7 +203,7 @@ async def print_sale(sale_id: uuid.UUID,
     </tr></thead>
     <tbody>{rows_html}</tbody>
   </table>
-  {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{sale["notes"]}</div></div>' if sale.get('notes') else ''}
+  {f'<div class="notes-box"><div class="n-lbl">ملاحظات</div><div class="n-txt">{h(sale["notes"])}</div></div>' if sale.get('notes') else ''}
   <div class="totals-section" style="margin-top:6px">
     <table style="border-collapse:collapse;border:1px solid #ccc;width:auto">
       <tr>
@@ -209,7 +217,7 @@ async def print_sale(sale_id: uuid.UUID,
       </tr>
     </table>
   </div>
-  <div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding:2pt 0">{(sale.get('created_by_name','') + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding:2pt 0">{'  '.join(c.get('name','') + ': ' + c.get('phone','') for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>
+  <div class="sale-footer-info"><table style="width:100%;border-collapse:collapse;font-size:inherit"><tr><td style="text-align:right;white-space:nowrap;padding:2pt 0">{(h(sale.get('created_by_name','')) + ' · ' if sale.get('created_by_name') else '') + fmt_dt(sale['created_at'])}</td><td style="text-align:left;white-space:nowrap;padding:2pt 0">{'  '.join(h(c.get('name','')) + ': ' + h(c.get('phone','')) for c in store.get('contacts',[]) if c.get('phone'))}</td></tr></table></div>
 </div>"""
     return HTMLResponse(wrap(body, f"{doc_label} — {sale['invoice_number']}"))
 

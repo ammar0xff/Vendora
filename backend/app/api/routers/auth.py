@@ -18,6 +18,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 login_limiter = RateLimiter(max_requests=10, window_seconds=60)
 password_limiter = RateLimiter(max_requests=3, window_seconds=300)
+reauth_limiter = RateLimiter(max_requests=5, window_seconds=60)
 
 
 @router.post("/login")
@@ -82,7 +83,7 @@ async def issue_print_token(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/reauthenticate")
-async def reauthenticate(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def reauthenticate(data: LoginRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), _=Depends(reauth_limiter)):
     """Verify credentials without issuing a new session — used for handover/manager approval."""
     user = await auth_service.authenticate(db, data.username, data.password)
     return {"user_id": str(user.id), "username": user.username, "full_name": user.full_name}

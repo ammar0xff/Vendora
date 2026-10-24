@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
 from app.dependencies import get_print_user
 
-from . import _make_pdf, ar_egp, ar_num, fmt_date, get_settings, router, top_band, wrap
+from . import _make_pdf, ar_egp, ar_num, fmt_date, get_settings, router, top_band, wrap, h
 
 
 @router.get("/inventory/{warehouse_id}", response_class=HTMLResponse)
@@ -48,11 +48,11 @@ async def print_inventory(warehouse_id: uuid.UUID,
         qty = float(item['qty'] or 0)
         if item['category'] != current_cat:
             current_cat = item['category']
-            rows_html += f'<tr style="background:#1e3a5f"><td colspan="6" style="color:white;font-weight:700;padding:8px 14px;font-size:12px">{current_cat}</td></tr>'
+            rows_html += f'<tr style="background:#1e3a5f"><td colspan="6" style="color:white;font-weight:700;padding:8px 14px;font-size:12px">{h(current_cat)}</td></tr>'
         rows_html += f"""<tr>
           <td style="color:#9ca3af;font-size:11px;text-align:center">{idx}</td>
-          <td><div class="td-name">{item['name']}</div><div style="font-size:10px;color:#9ca3af">{item['subcategory']}</div></td>
-          <td style="text-align:center;color:#374151">{ar_num(qty, 0)} {item['unit']}</td>
+          <td><div class="td-name">{h(item['name'])}</div><div style="font-size:10px;color:#9ca3af">{h(item['subcategory'])}</div></td>
+          <td style="text-align:center;color:#374151">{ar_num(qty, 0)} {h(item['unit'])}</td>
           <td style="text-align:center;color:#374151">{ar_egp(float(item['cost_price']))}</td>
           <td style="text-align:center;color:#374151">{ar_egp(float(item['retail_price']))}</td>
           <td style="text-align:left;{'color:#dc2626' if qty <= 0 else 'color:#1e3a5f'};font-weight:700">{ar_egp(qty * float(item['cost_price']))}</td>
@@ -62,7 +62,7 @@ async def print_inventory(warehouse_id: uuid.UUID,
 {top_band(store, f"تقرير المخزون — {wh}", f"INV-RPT-{datetime.now().strftime('%Y%m%d')}", fmt_date(datetime.now()))}
 <div class="body">
   <div class="meta-row">
-    <div class="meta-cell"><div class="m-lbl">الفرع</div><div class="m-val">{wh}</div></div>
+    <div class="meta-cell"><div class="m-lbl">الفرع</div><div class="m-val">{h(wh)}</div></div>
     <div class="meta-cell"><div class="m-lbl">عدد الأصناف</div><div class="m-val">{ar_num(len(items), 0)}</div></div>
     <div class="meta-cell"><div class="m-lbl">قيمة التكلفة</div><div class="m-val" style="color:#1e3a5f;font-weight:900">{ar_egp(total_cost)}</div></div>
     <div class="meta-cell"><div class="m-lbl">قيمة البيع</div><div class="m-val" style="color:#16a34a;font-weight:900">{ar_egp(total_retail)}</div></div>
@@ -88,7 +88,7 @@ async def print_inventory(warehouse_id: uuid.UUID,
 </div>
 <div style="border-top:2px solid #94a3b8;padding:10px 36px;background:#f8fafc;display:flex;justify-content:space-between">
   <div style="font-size:10px;color:#6b7280">طُبع: {datetime.now().strftime('%Y/%m/%d  %H:%M')}</div>
-  <div style="font-size:10px;color:#6b7280">{store.get('name','')}</div>
+  <div style="font-size:10px;color:#6b7280">{h(store.get('name',''))}</div>
 </div>"""
     return HTMLResponse(wrap(body, f"تقرير المخزون — {wh}"))
 

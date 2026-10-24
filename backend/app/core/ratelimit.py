@@ -36,8 +36,19 @@ class RateLimiter:
         self.window_seconds = window_seconds
         self._attempts: dict[str, list[float]] = {}
 
+    def _get_client_key(self, request: Request) -> str:
+        """Extract client identifier - handles proxies via X-Forwarded-For."""
+        # Check X-Forwarded-For first (set by nginx/load balancer)
+        xff = request.headers.get("X-Forwarded-For")
+        if xff:
+            # Take the first IP in the chain (original client)
+            client_ip = xff.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
+        return f"rl:{client_ip}"
+
     async def __call__(self, request: Request):
-        key = f"rl:{request.client.host if request.client else 'unknown'}"
+        key = self._get_client_key(request)
         r = _get_redis()
 
         if r:

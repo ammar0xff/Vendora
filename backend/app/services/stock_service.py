@@ -1,39 +1,61 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import BusinessError
+from app.core.exceptions import BusinessError, NotFoundError
 from app.models.product import Product
 from app.models.stock import IN_TYPES, MovementType, StockMovement
+from app.models.stock_balance import StockBalance
 
 
 async def get_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID, for_update: bool = False) -> Decimal:
+    """Get current stock balance — O(1) read from maintained stock_balances table."""
     if for_update:
-        from sqlalchemy import text as sqlt
-        exists = await db.execute(sqlt("SELECT 1 FROM products WHERE id=:pid FOR UPDATE"), {"pid": product_id})
-        if not exists.scalar_one_or_none():
-            from app.core.exceptions import NotFoundError
-            raise NotFoundError(f"Product {product_id} not found")
-    q = select(
-        func.sum(
-            case(
-                (StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty),
-                else_=-StockMovement.qty,
+        # Lock the stock_balances row for update (creates row if not exists)
+        result = await db.execute(text("""
+            INSERT INTO stock_balances (product_id, warehouse_id, qty)
+            VALUES (:pid, :wid, 0)
+            ON CONFLICT (product_id, warehouse_id) DO NOTHING
+            RETURNING qty
+        """), {"pid": product_id, "wid": warehouse_id})
+        row = result.fetchone()
+        if row:
+            return row.qty
+        # Fallback: row was just created by another transaction
+        result = await db.execute(
+            select(StockBalance.qty).where(
+                StockBalance.product_id == product_id,
+                StockBalance.warehouse_id == warehouse_id,
+            ).with_for_update()
+        )
+        return result.scalar_one_or_none() or Decimal("0")
+    else:
+        # Simple read from maintained table
+        result = await db.execute(
+            select(StockBalance.qty).where(
+                StockBalance.product_id == product_id,
+                StockBalance.warehouse_id == warehouse_id,
             )
         )
-    ).where(
-        StockMovement.product_id == product_id,
-        StockMovement.warehouse_id == warehouse_id,
-    )
-    result = await db.execute(q)
-    return result.scalar_one() or Decimal("0")
+        return result.scalar_one_or_none() or Decimal("0")
+
+
+async def _update_stock_balance(db: AsyncSession, product_id: uuid.UUID, warehouse_id: uuid.UUID, delta: Decimal):
+    """Atomically update stock_balances by delta (can be positive or negative)."""
+    await db.execute(text("""
+        INSERT INTO stock_balances (product_id, warehouse_id, qty, updated_at)
+        VALUES (:pid, :wid, GREATEST(:delta, 0), now())
+        ON CONFLICT (product_id, warehouse_id) DO UPDATE SET
+            qty = GREATEST(stock_balances.qty + :delta, 0),
+            updated_at = now()
+    """), {"pid": product_id, "wid": warehouse_id, "delta": delta})
 
 
 async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=None, ref_type=None,
-                          sale_id: uuid.UUID = None, purchase_id: uuid.UUID = None,
-                          operation_id: uuid.UUID = None) -> StockMovement:
+                          sale_id: uuid.UUID = None, purchase_id: uuid.UUID = None) -> StockMovement:
+    """Record a stock movement and update maintained balances atomically."""
     mv = StockMovement(
         product_id=data.product_id,
         warehouse_id=data.warehouse_id,
@@ -47,26 +69,34 @@ async def record_movement(db: AsyncSession, data, created_by: uuid.UUID, ref_id=
         ref_type=ref_type,
         sale_id=sale_id,
         purchase_id=purchase_id,
-        operation_id=operation_id,
     )
     db.add(mv)
-    # Mark product as tracked in this specific warehouse when stock is recorded
+
+    # Determine if this movement increases or decreases stock
     mt = str(data.movement_type).split('.')[-1]
-    if mt in ("opening_stock", "purchase", "adjustment_in", "transfer_in", "return_in"):
-        from sqlalchemy import text as sqlt
-        await db.execute(sqlt("""
+    is_in = mt in ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer_in")
+    delta = data.qty if is_in else -data.qty
+
+    # Update maintained balance atomically
+    await _update_stock_balance(db, data.product_id, data.warehouse_id, delta)
+
+    # Mark product as tracked in this specific warehouse when stock is recorded
+    if is_in:
+        await db.execute(text("""
             INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
             VALUES (:wid, :pid, 'tracked')
             ON CONFLICT (warehouse_id, product_id) DO UPDATE SET status = 'tracked'
         """), {"wid": data.warehouse_id, "pid": data.product_id})
         # Also promote global product status so it shows as tracked in company view
-        await db.execute(sqlt("""
+        await db.execute(text("""
             UPDATE products SET stock_status = 'tracked' WHERE id = :pid AND stock_status = 'untracked'
         """), {"pid": data.product_id})
+
     return mv
 
 
 async def transfer_stock(db: AsyncSession, data, created_by: uuid.UUID):
+    """Transfer stock between warehouses — uses maintained balances for validation."""
     balance = await get_balance(db, data.product_id, data.from_warehouse_id, for_update=True)
     if balance < data.qty:
         raise BusinessError(f"Insufficient stock: available {balance}")
@@ -86,42 +116,28 @@ async def transfer_stock(db: AsyncSession, data, created_by: uuid.UUID):
 
 
 async def get_low_stock(db: AsyncSession, warehouse_id: uuid.UUID, threshold: Decimal = Decimal("5")):
-    balance_subq = (
-        select(
-            StockMovement.product_id,
-            func.sum(
-                case((StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty), else_=-StockMovement.qty)
-            ).label("qty"),
-        )
-        .where(StockMovement.warehouse_id == warehouse_id)
-        .group_by(StockMovement.product_id)
-        .subquery()
-    )
+    """Get products with stock <= threshold — uses maintained balances for O(1) query."""
     result = await db.execute(
-        select(Product, balance_subq.c.qty)
-        .join(balance_subq, Product.id == balance_subq.c.product_id)
-        .where(balance_subq.c.qty >= 0, balance_subq.c.qty <= threshold)
+        select(Product, StockBalance.qty)
+        .join(StockBalance, Product.id == StockBalance.product_id)
+        .where(
+            StockBalance.warehouse_id == warehouse_id,
+            StockBalance.qty >= 0,
+            StockBalance.qty <= threshold,
+        )
     )
     return result.all()
 
 
 async def get_valuation(db: AsyncSession, warehouse_id: uuid.UUID):
-    balance_subq = (
-        select(
-            StockMovement.product_id,
-            func.sum(
-                case((StockMovement.movement_type.in_(IN_TYPES), StockMovement.qty), else_=-StockMovement.qty)
-            ).label("qty"),
-        )
-        .where(StockMovement.warehouse_id == warehouse_id)
-        .group_by(StockMovement.product_id)
-        .subquery()
-    )
+    """Get inventory valuation — uses maintained balances for O(n) query (n = products with stock)."""
     result = await db.execute(
         select(
-            func.sum(balance_subq.c.qty * Product.cost_price).label("cost_value"),
-            func.sum(balance_subq.c.qty * Product.retail_price).label("retail_value"),
+            func.sum(StockBalance.qty * Product.cost_price).label("cost_value"),
+            func.sum(StockBalance.qty * Product.retail_price).label("retail_value"),
             func.count(Product.id).label("product_count"),
-        ).join(balance_subq, Product.id == balance_subq.c.product_id)
+        )
+        .join(StockBalance, Product.id == StockBalance.product_id)
+        .where(StockBalance.warehouse_id == warehouse_id, StockBalance.qty > 0)
     )
     return result.one()

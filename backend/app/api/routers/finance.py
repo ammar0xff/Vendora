@@ -24,7 +24,7 @@ async def list_categories(db: AsyncSession = Depends(get_db), _=Depends(get_curr
 
 
 @router.post("/financial-categories")
-async def create_category(data: FinancialCategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+async def create_category(data: FinancialCategoryCreate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     r = await db.execute(text("""
         INSERT INTO financial_categories (name, type, color) VALUES (:name, :type, :color) RETURNING *
     """), data.model_dump())
@@ -33,7 +33,7 @@ async def create_category(data: FinancialCategoryCreate, db: AsyncSession = Depe
 
 
 @router.put("/financial-categories/{cat_id}")
-async def update_category(cat_id: uuid.UUID, data: FinancialCategoryUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+async def update_category(cat_id: uuid.UUID, data: FinancialCategoryUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     updates = data.model_dump(exclude_unset=True)
     if not updates:
         return {"detail": "no changes"}
@@ -46,7 +46,7 @@ async def update_category(cat_id: uuid.UUID, data: FinancialCategoryUpdate, db: 
 
 
 @router.delete("/financial-categories/{cat_id}", status_code=204)
-async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("users"))):
+async def delete_category(cat_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(require_perm("finance"))):
     from sqlalchemy.exc import IntegrityError
     try:
         await db.execute(text("DELETE FROM financial_categories WHERE id=:id"), {'id': cat_id})

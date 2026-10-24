@@ -1,8 +1,14 @@
 """Central print system — shared utilities."""
 from fastapi import APIRouter
 from datetime import datetime
+import html
 
 router = APIRouter(prefix="/print", tags=["print"])
+
+
+def h(s: str | None) -> str:
+    """HTML escape helper — returns empty string for None."""
+    return html.escape(str(s)) if s is not None else ""
 
 
 async def get_settings(db):
