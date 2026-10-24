@@ -148,6 +148,8 @@ MIGRATIONS = [
          );
          CREATE INDEX IF NOT EXISTS idx_product_barcodes_product ON product_barcodes(product_id);
          CREATE INDEX IF NOT EXISTS idx_product_barcodes_barcode ON product_barcodes(barcode);
+         -- Table may pre-exist from create_all without a DB-side id default
+         ALTER TABLE product_barcodes ALTER COLUMN id SET DEFAULT gen_random_uuid();
          -- Migrate existing barcodes from products table if they exist
          INSERT INTO product_barcodes (product_id, barcode, is_primary)
          SELECT id, barcode, true FROM products WHERE barcode IS NOT NULL
