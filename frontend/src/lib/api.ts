@@ -8,7 +8,8 @@
 import { useAuth } from "@/stores/auth";
 
 const RAW_BASE: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  "https://vendora-backend-six.vercel.app/api"; // safe default: production API (CORS-allowlisted)
 
 export class ApiError extends Error {
   status: number;
