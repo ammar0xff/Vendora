@@ -276,6 +276,55 @@ MIGRATIONS = [
     ("v18_hr_payroll_periods_id_default", """
         ALTER TABLE hr_payroll_periods ALTER COLUMN id SET DEFAULT gen_random_uuid();
     """),
+
+    # v19 — 54 missing FK indexes across 27 tables (from model<->DB audit)
+    ("v19_missing_fk_indexes",
+     (ROOT / "backend" / "migrations" / "add_missing_indexes.sql").read_text()),
+
+    # v20 — stock_balances maintained table: O(1) balance reads + backfill from movements
+    ("v20_stock_balances",
+     (ROOT / "backend" / "migrations" / "add_stock_balances.sql").read_text()),
+
+    # v21 — reconcile columns present in models but missing from older databases
+    ("v21_model_column_reconciliation", """
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit numeric(14,2);
+        ALTER TABLE financial_categories ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+        ALTER TABLE financial_categories ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+    """),
+
+    # v22 — reconcile enum values + uuid PK defaults used by raw-SQL inserts
+    ("v22_defaults_and_enum_reconciliation", """
+        ALTER TYPE drawer_tx_type_enum ADD VALUE IF NOT EXISTS 'revenue_delivery';
+        ALTER TABLE accounting_periods   ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE archived_documents   ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE expenses             ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE expense_vendors      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE sale_items           ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE sale_payments        ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE stock_movements      ALTER COLUMN id SET DEFAULT gen_random_uuid();
+        ALTER TABLE suppliers            ALTER COLUMN id SET DEFAULT gen_random_uuid();
+    """),
+
+    # v23 — payment wallet types are free-form String(32) in the model
+    # (clients register custom wallet types); drop the legacy 3-value check
+    ("v23_drop_wallet_type_check", """
+        ALTER TABLE payment_wallets DROP CONSTRAINT IF EXISTS payment_wallets_type_check;
+    """),
+
+    # v24 — boolean flag defaults so raw-SQL inserts that omit them succeed
+    ("v24_flag_defaults", """
+        ALTER TABLE expense_vendors ALTER COLUMN is_active SET DEFAULT true;
+        ALTER TABLE expenses        ALTER COLUMN is_recurring SET DEFAULT false;
+    """),
+
+    # v25 — nullability reconciliation with models (loosen legacy NOT NULLs)
+    ("v25_nullability_reconciliation", """
+        ALTER TABLE expenses           ALTER COLUMN recurring_interval DROP NOT NULL;
+        ALTER TABLE expenses           ALTER COLUMN recurring_end_date DROP NOT NULL;
+        ALTER TABLE hr_settings        ALTER COLUMN value DROP NOT NULL;
+        ALTER TABLE products           ALTER COLUMN subcategory_id DROP NOT NULL;
+        ALTER TABLE hr_payroll_entries ALTER COLUMN deductions DROP NOT NULL;
+    """),
 ]
 
 def run():

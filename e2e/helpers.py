@@ -73,6 +73,11 @@ class Api:
 
     def _request(self, method: str, path: str, **kw):
         kw.setdefault("timeout", 45)
+        if method in ("POST", "PUT", "PATCH", "DELETE"):
+            # CSRF double-submit: echo the csrf_token cookie in the header
+            tok = self.client.cookies.get("csrf_token")
+            if tok:
+                self.client.headers["X-CSRF-Token"] = tok
         r = self.client.request(method, path, **kw)
         return r
 
@@ -201,7 +206,7 @@ class DB:
 
         steps = [
             f"DELETE FROM drawer_transactions WHERE ref_id IN ({q(all_)}) OR shift_id IN ({q(shift)}) OR category_id IN ({q(fcat)}) OR wallet_id IN ({q(wallet)}) OR id IN ({q(dtx)})",
-            f"DELETE FROM stock_movements WHERE product_id IN ({q(pid)}) OR warehouse_id IN ({q(wh)}) OR ref_id IN ({q(all_)}) OR sale_id IN ({q(sale)}) OR purchase_id IN ({q(po)}) OR operation_id IN ({q(op)})",
+            f"DELETE FROM stock_movements WHERE product_id IN ({q(pid)}) OR warehouse_id IN ({q(wh)}) OR ref_id IN ({q(all_)}) OR sale_id IN ({q(sale)}) OR purchase_id IN ({q(po)})",
 
             f"DELETE FROM sale_items WHERE sale_id IN ({q(sale)}) OR product_id IN ({q(pid)})",
             f"DELETE FROM sale_payments WHERE sale_id IN ({q(sale)}) OR wallet_id IN ({q(wallet)})",
@@ -226,13 +231,13 @@ class DB:
             f"DELETE FROM archived_documents WHERE ref_id IN ({q(all_)})",
             f"DELETE FROM audit_log WHERE entity_id IN ({q(all_)}) OR id IN ({q(reg.ids('audit'))})",
             f"DELETE FROM hr_attendance WHERE employee_id IN ({q(emp)})",
-            f"DELETE FROM hr_advances WHERE employee_id IN ({q(emp)})",
-            f"DELETE FROM hr_payroll_entries WHERE employee_id IN ({q(emp)}) OR period_id IN ({q(reg.ids('hr_period'))})",
+            f"DELETE FROM hr_advances WHERE employee_id IN ({q(emp)}) OR created_by IN ({q(usr)})",
+            f"DELETE FROM hr_payroll_entries WHERE employee_id IN ({q(emp)}) OR period_id IN ({q(reg.ids('hr_period'))}) OR period_id IN (SELECT id FROM hr_payroll_periods WHERE month > to_char(now(), 'YYYY-MM'))",
             f"DELETE FROM hr_payroll WHERE employee_id IN ({q(emp)}) OR created_by IN ({q(usr)})",
             f"DELETE FROM hr_payroll WHERE id IN ({q(reg.ids('payroll'))})",
             f"DELETE FROM hr_employees WHERE id IN ({q(emp)}) OR shift_id IN ({qt(reg.ids('employee_shift'))})",
             f"DELETE FROM hr_shifts WHERE CAST(id AS text) IN ({qt(reg.ids('employee_shift'))})",
-            f"DELETE FROM hr_payroll_periods WHERE id IN ({q(reg.ids('hr_period'))})",
+            f"DELETE FROM hr_payroll_periods WHERE id IN ({q(reg.ids('hr_period'))}) OR month > to_char(now(), 'YYYY-MM')",
             f"DELETE FROM hr_audit_log WHERE CAST(entity_id AS text) IN ({qt(all_)}) OR performed_by IN ({q(usr)})",
             f"DELETE FROM safe_transactions WHERE safe_id IN ({q(safe)})",
             f"DELETE FROM safe_deposits WHERE safe_id IN ({q(safe)}) OR shift_id IN ({q(shift)}) OR warehouse_id IN ({q(wh)})",

@@ -13,16 +13,39 @@ import uuid
 
 import pytest
 
-from helpers import Api, DB, Registry, load_database_url, uid
+from helpers import BASE, Api, DB, Registry, load_database_url, uid
 
 ADMIN = ("ammar", "changeme")
 OWNER_USER = "e2e_owner"
+
+
+def _guard_env_pairing(db_url: str) -> None:
+    """Fail fast when the API target and the cleanup DB are different servers.
+
+    Cleanup deletes rows by id straight from the DB; if the API under test is
+    remote while the DB URL points elsewhere (e.g. localhost), test state is
+    written to the remote server and never cleaned — polluting it permanently.
+    """
+    from urllib.parse import urlparse
+
+    api_host = urlparse(BASE).hostname or ""
+    db_host = urlparse(db_url).hostname or ""
+    api_local = api_host in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+    db_local = db_host in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+    if api_local != db_local:
+        raise RuntimeError(
+            f"E2E target mismatch: API base is {BASE} (host={api_host}) but "
+            f"E2E_DATABASE_URL host is {db_host}. Point both at the same server "
+            f"(set E2E_API_BASE / E2E_DATABASE_URL together), or cleanup will "
+            f"miss every row this run creates."
+        )
 
 
 @pytest.fixture(scope="session")
 def db() -> DB:
     url = load_database_url()
     assert url, "E2E_DATABASE_URL not set and unable to read backend env file"
+    _guard_env_pairing(url)
     d = DB(url)
     yield d
     d.close()

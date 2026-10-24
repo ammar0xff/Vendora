@@ -688,11 +688,8 @@ async def _report_auth(request: Request, token: str | None = None, db: AsyncSess
 @router.get("/payroll/report/monthly")
 async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML payroll report for all employees — matches Qt ReportGenerator.generate_payroll_report()"""
-    import sys
-    if '/app' not in sys.path:
-        sys.path.insert(0, '/app')
+    from app.services.hr_reports import ReportGenerator
     from app.services.payroll_engine import calculate_payroll
-    from report_generator import ReportGenerator
 
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
     shifts_map = {r[0]: {'id': r[0], 'name': r[1], 'start_time': r[2], 'end_time': r[3]}
@@ -760,12 +757,8 @@ async def payroll_monthly_report(month: str, db: AsyncSession = Depends(get_db),
 async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'detailed',
                           db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate individual employee HTML report — matches Qt generate_employee_report() and generate_payslip_ticket()"""
-    import sys
-    if '/app' not in sys.path:
-        sys.path.insert(0, '/app')
+    from app.services.hr_reports import Attendance, Employee, ReportGenerator
     from app.services.payroll_engine import calculate_payroll
-    from models import Attendance, Employee
-    from report_generator import ReportGenerator
 
     settings = {r[0]: r[1] for r in (await db.execute(text("SELECT key, value FROM hr_settings"))).fetchall()}
     shifts_map = {r[0]: {'id': r[0], 'name': r[1], 'start_time': r[2], 'end_time': r[3]}
@@ -867,10 +860,7 @@ async def employee_report(emp_id: uuid.UUID, month: str, report_type: str = 'det
 @router.get("/attendance/report")
 async def attendance_report(month: str, db: AsyncSession = Depends(get_db), _=Depends(_report_auth)):
     """Generate HTML attendance report — matches Qt generate_attendance_report()"""
-    import sys
-    if '/app' not in sys.path:
-        sys.path.insert(0, '/app')
-    from report_generator import ReportGenerator
+    from app.services.hr_reports import ReportGenerator
 
     rows = (await db.execute(text("""
         SELECT e.name, e.emp_code, a.work_date, a.check_in, a.check_out, a.status,

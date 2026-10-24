@@ -94,7 +94,8 @@ def test_hr_import_csv_and_device(owner_api):
         ("post", "/hr/sync-device", {}),
     ):
         r = getattr(owner_api, method)(path, json=body)
-        assert r.status_code in (200, 400, 422), r.text[:200]
+        # 502 is a valid outcome when no ZK device is reachable on the LAN
+        assert r.status_code in (200, 400, 422, 502), r.text[:200]
     r = owner_api.get("/hr/sync-log")
     assert r.status_code in (200, 400), r.text[:200]
 

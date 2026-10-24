@@ -1,8 +1,104 @@
-import html as _html
-import os
-from datetime import datetime
+"""HR HTML report generation — ported from the legacy Qt-era report_generator.py.
 
-from models import Attendance, Employee
+Produces the payroll (monthly/employee/ticket) and attendance HTML reports
+served by /hr/payroll/report/* and /hr/attendance/report.
+"""
+from datetime import datetime
+import html as _html
+
+
+class Employee:
+    def __init__(self, emp_id: str, name: str, position: str, monthly_salary: float, shift: str,
+                 max_lateness_before_overtime_cancellation: int = 30, hire_date: str = None,
+                 ignore_lateness: bool = False):
+        self.emp_id = emp_id
+        self.name = name
+        self.position = position
+        self.monthly_salary = monthly_salary
+        self.shift = shift  # e.g., "8:00-16:00" or "9:00-17:00"
+        self.max_lateness_before_overtime_cancellation = max_lateness_before_overtime_cancellation
+        self.hire_date = hire_date # YYYY-MM-DD
+        self.ignore_lateness = ignore_lateness
+
+    def to_dict(self):
+        return {
+            "emp_id": self.emp_id,
+            "name": self.name,
+            "position": self.position,
+            "monthly_salary": self.monthly_salary,
+            "shift": self.shift,
+            "max_lateness_before_overtime_cancellation": self.max_lateness_before_overtime_cancellation,
+            "hire_date": self.hire_date,
+            "ignore_lateness": self.ignore_lateness
+        }
+
+    @staticmethod
+    def from_dict(data):
+        # Be tolerant of older or partial records that may miss fields
+        emp_id = data.get("emp_id")
+        name = data.get("name", "")
+        position = data.get("position", "")
+        monthly_salary = data.get("monthly_salary", 0.0) if data.get("monthly_salary") is not None else 0.0
+        shift = data.get("shift", "")
+        max_lateness_before_overtime_cancellation = data.get("max_lateness_before_overtime_cancellation", 30)
+        hire_date = data.get("hire_date")
+        ignore_lateness = data.get("ignore_lateness", False)
+        return Employee(emp_id, name, position, monthly_salary, shift, max_lateness_before_overtime_cancellation, hire_date, ignore_lateness)
+
+
+class Attendance:
+    def __init__(self, emp_id: str, check_in: datetime = None, check_out: datetime = None,
+                 edited=False, edited_at=None, edited_by=None, edit_reason=None,
+                 status="regular", excuse_no_late=False, excuse_no_early=False, excuse_allow_overtime=False,
+                 shift_override=None):
+        self.emp_id = emp_id
+        self.check_in = check_in
+        self.check_out = check_out
+        # Manual edit metadata
+        self.edited = edited
+        self.edited_at = edited_at
+        self.edited_by = edited_by
+        self.edit_reason = edit_reason
+        # Special statuses: regular, leave, mission, excuse
+        self.status = status
+        # Excuse options
+        self.excuse_no_late = excuse_no_late  # Cancel late arrival penalty
+        self.excuse_no_early = excuse_no_early  # Cancel early leave penalty
+        self.excuse_allow_overtime = excuse_allow_overtime  # Allow overtime on excuse days
+        self.shift_override = shift_override  # Temporary shift for this day (e.g., "09:00-17:00")
+
+    def to_dict(self):
+        return {
+            "emp_id": self.emp_id,
+            "check_in": self.check_in.isoformat() if self.check_in else None,
+            "check_out": self.check_out.isoformat() if self.check_out else None,
+            "edited": bool(self.edited),
+            "edited_at": self.edited_at,
+            "edited_by": self.edited_by,
+            "edit_reason": self.edit_reason,
+            "status": self.status,
+            "excuse_no_late": self.excuse_no_late,
+            "excuse_no_early": getattr(self, 'excuse_no_early', False),
+            "excuse_allow_overtime": getattr(self, 'excuse_allow_overtime', False),
+            "shift_override": getattr(self, 'shift_override', None)
+        }
+
+    @staticmethod
+    def from_dict(data):
+        check_in = datetime.fromisoformat(data["check_in"]) if data["check_in"] else None
+        check_out = datetime.fromisoformat(data["check_out"]) if data["check_out"] else None
+        return Attendance(
+            data["emp_id"], check_in, check_out,
+            edited=data.get('edited', False),
+            edited_at=data.get('edited_at'),
+            edited_by=data.get('edited_by'),
+            edit_reason=data.get('edit_reason'),
+            status=data.get('status', 'regular'),
+            excuse_no_late=data.get('excuse_no_late', False),
+            excuse_no_early=data.get('excuse_no_early', False),
+            excuse_allow_overtime=data.get('excuse_allow_overtime', False),
+            shift_override=data.get('shift_override')
+        )
 
 
 class ReportGenerator:

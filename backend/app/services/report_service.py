@@ -211,6 +211,7 @@ async def sales_by_cashier(db: AsyncSession, from_date: str, to_date: str, wareh
 
 async def inventory_print_report(db: AsyncSession, warehouse_id: str) -> dict[str, Any]:
     """Full inventory report for printing."""
+    import uuid as _uuid
     from sqlalchemy import case as sa_case
     from app.models.settings import StoreSetting
     from app.models.warehouse import Warehouse

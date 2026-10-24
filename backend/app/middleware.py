@@ -1,5 +1,17 @@
-"""CSRF protection middleware."""
-import uuid
+"""CSRF protection — double-submit cookie pattern.
+
+A random token lives in a JS-readable cookie (not httpOnly) and must be echoed
+in the X-CSRF-Token header on mutating requests. A cross-site attacker can
+neither read the cookie (same-origin policy) nor set custom headers, so the
+header/cookie pair can't be forged.
+
+Requests authenticated by an Authorization header (Bearer) are exempt: they do
+not rely on ambient cookie auth and are not CSRF-forgeable.
+
+The token is stateless — no server-side session store — so it works unchanged
+behind multi-worker/multi-instance deployments.
+"""
+import secrets
 from typing import Callable
 
 from fastapi import FastAPI, Request, Response
@@ -7,8 +19,12 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.status import HTTP_403_FORBIDDEN
 
-# Paths that don't require CSRF protection
-CSRF_EXEMPT_PATHS = {
+CSRF_COOKIE = "csrf_token"
+CSRF_HEADER = "X-CSRF-Token"
+
+# Paths that never require (and never make sense for) CSRF validation.
+# Login is the issuance point: it can't present a token it doesn't have yet.
+CSRF_EXEMPT_SUFFIXES = (
     "/health",
     "/",
     "/docs",
@@ -16,96 +32,64 @@ CSRF_EXEMPT_PATHS = {
     "/auth/login",
     "/auth/reauthenticate",
     "/auth/print-token",
-    "/financial-categories",
-    "/hr/payroll/calculate",
-    "/products",
-    "/products/",
-    "/categories",
-    "/subcategories",
-    "/barcodes",
-}
+)
+
+MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _script_rel_path(path: str) -> str:
+    """Strip a deployment base prefix (e.g. /api) so exemptions match any mount point."""
+    if path.startswith("/api/") or path == "/api":
+        path = path[len("/api"):]
+    return path
+
+
+def _is_https(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    forwarded = request.headers.get("X-Forwarded-Proto", "")
+    return "https" in forwarded.lower()
+
+
+def _is_exempt(path: str) -> bool:
+    rel = _script_rel_path(path)
+    return rel in CSRF_EXEMPT_SUFFIXES
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: FastAPI):
-        super().__init__(app)
-        self._tokens: dict[str, str] = {}
-
-    def _get_token(self, request: Request) -> str:
-        """Get or generate CSRF token for session."""
-        session_id = request.cookies.get("csrf_session")
-        if not session_id:
-            session_id = str(uuid.uuid4())
-        token = self._tokens.get(session_id)
-        if not token:
-            token = str(uuid.uuid4())
-            self._tokens[session_id] = token
-        return token
-
-    def _validate_token(self, request: Request) -> bool:
-        """Validate CSRF token from header against cookie."""
-        # Check header
-        header_token = request.headers.get("X-CSRF-Token")
-        if not header_token:
-            return False
-        # Check cookie
-        cookie_token = request.cookies.get("csrf_token")
-        if not cookie_token:
-            return False
-        return header_token == cookie_token
-
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Skip CSRF for exempt paths (exact or prefix match)
-        for exempt_path in CSRF_EXEMPT_PATHS:
-            if request.url.path == exempt_path or request.url.path.startswith(exempt_path.rstrip('/') + '/'):
-                response = await call_next(request)
-                return response
+        path = request.url.path
+        cookie_token = request.cookies.get(CSRF_COOKIE)
 
-        # Skip CSRF for safe methods
-        if request.method in ("GET", "HEAD", "OPTIONS"):
-            response = await call_next(request)
-            return response
+        needs_check = (
+            request.method in MUTATING_METHODS
+            and not _is_exempt(path)
+            and not request.headers.get("Authorization")  # header-auth is not CSRF-forgeable
+        )
 
-        # Validate CSRF token for mutating methods
-        if not self._validate_token(request):
-            return JSONResponse(
-                status_code=HTTP_403_FORBIDDEN,
-                content={"detail": "CSRF token missing or invalid"}
-            )
+        if needs_check:
+            header_token = request.headers.get(CSRF_HEADER, "")
+            if not cookie_token or not header_token or not secrets.compare_digest(header_token, cookie_token):
+                return JSONResponse(
+                    status_code=HTTP_403_FORBIDDEN,
+                    content={"detail": "CSRF token missing or invalid"},
+                )
 
-        # Generate/refresh CSRF token for this session
         response = await call_next(request)
-        
-        # Set CSRF token cookie for next request
-        session_id = request.cookies.get("csrf_session")
-        if not session_id:
-            session_id = str(uuid.uuid4())
-        token = self._tokens.get(session_id)
-        if not token:
-            token = str(uuid.uuid4())
-            self._tokens[session_id] = token
 
-        response.set_cookie(
-            key="csrf_token",
-            value=token,
-            httponly=True,
-            secure=True,  # only over HTTPS
-            samesite="strict",
-            max_age=3600,
-            path="/",
-        )
-        response.set_cookie(
-            key="csrf_session",
-            value=session_id,
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=3600,
-            path="/",
-        )
+        # Issue a token to any client that doesn't have one yet (login included).
+        if not cookie_token:
+            response.set_cookie(
+                key=CSRF_COOKIE,
+                value=secrets.token_urlsafe(32),
+                httponly=False,  # must be readable by the SPA to echo into the header
+                secure=_is_https(request),
+                samesite="lax",
+                max_age=24 * 3600,
+                path="/",
+            )
         return response
 
 
 def add_csrf_middleware(app: FastAPI):
-    """Add CSRF middleware to FastAPI app."""
     app.add_middleware(CSRFMiddleware)
