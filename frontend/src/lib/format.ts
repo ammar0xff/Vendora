@@ -25,3 +25,11 @@ export const dateTime = (v: string | Date | null | undefined): string =>
 
 export const date = (v: string | Date | null | undefined): string =>
   v ? df.format(new Date(v)) : "—";
+
+/* Prototype-named wrappers used by the ported shadcn views */
+export const formatMoney = (v: number): string => money(v);
+export const formatNumber = (v: number): string => qty(v);
+export const formatDate = (iso: string): string => date(iso);
+export const formatDateTime = (iso: string): string => dateTime(iso);
+export const formatTime = (iso: string): string =>
+  new Intl.DateTimeFormat(LOC, { timeStyle: "short", timeZone: "Africa/Cairo" }).format(new Date(iso));

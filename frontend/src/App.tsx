@@ -18,7 +18,7 @@ const ArchivePage = lazy(() => import("@/features/archive/ArchivePage"));
 const OperationsPage = lazy(() => import("@/features/operations/OperationsPage"));
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/stores/auth";
-import Shell from "@/components/Shell";
+import Shell from "@/components/AppShell";
 import LoginPage from "@/features/auth/LoginPage";
 
 function Page({ children }: { children: React.ReactNode }) {

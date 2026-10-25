@@ -1,42 +1,73 @@
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarRange, Clock, Receipt, ShoppingCart, TrendingUp } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { api } from "@/lib/api";
-import { moneyEGP, dateTime } from "@/lib/format";
-import { Badge, Card, Empty, ErrorBox, Spinner } from "@/components/ui";
-import { CountUp, Stagger } from "@/components/motion";
-import { useAuth } from "@/stores/auth";
+import { useBranch } from "@/components/AppShell";
+import { ListState, Money, Num, PageHeader, StatCard, StatusBadge, TableShell } from "@/components/app/shared";
+import { Badge } from "@/components/kit/badge";
+import { Button } from "@/components/kit/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/kit/card";
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/kit/chart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/kit/table";
+import { formatDateTime, formatNumber } from "@/lib/format";
 
-interface DailyReport { date: string; total_sales: string; total_items: number; invoice_count: number }
-interface MonthlyReport { year: number; month: number; total_sales: string; invoice_count: number }
-interface Warehouse { id: string; name: string }
+const chartConfig = {
+  sales: { label: "المبيعات", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+
+interface DailyReport {
+  date: string;
+  total_sales: number;
+  total_items: number;
+  invoice_count: number;
+}
+interface MonthlyReport {
+  total_sales?: string | number;
+  [k: string]: unknown;
+}
 interface SaleRow {
-  id: string; invoice_number: string; total: string; paid_amount: string;
-  status: string; is_credit: boolean; created_at: string; customer_name: string | null;
+  id: string;
+  invoice_number: string;
+  customer_name: string | null;
+  total: string;
+  status: string;
+  created_at: string;
+}
+interface LowStockRow {
+  id: string;
+  name: string;
+  code?: string;
+  sku?: string;
+  quantity?: number;
+  min_quantity?: number;
 }
 
-function Kpi({ icon, label, value, countFrom = "0", sub }: { icon: React.ReactNode; label: string; value: string; countFrom?: string; sub?: string }) {
-  return (
-    <Card className="flex items-center gap-4" hover>
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand/15 text-brand">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-muted">{label}</p>
-        <p className="truncate text-lg font-extrabold">
-          <CountUp value={countFrom} format={(v) => (value.endsWith("ج.م") ? `${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م` : value)} />
-        </p>
-        {sub && <p className="text-xs text-muted">{sub}</p>}
-      </div>
-    </Card>
-  );
+/** Build a 14-day series (oldest → newest) from the recent-sales list. */
+function buildTrend(sales: SaleRow[]): { day: string; sales: number }[] {
+  const byDay = new Map<string, number>();
+  for (const s of sales) {
+    const key = (s.created_at ?? "").slice(0, 10);
+    if (byDay.has(key) && s.status !== "cancelled" && s.status !== "quotation") {
+      byDay.set(key, (byDay.get(key) ?? 0) + Number(s.total));
+    }
+  }
+  const days: { day: string; sales: number }[] = [];
+  const today = new Date();
+  for (let back = 13; back >= 0; back--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - back);
+    const key = d.toISOString().slice(0, 10);
+    days.push({
+      day: `${d.getDate()}/${d.getMonth() + 1}`,
+      sales: Math.round((byDay.get(key) ?? 0) * 100) / 100,
+    });
+  }
+  return days;
 }
 
 export default function DashboardPage() {
-  const { can, user } = useAuth();
-
-  const wh = useQuery({
-    queryKey: ["warehouses"],
-    queryFn: () => api.get<Warehouse[]>("/stock/warehouses"),
-  });
-  const whId = wh.data?.[0]?.id;
+  const { branchId, branchName } = useBranch();
 
   const daily = useQuery({
     queryKey: ["report", "daily"],
@@ -44,103 +75,229 @@ export default function DashboardPage() {
   });
   const monthly = useQuery({
     queryKey: ["report", "monthly"],
-    queryFn: () => api.get<MonthlyReport>("/reports/sales/monthly", { year: new Date().getFullYear(), month: new Date().getMonth() + 1 }),
+    queryFn: () =>
+      api.get<MonthlyReport>("/reports/sales/monthly", {
+        year: new Date().getFullYear(),
+        month: new Date().getMonth() + 1,
+      }),
   });
   const lowStock = useQuery({
-    queryKey: ["low-stock", whId],
-    queryFn: () => api.get<unknown[]>("/stock/low-stock", { warehouse_id: whId }),
-    enabled: !!whId && can("inventory"),
+    queryKey: ["dash", "low", branchId],
+    queryFn: () => api.get<LowStockRow[]>("/stock/low-stock", { warehouse_id: branchId! }),
+    enabled: !!branchId,
+  });
+  const shift = useQuery({
+    queryKey: ["shift", "dash", branchId],
+    queryFn: () => api.get<{ id: string; started_at: string }>("/shifts/current", { warehouse_id: branchId! }),
+    enabled: !!branchId,
+    retry: false,
   });
   const recent = useQuery({
-    queryKey: ["sales", "recent"],
-    queryFn: () => api.get<SaleRow[]>("/sales", { page: 1, page_size: 10 }),
-    enabled: can("sales"),
+    queryKey: ["dash", "recent"],
+    queryFn: () => api.get<SaleRow[]>("/sales", { page: 1, page_size: 14 }),
   });
 
+  const trend = buildTrend(recent.data ?? []);
+  const trendTotal = trend.reduce((s, d) => s + d.sales, 0);
+  const monthTotal = Number(monthly.data?.total_sales ?? 0);
+  const today = new Intl.DateTimeFormat("ar-EG-u-nu-latn", { dateStyle: "full", timeZone: "Africa/Cairo" }).format(new Date());
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold">مرحباً، {user?.full_name?.split(" ")[0]} 👋</h1>
-          <p className="text-sm text-muted">نظرة عامة على أداء المتجر اليوم</p>
-        </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="لوحة التحكم"
+        description={`نظرة عامة على ${branchName} — ${today}`}
+        actions={
+          <Button nativeButton={false} render={<Link to="/pos" />}>
+            <ShoppingCart data-icon="inline-start" />
+            فاتورة جديدة
+          </Button>
+        }
+      />
+
+      <section aria-label="المؤشرات الرئيسية" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <StatCard
+          label="مبيعات اليوم"
+          icon={Receipt}
+          value={<Money value={daily.data?.total_sales ?? 0} />}
+          hint={
+            <span>
+              <Num value={daily.data?.invoice_count ?? 0} /> فاتورة · <Num value={daily.data?.total_items ?? 0} /> قطعة
+            </span>
+          }
+        />
+        <StatCard
+          label="مبيعات الشهر"
+          icon={CalendarRange}
+          value={<Money value={monthTotal} />}
+          hint={<span>حتى تاريخ اليوم</span>}
+        />
+        <StatCard
+          label="منتجات تحت الحد"
+          icon={AlertTriangle}
+          tone={(lowStock.data?.length ?? 0) > 0 ? "warning" : "success"}
+          value={<Num value={lowStock.data?.length ?? 0} />}
+          hint={
+            <Link to="/inventory" className="underline-offset-4 hover:underline">
+              عرض قائمة النواقص
+            </Link>
+          }
+        />
+        <StatCard
+          label="حالة الوردية"
+          icon={Clock}
+          tone={shift.data ? "success" : "destructive"}
+          value={shift.data ? "مفتوحة" : "مغلقة"}
+          hint={
+            shift.data ? (
+              <span>
+                منذ <span className="num">{formatDateTime(shift.data.started_at)}</span>
+              </span>
+            ) : (
+              <Link to="/shifts" className="underline-offset-4 hover:underline">
+                افتح وردية لبدء البيع
+              </Link>
+            )
+          }
+        />
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>المبيعات — آخر 14 يومًا</CardTitle>
+            <CardDescription>
+              إجمالي الفترة <Money value={trendTotal} />
+            </CardDescription>
+            <CardAction>
+              <Badge variant="secondary">
+                <TrendingUp data-icon="inline-start" />
+                {branchName}
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full" dir="ltr">
+              <AreaChart data={trend} margin={{ left: 8, right: 8, top: 8 }}>
+                <defs>
+                  <linearGradient id="fillSales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-sales)" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="var(--color-sales)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} reversed />
+                <YAxis
+                  orientation="right"
+                  tickLine={false}
+                  axisLine={false}
+                  width={48}
+                  tickFormatter={(v: number) => `${formatNumber(v / 1000)}k`}
+                />
+                <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                <Area dataKey="sales" type="monotone" stroke="var(--color-sales)" fill="url(#fillSales)" strokeWidth={2} />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>نواقص {branchName}</CardTitle>
+            <CardDescription>أصناف وصلت أقل من حد الطلب</CardDescription>
+            <CardAction>
+              <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/purchases" />}>
+                اقتراح طلب شراء
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <ListState
+              status={lowStock.isLoading ? "loading" : lowStock.isError ? "error" : "ready"}
+              isEmpty={(lowStock.data?.length ?? 0) === 0}
+              onRetry={() => lowStock.refetch()}
+              emptyTitle="لا توجد نواقص"
+              emptyDescription="كل الأصناف فوق حد الطلب في هذا الفرع."
+              emptyAction={
+                <Button variant="outline" nativeButton={false} render={<Link to="/inventory" />}>
+                  مراجعة المخزون
+                </Button>
+              }
+            >
+              <ul className="flex flex-col divide-y">
+                {(lowStock.data ?? []).slice(0, 6).map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-medium">{p.name}</span>
+                      <span className="num text-xs text-muted-foreground">{p.code ?? p.sku ?? ""}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 text-sm">
+                      <Num value={p.quantity ?? 0} className="font-semibold text-destructive" />
+                      <span className="text-muted-foreground">/ <Num value={p.min_quantity ?? 0} /></span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </ListState>
+          </CardContent>
+        </Card>
       </div>
 
-      <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {daily.isLoading ? (
-          <Card><Spinner /></Card>
-        ) : daily.isError ? (
-          <Card><ErrorBox message={(daily.error as Error).message} onRetry={() => daily.refetch()} /></Card>
-        ) : (
-          <Kpi icon={<Receipt size={20} />} label="مبيعات اليوم" value={moneyEGP(daily.data?.total_sales ?? 0)} sub={`${daily.data?.invoice_count ?? 0} فاتورة`} />
-        )}
-        {monthly.isLoading ? (
-          <Card><Spinner /></Card>
-        ) : monthly.isError ? (
-          <Card><p className="text-sm text-muted">التقرير الشهري غير متاح</p></Card>
-        ) : (
-          <Kpi icon={<TrendingUp size={20} />} label="مبيعات الشهر" value={moneyEGP(monthly.data?.total_sales ?? 0)} sub={`${monthly.data?.invoice_count ?? 0} فاتورة`} />
-        )}
-        {can("inventory") && (
-          <Kpi
-            icon={<AlertTriangle size={20} />}
-            label="منتجات تحت الحد"
-            value={lowStock.data ? String(lowStock.data.length) : "…"}
-            sub="تحتاج إعادة طلب"
-          />
-        )}
-        {can("finance") && (
-          <Kpi icon={<Wallet size={20} />} label="محافظ الدفع" value="—" sub="تفاصيل في قسم المالية" />
-        )}
-      </Stagger>
-
-      {can("sales") && (
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-bold">آخر المبيعات</h2>
-            <a href="#/sales" className="flex items-center gap-1 text-sm font-semibold text-brand">
-              عرض الكل <ArrowLeft size={14} />
-            </a>
-          </div>
-          {recent.isLoading ? (
-            <div className="grid place-items-center p-8"><Spinner /></div>
-          ) : recent.isError ? (
-            <ErrorBox message={(recent.error as Error).message} onRetry={() => recent.refetch()} />
-          ) : !recent.data?.length ? (
-            <Empty text="لا توجد مبيعات بعد" hint="ابدأ من نقطة البيع" />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line text-start text-xs text-muted">
-                    <th className="p-2 text-start">الفاتورة</th>
-                    <th className="p-2 text-start">العميل</th>
-                    <th className="p-2 text-start">الإجمالي</th>
-                    <th className="p-2 text-start">الحالة</th>
-                    <th className="p-2 text-start">التاريخ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.data.map((s) => (
-                    <tr key={s.id} className="border-b border-line/60 last:border-0">
-                      <td className="num p-2 font-semibold" dir="ltr">{s.invoice_number}</td>
-                      <td className="p-2 text-muted">{s.customer_name ?? "نقدي"}</td>
-                      <td className="num p-2 font-bold">{moneyEGP(s.total)}</td>
-                      <td className="p-2">
-                        <Badge tone={s.status === "cancelled" ? "danger" : s.is_credit ? "warning" : "success"}>
-                          {s.status === "cancelled" ? "ملغاة" : s.is_credit ? "آجل" : "مكتملة"}
-                        </Badge>
-                      </td>
-                      <td className="p-2 text-xs text-muted">{dateTime(s.created_at)}</td>
-                    </tr>
+      <Card>
+        <CardHeader>
+          <CardTitle>أحدث المبيعات</CardTitle>
+          <CardDescription>آخر الفواتير المسجلة</CardDescription>
+          <CardAction>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/sales" />}>
+              كل الفواتير
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <ListState
+            status={recent.isLoading ? "loading" : recent.isError ? "error" : "ready"}
+            isEmpty={(recent.data?.length ?? 0) === 0}
+            onRetry={() => recent.refetch()}
+            emptyTitle="لا توجد مبيعات بعد"
+            emptyDescription="ستظهر الفواتير هنا بمجرد تسجيل أول عملية بيع."
+            emptyAction={
+              <Button nativeButton={false} render={<Link to="/pos" />}>
+                <ShoppingCart data-icon="inline-start" />
+                ابدأ البيع
+              </Button>
+            }
+          >
+            <TableShell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الفاتورة</TableHead>
+                    <TableHead>العميل</TableHead>
+                    <TableHead className="text-end">الإجمالي</TableHead>
+                    <TableHead>الحالة</TableHead>
+                    <TableHead>التاريخ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(recent.data ?? []).slice(0, 7).map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="num font-medium">{inv.invoice_number}</TableCell>
+                      <TableCell>{inv.customer_name ?? "عميل نقدي"}</TableCell>
+                      <TableCell className="text-end">
+                        <Money value={Number(inv.total)} />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={inv.status} />
+                      </TableCell>
+                      <TableCell className="num text-muted-foreground">{formatDateTime(inv.created_at)}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
+                </TableBody>
+              </Table>
+            </TableShell>
+          </ListState>
+        </CardContent>
+      </Card>
     </div>
   );
 }
