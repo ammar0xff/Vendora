@@ -76,7 +76,7 @@ export default function CustomersPage() {
             <tbody>
               {list.data.slice(0, 60).map((c) => (
                 <tr key={c.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
-                  <td className="p-3 font-bold">{c.name}</td>
+                  <td className="w-full max-w-0 truncate p-3 font-bold">{c.name}</td>
                   <td className="num p-3" dir="ltr">{c.phone ?? "—"}</td>
                   <td className="num p-3 font-bold text-brand">{moneyEGP(c.balance)}</td>
                   <td className="num hidden p-3 text-muted sm:table-cell">{c.credit_limit ? moneyEGP(c.credit_limit) : "—"}</td>

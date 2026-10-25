@@ -62,7 +62,7 @@ export default function ArchivePage() {
             <tbody>
               {q.data.map((d) => (
                 <tr key={d.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
-                  <td className="num p-3 font-bold" dir="ltr">{d.doc_number}</td>
+                  <td className="num w-full max-w-0 truncate p-3 font-bold" dir="ltr">{d.doc_number}</td>
                   <td className="hidden p-3 sm:table-cell">
                     <span className="inline-flex items-center gap-1.5 text-muted">
                       <FileText size={16} />

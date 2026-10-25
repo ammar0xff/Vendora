@@ -82,7 +82,7 @@ export default function UsersPage() {
               {list.data.map((u) => (
                 <tr key={u.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
                   <td className="p-3 font-bold" dir="ltr">{u.username}</td>
-                  <td className="p-3">{u.full_name}</td>
+                  <td className="w-full max-w-0 truncate p-3">{u.full_name}</td>
                   <td className="hidden p-3 md:table-cell"><Badge tone="brand">{u.role}</Badge></td>
                   <td className="num hidden p-3 text-muted sm:table-cell">{u.permissions?.length ?? 0}</td>
                   <td className="p-3"><Badge tone={u.is_active ? "success" : "muted"}>{u.is_active ? "نشط" : "موقوف"}</Badge></td>

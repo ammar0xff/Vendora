@@ -155,7 +155,7 @@ export default function SalesPage() {
                       <span className="num text-xs text-muted-foreground">{formatDateTime(inv.created_at)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{inv.customer_name ?? "عميل نقدي"}</TableCell>
+                  <TableCell className="w-full max-w-0 truncate">{inv.customer_name ?? "عميل نقدي"}</TableCell>
                   <TableCell className="hidden lg:table-cell">
                     {inv.payment_method === "cash" ? "نقدي" : inv.payment_method === "wallet" ? "محفظة" : inv.is_credit ? "آجل" : inv.payment_method ?? "—"}
                   </TableCell>

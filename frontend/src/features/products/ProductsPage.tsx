@@ -105,7 +105,7 @@ export default function ProductsPage() {
               {list.data!.items.map((p) => (
                 <TableRow key={p.id} className="cursor-pointer" onClick={() => openEdit(p)}>
                   <TableCell className="num text-xs text-muted-foreground" dir="ltr">{p.code ?? "—"}</TableCell>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="w-full max-w-0 truncate font-medium">{p.name}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{p.company ?? "—"}</TableCell>
                   <TableCell className="num text-end font-semibold">{money(p.retail_price)}</TableCell>
                   <TableCell className="num hidden sm:table-cell text-end">{money(p.wholesale_price)}</TableCell>
