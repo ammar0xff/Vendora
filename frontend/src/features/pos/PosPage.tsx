@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Minus, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { Minus, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { api, ApiError, docUrl } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
@@ -10,8 +10,14 @@ interface Product {
   id: string; name: string; barcode: string | null; code: string | null; unit: string;
   retail_price: string; wholesale_price: string; image_url: string | null;
 }
+interface Customer { id: string; name: string; balance: string; credit_limit: string | null }
+interface Wallet { id: string; name: string; type: string }
 interface CartItem { product: Product; qty: number; discount: string }
+interface SplitPart { method: string; amount: string; wallet_id: string }
 interface SaleResult { id: string; invoice_number: string }
+interface HeldBill { id: string; cart: CartItem[]; mode: "retail" | "wholesale"; at: string }
+
+const HELD_KEY = "vendora.held_bills";
 
 export default function PosPage() {
   const qc = useQueryClient();
@@ -19,18 +25,28 @@ export default function PosPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mode, setMode] = useState<"retail" | "wholesale">("retail");
   const [payOpen, setPayOpen] = useState(false);
-  const [payMethod, setPayMethod] = useState("cash");
-  const [paidInput, setPaidInput] = useState("");
+  const [isCredit, setIsCredit] = useState(false);
+  const [customerId, setCustomerId] = useState("");
+  const [split, setSplit] = useState<SplitPart[]>([]);
+  const [cashInput, setCashInput] = useState("");
+  const [walletId, setWalletId] = useState("");
   const [saleDone, setSaleDone] = useState<SaleResult | null>(null);
+  const [held, setHeld] = useState<HeldBill[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HELD_KEY) ?? "[]"); } catch { return []; }
+  });
+  const [resumeOpen, setResumeOpen] = useState(false);
   const [openShiftFor, setOpenShiftFor] = useState<Warehouse | null>(null);
   const [initialAmount, setInitialAmount] = useState("0");
   const barcodeRef = useRef<HTMLInputElement>(null);
 
   const wh = useQuery({ queryKey: ["warehouses"], queryFn: () => api.get<Warehouse[]>("/stock/warehouses") });
-  const [warehouseId, setWarehouseId] = useState<string>("");
+  const [warehouseId, setWarehouseId] = useState("");
   useEffect(() => {
     if (!warehouseId && wh.data?.length) setWarehouseId(wh.data[0].id);
   }, [wh.data, warehouseId]);
+
+  const customers = useQuery({ queryKey: ["pos-customers"], queryFn: () => api.get<Customer[]>("/customers"), enabled: payOpen });
+  const wallets = useQuery({ queryKey: ["pos-wallets"], queryFn: () => api.get<Wallet[]>("/wallets"), enabled: payOpen });
 
   const shift = useQuery({
     queryKey: ["shift", "current", warehouseId],
@@ -50,6 +66,9 @@ export default function PosPage() {
     queryKey: ["pos-products", search],
     queryFn: () => api.get<{ items: Product[] }>("/products", { search: search || undefined, page: 1, page_size: 40, is_active: "true" }),
   });
+
+  const customer = customers.data?.find((c) => c.id === customerId) ?? null;
+  const shiftMissing = shift.data === null;
 
   function addToCart(p: Product) {
     setCart((c) => {
@@ -78,29 +97,74 @@ export default function PosPage() {
   }
 
   const unitPrice = (p: Product) => D(mode === "wholesale" ? p.wholesale_price : p.retail_price);
-  const subtotal = useMemo(() => cart.reduce((s, i) => s.plus(unitPrice(i.product).times(i.qty).minus(D(i.discount))), D(0)), [cart, mode]);
-  const total = subtotal;
+  const total = useMemo(
+    () => cart.reduce((s, i) => s.plus(unitPrice(i.product).times(i.qty).minus(D(i.discount))), D(0)),
+    [cart, mode],
+  );
+
+  const splitTotal = split.reduce((s, p) => s.plus(D(p.amount || "0")), D(0));
+  const paidSoFar = D(cashInput || "0").plus(splitTotal);
+  const remaining = total.minus(paidSoFar);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (cart.length && !shiftMissing) { setCashInput(total.toFixed(2)); setSplit([]); setPayOpen(true); }
+      } else if (e.key === "F3") {
+        e.preventDefault();
+        barcodeRef.current?.focus();
+      } else if (e.key === "Escape" && !payOpen && !typing && cart.length) {
+        if (confirm("تفريغ الفاتورة الحالية؟")) setCart([]);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  function persistHeld(bills: HeldBill[]) {
+    setHeld(bills);
+    localStorage.setItem(HELD_KEY, JSON.stringify(bills));
+  }
 
   const checkout = useMutation({
-    mutationFn: () =>
-      api.post<SaleResult>("/sales", {
+    mutationFn: () => {
+      const payments = split.length
+        ? [
+            ...(D(cashInput || "0").gt(0) ? [{ method: "cash", amount: D(cashInput).toNumber() }] : []),
+            ...split
+                .filter((p) => D(p.amount || "0").gt(0))
+                .map((p) => ({
+                  method: p.method,
+                  amount: D(p.amount).toNumber(),
+                  wallet_id: p.method === "wallet" && p.wallet_id ? p.wallet_id : undefined,
+                })),
+          ]
+        : undefined;
+      return api.post<SaleResult>("/sales", {
         warehouse_id: warehouseId,
         shift_id: shift.data?.id ?? null,
         sale_mode: mode,
+        customer_id: customerId || null,
         items: cart.map((i) => ({
           product_id: i.product.id,
           qty: i.qty,
           unit_price: unitPrice(i.product).toNumber(),
           discount: D(i.discount).toNumber(),
         })),
-        payment_method: payMethod,
-        paid_amount: paidInput ? D(paidInput).toNumber() : undefined,
-      }),
+        is_credit: isCredit,
+        payment_method: isCredit ? "credit" : payments ? "cash" : walletId ? "wallet" : "cash",
+        wallet_id: !isCredit && !payments && walletId ? walletId : null,
+        paid_amount: isCredit ? paidSoFar.toNumber() : paidSoFar.gt(total) ? total.toNumber() : paidSoFar.toNumber(),
+        payments,
+      });
+    },
     onSuccess: (r) => {
       setSaleDone(r);
-      setCart([]);
-      setPayOpen(false);
-      setPaidInput("");
+      setCart([]); setPayOpen(false); setCashInput(""); setSplit([]);
+      setIsCredit(false); setCustomerId(""); setWalletId("");
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["report"] });
     },
@@ -108,14 +172,13 @@ export default function PosPage() {
 
   const openShift = useMutation({
     mutationFn: () => api.post("/shifts/open", { warehouse_id: openShiftFor!.id, initial_amount: D(initialAmount).toNumber() }),
-    onSuccess: () => {
-      setOpenShiftFor(null);
-      setInitialAmount("0");
-      qc.invalidateQueries({ queryKey: ["shift"] });
-    },
+    onSuccess: () => { setOpenShiftFor(null); setInitialAmount("0"); qc.invalidateQueries({ queryKey: ["shift"] }); },
   });
 
-  const shiftMissing = shift.data === null;
+  const creditWarning =
+    isCredit && customer && customer.credit_limit
+      ? D(customer.balance).plus(total).gt(D(customer.credit_limit))
+      : false;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
@@ -123,7 +186,7 @@ export default function PosPage() {
       <div className="min-w-0 space-y-3">
         <Card className="flex flex-wrap items-center gap-2 p-3">
           <form onSubmit={onBarcode} className="flex min-w-[220px] flex-1 items-center gap-2">
-            <Input ref={barcodeRef} placeholder="امسح الباركود هنا…" className="font-mono" autoFocus />
+            <Input ref={barcodeRef} placeholder="امسح الباركود… (F3)" className="font-mono" autoFocus />
             <Button type="submit" variant="outline" aria-label="إضافة بالباركود"><Search size={16} /></Button>
           </form>
           <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="w-auto">
@@ -144,6 +207,9 @@ export default function PosPage() {
 
         <Card className="flex items-center gap-2 p-3">
           <Input placeholder="ابحث عن منتج بالاسم…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Button variant="outline" onClick={() => setResumeOpen(true)} disabled={!held.length}>
+            <Play size={15} /> استئناف {held.length ? `(${held.length})` : ""}
+          </Button>
         </Card>
 
         {products.isLoading ? (
@@ -182,20 +248,28 @@ export default function PosPage() {
       <div className="flex flex-col gap-3">
         <Card className="flex items-center justify-between p-4">
           <span className="flex items-center gap-2 font-bold"><ShoppingCart size={18} /> الفاتورة</span>
-          {cart.length > 0 && (
-            <button onClick={() => setCart([])} className="flex items-center gap-1 text-xs font-semibold text-danger">
-              <Trash2 size={14} /> تفريغ
-            </button>
-          )}
+          <div className="flex gap-2">
+            {cart.length > 0 && (
+              <>
+                <button
+                  onClick={() => { persistHeld([...held, { id: String(Date.now()), cart, mode, at: new Date().toISOString() }]); setCart([]); }}
+                  className="flex items-center gap-1 text-xs font-semibold text-brand"
+                >
+                  <Pause size={14} /> تعليق
+                </button>
+                <button onClick={() => setCart([])} className="flex items-center gap-1 text-xs font-semibold text-danger">
+                  <Trash2 size={14} /> تفريغ
+                </button>
+              </>
+            )}
+          </div>
         </Card>
 
         {shiftMissing && (
           <Card className="border-warning/40 bg-warning/10 p-4 text-sm">
             <p className="mb-2 font-bold">لا توجد وردية مفتوحة لهذا الفرع</p>
             <p className="mb-3 text-muted">يجب فتح وردية قبل إتمام البيع.</p>
-            <Button onClick={() => setOpenShiftFor(wh.data?.find((w) => w.id === warehouseId) ?? null)}>
-              فتح وردية
-            </Button>
+            <Button onClick={() => setOpenShiftFor(wh.data?.find((w) => w.id === warehouseId) ?? null)}>فتح وردية</Button>
           </Card>
         )}
 
@@ -210,13 +284,13 @@ export default function PosPage() {
                 <li key={i.product.id} className="flex items-center gap-2 p-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold">{i.product.name}</p>
-                    <p className="num text-xs text-muted">{money(unitPrice(i.product))} × {i.qty} = {money(unitPrice(i.product).times(i.qty))}</p>
+                    <p className="num text-xs text-muted">{money(unitPrice(i.product))} × {i.qty} = {money(unitPrice(i.product).times(i.qty).minus(D(i.discount)))}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       className="rounded-md border border-line p-1 hover:bg-elevated"
                       onClick={() => setCart((c) => c.map((x, j) => j === idx ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
-                      aria-label="تقليل الكمية"
+                      aria-label="تقليل"
                     ><Minus size={14} /></button>
                     <input
                       className="num w-12 rounded-md border border-line bg-surface p-1 text-center text-sm"
@@ -230,7 +304,7 @@ export default function PosPage() {
                     <button
                       className="rounded-md border border-line p-1 hover:bg-elevated"
                       onClick={() => setCart((c) => c.map((x, j) => j === idx ? { ...x, qty: x.qty + 1 } : x))}
-                      aria-label="زيادة الكمية"
+                      aria-label="زيادة"
                     ><Plus size={14} /></button>
                     <button
                       className="rounded-md p-1 text-danger hover:bg-elevated"
@@ -252,7 +326,7 @@ export default function PosPage() {
           <Button
             className="w-full py-3 text-base"
             disabled={!cart.length || shiftMissing || shift.isLoading}
-            onClick={() => { setPaidInput(total.toFixed(2)); setPayOpen(true); }}
+            onClick={() => { setCashInput(total.toFixed(2)); setSplit([]); setPayOpen(true); }}
           >
             إتمام الدفع (F2)
           </Button>
@@ -266,36 +340,138 @@ export default function PosPage() {
             <p className="text-sm text-muted">المطلوب</p>
             <p className="num text-3xl font-black text-brand">{money(total)} ج.م</p>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">طريقة الدفع</label>
-            <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
-              <option value="cash">نقدي</option>
-              <option value="wallet">محفظة</option>
-              <option value="bank">تحويل بنكي</option>
-              <option value="cheque">شيك</option>
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">المبلغ المدفوع</label>
-            <Input
-              className="num text-lg"
-              inputMode="decimal"
-              value={paidInput}
-              onChange={(e) => setPaidInput(e.target.value)}
-            />
-            <p className="mt-1 text-xs text-muted">
-              الباقي: <span className="num font-bold">{money(D(paidInput || "0").minus(total))}</span>
-            </p>
-          </div>
+
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input type="checkbox" checked={isCredit} onChange={(e) => setIsCredit(e.target.checked)} />
+            بيع آجل (على حساب العميل)
+          </label>
+
+          {isCredit && (
+            <div className="space-y-2 rounded-xl border border-line p-3">
+              <label className="block text-sm font-medium">العميل</label>
+              <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                <option value="">— اختر العميل —</option>
+                {customers.data?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} (مدين: {money(c.balance)})</option>
+                ))}
+              </Select>
+              {customer && (
+                <p className="text-xs text-muted">
+                  الرصيد الحالي <span className="num font-bold">{money(customer.balance)}</span>
+                  {customer.credit_limit ? <> · حد الائتمان <span className="num">{money(customer.credit_limit)}</span></> : null}
+                </p>
+              )}
+              {creditWarning && (
+                <p className="rounded-lg bg-danger/10 p-2 text-sm font-bold text-danger">
+                  ⚠️ هذه الفاتورة تتجاوز حد الائتمان المسموح
+                </p>
+              )}
+            </div>
+          )}
+
+          {!isCredit && (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium">المدفوع نقداً</label>
+                <Input className="num text-lg" inputMode="decimal" value={cashInput} onChange={(e) => setCashInput(e.target.value)} />
+              </div>
+              {!split.length && !cashInput && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium">أو الدفع بالكامل من محفظة</label>
+                  <Select value={walletId} onChange={(e) => setWalletId(e.target.value)}>
+                    <option value="">— بدون —</option>
+                    {wallets.data?.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.type})</option>)}
+                  </Select>
+                </div>
+              )}
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium">دفعات إضافية (تقسيم)</label>
+                  <button
+                    className="text-xs font-semibold text-brand"
+                    onClick={() => setSplit((s) => [...s, { method: "wallet", amount: "", wallet_id: "" }])}
+                  >
+                    + إضافة دفعة
+                  </button>
+                </div>
+                {split.map((p, i) => (
+                  <div key={i} className="mb-2 flex flex-wrap gap-2">
+                    <Select
+                      className="w-auto"
+                      value={p.method}
+                      onChange={(e) => setSplit((s) => s.map((x, j) => j === i ? { ...x, method: e.target.value } : x))}
+                    >
+                      <option value="wallet">محفظة</option>
+                      <option value="bank">تحويل بنكي</option>
+                      <option value="cheque">شيك</option>
+                      <option value="cash">نقدي</option>
+                    </Select>
+                    {p.method === "wallet" && (
+                      <Select
+                        className="w-auto"
+                        value={p.wallet_id}
+                        onChange={(e) => setSplit((s) => s.map((x, j) => j === i ? { ...x, wallet_id: e.target.value } : x))}
+                      >
+                        <option value="">محفظة؟</option>
+                        {wallets.data?.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                      </Select>
+                    )}
+                    <Input
+                      className="num w-24" inputMode="decimal" placeholder="مبلغ"
+                      value={p.amount}
+                      onChange={(e) => setSplit((s) => s.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
+                    />
+                    <button className="rounded p-1 text-danger" onClick={() => setSplit((s) => s.filter((_, j) => j !== i))} aria-label="حذف دفعة">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted">
+                {remaining.gt(0) ? <>المتبقي: <span className="num font-bold text-warning">{money(remaining)}</span></>
+                : remaining.lt(0) ? <>الباقي للعميل: <span className="num font-bold text-success">{money(remaining.neg())}</span></>
+                : <span className="font-bold text-success">مكتمل ✓</span>}
+              </p>
+            </>
+          )}
+
           {checkout.isError && <ErrorBox message={(checkout.error as Error).message} />}
           <Button
-            className="w-full py-3"
-            disabled={checkout.isPending || D(paidInput || "0").lt(0)}
+            className="w-full"
+            disabled={checkout.isPending || (isCredit && !customerId)}
             onClick={() => checkout.mutate()}
           >
             {checkout.isPending ? <Spinner /> : "تأكيد البيع"}
           </Button>
         </div>
+      </Modal>
+
+      {/* Resume bills */}
+      <Modal open={resumeOpen} onClose={() => setResumeOpen(false)} title="الفواتير المعلقة">
+        {!held.length ? (
+          <p className="p-4 text-center text-sm text-muted">لا توجد فواتير معلقة</p>
+        ) : (
+          <ul className="space-y-2">
+            {held.map((b) => (
+              <li key={b.id} className="flex items-center justify-between rounded-xl border border-line p-3">
+                <div>
+                  <p className="text-sm font-bold">{b.cart.length} منتج · {b.mode === "retail" ? "تجزئة" : "جملة"}</p>
+                  <p className="num text-xs text-muted">{new Date(b.at).toLocaleString("ar-EG")}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCart(b.cart); setMode(b.mode);
+                    persistHeld(held.filter((x) => x.id !== b.id));
+                    setResumeOpen(false);
+                  }}
+                >
+                  <Play size={14} /> استئناف
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Modal>
 
       {/* Shift-open modal */}

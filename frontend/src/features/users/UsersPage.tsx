@@ -1,0 +1,177 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyRound, Plus } from "lucide-react";
+import { api } from "@/lib/api";
+import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
+
+interface UserRow {
+  id: string; username: string; full_name: string; role: string; is_active: boolean;
+  is_manager: boolean; permissions?: string[];
+}
+
+const ALL_PERMS = [
+  "pos", "sales", "quotations", "inventory", "operations", "purchases",
+  "customers", "reports", "archive", "payroll", "users", "settings", "admin", "shifts", "finance",
+];
+const PERM_LABELS: Record<string, string> = {
+  pos: "نقطة البيع", sales: "المبيعات", quotations: "عروض الأسعار", inventory: "المخزون",
+  operations: "العمليات", purchases: "المشتريات", customers: "العملاء", reports: "التقارير",
+  archive: "الأرشيف", payroll: "الموارد البشرية", users: "المستخدمون", settings: "الإعدادات",
+  admin: "إدارة", shifts: "الورديات", finance: "المالية",
+};
+const ROLES = ["admin", "manager", "cashier", "storekeeper", "accountant"];
+
+export default function UsersPage() {
+  const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ username: "", full_name: "", password: "", role: "cashier" });
+  const [permFor, setPermFor] = useState<UserRow | null>(null);
+  const [perms, setPerms] = useState<string[]>([]);
+  const [pwFor, setPwFor] = useState<UserRow | null>(null);
+  const [newPw, setNewPw] = useState("");
+
+  const list = useQuery({ queryKey: ["users"], queryFn: () => api.get<UserRow[]>("/users") });
+
+  const create = useMutation({
+    mutationFn: () => api.post("/users", form),
+    onSuccess: () => { setCreating(false); setForm({ username: "", full_name: "", password: "", role: "cashier" }); qc.invalidateQueries({ queryKey: ["users"] }); },
+  });
+
+  const savePerms = useMutation({
+    mutationFn: () => api.put(`/permissions/${permFor!.id}`, { permissions: perms }),
+    onSuccess: () => { setPermFor(null); qc.invalidateQueries({ queryKey: ["users"] }); },
+  });
+
+  const resetPw = useMutation({
+    mutationFn: () => api.post(`/users/${pwFor!.id}/reset-password`, { new_password: newPw }),
+    onSuccess: () => { setPwFor(null); setNewPw(""); },
+  });
+
+  function openPerms(u: UserRow) {
+    setPermFor(u);
+    setPerms(u.permissions ?? []);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-extrabold">المستخدمون والصلاحيات</h1>
+        <Button onClick={() => setCreating(true)}><Plus size={16} /> مستخدم جديد</Button>
+      </div>
+
+      {list.isLoading ? (
+        <Card className="grid place-items-center p-10"><Spinner /></Card>
+      ) : list.isError ? (
+        <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
+      ) : !list.data?.length ? (
+        <Empty text="لا يوجد مستخدمون" />
+      ) : (
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-xs text-muted">
+                <th className="p-3 text-start">اسم المستخدم</th>
+                <th className="p-3 text-start">الاسم</th>
+                <th className="p-3 text-start">الدور</th>
+                <th className="p-3 text-start">الصلاحيات</th>
+                <th className="p-3 text-start">الحالة</th>
+                <th className="p-3 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.data.map((u) => (
+                <tr key={u.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
+                  <td className="p-3 font-bold" dir="ltr">{u.username}</td>
+                  <td className="p-3">{u.full_name}</td>
+                  <td className="p-3"><Badge tone="brand">{u.role}</Badge></td>
+                  <td className="num p-3 text-muted">{u.permissions?.length ?? 0}</td>
+                  <td className="p-3"><Badge tone={u.is_active ? "success" : "muted"}>{u.is_active ? "نشط" : "موقوف"}</Badge></td>
+                  <td className="p-3">
+                    <div className="flex gap-1">
+                      <Button variant="outline" onClick={() => openPerms(u)}>الصلاحيات</Button>
+                      <button
+                        className="rounded-md p-2 text-muted hover:bg-elevated hover:text-ink"
+                        onClick={() => { setPwFor(u); setNewPw(""); }}
+                        aria-label="كلمة مرور جديدة"
+                      >
+                        <KeyRound size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      <Modal open={creating} onClose={() => setCreating(false)} title="مستخدم جديد">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">اسم المستخدم *</label>
+              <Input dir="ltr" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">الاسم الكامل *</label>
+              <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">كلمة المرور *</label>
+              <Input type="password" dir="ltr" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">الدور</label>
+              <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </Select>
+            </div>
+          </div>
+          {create.isError && <ErrorBox message={(create.error as Error).message} />}
+          <Button className="w-full" disabled={create.isPending || !form.username || !form.password || !form.full_name} onClick={() => create.mutate()}>
+            {create.isPending ? <Spinner /> : "إنشاء"}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={!!permFor} onClose={() => setPermFor(null)} title={`صلاحيات — ${permFor?.full_name ?? ""}`} wide>
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            لاحظ: الدور لا يمنح الصلاحيات تلقائياً — كل صلاحية تُضبط يدوياً. (حتى admin لا يملك finance تلقائياً)
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {ALL_PERMS.map((p) => (
+              <label key={p} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm ${perms.includes(p) ? "border-brand bg-brand/10 font-bold" : "border-line"}`}>
+                <input
+                  type="checkbox"
+                  checked={perms.includes(p)}
+                  onChange={(e) => setPerms((s) => e.target.checked ? [...s, p] : s.filter((x) => x !== p))}
+                />
+                {PERM_LABELS[p] ?? p}
+              </label>
+            ))}
+          </div>
+          {savePerms.isError && <ErrorBox message={(savePerms.error as Error).message} />}
+          <Button className="w-full" disabled={savePerms.isPending} onClick={() => savePerms.mutate()}>
+            {savePerms.isPending ? <Spinner /> : "حفظ الصلاحيات"}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={!!pwFor} onClose={() => setPwFor(null)} title={`كلمة مرور جديدة — ${pwFor?.username ?? ""}`}>
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">كلمة المرور الجديدة</label>
+            <Input type="password" dir="ltr" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+          </div>
+          {resetPw.isError && <ErrorBox message={(resetPw.error as Error).message} />}
+          <Button className="w-full" disabled={resetPw.isPending || !newPw} onClick={() => resetPw.mutate()}>
+            {resetPw.isPending ? <Spinner /> : "تعيين"}
+          </Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}

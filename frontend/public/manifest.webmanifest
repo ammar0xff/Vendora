@@ -1,0 +1,20 @@
+{
+  "name": "فيندورا — نظام إدارة المتاجر",
+  "short_name": "فيندورا",
+  "description": "نظام إدارة متاجر ومخازن متعدد الفروع",
+  "dir": "rtl",
+  "lang": "ar",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#171412",
+  "theme_color": "#b45309",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
