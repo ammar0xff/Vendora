@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Minus, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { Minus, Package, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { api, ApiError, openPrintDoc } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, useToast } from "@/components/ui";
@@ -282,19 +282,25 @@ export default function PosPage() {
               <StaggerItem key={p.id} className="h-full">
               <button
                 onClick={() => addToCart(p)}
-                className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-line bg-surface text-start transition hover:border-brand hover:shadow-lg"
+                className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-line bg-surface text-start transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg"
               >
-                <div className="aspect-square bg-elevated">
+                <div className="relative aspect-square bg-elevated">
                   {p.image_url ? (
-                    <img src={p.image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <img src={p.image_url} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" loading="lazy" />
                   ) : (
-                    <div className="grid h-full place-items-center text-3xl opacity-30">🛍️</div>
+                    <div className="grid h-full place-items-center text-muted/50">
+                      <Package size={40} strokeWidth={1.25} />
+                    </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-1 p-3">
+                <div className="flex flex-1 flex-col gap-1 p-3">
                   <span className="line-clamp-2 min-h-10 text-sm font-bold">{p.name}</span>
-                  <span className="num text-sm font-extrabold text-brand">{money(mode === "wholesale" ? p.wholesale_price : p.retail_price)} ج.م</span>
-                  <span className="text-xs text-muted">{p.unit} {p.code ? `· ${p.code}` : ""}</span>
+                  <div className="mt-auto flex items-center justify-between gap-2">
+                    <span className="num rounded-md bg-brand/10 px-2 py-0.5 text-sm font-extrabold text-brand">
+                      {money(mode === "wholesale" ? p.wholesale_price : p.retail_price)} ج.م
+                    </span>
+                    <span className="text-[11px] text-muted">{p.unit}{p.code ? ` · ${p.code}` : ""}</span>
+                  </div>
                 </div>
               </button>
               </StaggerItem>
