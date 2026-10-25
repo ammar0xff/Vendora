@@ -24,6 +24,12 @@ export default function SalesPage() {
   const [search, setSearch] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [returnQty, setReturnQty] = useState<Record<string, string>>({});
+  const [quotationView, setQuotationView] = useState(false);
+
+  const confirmQuotation = useMutation({
+    mutationFn: (id: string) => api.post(`/sales/${id}/confirm-quotation`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["sales"] }); qc.invalidateQueries({ queryKey: ["sale"] }); },
+  });
 
   const cancelSale = useMutation({
     mutationFn: (id: string) => api.put(`/sales/${id}/cancel`),
@@ -63,6 +69,21 @@ export default function SalesPage() {
         <a href={docUrl("/export/sales")} className="text-sm font-semibold text-brand">تصدير Excel</a>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setQuotationView(false)}
+          className={`rounded-full px-4 py-2 text-sm font-semibold ${!quotationView ? "bg-brand text-brand-ink" : "border border-line text-muted"}`}
+        >
+          الفواتير
+        </button>
+        <button
+          onClick={() => setQuotationView(true)}
+          className={`rounded-full px-4 py-2 text-sm font-semibold ${quotationView ? "bg-brand text-brand-ink" : "border border-line text-muted"}`}
+        >
+          عروض الأسعار
+        </button>
+      </div>
+
       <Card className="flex items-center gap-2 p-3">
         <Input placeholder="ابحث برقم الفاتورة…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </Card>
@@ -88,7 +109,9 @@ export default function SalesPage() {
               </tr>
             </thead>
             <tbody>
-              {list.data.map((s) => (
+              {list.data
+                .filter((s) => (quotationView ? s.status === "quotation" || s.status === "draft" : s.status !== "quotation" && s.status !== "draft"))
+                .map((s) => (
                 <tr key={s.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
                   <td className="num p-3 font-bold" dir="ltr">{s.invoice_number}</td>
                   <td className="p-3">{s.customer_name ?? "نقدي"}</td>
@@ -102,6 +125,15 @@ export default function SalesPage() {
                   <td className="p-3 text-xs text-muted">{dateTime(s.created_at)}</td>
                   <td className="p-3">
                     <div className="flex gap-1">
+                      {s.status === "quotation" && (
+                        <button
+                          className="rounded-md px-2 py-1.5 text-xs font-bold text-brand hover:bg-elevated"
+                          onClick={() => confirmQuotation.mutate(s.id)}
+                          disabled={confirmQuotation.isPending}
+                        >
+                          تحويل لفاتورة
+                        </button>
+                      )}
                       <button
                         className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
                         onClick={() => setDetailId(s.id)}
@@ -123,7 +155,7 @@ export default function SalesPage() {
         </Card>
       )}
 
-      {list.data && list.data.length === 25 && (
+      {list.data && list.data.filter((s) => (quotationView ? s.status === "quotation" : s.status !== "quotation")).length === 25 && (
         <div className="flex items-center justify-center gap-3 text-sm">
           <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>السابق</Button>
           <span className="num text-muted">صفحة {page}</span>

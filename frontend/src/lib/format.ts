@@ -4,8 +4,9 @@ import Decimal from "decimal.js";
 export const D = (v: string | number | Decimal | null | undefined): Decimal =>
   new Decimal(v ?? 0);
 
-const nf2 = new Intl.NumberFormat("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const nf3 = new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 3 });
+const LOC = "ar-EG-u-nu-latn"; // Arabic locale, Western (Latin) digits — matches spec & tabular-nums
+const nf2 = new Intl.NumberFormat(LOC, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf3 = new Intl.NumberFormat(LOC, { maximumFractionDigits: 3 });
 
 export const money = (v: string | number | Decimal | null | undefined): string =>
   nf2.format(Number(D(v).toDecimalPlaces(2).toFixed(2)));
@@ -16,8 +17,8 @@ export const moneyEGP = (v: string | number | Decimal | null | undefined): strin
 export const qty = (v: string | number | Decimal | null | undefined): string =>
   nf3.format(Number(D(v).toDecimalPlaces(3).toFixed(3)));
 
-const dtf = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" });
-const df = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeZone: "Africa/Cairo" });
+const dtf = new Intl.DateTimeFormat(LOC, { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" });
+const df = new Intl.DateTimeFormat(LOC, { dateStyle: "medium", timeZone: "Africa/Cairo" });
 
 export const dateTime = (v: string | Date | null | undefined): string =>
   v ? dtf.format(new Date(v)) : "—";

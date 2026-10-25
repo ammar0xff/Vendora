@@ -6,7 +6,6 @@ import DashboardPage from "@/features/dashboard/DashboardPage";
 import PosPage from "@/features/pos/PosPage";
 import ProductsPage from "@/features/products/ProductsPage";
 import SalesPage from "@/features/sales/SalesPage";
-import ListPage from "@/features/common/ListPage";
 import PurchasesPage from "@/features/purchases/PurchasesPage";
 import PayrollPage from "@/features/hr/PayrollPage";
 import ShiftsPage from "@/features/shifts/ShiftsPage";
@@ -19,6 +18,7 @@ import HrPage from "@/features/hr/HrPage";
 import InventoryPage from "@/features/inventory/InventoryPage";
 import ReportsPage from "@/features/reports/ReportsPage";
 import ArchivePage from "@/features/archive/ArchivePage";
+import OperationsPage from "@/features/operations/OperationsPage";
 
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
   const { token, user } = useAuth();
@@ -50,7 +50,7 @@ export default function App() {
         <Route path="/products" element={<Guard perm="inventory"><ProductsPage /></Guard>} />
         <Route path="/sales" element={<Guard perm="sales"><SalesPage /></Guard>} />
         <Route path="/inventory" element={<Guard perm="inventory"><InventoryPage /></Guard>} />
-        <Route path="/operations" element={<Guard perm="operations"><ListPage module="operations" /></Guard>} />
+        <Route path="/operations" element={<Guard perm="operations"><OperationsPage /></Guard>} />
         <Route path="/purchases" element={<Guard perm="purchases"><PurchasesPage /></Guard>} />
         <Route path="/customers" element={<Guard perm="customers"><CustomersPage /></Guard>} />
         <Route path="/suppliers" element={<Guard perm="customers"><SuppliersPage /></Guard>} />

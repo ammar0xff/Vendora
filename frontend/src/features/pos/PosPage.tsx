@@ -4,6 +4,7 @@ import { Minus, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } fr
 import { api, ApiError, docUrl } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
+import { enqueueSale, listQueue, replayQueue, removeSale, type QueuedSale } from "@/lib/offline";
 
 interface Warehouse { id: string; name: string }
 interface Product {
@@ -18,6 +19,42 @@ interface SaleResult { id: string; invoice_number: string }
 interface HeldBill { id: string; cart: CartItem[]; mode: "retail" | "wholesale"; at: string }
 
 const HELD_KEY = "vendora.held_bills";
+
+function buildSaleBody(args: {
+  warehouseId: string; shiftId: string | null; mode: "retail" | "wholesale";
+  customerId: string; cart: CartItem[]; isCredit: boolean; cashInput: string;
+  split: SplitPart[]; walletId: string; paidSoFar: { toString: () => string }; total: { toString: () => string };
+}) {
+  const payments = args.split.length
+    ? [
+        ...(D(args.cashInput || "0").gt(0) ? [{ method: "cash", amount: D(args.cashInput).toNumber() }] : []),
+        ...args.split
+            .filter((p) => D(p.amount || "0").gt(0))
+            .map((p) => ({
+              method: p.method,
+              amount: D(p.amount).toNumber(),
+              wallet_id: p.method === "wallet" && p.wallet_id ? p.wallet_id : undefined,
+            })),
+      ]
+    : undefined;
+  return {
+    warehouse_id: args.warehouseId,
+    shift_id: args.shiftId,
+    sale_mode: args.mode,
+    customer_id: args.customerId || null,
+    items: args.cart.map((i) => ({
+      product_id: i.product.id,
+      qty: i.qty,
+      unit_price: D(args.mode === "wholesale" ? i.product.wholesale_price : i.product.retail_price).toNumber(),
+      discount: D(i.discount).toNumber(),
+    })),
+    is_credit: args.isCredit,
+    payment_method: args.isCredit ? "credit" : payments ? "cash" : args.walletId ? "wallet" : "cash",
+    wallet_id: !args.isCredit && !payments && args.walletId ? args.walletId : null,
+    paid_amount: Number(args.paidSoFar.toString()),
+    payments,
+  };
+}
 
 export default function PosPage() {
   const qc = useQueryClient();
@@ -129,37 +166,24 @@ export default function PosPage() {
     localStorage.setItem(HELD_KEY, JSON.stringify(bills));
   }
 
+  const body = () =>
+    buildSaleBody({
+      warehouseId, shiftId: shift.data?.id ?? null, mode, customerId, cart,
+      isCredit, cashInput, split, walletId, paidSoFar, total,
+    });
+
   const checkout = useMutation({
-    mutationFn: () => {
-      const payments = split.length
-        ? [
-            ...(D(cashInput || "0").gt(0) ? [{ method: "cash", amount: D(cashInput).toNumber() }] : []),
-            ...split
-                .filter((p) => D(p.amount || "0").gt(0))
-                .map((p) => ({
-                  method: p.method,
-                  amount: D(p.amount).toNumber(),
-                  wallet_id: p.method === "wallet" && p.wallet_id ? p.wallet_id : undefined,
-                })),
-          ]
-        : undefined;
-      return api.post<SaleResult>("/sales", {
-        warehouse_id: warehouseId,
-        shift_id: shift.data?.id ?? null,
-        sale_mode: mode,
-        customer_id: customerId || null,
-        items: cart.map((i) => ({
-          product_id: i.product.id,
-          qty: i.qty,
-          unit_price: unitPrice(i.product).toNumber(),
-          discount: D(i.discount).toNumber(),
-        })),
-        is_credit: isCredit,
-        payment_method: isCredit ? "credit" : payments ? "cash" : walletId ? "wallet" : "cash",
-        wallet_id: !isCredit && !payments && walletId ? walletId : null,
-        paid_amount: isCredit ? paidSoFar.toNumber() : paidSoFar.gt(total) ? total.toNumber() : paidSoFar.toNumber(),
-        payments,
-      });
+    mutationFn: async (): Promise<SaleResult> => {
+      try {
+        return await api.post<SaleResult>("/sales", body());
+      } catch (err) {
+        // network failure (no HTTP status) → queue offline for replay
+        if (typeof err === "object" && err !== null && !("status" in err)) {
+          await enqueueSale(body());
+          throw new ApiError(0, "لا يوجد اتصال — تم حفظ الفاتورة محلياً وستُزامن تلقائياً");
+        }
+        throw err;
+      }
     },
     onSuccess: (r) => {
       setSaleDone(r);
@@ -170,10 +194,36 @@ export default function PosPage() {
     },
   });
 
+  const saveQuotation = useMutation({
+    mutationFn: () => api.post<SaleResult>("/sales/quotations", body()),
+    onSuccess: (r) => {
+      setSaleDone(r);
+      setCart([]); setPayOpen(false); setCashInput(""); setSplit([]);
+      setIsCredit(false); setCustomerId(""); setWalletId("");
+      qc.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+
   const openShift = useMutation({
     mutationFn: () => api.post("/shifts/open", { warehouse_id: openShiftFor!.id, initial_amount: D(initialAmount).toNumber() }),
     onSuccess: () => { setOpenShiftFor(null); setInitialAmount("0"); qc.invalidateQueries({ queryKey: ["shift"] }); },
   });
+
+  const [queue, setQueue] = useState<QueuedSale[]>([]);
+  const [queueOpen, setQueueOpen] = useState(false);
+
+  async function refreshQueue() { setQueue(await listQueue()); }
+  async function tryReplay() {
+    const { synced } = await replayQueue((payload) => api.post("/sales", payload));
+    if (synced > 0) qc.invalidateQueries({ queryKey: ["sales"] });
+    await refreshQueue();
+  }
+  useEffect(() => {
+    refreshQueue();
+    tryReplay();
+    window.addEventListener("online", tryReplay);
+    return () => window.removeEventListener("online", tryReplay);
+  }, []);
 
   const creditWarning =
     isCredit && customer && customer.credit_limit
@@ -209,6 +259,9 @@ export default function PosPage() {
           <Input placeholder="ابحث عن منتج بالاسم…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <Button variant="outline" onClick={() => setResumeOpen(true)} disabled={!held.length}>
             <Play size={15} /> استئناف {held.length ? `(${held.length})` : ""}
+          </Button>
+          <Button variant={queue.length ? "default" : "outline"} onClick={() => { setQueueOpen(true); refreshQueue(); }}>
+            ⏿ {queue.length ? `بانتظار المزامنة (${queue.length})` : "المزامنة"}
           </Button>
         </Card>
 
@@ -436,13 +489,57 @@ export default function PosPage() {
           )}
 
           {checkout.isError && <ErrorBox message={(checkout.error as Error).message} />}
-          <Button
-            className="w-full"
-            disabled={checkout.isPending || (isCredit && !customerId)}
-            onClick={() => checkout.mutate()}
-          >
-            {checkout.isPending ? <Spinner /> : "تأكيد البيع"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              disabled={checkout.isPending || (isCredit && !customerId)}
+              onClick={() => checkout.mutate()}
+            >
+              {checkout.isPending ? <Spinner /> : "تأكيد البيع"}
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={saveQuotation.isPending}
+              onClick={() => saveQuotation.mutate()}
+              title="عرض سعر — لا يُخصم من المخزون"
+            >
+              {saveQuotation.isPending ? <Spinner /> : "حفظ كعرض سعر"}
+            </Button>
+          </div>
+          {saveQuotation.isError && <ErrorBox message={(saveQuotation.error as Error).message} />}
+        </div>
+      </Modal>
+
+      <Modal open={queueOpen} onClose={() => setQueueOpen(false)} title="فواتير في انتظار المزامنة">
+        <div className="space-y-3">
+          {!queue.length ? (
+            <p className="p-4 text-center text-sm text-muted">لا توجد فواتير معلقة — كل شيء متزامن ✓</p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {queue.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between rounded-xl border border-line p-3 text-sm">
+                    <div>
+                      <p className="font-bold">
+                        {s.status === "conflict" ? "تعارض — تحتاج مراجعة" : "محفوظة محلياً"}
+                      </p>
+                      <p className="num text-xs text-muted">{new Date(s.savedAt).toLocaleString("ar-EG")}</p>
+                      {s.error && <p className="text-xs text-danger">{s.error}</p>}
+                    </div>
+                    {s.status === "conflict" && (
+                      <Button variant="ghost" className="text-danger" onClick={async () => { await removeSale(s.id); refreshQueue(); }}>
+                        تجاهل
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" onClick={() => tryReplay()}>
+                <Play size={15} /> محاولة المزامنة الآن
+              </Button>
+            </>
+          )}
         </div>
       </Modal>
 
