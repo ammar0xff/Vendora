@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer } from "lucide-react";
-import { api, docUrl } from "@/lib/api";
+import { api, openPrintDoc } from "@/lib/api";
 import { dateTime } from "@/lib/format";
 import { Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
 
@@ -72,20 +72,16 @@ export default function ArchivePage() {
                   <td className="p-3 text-xs text-muted">{dateTime(d.created_at)}</td>
                   <td className="p-3">
                     <div className="flex gap-1">
-                      <a
-                        href={docUrl(`/print/archive/${d.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        onClick={() => openPrintDoc(`/print/archive/${d.id}`)}
                         className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
                         aria-label="طباعة"
-                      ><Printer size={16} /></a>
-                      <a
-                        href={docUrl(`/print/pdf/archive/${d.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
+                      ><Printer size={16} /></button>
+                      <button
+                        onClick={() => openPrintDoc(`/print/pdf/archive/${d.id}`)}
                         className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
                         aria-label="PDF"
-                      >📄</a>
+                      >📄</button>
                     </div>
                   </td>
                 </tr>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Minus, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
-import { api, ApiError, docUrl } from "@/lib/api";
+import { api, ApiError, openPrintDoc } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, useToast } from "@/components/ui";
 import { Stagger, StaggerItem } from "@/components/motion";
@@ -606,14 +606,9 @@ export default function PosPage() {
         <div className="space-y-4 text-center">
           <p className="text-sm text-muted">رقم الفاتورة</p>
           <p className="num text-2xl font-black">{saleDone?.invoice_number}</p>
-          <a
-            href={docUrl(`/print/sale/${saleDone?.id}`)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 font-semibold text-brand-ink"
-          >
+          <Button onClick={() => saleDone && openPrintDoc(`/print/sale/${saleDone.id}`)}>
             <Printer size={16} /> طباعة الفاتورة
-          </a>
+          </Button>
         </div>
       </Modal>
     </div>

@@ -98,15 +98,47 @@ export const api = {
   postForm: <T>(path: string, form: FormData) => request<T>("POST", path, { form }),
 };
 
-/** Build a URL for opening server-rendered documents (print/PDF) with auth. */
-export function docUrl(path: string, params?: Record<string, string | number | undefined>): string {
+/** Open a server-rendered document (print/PDF) in a new tab.
+ *
+ * Print endpoints require a short-lived scope=print token (POST /auth/print-token,
+ * 60s TTL) — the session token is rejected by design. */
+export async function openPrintDoc(path: string, params?: Record<string, string | number | undefined>): Promise<void> {
+  // open the tab synchronously (inside the user gesture) so popup blockers
+  // allow it, then navigate it once the short-lived print token arrives
+  const win = window.open("about:blank", "_blank");
+  try {
+    const { token } = await request<{ token: string }>("POST", "/auth/print-token", { json: {} });
+    const url = new URL(RAW_BASE + path, window.location.origin);
+    for (const [k, v] of Object.entries(params ?? {})) {
+      if (v !== undefined && v !== "") url.searchParams.set(k, String(v));
+    }
+    url.searchParams.set("token", token);
+    if (win) win.location.href = url.toString();
+    else window.location.href = url.toString();
+  } catch (err) {
+    win?.close();
+    throw err;
+  }
+}
+
+/** Download an Excel export with proper auth (links can't send Bearer headers). */
+export async function downloadExport(path: string, params?: Record<string, string | number | undefined>, filename = "export.xlsx"): Promise<void> {
   const url = new URL(RAW_BASE + path, window.location.origin);
   for (const [k, v] of Object.entries(params ?? {})) {
     if (v !== undefined && v !== "") url.searchParams.set(k, String(v));
   }
-  if (!isSameOrigin()) {
-    const t = useAuth.getState().token;
-    if (t) url.searchParams.set("token", t);
-  }
-  return url.toString();
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  if (!res.ok) throw new ApiError(res.status, `فشل تنزيل الملف (${res.status})`);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function authHeaders(): Record<string, string> {
+  const token = useAuth.getState().token;
+  if (token && !isSameOrigin()) return { Authorization: `Bearer ${token}` };
+  return {};
 }

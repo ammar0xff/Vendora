@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api, docUrl } from "@/lib/api";
+import { api, openPrintDoc } from "@/lib/api";
 import { money, moneyEGP, qty as fq } from "@/lib/format";
 import { Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
 
@@ -231,9 +231,9 @@ export default function ReportsPage() {
 
       <Card className="flex items-center justify-between text-sm">
         <span className="text-muted">تقرير جرد printable لكل فرع:</span>
-        <a href={docUrl("/reports/inventory/print", { warehouse_id: wid || wh.data?.[0]?.id })} target="_blank" rel="noreferrer" className="font-semibold text-brand hover:underline">
+        <button onClick={() => openPrintDoc("/reports/inventory/print", { warehouse_id: wid || wh.data?.[0]?.id })} className="font-semibold text-brand hover:underline">
           فتح تقرير الجرد ↗
-        </a>
+        </button>
       </Card>
     </div>
   );

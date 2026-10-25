@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calculator, CheckCircle2, Coins, FileText, LockOpen, Send } from "lucide-react";
-import { api, docUrl } from "@/lib/api";
+import { api, openPrintDoc } from "@/lib/api";
 import { money, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, ErrorBox, Spinner, useToast } from "@/components/ui";
 
@@ -78,14 +78,9 @@ export default function PayrollPage() {
             onChange={(e) => setMonth(e.target.value)}
             aria-label="الشهر"
           />
-          <a
-            href={docUrl("/hr/payroll/report/monthly", { month })}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-semibold text-muted hover:text-ink"
-          >
+          <Button variant="outline" onClick={() => openPrintDoc("/hr/payroll/report/monthly", { month })}>
             <FileText size={15} /> تقرير الشهر
-          </a>
+          </Button>
         </div>
       </div>
 
@@ -166,14 +161,12 @@ export default function PayrollPage() {
                   <td className="num p-3 text-warning">{money(e.advances)}</td>
                   <td className="num p-3 font-black text-brand">{money(e.net_salary)}</td>
                   <td className="p-3">
-                    <a
-                      href={docUrl(`/hr/payroll/report/employee/${e.employee_id}`, { month, report_type: "ticket" })}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      onClick={() => openPrintDoc(`/hr/payroll/report/employee/${e.employee_id}`, { month, report_type: "ticket" })}
                       className="text-xs font-semibold text-brand hover:underline"
                     >
                       قسيمة
-                    </a>
+                    </button>
                   </td>
                 </tr>
               ))}

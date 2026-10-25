@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Printer, Undo2 } from "lucide-react";
-import { api, docUrl } from "@/lib/api";
+import { api, downloadExport, openPrintDoc } from "@/lib/api";
 import { dateTime, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Spinner } from "@/components/ui";
 
@@ -66,7 +66,7 @@ export default function SalesPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold">المبيعات</h1>
-        <a href={docUrl("/export/sales")} className="text-sm font-semibold text-brand">تصدير Excel</a>
+        <button onClick={() => downloadExport("/export/sales", undefined, "sales.xlsx")} className="text-sm font-semibold text-brand">تصدير Excel</button>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -139,13 +139,11 @@ export default function SalesPage() {
                         onClick={() => setDetailId(s.id)}
                         aria-label="تفاصيل"
                       >👁️</button>
-                      <a
-                        href={docUrl(`/print/sale/${s.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        onClick={() => openPrintDoc(`/print/sale/${s.id}`)}
                         className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
                         aria-label="طباعة"
-                      ><Printer size={16} /></a>
+                      ><Printer size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -239,14 +237,9 @@ export default function SalesPage() {
             {(cancelSale.isError || fullReturn.isError) && (
               <ErrorBox message={((cancelSale.error ?? fullReturn.error) as Error).message} />
             )}
-            <a
-              href={docUrl(`/print/sale/${detailId}`)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink"
-            >
+            <Button onClick={() => detailId && openPrintDoc(`/print/sale/${detailId}`)}>
               <Printer size={16} /> طباعة الفاتورة
-            </a>
+            </Button>
           </div>
         )}
       </Modal>
