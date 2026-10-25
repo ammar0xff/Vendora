@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Minus, Package, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, X } from "lucide-react";
 import { api, ApiError, openPrintDoc } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, useToast } from "@/components/ui";
 import { Stagger, StaggerItem } from "@/components/motion";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/kit/input-group";
+import { Kbd } from "@/components/kit/kbd";
+import { Separator } from "@/components/kit/separator";
+import { Badge as KitBadge } from "@/components/kit/badge";
 import { enqueueSale, listQueue, replayQueue, removeSale, type QueuedSale } from "@/lib/offline";
 
 interface Warehouse { id: string; name: string }
@@ -122,9 +126,7 @@ export default function PosPage() {
     });
   }
 
-  async function onBarcode(e: React.FormEvent) {
-    e.preventDefault();
-    const code = (barcodeRef.current?.value ?? "").trim();
+  async function scanBarcode(code: string) {
     if (!code) return;
     try {
       const p = await api.get<Product>(`/products/barcode/${encodeURIComponent(code)}`);
@@ -132,7 +134,7 @@ export default function PosPage() {
     } catch {
       /* unknown barcode — non-disruptive */
     }
-    if (barcodeRef.current) barcodeRef.current.value = "";
+    setSearch("");
     barcodeRef.current?.focus();
   }
 
@@ -239,35 +241,54 @@ export default function PosPage() {
     <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
       {/* Catalog side */}
       <div className="min-w-0 space-y-3">
-        <Card className="flex flex-wrap items-center gap-2 p-3">
-          <form onSubmit={onBarcode} className="flex min-w-[220px] flex-1 items-center gap-2">
-            <Input ref={barcodeRef} placeholder="امسح الباركود… (F3)" className="font-mono" autoFocus />
-            <Button type="submit" variant="outline" aria-label="إضافة بالباركود"><Search size={16} /></Button>
-          </form>
-          <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="w-auto">
-            {wh.data?.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </Select>
-          <div className="flex overflow-hidden rounded-lg border border-line">
-            {(["retail", "wholesale"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`px-3 py-2 text-sm font-semibold ${mode === m ? "bg-brand text-brand-ink" : "text-muted hover:bg-elevated"}`}
-              >
-                {m === "retail" ? "تجزئة" : "جملة"}
-              </button>
-            ))}
+        <Card className="flex flex-col gap-3 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <form
+              onSubmit={(e) => { e.preventDefault(); scanBarcode(search.trim()); }}
+              className="flex min-w-[240px] flex-1 items-center gap-2"
+            >
+              <InputGroup className="h-11 bg-card">
+                <InputGroupInput
+                  ref={barcodeRef}
+                  autoFocus
+                  placeholder="امسح الباركود أو ابحث بالاسم / الكود"
+                  aria-label="بحث أو باركود"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <InputGroupAddon>
+                  <ScanBarcode className="size-4 text-muted-foreground" />
+                </InputGroupAddon>
+              </InputGroup>
+              <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="w-auto">
+                {wh.data?.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </Select>
+            </form>
+            <div className="flex overflow-hidden rounded-lg border border-line">
+              {(["retail", "wholesale"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`px-3 py-2 text-sm font-semibold ${mode === m ? "bg-brand text-brand-ink" : "text-muted hover:bg-elevated"}`}
+                >
+                  {m === "retail" ? "تجزئة" : "جملة"}
+                </button>
+              ))}
+            </div>
           </div>
-        </Card>
-
-        <Card className="flex items-center gap-2 p-3">
-          <Input placeholder="ابحث عن منتج بالاسم…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <Button variant="outline" onClick={() => setResumeOpen(true)} disabled={!held.length}>
-            <Play size={15} /> استئناف {held.length ? `(${held.length})` : ""}
-          </Button>
-          <Button variant={queue.length ? "default" : "outline"} onClick={() => { setQueueOpen(true); refreshQueue(); }}>
-            ⏿ {queue.length ? `بانتظار المزامنة (${queue.length})` : "المزامنة"}
-          </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted">
+              <Kbd>Enter</Kbd> مطابقة الباركود · <Kbd>F3</Kbd> تركيز البحث · <Kbd>F2</Kbd> الدفع
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="text-xs" onClick={() => setResumeOpen(true)} disabled={!held.length}>
+                <Pause size={14} /> استئناف {held.length ? `(${held.length})` : ""}
+              </Button>
+              <Button variant={queue.length ? "default" : "outline"} className="text-xs" onClick={() => { setQueueOpen(true); refreshQueue(); }}>
+                <CloudUpload size={14} /> {queue.length ? `بانتظار المزامنة (${queue.length})` : "المزامنة"}
+              </Button>
+            </div>
+          </div>
         </Card>
 
         {products.isLoading ? (
@@ -310,24 +331,26 @@ export default function PosPage() {
       </div>
 
       {/* Cart side */}
-      <div className="flex flex-col gap-3">
-        <Card className="flex items-center justify-between p-4">
-          <span className="flex items-center gap-2 font-bold"><ShoppingCart size={18} /> الفاتورة</span>
-          <div className="flex gap-2">
-            {cart.length > 0 && (
-              <>
-                <button
-                  onClick={() => { persistHeld([...held, { id: String(Date.now()), cart, mode, at: new Date().toISOString() }]); setCart([]); }}
-                  className="flex items-center gap-1 text-xs font-semibold text-brand"
-                >
-                  <Pause size={14} /> تعليق
-                </button>
-                <button onClick={() => setCart([])} className="flex items-center gap-1 text-xs font-semibold text-danger">
-                  <Trash2 size={14} /> تفريغ
-                </button>
-              </>
-            )}
-          </div>
+      <div className="flex min-w-0 flex-col gap-3">
+        <Card className="overflow-hidden p-0">
+          <header className="flex items-center justify-between gap-2 border-b border-line p-4">
+            <h2 className="flex items-center gap-2 font-semibold">
+              <ShoppingCart className="size-4" /> الفاتورة الحالية
+              <KitBadge variant="secondary" className="num">{cart.reduce((s, i) => s + i.qty, 0)}</KitBadge>
+            </h2>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" className="text-xs" onClick={() => setResumeOpen(true)}>
+                <Pause size={14} />
+                المعلقة
+                {held.length > 0 && <KitBadge variant="warning" className="num">{held.length}</KitBadge>}
+              </Button>
+              {cart.length > 0 && (
+                <Button variant="ghost" className="p-1.5" onClick={() => setConfirmClear(true)} aria-label="تفريغ الفاتورة">
+                  <Trash2 size={14} />
+                </Button>
+              )}
+            </div>
+          </header>
         </Card>
 
         {shiftMissing && (
@@ -388,13 +411,24 @@ export default function PosPage() {
             <span className="text-sm text-muted">الإجمالي</span>
             <span className="num text-2xl font-black text-brand">{money(total)} ج.م</span>
           </div>
-          <Button
-            className="w-full py-3 text-base"
-            disabled={!cart.length || shiftMissing || shift.isLoading}
-            onClick={() => { setCashInput(total.toFixed(2)); setSplit([]); setPayOpen(true); }}
-          >
-            إتمام الدفع (F2)
-          </Button>
+          <Separator />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={!cart.length}
+              onClick={() => { persistHeld([...held, { id: String(Date.now()), cart, mode, at: new Date().toISOString() }]); setCart([]); }}
+            >
+              <Pause size={15} /> تعليق
+            </Button>
+            <Button
+              className="flex-[2] py-3 text-base"
+              disabled={!cart.length || shiftMissing || shift.isLoading}
+              onClick={() => { setCashInput(total.toFixed(2)); setSplit([]); setPayOpen(true); }}
+            >
+              إتمام الدفع <Kbd>F2</Kbd>
+            </Button>
+          </div>
         </Card>
       </div>
 

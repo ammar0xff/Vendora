@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { money } from "@/lib/format";
-import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
+import { Button, Empty, ErrorBox, Modal, Select, Spinner, Input } from "@/components/ui";
+import { PageHeader, SearchField, TableShell } from "@/components/app/shared";
+import { Badge as KitBadge } from "@/components/kit/badge";
+import { Skeleton } from "@/components/kit/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/kit/table";
 
 interface Product {
   id: string; name: string; code: string | null; barcode: string | null; unit: string;
@@ -56,64 +60,64 @@ export default function ProductsPage() {
   });
 
   const totalPages = list.data?.pages ?? 1;
+  const total = list.data?.total ?? 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold">المنتجات</h1>
-        <Button onClick={openNew}><Plus size={16} /> منتج جديد</Button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="المنتجات"
+        description={`${total} صنف في الكتالوج`}
+        actions={
+          <Button onClick={openNew}><Plus size={16} /> منتج جديد</Button>
+        }
+      />
 
-      <Card className="flex items-center gap-2 p-3">
-        <Search size={16} className="text-muted" />
-        <Input
-          placeholder="ابحث بالاسم أو الكود أو الباركود…"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        />
-      </Card>
+      <SearchField
+        value={search}
+        onChange={(v) => { setSearch(v); setPage(1); }}
+        placeholder="ابحث بالاسم أو الكود أو الباركود…"
+      />
 
       {list.isLoading ? (
-        <Card className="grid place-items-center p-10"><Spinner /></Card>
+        <div className="flex flex-col gap-2" aria-busy="true">
+          <Skeleton className="h-10 w-full" />
+          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
       ) : list.isError ? (
         <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       ) : !list.data!.items.length ? (
         <Empty text="لا توجد منتجات" hint="أضف أول منتج" />
       ) : (
-        <Card className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-xs text-muted">
-                <th className="p-3 text-start">الكود</th>
-                <th className="p-3 text-start">الاسم</th>
-                <th className="p-3 text-start">الشركة</th>
-                <th className="p-3 text-start">تجزئة</th>
-                <th className="p-3 text-start">جملة</th>
-                <th className="p-3 text-start">الوحدة</th>
-                <th className="p-3 text-start">الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
+        <TableShell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>الكود</TableHead>
+                <TableHead>الاسم</TableHead>
+                <TableHead className="hidden md:table-cell">الشركة</TableHead>
+                <TableHead className="text-end">تجزئة</TableHead>
+                <TableHead className="hidden sm:table-cell text-end">جملة</TableHead>
+                <TableHead className="hidden lg:table-cell">الوحدة</TableHead>
+                <TableHead>الحالة</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {list.data!.items.map((p) => (
-                <tr
-                  key={p.id}
-                  className="cursor-pointer border-b border-line/60 last:border-0 hover:bg-elevated"
-                  onClick={() => openEdit(p)}
-                >
-                  <td className="num p-3 text-xs text-muted" dir="ltr">{p.code ?? "—"}</td>
-                  <td className="p-3 font-semibold">{p.name}</td>
-                  <td className="p-3 text-muted">{p.company ?? "—"}</td>
-                  <td className="num p-3 font-bold">{money(p.retail_price)}</td>
-                  <td className="num p-3">{money(p.wholesale_price)}</td>
-                  <td className="p-3 text-muted">{p.unit}</td>
-                  <td className="p-3">
-                    <Badge tone={p.is_active ? "success" : "muted"}>{p.is_active ? "نشط" : "موقوف"}</Badge>
-                  </td>
-                </tr>
+                <TableRow key={p.id} className="cursor-pointer" onClick={() => openEdit(p)}>
+                  <TableCell className="num text-xs text-muted-foreground" dir="ltr">{p.code ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">{p.company ?? "—"}</TableCell>
+                  <TableCell className="num text-end font-semibold">{money(p.retail_price)}</TableCell>
+                  <TableCell className="num hidden sm:table-cell text-end">{money(p.wholesale_price)}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-muted-foreground">{p.unit}</TableCell>
+                  <TableCell>
+                    <KitBadge variant={p.is_active ? "success" : "secondary"}>{p.is_active ? "نشط" : "موقوف"}</KitBadge>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </Card>
+            </TableBody>
+          </Table>
+        </TableShell>
       )}
 
       {totalPages > 1 && (
