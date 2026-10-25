@@ -35,18 +35,19 @@ function NavItems({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
   return (
     <nav className="flex h-full flex-col gap-1 p-3" aria-label="القائمة الرئيسية">
       <div className="mb-4 flex items-center gap-2 px-2 py-1">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand font-black text-brand-ink">ف</div>
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-side-primary font-black text-side-primary-ink">ف</div>
         <AnimatePresence initial={false}>
           {!collapsed && (
-            <motion.span
+            <motion.div
               initial={{ opacity: 0, x: 6 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 6 }}
               transition={{ duration: 0.15 }}
-              className="text-lg font-extrabold"
+              className="leading-tight"
             >
-              فيندورا
-            </motion.span>
+              <div className="text-lg font-extrabold text-side-ink">فيندورا</div>
+              <div className="text-[11px] text-side-muted">المصرية الألمانية</div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -59,7 +60,7 @@ function NavItems({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
           title={n.label}
           className={({ isActive }) =>
             `relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              isActive ? "text-brand-ink" : "text-muted hover:bg-elevated hover:text-ink"
+              isActive ? "text-side-accent-ink" : "text-side-muted hover:bg-side-accent hover:text-side-ink"
             } ${collapsed ? "justify-center" : ""}`
           }
         >
@@ -69,7 +70,7 @@ function NavItems({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
                 <motion.span
                   layoutId="nav-active-pill"
                   transition={spring}
-                  className="absolute inset-0 -z-10 rounded-lg bg-brand"
+                  className="absolute inset-0 -z-10 rounded-lg bg-side-accent"
                 />
               )}
               {n.icon}
@@ -115,12 +116,12 @@ export default function Shell() {
         animate={{ width: collapsed ? 68 : 240 }}
         transition={spring}
         initial={false}
-        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-l border-line bg-surface lg:block"
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-l border-side-line bg-side lg:block"
       >
         <NavItems collapsed={collapsed} />
         <button
           onClick={toggleSidebar}
-          className={`absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition hover:bg-elevated hover:text-ink ${
+          className={`absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-lg px-3 py-2 text-sm text-side-muted transition hover:bg-side-accent hover:text-side-ink ${
             collapsed ? "justify-center" : ""
           }`}
           aria-label={collapsed ? "توسيع القائمة" : "طي القائمة"}
@@ -142,7 +143,7 @@ export default function Shell() {
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
-              className="absolute right-0 top-0 z-50 h-full w-64 border-l border-line bg-surface lg:hidden"
+              className="absolute right-0 top-0 z-50 h-full w-64 border-l border-side-line bg-side lg:hidden"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -155,7 +156,7 @@ export default function Shell() {
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur">
           <button className="rounded-lg p-2 hover:bg-elevated lg:hidden" onClick={() => setMobileOpen(true)} aria-label="القائمة">
             <Menu size={20} />
           </button>

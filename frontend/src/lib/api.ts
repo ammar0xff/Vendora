@@ -53,12 +53,18 @@ async function request<T>(
     if (v !== undefined && v !== "") url.searchParams.set(k, String(v));
   }
 
-  const res = await fetch(url.toString(), {
-    method,
-    headers,
-    body,
-    credentials: isSameOrigin() ? "same-origin" : "include",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      method,
+      headers,
+      body,
+      credentials: isSameOrigin() ? "same-origin" : "include",
+    });
+  } catch {
+    // network-level failure (offline / CORS / DNS) — fetch throws TypeError with an English message
+    throw new ApiError(0, "تعذر الاتصال بالخادم — تحقق من اتصال الإنترنت");
+  }
 
   if (res.status === 401 && useAuth.getState().token) {
     useAuth.getState().logout();

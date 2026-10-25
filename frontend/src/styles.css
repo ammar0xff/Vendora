@@ -14,34 +14,76 @@
   --color-success: var(--vk-success);
   --color-warning: var(--vk-warning);
   --color-danger: var(--vk-danger);
+
+  /* Dark navy sidebar — constant identity in both themes */
+  --color-side: var(--vk-side);
+  --color-side-ink: var(--vk-side-ink);
+  --color-side-muted: var(--vk-side-muted);
+  --color-side-accent: var(--vk-side-accent);
+  --color-side-accent-ink: var(--vk-side-accent-ink);
+  --color-side-line: var(--vk-side-line);
+  --color-side-primary: var(--vk-side-primary);
+  --color-side-primary-ink: var(--vk-side-primary-ink);
+
+  /* Chart palette (recharts / report bars) */
+  --color-chart-1: var(--vk-chart-1);
+  --color-chart-2: var(--vk-chart-2);
+  --color-chart-3: var(--vk-chart-3);
+  --color-chart-4: var(--vk-chart-4);
+  --color-chart-5: var(--vk-chart-5);
 }
 
+/* ── Steel-blue / navy design system (ported from the approved prototype) ── */
 :root {
-  --vk-bg: #faf9f7;
-  --vk-surface: #ffffff;
-  --vk-elevated: #ffffff;
-  --vk-line: #e7e5e4;
-  --vk-ink: #1c1917;
-  --vk-muted: #78716c;
-  --vk-brand: #b45309;
-  --vk-brand-ink: #ffffff;
-  --vk-success: #15803d;
-  --vk-warning: #b45309;
-  --vk-danger: #b91c1c;
+  --vk-bg: oklch(0.975 0.004 220);
+  --vk-surface: oklch(1 0 0);
+  --vk-elevated: oklch(1 0 0);
+  --vk-line: oklch(0.905 0.009 225);
+  --vk-ink: oklch(0.23 0.025 240);
+  --vk-muted: oklch(0.52 0.02 235);
+  --vk-brand: oklch(0.46 0.085 215);
+  --vk-brand-ink: oklch(0.985 0.005 220);
+  --vk-success: oklch(0.52 0.12 155);
+  --vk-warning: oklch(0.6 0.13 65);
+  --vk-danger: oklch(0.55 0.2 27);
+
+  --vk-side: oklch(0.25 0.035 230);
+  --vk-side-ink: oklch(0.93 0.01 220);
+  --vk-side-muted: oklch(0.93 0.01 220 / 72%);
+  --vk-side-accent: oklch(0.31 0.04 228);
+  --vk-side-accent-ink: oklch(0.97 0.005 220);
+  --vk-side-line: oklch(1 0 0 / 8%);
+  --vk-side-primary: oklch(0.78 0.09 200);
+  --vk-side-primary-ink: oklch(0.2 0.03 230);
+
+  --vk-chart-1: oklch(0.46 0.085 215);
+  --vk-chart-2: oklch(0.72 0.13 70);
+  --vk-chart-3: oklch(0.6 0.1 175);
+  --vk-chart-4: oklch(0.55 0.08 260);
+  --vk-chart-5: oklch(0.65 0.04 240);
 }
 
 html.dark {
-  --vk-bg: #171412;
-  --vk-surface: #1e1b19;
-  --vk-elevated: #292524;
-  --vk-line: #3a3532;
-  --vk-ink: #f5f5f4;
-  --vk-muted: #a8a29e;
-  --vk-brand: #f59e0b;
-  --vk-brand-ink: #1c1917;
-  --vk-success: #4ade80;
-  --vk-warning: #fbbf24;
-  --vk-danger: #f87171;
+  --vk-bg: oklch(0.175 0.014 235);
+  --vk-surface: oklch(0.21 0.016 235);
+  --vk-elevated: oklch(0.26 0.018 235);
+  --vk-line: oklch(1 0 0 / 12%);
+  --vk-ink: oklch(0.94 0.006 225);
+  --vk-muted: oklch(0.66 0.015 230);
+  --vk-brand: oklch(0.74 0.095 200);
+  --vk-brand-ink: oklch(0.2 0.03 230);
+  --vk-success: oklch(0.7 0.15 155);
+  --vk-warning: oklch(0.75 0.13 75);
+  --vk-danger: oklch(0.68 0.19 25);
+
+  --vk-side: oklch(0.145 0.013 235);
+  --vk-side-ink: oklch(0.94 0.006 225);
+  --vk-side-muted: oklch(0.94 0.006 225 / 60%);
+  --vk-side-accent: oklch(0.22 0.018 235);
+  --vk-side-accent-ink: oklch(0.97 0.005 220);
+  --vk-side-line: oklch(1 0 0 / 7%);
+  --vk-side-primary: oklch(0.78 0.09 200);
+  --vk-side-primary-ink: oklch(0.2 0.03 230);
 }
 
 html {
@@ -59,19 +101,38 @@ body {
 }
 
 .num {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
   direction: ltr;
   unicode-bidi: isolate;
   display: inline-block;
 }
 
+/* Slim quiet scrollbars matching the palette in both themes */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--vk-ink) 22%, transparent) transparent;
+}
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--vk-line);
-  border-radius: 8px;
+  background: color-mix(in oklab, var(--vk-ink) 22%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--vk-ink) 38%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 button:not(:disabled) { cursor: pointer; }
