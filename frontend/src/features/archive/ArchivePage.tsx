@@ -1,0 +1,99 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { FileText, Printer } from "lucide-react";
+import { api, docUrl } from "@/lib/api";
+import { dateTime } from "@/lib/format";
+import { Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
+
+interface Doc {
+  id: string; doc_number: string; doc_type: string; created_at: string;
+  summary?: string | null;
+}
+
+const TYPES = [
+  { v: "", l: "كل الأنواع" },
+  { v: "sale_invoice", l: "فاتورة بيع" },
+  { v: "purchase_order", l: "أمر شراء" },
+  { v: "purchase_invoice", l: "فاتورة شراء" },
+  { v: "dispatch_order", l: "إذن صرف" },
+  { v: "goods_receipt", l: "استلام بضاعة" },
+  { v: "shift_report", l: "تقرير وردية" },
+  { v: "shift_handover", l: "تسليم عهدة" },
+  { v: "inventory_report", l: "جرد مخزون" },
+  { v: "quotation", l: "عرض سعر" },
+];
+
+export default function ArchivePage() {
+  const [docType, setDocType] = useState("");
+  const [search, setSearch] = useState("");
+
+  const q = useQuery({
+    queryKey: ["archive", docType, search],
+    queryFn: () => api.get<Doc[]>("/archive", { doc_type: docType || undefined, search: search || undefined, limit: 60 }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-xl font-extrabold">الأرشيف</h1>
+      <Card className="flex flex-wrap gap-3 p-3">
+        <Select className="w-auto" value={docType} onChange={(e) => setDocType(e.target.value)}>
+          {TYPES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+        </Select>
+        <Input placeholder="ابحث برقم المستند…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </Card>
+
+      {q.isLoading ? (
+        <Card className="grid place-items-center p-10"><Spinner /></Card>
+      ) : q.isError ? (
+        <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
+      ) : !q.data?.length ? (
+        <Empty text="لا توجد مستندات مطابقة" hint="كل عملية بيع أو شراء أو صرف تؤرشف تلقائياً" />
+      ) : (
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-xs text-muted">
+                <th className="p-3 text-start">المستند</th>
+                <th className="p-3 text-start">النوع</th>
+                <th className="p-3 text-start">التاريخ</th>
+                <th className="p-3 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {q.data.map((d) => (
+                <tr key={d.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
+                  <td className="num p-3 font-bold" dir="ltr">{d.doc_number}</td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1.5 text-muted">
+                      <FileText size={14} />
+                      {TYPES.find((t) => t.v === d.doc_type)?.l ?? d.doc_type}
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs text-muted">{dateTime(d.created_at)}</td>
+                  <td className="p-3">
+                    <div className="flex gap-1">
+                      <a
+                        href={docUrl(`/print/archive/${d.id}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
+                        aria-label="طباعة"
+                      ><Printer size={16} /></a>
+                      <a
+                        href={docUrl(`/print/pdf/archive/${d.id}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
+                        aria-label="PDF"
+                      >📄</a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
+  );
+}
