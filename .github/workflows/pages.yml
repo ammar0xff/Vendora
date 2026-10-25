@@ -35,6 +35,8 @@ jobs:
           npm ci
           npm test
           npm run build
+          # GitHub Pages SPA fallback: serve the app shell on deep links like /Vendora/pos
+          cp dist/index.html dist/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
