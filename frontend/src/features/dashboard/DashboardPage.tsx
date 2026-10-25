@@ -138,7 +138,7 @@ export default function DashboardPage() {
           tone={(lowStock.data?.length ?? 0) > 0 ? "warning" : "success"}
           value={<Num value={lowStock.data?.length ?? 0} />}
           hint={
-            <Link to="/inventory" className="underline-offset-4 hover:underline">
+            <Link to="/inventory" className="inline-flex min-h-8 items-center underline-offset-4 hover:underline">
               عرض قائمة النواقص
             </Link>
           }
@@ -154,7 +154,7 @@ export default function DashboardPage() {
                 منذ <span className="num">{formatDateTime(shift.data.started_at)}</span>
               </span>
             ) : (
-              <Link to="/shifts" className="underline-offset-4 hover:underline">
+              <Link to="/shifts" className="inline-flex min-h-8 items-center underline-offset-4 hover:underline">
                 افتح وردية لبدء البيع
               </Link>
             )

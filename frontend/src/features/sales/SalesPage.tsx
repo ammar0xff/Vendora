@@ -174,7 +174,7 @@ export default function SalesPage() {
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
-                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`إجراءات ${inv.invoice_number}`} />}>
+                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8" aria-label={`إجراءات ${inv.invoice_number}`} />}>
                         <MoreHorizontal />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">

@@ -203,3 +203,9 @@ After each phase:
 - **Don't mutate prod `store_name`**
 - **Keep existing functionality working** — this is a visual refactor, not a feature change
 - **Smallest possible commits per phase** — easy to revert if something breaks
+
+## Session 2026-10-25 — Design audit (Jobs/Ive protocol) applied
+- Audit: 18 routes × 3 viewports instrumented (overflow, offscreen, touch targets, micro-type, broken imgs) + contrast math (worst pair now 4.5:1+).
+- Lessons: (1) unifying primitives in ONE file (ui.tsx → kit visuals) beats per-page rewrites when context is scarce; (2) internal-scroll tables read as "offscreen" in audits — page-level overflowX is the real signal; (3) `text-[0.75em]` breaks the 12px floor silently — absolute units only; (4) kit `sm` was 28px — below touch floor; height tokens are system-level, fix once in button.tsx.
+- Canon: frontend/DESIGN_SYSTEM.md created (tokens, type scale 24/20/16/12, icon scale 16/18/20, touch floor 36/32, patterns: PageHeader/StatCard/ListState/MobileActionBar).
+- Residual (approved, deferred): products table phone-width card layout; users table still internal-scrolls at 375px (60 offscreen children, targets fixed); shifts 5 sub-32px targets from icon-only buttons.

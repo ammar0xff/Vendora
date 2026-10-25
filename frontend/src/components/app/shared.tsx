@@ -15,7 +15,7 @@ export function Money({ value, className, currency = true }: { value: number; cl
   return (
     <span className={cn('inline-flex items-baseline gap-1 whitespace-nowrap', className)}>
       <span className="num">{formatMoney(value)}</span>
-      {currency && <span className="text-[0.75em] font-normal text-muted-foreground">ج.م</span>}
+      {currency && <span className="text-xs font-normal text-muted-foreground">ج.م</span>}
     </span>
   )
 }
