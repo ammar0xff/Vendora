@@ -27,8 +27,8 @@ export default function FinancePage() {
   const [tab, setTab] = useState<string>("expenses");
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">المالية</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-semibold tracking-tight">المالية</h1>
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button
@@ -77,7 +77,7 @@ function ExpensesTab() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}><Plus size={16} /> مصروف جديد</Button>
       </div>
@@ -119,7 +119,7 @@ function ExpensesTab() {
       {approve.isError && <ErrorBox message={(approve.error as Error).message} />}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="مصروف جديد">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium">الوصف *</label>
             <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
@@ -206,7 +206,7 @@ function CashTab() {
           : safes.data?.map((s) => (
             <Card key={s.id} className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 font-bold"><Banknote size={17} /> {s.name}</span>
+                <span className="flex items-center gap-2 font-bold"><Banknote size={18} /> {s.name}</span>
                 <Badge tone="muted">{s.safe_type === "permanent" ? "دائمة" : "مؤقتة"}</Badge>
               </div>
               <p className="num text-2xl font-black text-brand">{money(s.balance)} <span className="text-sm font-normal text-muted">ج.م</span></p>
@@ -225,12 +225,12 @@ function CashTab() {
           {wallets.data?.map((w) => (
             <Card key={w.id} className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 font-bold"><Wallet size={17} /> {w.name}</span>
+                <span className="flex items-center gap-2 font-bold"><Wallet size={18} /> {w.name}</span>
                 <Badge tone="brand">{w.type}</Badge>
               </div>
               <p className="num text-xl font-black">{money(w.balance)} <span className="text-sm font-normal text-muted">ج.م</span></p>
               <Button variant="outline" onClick={() => setModal({ kind: "transfer", target: w as unknown as Safe })}>
-                <ArrowLeftRight size={15} /> تحويل لخزنة
+                <ArrowLeftRight size={16} /> تحويل لخزنة
               </Button>
             </Card>
           ))}
@@ -239,7 +239,7 @@ function CashTab() {
 
       <Modal open={!!modal} onClose={() => setModal(null)}
         title={modal?.kind === "deposit" ? `إيداع في ${modal.target.name}` : modal?.kind === "withdraw" ? `سحب من ${modal?.target.name}` : `تحويل من ${modal?.target.name} إلى خزنة`}>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {modal?.kind === "transfer" && (
             <div>
               <label className="mb-1 block text-sm font-medium">إلى خزنة</label>
@@ -292,7 +292,7 @@ function LedgerTab() {
   const totalCredit = (ledger.data ?? []).reduce((s, r) => s + Number(r.credit ?? 0), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <Card className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-sm font-medium">من</label>
@@ -361,7 +361,7 @@ function PeriodsTab() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <p className="text-sm text-muted">إغلاق الشهر يمنع أي عمليات مالية عليه. الشهر المغلق يمكن إعادة فتحه.</p>
       {list.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
@@ -388,11 +388,11 @@ function PeriodsTab() {
                   <td className="p-3">
                     {p.status === "closed" ? (
                       <Button variant="outline" onClick={() => act.mutate({ month: p.month, verb: "reopen" })} disabled={act.isPending}>
-                        <LockOpen size={15} /> إعادة فتح
+                        <LockOpen size={16} /> إعادة فتح
                       </Button>
                     ) : (
                       <Button variant="danger" onClick={() => act.mutate({ month: p.month, verb: "close" })} disabled={act.isPending}>
-                        <Lock size={15} /> إغلاق الشهر
+                        <Lock size={16} /> إغلاق الشهر
                       </Button>
                     )}
                   </td>

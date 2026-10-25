@@ -69,9 +69,9 @@ export default function ShiftsPage() {
   const shift = current.data;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold">الورديات</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">الورديات</h1>
         <Select value={wid} onChange={(e) => setWarehouseId(e.target.value)} className="w-auto">
           {wh.data?.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </Select>
@@ -99,7 +99,7 @@ export default function ShiftsPage() {
             <p className="flex items-center gap-2 font-bold text-success"><Clock size={18} /> وردية مفتوحة</p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => openPrintDoc(`/print/shift/${shift.id}`)}>
-                <Printer size={15} /> تقرير الوردية
+                <Printer size={16} /> تقرير الوردية
               </Button>
             </div>
           </div>
@@ -145,7 +145,7 @@ export default function ShiftsPage() {
           )}
 
           <div className="rounded-xl border border-warning/40 bg-warning/10 p-3">
-            <p className="mb-2 flex items-center gap-2 text-sm font-bold"><LockKeyhole size={15} /> إغلاق الوردية</p>
+            <p className="mb-2 flex items-center gap-2 text-sm font-bold"><LockKeyhole size={16} /> إغلاق الوردية</p>
             <div className="flex flex-wrap items-end gap-3">
               <div>
                 <label className="mb-1 block text-sm font-medium">الرصيد الفعلي المعدود</label>

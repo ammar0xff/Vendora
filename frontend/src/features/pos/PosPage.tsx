@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, X } from "lucide-react";
+import { CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, TriangleAlert, X } from "lucide-react";
 import { api, ApiError, openPrintDoc } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, useToast } from "@/components/ui";
@@ -9,6 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/kit/i
 import { Kbd } from "@/components/kit/kbd";
 import { Separator } from "@/components/kit/separator";
 import { Badge as KitBadge } from "@/components/kit/badge";
+import { PageHeader } from "@/components/app/shared";
 import { enqueueSale, listQueue, replayQueue, removeSale, type QueuedSale } from "@/lib/offline";
 
 interface Warehouse { id: string; name: string }
@@ -238,7 +239,10 @@ export default function PosPage() {
       : false;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
+    <div className="flex flex-col gap-4 pb-24 lg:grid lg:grid-cols-[1fr_400px] lg:pb-0">
+      <div className="lg:hidden">
+        <PageHeader title="نقطة البيع" description="امسح الباركود أو اختر منتجًا لبدء الفاتورة" />
+      </div>
       {/* Catalog side */}
       <div className="min-w-0 space-y-3">
         <Card className="flex flex-col gap-3 p-3">
@@ -282,10 +286,10 @@ export default function PosPage() {
             </p>
             <div className="flex gap-2">
               <Button variant="outline" className="text-xs" onClick={() => setResumeOpen(true)} disabled={!held.length}>
-                <Pause size={14} /> استئناف {held.length ? `(${held.length})` : ""}
+                <Pause size={16} /> استئناف {held.length ? `(${held.length})` : ""}
               </Button>
               <Button variant={queue.length ? "default" : "outline"} className="text-xs" onClick={() => { setQueueOpen(true); refreshQueue(); }}>
-                <CloudUpload size={14} /> {queue.length ? `بانتظار المزامنة (${queue.length})` : "المزامنة"}
+                <CloudUpload size={16} /> {queue.length ? `بانتظار المزامنة (${queue.length})` : "المزامنة"}
               </Button>
             </div>
           </div>
@@ -320,7 +324,7 @@ export default function PosPage() {
                     <span className="num rounded-md bg-brand/10 px-2 py-0.5 text-sm font-extrabold text-brand">
                       {money(mode === "wholesale" ? p.wholesale_price : p.retail_price)} ج.م
                     </span>
-                    <span className="text-[11px] text-muted">{p.unit}{p.code ? ` · ${p.code}` : ""}</span>
+                    <span className="text-xs text-muted-foreground">{p.unit}{p.code ? ` · ${p.code}` : ""}</span>
                   </div>
                 </div>
               </button>
@@ -340,13 +344,13 @@ export default function PosPage() {
             </h2>
             <div className="flex items-center gap-1">
               <Button variant="ghost" className="text-xs" onClick={() => setResumeOpen(true)}>
-                <Pause size={14} />
+                <Pause size={16} />
                 المعلقة
                 {held.length > 0 && <KitBadge variant="warning" className="num">{held.length}</KitBadge>}
               </Button>
               {cart.length > 0 && (
                 <Button variant="ghost" className="p-1.5" onClick={() => setConfirmClear(true)} aria-label="تفريغ الفاتورة">
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </Button>
               )}
             </div>
@@ -379,7 +383,7 @@ export default function PosPage() {
                       className="rounded-md border border-line p-1 hover:bg-elevated"
                       onClick={() => setCart((c) => c.map((x, j) => j === idx ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
                       aria-label="تقليل"
-                    ><Minus size={14} /></button>
+                    ><Minus size={16} /></button>
                     <input
                       className="num w-12 rounded-md border border-line bg-surface p-1 text-center text-sm"
                       value={i.qty}
@@ -393,12 +397,12 @@ export default function PosPage() {
                       className="rounded-md border border-line p-1 hover:bg-elevated"
                       onClick={() => setCart((c) => c.map((x, j) => j === idx ? { ...x, qty: x.qty + 1 } : x))}
                       aria-label="زيادة"
-                    ><Plus size={14} /></button>
+                    ><Plus size={16} /></button>
                     <button
                       className="rounded-md p-1 text-danger hover:bg-elevated"
                       onClick={() => setCart((c) => c.filter((_, j) => j !== idx))}
                       aria-label="حذف"
-                    ><X size={14} /></button>
+                    ><X size={16} /></button>
                   </div>
                 </li>
               ))}
@@ -419,7 +423,7 @@ export default function PosPage() {
               disabled={!cart.length}
               onClick={() => { persistHeld([...held, { id: String(Date.now()), cart, mode, at: new Date().toISOString() }]); setCart([]); }}
             >
-              <Pause size={15} /> تعليق
+              <Pause size={16} /> تعليق
             </Button>
             <Button
               className="flex-[2] py-3 text-base"
@@ -432,9 +436,23 @@ export default function PosPage() {
         </Card>
       </div>
 
+      {/* Mobile action bar — checkout always one thumb away */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-line bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        <div className="flex flex-col leading-tight">
+          <span className="text-xs text-muted-foreground">الإجمالي</span>
+          <span className="num text-lg font-bold">{money(total)} ج.م</span>
+        </div>
+        <Button
+          disabled={!cart.length || shiftMissing || shift.isLoading}
+          onClick={() => { setCashInput(total.toFixed(2)); setSplit([]); setPayOpen(true); }}
+        >
+          إتمام الدفع
+        </Button>
+      </div>
+
       {/* Payment modal */}
       <Modal open={payOpen} onClose={() => setPayOpen(false)} title="إتمام الدفع">
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <div className="rounded-xl bg-elevated p-4 text-center">
             <p className="text-sm text-muted">المطلوب</p>
             <p className="num text-3xl font-black text-brand">{money(total)} ج.م</p>
@@ -461,8 +479,9 @@ export default function PosPage() {
                 </p>
               )}
               {creditWarning && (
-                <p className="rounded-lg bg-danger/10 p-2 text-sm font-bold text-danger">
-                  ⚠️ هذه الفاتورة تتجاوز حد الائتمان المسموح
+                <p className="flex items-center gap-2 rounded-lg bg-destructive/10 p-2 text-sm font-medium text-destructive">
+                  <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                  هذه الفاتورة تتجاوز حد الائتمان المسموح
                 </p>
               )}
             </div>
@@ -521,7 +540,7 @@ export default function PosPage() {
                       onChange={(e) => setSplit((s) => s.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
                     />
                     <button className="rounded p-1 text-danger" onClick={() => setSplit((s) => s.filter((_, j) => j !== i))} aria-label="حذف دفعة">
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   </div>
                 ))}
@@ -567,7 +586,7 @@ export default function PosPage() {
       />
 
       <Modal open={queueOpen} onClose={() => setQueueOpen(false)} title="فواتير في انتظار المزامنة">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {!queue.length ? (
             <p className="p-4 text-center text-sm text-muted">لا توجد فواتير معلقة — كل شيء متزامن ✓</p>
           ) : (
@@ -591,7 +610,7 @@ export default function PosPage() {
                 ))}
               </ul>
               <Button className="w-full" onClick={() => tryReplay()}>
-                <Play size={15} /> محاولة المزامنة الآن
+                <Play size={16} /> محاولة المزامنة الآن
               </Button>
             </>
           )}
@@ -618,7 +637,7 @@ export default function PosPage() {
                     setResumeOpen(false);
                   }}
                 >
-                  <Play size={14} /> استئناف
+                  <Play size={16} /> استئناف
                 </Button>
               </li>
             ))}
@@ -628,7 +647,7 @@ export default function PosPage() {
 
       {/* Shift-open modal */}
       <Modal open={!!openShiftFor} onClose={() => setOpenShiftFor(null)} title="فتح وردية">
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <p className="text-sm text-muted">الفرع: <strong>{openShiftFor?.name}</strong></p>
           <div>
             <label className="mb-1 block text-sm font-medium">العهدة الافتتاحية (ج.م)</label>

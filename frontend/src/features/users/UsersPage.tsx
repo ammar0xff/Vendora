@@ -53,9 +53,9 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold">المستخدمون والصلاحيات</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">المستخدمون والصلاحيات</h1>
         <Button onClick={() => setCreating(true)}><Plus size={16} /> مستخدم جديد</Button>
       </div>
 
@@ -72,8 +72,8 @@ export default function UsersPage() {
               <tr className="border-b border-line text-xs text-muted">
                 <th className="p-3 text-start">اسم المستخدم</th>
                 <th className="p-3 text-start">الاسم</th>
-                <th className="p-3 text-start">الدور</th>
-                <th className="p-3 text-start">الصلاحيات</th>
+                <th className="hidden p-3 text-start md:table-cell">الدور</th>
+                <th className="hidden p-3 text-start sm:table-cell">الصلاحيات</th>
                 <th className="p-3 text-start">الحالة</th>
                 <th className="p-3 text-start"></th>
               </tr>
@@ -83,8 +83,8 @@ export default function UsersPage() {
                 <tr key={u.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
                   <td className="p-3 font-bold" dir="ltr">{u.username}</td>
                   <td className="p-3">{u.full_name}</td>
-                  <td className="p-3"><Badge tone="brand">{u.role}</Badge></td>
-                  <td className="num p-3 text-muted">{u.permissions?.length ?? 0}</td>
+                  <td className="hidden p-3 md:table-cell"><Badge tone="brand">{u.role}</Badge></td>
+                  <td className="num hidden p-3 text-muted sm:table-cell">{u.permissions?.length ?? 0}</td>
                   <td className="p-3"><Badge tone={u.is_active ? "success" : "muted"}>{u.is_active ? "نشط" : "موقوف"}</Badge></td>
                   <td className="p-3">
                     <div className="flex gap-1">
@@ -94,7 +94,7 @@ export default function UsersPage() {
                         onClick={() => { setPwFor(u); setNewPw(""); }}
                         aria-label="كلمة مرور جديدة"
                       >
-                        <KeyRound size={15} />
+                        <KeyRound size={16} />
                       </button>
                     </div>
                   </td>
@@ -106,7 +106,7 @@ export default function UsersPage() {
       )}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="مستخدم جديد">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">اسم المستخدم *</label>
@@ -137,7 +137,7 @@ export default function UsersPage() {
       </Modal>
 
       <Modal open={!!permFor} onClose={() => setPermFor(null)} title={`صلاحيات — ${permFor?.full_name ?? ""}`} wide>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <p className="text-sm text-muted">
             لاحظ: الدور لا يمنح الصلاحيات تلقائياً — كل صلاحية تُضبط يدوياً. (حتى admin لا يملك finance تلقائياً)
           </p>
@@ -161,7 +161,7 @@ export default function UsersPage() {
       </Modal>
 
       <Modal open={!!pwFor} onClose={() => setPwFor(null)} title={`كلمة مرور جديدة — ${pwFor?.username ?? ""}`}>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium">كلمة المرور الجديدة</label>
             <Input type="password" dir="ltr" value={newPw} onChange={(e) => setNewPw(e.target.value)} />

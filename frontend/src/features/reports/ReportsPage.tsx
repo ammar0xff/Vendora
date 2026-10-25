@@ -66,8 +66,8 @@ export default function ReportsPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">التقارير</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-semibold tracking-tight">التقارير</h1>
       <div className="flex flex-wrap gap-2">
         {[
           { k: "daily", l: "يومي" },
@@ -86,7 +86,7 @@ export default function ReportsPage() {
       </div>
 
       {tab === "daily" && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <Card className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">اليوم</label>
@@ -113,7 +113,7 @@ export default function ReportsPage() {
       )}
 
       {tab === "monthly" && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <Card className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">السنة</label>
@@ -138,7 +138,7 @@ export default function ReportsPage() {
       )}
 
       {tab === "top" && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <Card className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">من</label>
@@ -183,7 +183,7 @@ export default function ReportsPage() {
       )}
 
       {tab === "cashier" && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <Card className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">من</label>

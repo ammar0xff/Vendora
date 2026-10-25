@@ -63,9 +63,9 @@ export default function PurchasesPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold">المشتريات</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">المشتريات</h1>
         <Button onClick={() => { setCreating(true); if (!warehouseId && warehouses.data?.[0]) setWarehouseId(warehouses.data[0].id); }}>
           <Plus size={16} /> أمر شراء جديد
         </Button>
@@ -105,7 +105,7 @@ export default function PurchasesPage() {
                   <td className="p-3">
                     {po.status !== "received" && po.status !== "cancelled" && (
                       <Button variant="outline" onClick={() => receive.mutate(po.id)} disabled={receive.isPending}>
-                        {receive.isPending ? <Spinner /> : <><PackageCheck size={15} /> استلام</>}
+                        {receive.isPending ? <Spinner /> : <><PackageCheck size={16} /> استلام</>}
                       </Button>
                     )}
                   </td>
@@ -127,7 +127,7 @@ export default function PurchasesPage() {
       )}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="أمر شراء جديد" wide>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-6">
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm font-medium">المورد</label>
@@ -197,7 +197,7 @@ export default function PurchasesPage() {
                       <td className="num p-2 font-bold">{money(D(it.qty || "0").times(D(it.unit_cost || "0")))}</td>
                       <td className="p-2">
                         <button className="rounded p-1 text-danger hover:bg-elevated" onClick={() => setItems((arr) => arr.filter((_, j) => j !== idx))} aria-label="حذف">
-                          <X size={14} />
+                          <X size={16} />
                         </button>
                       </td>
                     </tr>

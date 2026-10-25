@@ -45,7 +45,7 @@ export default function CustomersPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl font-extrabold"><Users size={20} /> العملاء</h1>
         <Button onClick={() => setCreating(true)}><Plus size={16} /> عميل جديد</Button>
@@ -69,7 +69,7 @@ export default function CustomersPage() {
                 <th className="p-3 text-start">الاسم</th>
                 <th className="p-3 text-start">الهاتف</th>
                 <th className="p-3 text-start">الرصيد (مدين)</th>
-                <th className="p-3 text-start">حد الائتمان</th>
+                <th className="hidden p-3 text-start sm:table-cell">حد الائتمان</th>
                 <th className="p-3 text-start"></th>
               </tr>
             </thead>
@@ -79,7 +79,7 @@ export default function CustomersPage() {
                   <td className="p-3 font-bold">{c.name}</td>
                   <td className="num p-3" dir="ltr">{c.phone ?? "—"}</td>
                   <td className="num p-3 font-bold text-brand">{moneyEGP(c.balance)}</td>
-                  <td className="num p-3 text-muted">{c.credit_limit ? moneyEGP(c.credit_limit) : "—"}</td>
+                  <td className="num hidden p-3 text-muted sm:table-cell">{c.credit_limit ? moneyEGP(c.credit_limit) : "—"}</td>
                   <td className="p-3">
                     <div className="flex gap-1">
                       <button className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink" onClick={() => setLedgerFor(c)} aria-label="كشف حساب">📒</button>
@@ -87,7 +87,7 @@ export default function CustomersPage() {
                         className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold text-brand hover:bg-elevated"
                         onClick={() => { setPayFor(c); setPayAmount(""); }}
                       >
-                        <HandCoins size={14} /> تحصيل
+                        <HandCoins size={16} /> تحصيل
                       </button>
                     </div>
                   </td>
@@ -100,7 +100,7 @@ export default function CustomersPage() {
 
       {/* Create */}
       <Modal open={creating} onClose={() => setCreating(false)} title="عميل جديد">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium">الاسم *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -124,7 +124,7 @@ export default function CustomersPage() {
 
       {/* Payment */}
       <Modal open={!!payFor} onClose={() => setPayFor(null)} title={`تحصيل دفعة — ${payFor?.name ?? ""}`}>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">الرصيد الحالي: <span className="num font-bold text-ink">{moneyEGP(payFor?.balance ?? 0)}</span></p>
           <div>
             <label className="mb-1 block text-sm font-medium">المبلغ المحصّل</label>

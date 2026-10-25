@@ -129,7 +129,7 @@ export default function ProductsPage() {
       )}
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "تعديل منتج" : "منتج جديد"}>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium">الاسم *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

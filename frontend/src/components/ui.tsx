@@ -1,10 +1,13 @@
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2, Info, X, XCircle } from "lucide-react";
+import { CheckCircle2, Info, Inbox, X, XCircle } from "lucide-react";
 import {
   createContext, useCallback, useContext, useEffect, useState,
   type ReactNode,
 } from "react";
 import { spring } from "@/components/motion";
+
+/* Legacy kit — visually identical to components/kit (shadcn v4).
+   Kept for the not-yet-migrated screens; same API, kit styling. */
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -22,16 +25,16 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default" | "ghost" | "danger" | "outline" }) {
   const styles = {
-    default: "bg-brand text-brand-ink hover:opacity-90",
-    ghost: "hover:bg-elevated text-ink",
-    danger: "bg-danger text-white hover:opacity-90",
-    outline: "border border-line hover:bg-elevated",
+    default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+    ghost: "hover:bg-accent hover:text-accent-foreground",
+    danger: "bg-destructive text-white shadow-xs hover:bg-destructive/90",
+    outline: "border border-input bg-card shadow-xs hover:bg-accent hover:text-accent-foreground",
   }[variant];
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
       transition={{ duration: 0.08 }}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${className}`}
+      className={`inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 ${styles} ${className}`}
       {...(props as React.ComponentProps<typeof motion.button>)}
     >
       {children}
@@ -43,7 +46,7 @@ export function Input({ ref, ...props }: React.InputHTMLAttributes<HTMLInputElem
   return (
     <input
       ref={ref}
-      className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink transition placeholder:text-muted focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/25"
+      className="flex h-9 w-full min-w-0 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:opacity-50"
       {...props}
     />
   );
@@ -52,7 +55,7 @@ export function Input({ ref, ...props }: React.InputHTMLAttributes<HTMLInputElem
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/25"
+      className="flex h-9 w-full min-w-0 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:opacity-50"
       {...props}
     />
   );
@@ -61,8 +64,8 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 export function Card({ className = "", children, hover = false }: { className?: string; children: ReactNode; hover?: boolean }) {
   return (
     <div
-      className={`rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow ${
-        hover ? "hover:border-brand/40 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]" : ""
+      className={`rounded-xl border border-line bg-card text-card-foreground shadow-xs transition-shadow ${
+        hover ? "hover:border-primary/40 hover:shadow-md" : ""
       } ${className}`}
     >
       {children}
@@ -72,13 +75,13 @@ export function Card({ className = "", children, hover = false }: { className?: 
 
 export function Badge({ tone = "muted", children }: { tone?: "muted" | "success" | "warning" | "danger" | "brand"; children: ReactNode }) {
   const tones = {
-    muted: "bg-elevated text-muted",
-    success: "bg-success/15 text-success",
-    warning: "bg-warning/15 text-warning",
-    danger: "bg-danger/15 text-danger",
-    brand: "bg-brand/15 text-brand",
+    muted: "bg-secondary text-secondary-foreground",
+    success: "bg-success text-success-foreground",
+    warning: "bg-warning text-warning-foreground",
+    danger: "bg-destructive text-white",
+    brand: "bg-primary text-primary-foreground",
   }[tone];
-  return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones}`}>{children}</span>;
+  return <span className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap ${tones}`}>{children}</span>;
 }
 
 export function Modal({
@@ -113,7 +116,7 @@ export function Modal({
           onMouseDown={(e) => e.target === e.currentTarget && onClose()}
         >
           <motion.div
-            className={`max-h-[90vh] w-full overflow-auto rounded-2xl border border-line bg-surface p-6 shadow-2xl ${wide ? "max-w-3xl" : "max-w-md"}`}
+            className={`max-h-[90vh] w-full overflow-auto rounded-xl border border-line bg-card p-6 shadow-lg ${wide ? "max-w-3xl" : "max-w-md"}`}
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -123,8 +126,8 @@ export function Modal({
             transition={spring}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">{title}</h2>
-              <button onClick={onClose} aria-label="إغلاق" className="rounded-lg p-1 text-muted transition hover:bg-elevated hover:text-ink">
+              <h2 className="text-lg font-semibold">{title}</h2>
+              <button onClick={onClose} aria-label="إغلاق" className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
                 <X size={18} />
               </button>
             </div>
@@ -157,7 +160,7 @@ export function ConfirmDialog({
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <div className="space-y-4">
-        <p className="text-sm text-muted">{message}</p>
+        <p className="text-sm text-muted-foreground">{message}</p>
         <div className="flex gap-2">
           <Button variant={danger ? "danger" : "default"} className="flex-1" onClick={onConfirm}>
             {confirmLabel}
@@ -171,12 +174,12 @@ export function ConfirmDialog({
   );
 }
 
-export function Empty({ text, hint, icon = "🗂️" }: { text: string; hint?: string; icon?: string }) {
+export function Empty({ text, hint, icon }: { text: string; hint?: string; icon?: ReactNode }) {
   return (
     <div className="grid place-items-center gap-2 rounded-xl border border-dashed border-line p-12 text-center">
-      <span className="text-3xl opacity-40">{icon}</span>
-      <p className="font-semibold text-muted">{text}</p>
-      {hint && <p className="text-sm text-muted">{hint}</p>}
+      <span className="text-muted-foreground/60">{icon ?? <Inbox className="size-10" strokeWidth={1.25} />}</span>
+      <p className="font-medium text-muted-foreground">{text}</p>
+      {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -186,7 +189,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between gap-4 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger"
+      className="flex items-center justify-between gap-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
       role="alert"
     >
       <span className="flex items-center gap-2"><XCircle size={16} className="shrink-0" /> {message}</span>
@@ -227,15 +230,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.98 }}
               transition={spring}
-              className={`pointer-events-auto flex max-w-md items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg backdrop-blur ${
+              className={`pointer-events-auto flex max-w-md items-center gap-2.5 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur ${
                 t.kind === "success"
                   ? "border-success/30 bg-success/10 text-success"
                   : t.kind === "error"
-                    ? "border-danger/30 bg-danger/10 text-danger"
-                    : "border-line bg-surface text-ink"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-line bg-popover text-popover-foreground"
               }`}
             >
-              {t.kind === "success" ? <CheckCircle2 size={17} /> : t.kind === "error" ? <XCircle size={17} /> : <Info size={17} />}
+              {t.kind === "success" ? <CheckCircle2 size={16} /> : t.kind === "error" ? <XCircle size={16} /> : <Info size={16} />}
               {t.message}
             </motion.div>
           ))}

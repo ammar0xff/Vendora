@@ -91,7 +91,7 @@
   --destructive: oklch(0.55 0.2 27);
   --success: oklch(0.52 0.12 155);
   --success-foreground: oklch(0.99 0.01 155);
-  --warning: oklch(0.6 0.13 65);
+  --warning: oklch(0.55 0.13 65);
   --warning-foreground: oklch(0.99 0.02 80);
   --border: oklch(0.905 0.009 225);
   --input: oklch(0.88 0.01 225);
@@ -129,6 +129,10 @@
   --vk-side-line: var(--sidebar-border);
   --vk-side-primary: var(--sidebar-primary);
   --vk-side-primary-ink: var(--sidebar-primary-foreground);
+}
+
+.dark aside {
+  box-shadow: -4px 0 24px rgb(0 0 0 / 0.18);
 }
 
 .dark {
@@ -222,13 +226,6 @@ button:not(:disabled) { cursor: pointer; }
 
 ::selection { background: var(--primary); color: var(--primary-foreground); }
 
-input:focus-visible,
-button:focus-visible,
-select:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
 
 @media print {
   .no-print {

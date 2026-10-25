@@ -61,8 +61,8 @@ function Lines({ lines, setLines, showCost }: { lines: Line[]; setLines: React.D
 export default function OperationsPage() {
   const [tab, setTab] = useState("dispatch");
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">العمليات</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-semibold tracking-tight">العمليات</h1>
       <div className="flex flex-wrap gap-2">
         {[
           { k: "dispatch", l: "إذن صرف" },
@@ -112,7 +112,7 @@ function DispatchForm() {
 
   return (
     <Card className="max-w-2xl space-y-3">
-      <p className="flex items-center gap-2 font-bold"><Send size={17} /> إذن صرف — نقل بضاعة من فرع لآخر مع مستند</p>
+      <p className="flex items-center gap-2 font-bold"><Send size={18} /> إذن صرف — نقل بضاعة من فرع لآخر مع مستند</p>
       <div className="grid grid-cols-2 gap-3">
         <Select value={from} onChange={(e) => setFrom(e.target.value)}>
           {wh.data?.map((w) => <option key={w.id} value={w.id}>من: {w.name}</option>)}
@@ -158,7 +158,7 @@ function ReceiptForm() {
 
   return (
     <Card className="max-w-2xl space-y-3">
-      <p className="flex items-center gap-2 font-bold"><PackagePlus size={17} /> استلام بضاعة من مورد — يضاف للمخزن بالتكلفة</p>
+      <p className="flex items-center gap-2 font-bold"><PackagePlus size={18} /> استلام بضاعة من مورد — يضاف للمخزن بالتكلفة</p>
       <div className="grid grid-cols-2 gap-3">
         <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
           {wh.data?.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -198,7 +198,7 @@ function RequestForm() {
 
   return (
     <Card className="max-w-2xl space-y-3">
-      <p className="flex items-center gap-2 font-bold"><ClipboardList size={17} /> طلب مخزون — طلب بضاعة من فرع آخر</p>
+      <p className="flex items-center gap-2 font-bold"><ClipboardList size={18} /> طلب مخزون — طلب بضاعة من فرع آخر</p>
       <div className="grid grid-cols-2 gap-3">
         <Select value={from} onChange={(e) => setFrom(e.target.value)}>
           {wh.data?.map((w) => <option key={w.id} value={w.id}>من: {w.name}</option>)}

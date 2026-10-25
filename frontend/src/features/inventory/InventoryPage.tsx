@@ -17,9 +17,9 @@ export default function InventoryPage() {
   if (!wid && wh.data?.length) setWid(wh.data[0].id);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold">المخزون</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">المخزون</h1>
         <Select value={wid} onChange={(e) => setWid(e.target.value)} className="w-auto">
           {wh.data?.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </Select>
@@ -61,7 +61,7 @@ function ValuationTab({ wid }: { wid: string }) {
   const totalRetail = rows.reduce((s, r) => s + Number(r.retail_value ?? 0), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <Card><p className="text-xs text-muted">قيمة المخزون بالتكلفة</p><p className="num text-xl font-black">{moneyEGP(totalCost)}</p></Card>
         <Card><p className="text-xs text-muted">قيمة المخزون بالبيع</p><p className="num text-xl font-black text-brand">{moneyEGP(totalRetail)}</p></Card>
@@ -154,7 +154,7 @@ function TransferTab() {
 
   return (
     <Card className="max-w-xl space-y-3">
-      <p className="flex items-center gap-2 font-bold"><ArrowLeftRight size={17} /> تحويل مخزون بين فرعين</p>
+      <p className="flex items-center gap-2 font-bold"><ArrowLeftRight size={18} /> تحويل مخزون بين فرعين</p>
       <div>
         <label className="mb-1 block text-sm font-medium">المنتج</label>
         {form.product_id ? (
@@ -240,7 +240,7 @@ function AdjustTab({ wid }: { wid: string }) {
 
   return (
     <Card className="max-w-2xl space-y-3">
-      <p className="flex items-center gap-2 font-bold"><SlidersHorizontal size={17} /> تسوية جرد — {wh0(wid)}</p>
+      <p className="flex items-center gap-2 font-bold"><SlidersHorizontal size={18} /> تسوية جرد — {wh0(wid)}</p>
       <Input placeholder="ابحث عن منتج لإضافته…" value={search} onChange={(e) => setSearch(e.target.value)} />
       {!!found.data?.items.length && !search.startsWith(" ") && (
         <div className="grid gap-1 rounded-lg border border-line p-2">

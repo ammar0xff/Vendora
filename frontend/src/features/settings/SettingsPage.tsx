@@ -46,11 +46,11 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <h1 className="text-xl font-extrabold">إعدادات المتجر</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">إعدادات المتجر</h1>
 
       {form.logo_url && (
         <Card className="flex items-center gap-4">
-          <img src={form.logo_url} alt="الشعار" className="h-16 w-16 rounded-xl border border-line object-cover" />
+          <img src={form.logo_url} alt="الشعار" className="h-16 w-16 rounded-xl border border-line object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
           <div className="min-w-0">
             <p className="font-bold">{form.store_name}</p>
             <p className="truncate text-xs text-muted">{form.logo_url}</p>

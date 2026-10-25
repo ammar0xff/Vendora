@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Printer } from "lucide-react";
+import { FileText, Printer , FileDown } from "lucide-react";
 import { api, openPrintDoc } from "@/lib/api";
 import { dateTime } from "@/lib/format";
 import { Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
@@ -33,8 +33,8 @@ export default function ArchivePage() {
   });
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">الأرشيف</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-semibold tracking-tight">الأرشيف</h1>
       <Card className="flex flex-wrap gap-3 p-3">
         <Select className="w-auto" value={docType} onChange={(e) => setDocType(e.target.value)}>
           {TYPES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
@@ -54,7 +54,7 @@ export default function ArchivePage() {
             <thead>
               <tr className="border-b border-line text-xs text-muted">
                 <th className="p-3 text-start">المستند</th>
-                <th className="p-3 text-start">النوع</th>
+                <th className="hidden p-3 text-start sm:table-cell">النوع</th>
                 <th className="p-3 text-start">التاريخ</th>
                 <th className="p-3 text-start"></th>
               </tr>
@@ -63,9 +63,9 @@ export default function ArchivePage() {
               {q.data.map((d) => (
                 <tr key={d.id} className="border-b border-line/60 last:border-0 hover:bg-elevated">
                   <td className="num p-3 font-bold" dir="ltr">{d.doc_number}</td>
-                  <td className="p-3">
+                  <td className="hidden p-3 sm:table-cell">
                     <span className="inline-flex items-center gap-1.5 text-muted">
-                      <FileText size={14} />
+                      <FileText size={16} />
                       {TYPES.find((t) => t.v === d.doc_type)?.l ?? d.doc_type}
                     </span>
                   </td>
@@ -74,14 +74,14 @@ export default function ArchivePage() {
                     <div className="flex gap-1">
                       <button
                         onClick={() => openPrintDoc(`/print/archive/${d.id}`)}
-                        className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
+                        className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
                         aria-label="طباعة"
                       ><Printer size={16} /></button>
                       <button
                         onClick={() => openPrintDoc(`/print/pdf/archive/${d.id}`)}
-                        className="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-ink"
+                        className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
                         aria-label="PDF"
-                      >📄</button>
+                      ><FileDown size={16} /></button>
                     </div>
                   </td>
                 </tr>

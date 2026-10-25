@@ -14,6 +14,7 @@ import {
   DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
 } from "@/components/kit/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/kit/sheet";
+import { PageTransition } from "@/components/motion";
 import { dateTime } from "@/lib/format";
 
 interface Warehouse {
@@ -193,6 +194,7 @@ function AppTopbar({ onOpenMenu }: { onOpenMenu: () => void }) {
 
 export default function Shell() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = useLocation().pathname;
 
   return (
     <div className="flex min-h-svh">
@@ -208,7 +210,9 @@ export default function Shell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar onOpenMenu={() => setMenuOpen(true)} />
         <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">
-          <Outlet />
+          <PageTransition routeKey={pathname}>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
     </div>

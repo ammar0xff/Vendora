@@ -67,9 +67,9 @@ export default function PayrollPage() {
   const firstError = (calc.error ?? submit.error ?? approve.error ?? pay.error ?? reopen.error) as Error | null;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold">الرواتب</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">الرواتب</h1>
         <div className="flex items-center gap-2">
           <input
             type="month"
@@ -79,7 +79,7 @@ export default function PayrollPage() {
             aria-label="الشهر"
           />
           <Button variant="outline" onClick={() => openPrintDoc("/hr/payroll/report/monthly", { month })}>
-            <FileText size={15} /> تقرير الشهر
+            <FileText size={16} /> تقرير الشهر
           </Button>
         </div>
       </div>
@@ -105,7 +105,7 @@ export default function PayrollPage() {
           ))}
           {status !== "draft" && status !== "paid" && (
             <Button variant="ghost" className="text-xs" onClick={() => reopen.mutate()} disabled={busy}>
-              <LockOpen size={14} /> إعادة فتح
+              <LockOpen size={16} /> إعادة فتح
             </Button>
           )}
         </div>
@@ -116,16 +116,16 @@ export default function PayrollPage() {
           ) : status === "paid" ? (
             <Badge tone="success">تم صرف رواتب هذا الشهر</Badge>
           ) : !entries.data?.length ? (
-            <Button onClick={() => calc.mutate()}><Calculator size={15} /> حساب رواتب الشهر</Button>
+            <Button onClick={() => calc.mutate()}><Calculator size={16} /> حساب رواتب الشهر</Button>
           ) : status === "draft" ? (
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => calc.mutate()}>إعادة الحساب</Button>
-              <Button onClick={() => submit.mutate()}><Send size={15} /> تقديم للمراجعة</Button>
+              <Button onClick={() => submit.mutate()}><Send size={16} /> تقديم للمراجعة</Button>
             </div>
           ) : status === "submitted" ? (
-            <Button onClick={() => approve.mutate()}><CheckCircle2 size={15} /> اعتماد</Button>
+            <Button onClick={() => approve.mutate()}><CheckCircle2 size={16} /> اعتماد</Button>
           ) : (
-            <Button variant="danger" onClick={() => pay.mutate()}><Coins size={15} /> صرف الرواتب</Button>
+            <Button variant="danger" onClick={() => pay.mutate()}><Coins size={16} /> صرف الرواتب</Button>
           )}
         </div>
         {firstError && <div className="mt-3"><ErrorBox message={firstError.message} /></div>}

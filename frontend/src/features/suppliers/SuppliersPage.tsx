@@ -43,7 +43,7 @@ export default function SuppliersPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl font-extrabold"><Truck size={20} /> الموردون</h1>
         <Button onClick={() => setCreating(true)}><Plus size={16} /> مورد جديد</Button>
@@ -83,7 +83,7 @@ export default function SuppliersPage() {
                         className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold text-brand hover:bg-elevated"
                         onClick={() => { setTxFor(s); setTxAmount(""); }}
                       >
-                        <HandCoins size={14} /> حركة
+                        <HandCoins size={16} /> حركة
                       </button>
                     </div>
                   </td>
@@ -95,7 +95,7 @@ export default function SuppliersPage() {
       )}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="مورد جديد">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium">الاسم *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -112,7 +112,7 @@ export default function SuppliersPage() {
       </Modal>
 
       <Modal open={!!txFor} onClose={() => setTxFor(null)} title={`حركة حساب — ${txFor?.name ?? ""}`}>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">الرصيد: <span className="num font-bold text-ink">{moneyEGP(txFor?.balance ?? 0)}</span></p>
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -13,8 +13,8 @@ interface SyncLog { id: string; synced_at: string; status: string; fetched: numb
 export default function HrPage() {
   const [tab, setTab] = useState("employees");
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">الموارد البشرية</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-semibold tracking-tight">الموارد البشرية</h1>
       <div className="flex flex-wrap gap-2">
         {[
           { k: "employees", l: "الموظفون" },
@@ -57,7 +57,7 @@ function EmployeesTab() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}><UserPlus size={16} /> موظف جديد</Button>
       </div>
@@ -91,7 +91,7 @@ function EmployeesTab() {
         </Card>
       )}
       <Modal open={creating} onClose={() => setCreating(false)} title="موظف جديد">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium">الاسم *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -146,7 +146,7 @@ function AttendanceTab() {
   const nameOf = (id: string) => employees.data?.find((e) => e.id === id)?.name ?? "—";
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <input type="month" className="num rounded-lg border border-line bg-surface px-3 py-2 text-sm" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="الشهر" />
         <Button onClick={() => setAdding(true)}><Plus size={16} /> تسجيل حضور</Button>
@@ -181,7 +181,7 @@ function AttendanceTab() {
         </Card>
       )}
       <Modal open={adding} onClose={() => setAdding(false)} title="تسجيل حضور">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <Select value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
             <option value="">— اختر الموظف —</option>
             {employees.data?.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -225,7 +225,7 @@ function AdvancesTab() {
   const nameOf = (id: string) => employees.data?.find((e) => e.id === id)?.name ?? "—";
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}><Plus size={16} /> سلفة جديدة</Button>
       </div>
@@ -256,7 +256,7 @@ function AdvancesTab() {
         </Card>
       )}
       <Modal open={creating} onClose={() => setCreating(false)} title="سلفة جديدة">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <Select value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
             <option value="">— اختر الموظف —</option>
             {employees.data?.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -300,14 +300,14 @@ function SyncTab() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 font-bold"><Usb size={17} /> جهاز البصمة (ZK)</p>
+          <p className="flex items-center gap-2 font-bold"><Usb size={18} /> جهاز البصمة (ZK)</p>
           <p className="text-sm text-muted">يزامن سجلات الحضور من جهاز ZK المتصل بالشبكة المحلية</p>
         </div>
         <Button onClick={() => sync.mutate()} disabled={sync.isPending}>
-          {sync.isPending ? <Spinner /> : <><CalendarSync size={15} /> مزامنة الآن</>}
+          {sync.isPending ? <Spinner /> : <><CalendarSync size={16} /> مزامنة الآن</>}
         </Button>
       </Card>
       {sync.isError && <ErrorBox message={(sync.error as Error).message} />}
@@ -319,7 +319,7 @@ function SyncTab() {
 
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 font-bold"><Upload size={17} /> استيراد حضور من ملف CSV</p>
+          <p className="flex items-center gap-2 font-bold"><Upload size={18} /> استيراد حضور من ملف CSV</p>
           <p className="text-sm text-muted">يدعم ملفات الحضور التصديرية (Jibble وغيرها)</p>
         </div>
         <input
