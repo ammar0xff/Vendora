@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Minus, Pause, Play, Plus, Printer, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { api, ApiError, docUrl } from "@/lib/api";
 import { D, money } from "@/lib/format";
-import { Button, Card, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
+import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, useToast } from "@/components/ui";
+import { Stagger, StaggerItem } from "@/components/motion";
 import { enqueueSale, listQueue, replayQueue, removeSale, type QueuedSale } from "@/lib/offline";
 
 interface Warehouse { id: string; name: string }
@@ -75,6 +76,8 @@ export default function PosPage() {
   const [openShiftFor, setOpenShiftFor] = useState<Warehouse | null>(null);
   const [initialAmount, setInitialAmount] = useState("0");
   const barcodeRef = useRef<HTMLInputElement>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const { toast } = useToast();
 
   const wh = useQuery({ queryKey: ["warehouses"], queryFn: () => api.get<Warehouse[]>("/stock/warehouses") });
   const [warehouseId, setWarehouseId] = useState("");
@@ -154,7 +157,7 @@ export default function PosPage() {
         e.preventDefault();
         barcodeRef.current?.focus();
       } else if (e.key === "Escape" && !payOpen && !typing && cart.length) {
-        if (confirm("تفريغ الفاتورة الحالية؟")) setCart([]);
+        setConfirmClear(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -189,6 +192,7 @@ export default function PosPage() {
       setSaleDone(r);
       setCart([]); setPayOpen(false); setCashInput(""); setSplit([]);
       setIsCredit(false); setCustomerId(""); setWalletId("");
+      toast("success", `تم البيع — فاتورة ${r.invoice_number}`);
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["report"] });
     },
@@ -200,6 +204,7 @@ export default function PosPage() {
       setSaleDone(r);
       setCart([]); setPayOpen(false); setCashInput(""); setSplit([]);
       setIsCredit(false); setCustomerId(""); setWalletId("");
+      toast("success", `تم حفظ عرض السعر ${r.invoice_number}`);
       qc.invalidateQueries({ queryKey: ["sales"] });
     },
   });
@@ -272,12 +277,12 @@ export default function PosPage() {
         ) : !products.data!.items.length ? (
           <Card className="p-10 text-center text-muted">لا توجد منتجات مطابقة</Card>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <Stagger className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" key={search}>
             {products.data!.items.map((p) => (
+              <StaggerItem key={p.id} className="h-full">
               <button
-                key={p.id}
                 onClick={() => addToCart(p)}
-                className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface text-start transition hover:border-brand hover:shadow-lg"
+                className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-line bg-surface text-start transition hover:border-brand hover:shadow-lg"
               >
                 <div className="aspect-square bg-elevated">
                   {p.image_url ? (
@@ -292,8 +297,9 @@ export default function PosPage() {
                   <span className="text-xs text-muted">{p.unit} {p.code ? `· ${p.code}` : ""}</span>
                 </div>
               </button>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         )}
       </div>
 
@@ -510,6 +516,15 @@ export default function PosPage() {
           {saveQuotation.isError && <ErrorBox message={(saveQuotation.error as Error).message} />}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        onConfirm={() => { setCart([]); setConfirmClear(false); }}
+        title="تفريغ الفاتورة"
+        message="هل تريد تفريغ الفاتورة الحالية؟ لا يمكن التراجع."
+        confirmLabel="تفريغ"
+      />
 
       <Modal open={queueOpen} onClose={() => setQueueOpen(false)} title="فواتير في انتظار المزامنة">
         <div className="space-y-3">

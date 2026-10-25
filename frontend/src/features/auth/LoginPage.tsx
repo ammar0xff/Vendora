@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button, ErrorBox, Input, Spinner } from "@/components/ui";
+import { Stagger, StaggerItem } from "@/components/motion";
 import { useAuth, type User } from "@/stores/auth";
 
 const auth = () => useAuth.getState();
@@ -48,7 +49,9 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-screen place-items-center bg-bg p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-xl">
+      <Stagger className="w-full max-w-sm" delay={0.05}>
+      <StaggerItem>
+      <div className="rounded-2xl border border-line bg-surface p-8 shadow-xl">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-2xl font-black text-brand-ink">
             ف
@@ -90,6 +93,8 @@ export default function LoginPage() {
           </Button>
         </form>
       </div>
+      </StaggerItem>
+      </Stagger>
     </div>
   );
 }

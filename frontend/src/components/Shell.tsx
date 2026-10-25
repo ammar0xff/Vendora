@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Archive, BarChart3, Boxes, ChevronLeft, Clock, Coins, LayoutDashboard, LogOut,
   Menu, Moon, Package, Receipt, Settings, ShoppingCart, Store, Sun, Truck,
   UserSquare2, Users, Wallet, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/stores/auth";
+import { PageTransition, spring } from "@/components/motion";
 
 const NAV: { to: string; label: string; perm: string; icon: React.ReactNode }[] = [
   { to: "/", label: "الرئيسية", perm: "", icon: <LayoutDashboard size={18} /> },
@@ -27,9 +29,63 @@ const NAV: { to: string; label: string; perm: string; icon: React.ReactNode }[] 
   { to: "/settings", label: "الإعدادات", perm: "settings", icon: <Settings size={18} /> },
 ];
 
+function NavItems({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+  const { can } = useAuth();
+  const items = NAV.filter((n) => !n.perm || can(n.perm));
+  return (
+    <nav className="flex h-full flex-col gap-1 p-3" aria-label="القائمة الرئيسية">
+      <div className="mb-4 flex items-center gap-2 px-2 py-1">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand font-black text-brand-ink">ف</div>
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.span
+              initial={{ opacity: 0, x: 6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 6 }}
+              transition={{ duration: 0.15 }}
+              className="text-lg font-extrabold"
+            >
+              فيندورا
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+      {items.map((n) => (
+        <NavLink
+          key={n.to}
+          to={n.to}
+          end={n.to === "/"}
+          onClick={onNavigate}
+          title={n.label}
+          className={({ isActive }) =>
+            `relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              isActive ? "text-brand-ink" : "text-muted hover:bg-elevated hover:text-ink"
+            } ${collapsed ? "justify-center" : ""}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <motion.span
+                  layoutId="nav-active-pill"
+                  transition={spring}
+                  className="absolute inset-0 -z-10 rounded-lg bg-brand"
+                />
+              )}
+              {n.icon}
+              {!collapsed && <span>{n.label}</span>}
+            </>
+          )}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 export default function Shell() {
-  const { user, can, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("vendora.sidebar") === "1");
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -52,62 +108,51 @@ export default function Shell() {
     navigate("/login", { replace: true });
   }
 
-  const items = NAV.filter((n) => !n.perm || can(n.perm));
-
-  const sidebar = (
-    <nav className="flex h-full flex-col gap-1 p-3" aria-label="القائمة الرئيسية">
-      <div className="mb-4 flex items-center gap-2 px-2 py-1">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand font-black text-brand-ink">ف</div>
-        {!collapsed && <span className="text-lg font-extrabold">فيندورا</span>}
-      </div>
-      {items.map((n) => (
-        <NavLink
-          key={n.to}
-          to={n.to}
-          end={n.to === "/"}
-          onClick={() => setMobileOpen(false)}
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              isActive ? "bg-brand text-brand-ink" : "text-muted hover:bg-elevated hover:text-ink"
-            } ${collapsed ? "justify-center" : ""}`
-          }
-          title={n.label}
-        >
-          {n.icon}
-          {!collapsed && <span>{n.label}</span>}
-        </NavLink>
-      ))}
-      <div className="mt-auto">
-        <button
-          onClick={toggleSidebar}
-          className={`hidden w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted hover:bg-elevated hover:text-ink lg:flex ${collapsed ? "justify-center" : ""}`}
-          aria-label={collapsed ? "توسيع القائمة" : "طي القائمة"}
-        >
-          <ChevronLeft size={18} className={`transition-transform ${collapsed ? "rotate-180" : ""}`} />
-          {!collapsed && <span>طي القائمة</span>}
-        </button>
-      </div>
-    </nav>
-  );
-
   return (
     <div className="flex min-h-screen bg-bg">
-      {/* Desktop sidebar */}
-      <aside
-        className={`sticky top-0 hidden h-screen shrink-0 border-l border-line bg-surface lg:block ${
-          collapsed ? "w-[68px]" : "w-60"
-        }`}
+      {/* Desktop sidebar — animated width */}
+      <motion.aside
+        animate={{ width: collapsed ? 68 : 240 }}
+        transition={spring}
+        initial={false}
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-l border-line bg-surface lg:block"
       >
-        {sidebar}
-      </aside>
+        <NavItems collapsed={collapsed} />
+        <button
+          onClick={toggleSidebar}
+          className={`absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition hover:bg-elevated hover:text-ink ${
+            collapsed ? "justify-center" : ""
+          }`}
+          aria-label={collapsed ? "توسيع القائمة" : "طي القائمة"}
+        >
+          <ChevronLeft size={18} className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
+          {!collapsed && <span>طي القائمة</span>}
+        </button>
+      </motion.aside>
 
       {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" onMouseDown={(e) => e.target === e.currentTarget && setMobileOpen(false)}>
-          <div className="absolute inset-0 bg-black/50" />
-          <aside className="absolute right-0 top-0 h-full w-64 border-l border-line bg-surface">{sidebar}</aside>
-        </div>
-      )}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.aside
+              className="absolute right-0 top-0 z-50 h-full w-64 border-l border-line bg-surface lg:hidden"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={spring}
+            >
+              <NavItems collapsed={false} onNavigate={() => setMobileOpen(false)} />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur">
@@ -116,26 +161,44 @@ export default function Shell() {
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold">{user?.full_name}</p>
-            <p className="text-xs text-muted">{user?.username}</p>
+            <p className="truncate text-xs text-muted">{user?.username}</p>
           </div>
           <a
             href="https://vendora-backend-six.vercel.app/api/storefront"
             target="_blank"
             rel="noreferrer"
-            className="hidden items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-muted hover:text-ink sm:flex"
+            className="hidden items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-muted transition hover:text-ink sm:flex"
           >
             <Store size={16} />
             المتجر
           </a>
-          <button onClick={toggleTheme} className="rounded-lg p-2 hover:bg-elevated" aria-label="تبديل السمة">
-            {dark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <button onClick={doLogout} className="rounded-lg p-2 text-danger hover:bg-elevated" aria-label="تسجيل الخروج">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={toggleTheme}
+            className="rounded-lg p-2 hover:bg-elevated"
+            aria-label="تبديل السمة"
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={dark ? "sun" : "moon"}
+                initial={{ opacity: 0, rotate: -30 }}
+                animate={{ opacity: 1, rotate: 0 }}
+                exit={{ opacity: 0, rotate: 30 }}
+                transition={{ duration: 0.15 }}
+                className="block"
+              >
+                {dark ? <Sun size={18} /> : <Moon size={18} />}
+              </motion.span>
+            </AnimatePresence>
+          </motion.button>
+          <button onClick={doLogout} className="rounded-lg p-2 text-danger transition hover:bg-elevated" aria-label="تسجيل الخروج">
             <LogOut size={18} />
           </button>
         </header>
         <main className="min-w-0 flex-1 p-4 lg:p-6">
-          <Outlet />
+          <PageTransition routeKey={location.pathname}>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
     </div>

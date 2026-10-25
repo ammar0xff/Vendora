@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calculator, CheckCircle2, Coins, FileText, LockOpen, Send } from "lucide-react";
 import { api, docUrl } from "@/lib/api";
 import { money, moneyEGP } from "@/lib/format";
-import { Badge, Button, Card, ErrorBox, Spinner } from "@/components/ui";
+import { Badge, Button, Card, ErrorBox, Spinner, useToast } from "@/components/ui";
 
 interface Period { id: string; month: string; status: "draft" | "submitted" | "approved" | "paid" }
 interface Entry {
@@ -32,30 +32,32 @@ export default function PayrollPage() {
     queryFn: () => api.get<Entry[]>("/hr/payroll", { month }),
   });
 
-  const invalidate = () => {
+  const { toast } = useToast();
+  const invalidate = (msg?: string) => {
     qc.invalidateQueries({ queryKey: ["payroll-period"] });
     qc.invalidateQueries({ queryKey: ["payroll"] });
+    if (msg) toast("success", msg);
   };
 
   const calc = useMutation({
     mutationFn: () => api.post("/hr/payroll/calculate", { month }),
-    onSuccess: invalidate,
+    onSuccess: () => invalidate("تم حساب رواتب الشهر"),
   });
   const submit = useMutation({
     mutationFn: () => api.post(`/hr/payroll/period/submit?month=${month}`),
-    onSuccess: invalidate,
+    onSuccess: () => invalidate("تم تقديم الشهر للمراجعة"),
   });
   const approve = useMutation({
     mutationFn: () => api.post(`/hr/payroll/period/approve?month=${month}`),
-    onSuccess: invalidate,
+    onSuccess: () => invalidate("تم اعتماد الرواتب"),
   });
   const pay = useMutation({
     mutationFn: () => api.post(`/hr/payroll/period/pay?month=${month}`),
-    onSuccess: invalidate,
+    onSuccess: () => invalidate("تم صرف الرواتب"),
   });
   const reopen = useMutation({
     mutationFn: () => api.post(`/hr/payroll/period/reopen?month=${month}`),
-    onSuccess: invalidate,
+    onSuccess: () => invalidate("تمت إعادة فتح الشهر"),
   });
 
   const status = period.data?.status ?? "draft";

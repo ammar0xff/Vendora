@@ -74,6 +74,10 @@ body {
   border-radius: 8px;
 }
 
+button:not(:disabled) { cursor: pointer; }
+
+::selection { background: var(--vk-brand); color: var(--vk-brand-ink); }
+
 input:focus-visible,
 button:focus-visible,
 select:focus-visible,

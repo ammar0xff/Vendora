@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeft, Receipt, TrendingUp, Wallet } from "lucide-re
 import { api } from "@/lib/api";
 import { moneyEGP, dateTime } from "@/lib/format";
 import { Badge, Card, Empty, ErrorBox, Spinner } from "@/components/ui";
+import { CountUp, Stagger } from "@/components/motion";
 import { useAuth } from "@/stores/auth";
 
 interface DailyReport { date: string; total_sales: string; total_items: number; invoice_count: number }
@@ -13,13 +14,15 @@ interface SaleRow {
   status: string; is_credit: boolean; created_at: string; customer_name: string | null;
 }
 
-function Kpi({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+function Kpi({ icon, label, value, countFrom = "0", sub }: { icon: React.ReactNode; label: string; value: string; countFrom?: string; sub?: string }) {
   return (
-    <Card className="flex items-center gap-4">
+    <Card className="flex items-center gap-4" hover>
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand/15 text-brand">{icon}</div>
       <div className="min-w-0">
         <p className="text-xs font-medium text-muted">{label}</p>
-        <p className="num truncate text-lg font-extrabold">{value}</p>
+        <p className="truncate text-lg font-extrabold">
+          <CountUp value={countFrom} format={(v) => (value.endsWith("ج.م") ? `${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م` : value)} />
+        </p>
         {sub && <p className="text-xs text-muted">{sub}</p>}
       </div>
     </Card>
@@ -64,7 +67,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {daily.isLoading ? (
           <Card><Spinner /></Card>
         ) : daily.isError ? (
@@ -90,7 +93,7 @@ export default function DashboardPage() {
         {can("finance") && (
           <Kpi icon={<Wallet size={20} />} label="محافظ الدفع" value="—" sub="تفاصيل في قسم المالية" />
         )}
-      </div>
+      </Stagger>
 
       {can("sales") && (
         <Card>

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HandCoins, Plus, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { D, moneyEGP, dateTime } from "@/lib/format";
-import { Button, Card, Empty, ErrorBox, Input, Modal, Spinner } from "@/components/ui";
+import { Button, Card, Empty, ErrorBox, Input, Modal, Spinner, useToast } from "@/components/ui";
 
 interface Customer { id: string; name: string; phone: string | null; balance: string; credit_limit: string | null }
 interface LedgerEntry { id: string; description: string | null; debit: string | null; credit: string | null; created_at: string }
@@ -38,9 +38,10 @@ export default function CustomersPage() {
     onSuccess: () => { setCreating(false); setForm({ name: "", phone: "", credit_limit: "" }); qc.invalidateQueries({ queryKey: ["customers"] }); },
   });
 
+  const { toast } = useToast();
   const pay = useMutation({
     mutationFn: () => api.post(`/customers/${payFor!.id}/payments`, { amount: D(payAmount).toNumber() }),
-    onSuccess: () => { setPayFor(null); setPayAmount(""); qc.invalidateQueries({ queryKey: ["customers"] }); },
+    onSuccess: () => { setPayFor(null); setPayAmount(""); toast("success", "تم تسجيل الدفعة"); qc.invalidateQueries({ queryKey: ["customers"] }); },
   });
 
   return (

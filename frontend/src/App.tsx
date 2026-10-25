@@ -1,24 +1,29 @@
+import { lazy, Suspense } from "react";
+const DashboardPage = lazy(() => import("@/features/dashboard/DashboardPage"));
+const PosPage = lazy(() => import("@/features/pos/PosPage"));
+const ProductsPage = lazy(() => import("@/features/products/ProductsPage"));
+const SalesPage = lazy(() => import("@/features/sales/SalesPage"));
+const PurchasesPage = lazy(() => import("@/features/purchases/PurchasesPage"));
+const PayrollPage = lazy(() => import("@/features/hr/PayrollPage"));
+const ShiftsPage = lazy(() => import("@/features/shifts/ShiftsPage"));
+const CustomersPage = lazy(() => import("@/features/customers/CustomersPage"));
+const SettingsPage = lazy(() => import("@/features/settings/SettingsPage"));
+const FinancePage = lazy(() => import("@/features/finance/FinancePage"));
+const SuppliersPage = lazy(() => import("@/features/suppliers/SuppliersPage"));
+const UsersPage = lazy(() => import("@/features/users/UsersPage"));
+const HrPage = lazy(() => import("@/features/hr/HrPage"));
+const InventoryPage = lazy(() => import("@/features/inventory/InventoryPage"));
+const ReportsPage = lazy(() => import("@/features/reports/ReportsPage"));
+const ArchivePage = lazy(() => import("@/features/archive/ArchivePage"));
+const OperationsPage = lazy(() => import("@/features/operations/OperationsPage"));
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/stores/auth";
 import Shell from "@/components/Shell";
 import LoginPage from "@/features/auth/LoginPage";
-import DashboardPage from "@/features/dashboard/DashboardPage";
-import PosPage from "@/features/pos/PosPage";
-import ProductsPage from "@/features/products/ProductsPage";
-import SalesPage from "@/features/sales/SalesPage";
-import PurchasesPage from "@/features/purchases/PurchasesPage";
-import PayrollPage from "@/features/hr/PayrollPage";
-import ShiftsPage from "@/features/shifts/ShiftsPage";
-import CustomersPage from "@/features/customers/CustomersPage";
-import SettingsPage from "@/features/settings/SettingsPage";
-import FinancePage from "@/features/finance/FinancePage";
-import SuppliersPage from "@/features/suppliers/SuppliersPage";
-import UsersPage from "@/features/users/UsersPage";
-import HrPage from "@/features/hr/HrPage";
-import InventoryPage from "@/features/inventory/InventoryPage";
-import ReportsPage from "@/features/reports/ReportsPage";
-import ArchivePage from "@/features/archive/ArchivePage";
-import OperationsPage from "@/features/operations/OperationsPage";
+
+function Page({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<div className="grid place-items-center p-16"><span className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" /></div>}>{children}</Suspense>;
+}
 
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
   const { token, user } = useAuth();
@@ -30,7 +35,7 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
       </div>
     );
   }
-  return <>{children}</>;
+  return <Page>{children}</Page>;
 }
 
 export default function App() {
