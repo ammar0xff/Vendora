@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, PackagePlus, Send } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { D, dateTime } from "@/lib/format";
 import { Button, Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
@@ -221,7 +222,10 @@ function RequestForm() {
 
 function History() {
   const q = useQuery({ queryKey: ["operations"], queryFn: () => api.get<OpRow[]>("/operations/") });
-  return q.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+  return q.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
     : q.isError ? <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
     : !q.data?.length ? <Empty text="لا توجد عمليات" />
     : (

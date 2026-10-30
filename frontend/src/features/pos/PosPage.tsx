@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, TriangleAlert, X } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api, ApiError, openPrintDoc } from "@/lib/api";
 import { D, money } from "@/lib/format";
 import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, useToast } from "@/components/ui";
@@ -296,7 +297,10 @@ export default function PosPage() {
         </Card>
 
         {products.isLoading ? (
-          <Card className="grid place-items-center p-10"><Spinner /></Card>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
         ) : products.isError ? (
           <ErrorBox message={(products.error as Error).message} onRetry={() => products.refetch()} />
         ) : !products.data!.items.length ? (

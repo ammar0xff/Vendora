@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, SlidersHorizontal } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { D, dateTime, money, moneyEGP, qty as fq } from "@/lib/format";
 import { Button, Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
@@ -66,7 +67,10 @@ function ValuationTab({ wid }: { wid: string }) {
         <Card><p className="text-xs text-muted">قيمة المخزون بالتكلفة</p><p className="num text-xl font-black">{moneyEGP(totalCost)}</p></Card>
         <Card><p className="text-xs text-muted">قيمة المخزون بالبيع</p><p className="num text-xl font-black text-brand">{moneyEGP(totalRetail)}</p></Card>
       </div>
-      {v.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {v.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : v.isError ? <ErrorBox message={(v.error as Error).message} onRetry={() => v.refetch()} />
       : !rows.length ? <Empty text="لا توجد أصناف في هذا الفرع" />
       : (
@@ -101,7 +105,10 @@ function LowTab({ wid }: { wid: string }) {
     queryFn: () => api.get<Record<string, unknown>[]>("/stock/low-stock", { warehouse_id: wid }),
     enabled: !!wid,
   });
-  return q.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+  return q.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
     : q.isError ? <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
     : !q.data?.length ? <Empty text="لا توجد أصناف تحت الحد ✓" />
     : (
@@ -304,7 +311,10 @@ function MovementsTab({ wid }: { wid: string }) {
     opening_stock: "رصيد افتتاحي", purchase: "شراء", return_in: "مرتجع داخل", adjustment_in: "تسوية +",
     transfer_in: "تحويل داخل", sale: "بيع", damage: "تالف", adjustment_out: "تسوية −", transfer_out: "تحويل خارج",
   };
-  return q.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+  return q.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
     : q.isError ? <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
     : !q.data?.length ? <Empty text="لا توجد حركات" />
     : (

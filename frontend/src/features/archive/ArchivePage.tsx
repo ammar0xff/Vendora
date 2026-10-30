@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer , FileDown } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api, openPrintDoc } from "@/lib/api";
 import { dateTime } from "@/lib/format";
-import { Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
+import {Card, Empty, ErrorBox, Input, Select} from "@/components/ui";
 
 interface Doc {
   id: string; doc_number: string; doc_type: string; created_at: string;
@@ -43,7 +44,10 @@ export default function ArchivePage() {
       </Card>
 
       {q.isLoading ? (
-        <Card className="grid place-items-center p-10"><Spinner /></Card>
+        <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       ) : q.isError ? (
         <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
       ) : !q.data?.length ? (

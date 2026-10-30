@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, Banknote, Lock, LockOpen, Plus, Wallet } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { D, dateTime, money, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
@@ -81,7 +82,10 @@ function ExpensesTab() {
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}><Plus size={16} /> مصروف جديد</Button>
       </div>
-      {list.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {list.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       : !list.data?.length ? <Empty text="لا توجد مصروفات" />
       : (
@@ -315,7 +319,10 @@ function LedgerTab() {
         </div>
       )}
 
-      {ledger.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {ledger.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : ledger.isError ? <ErrorBox message={(ledger.error as Error).message} onRetry={() => ledger.refetch()} />
       : !ledger.data?.length ? <Empty text="لا توجد حركات في هذه الفترة" />
       : (
@@ -363,7 +370,10 @@ function PeriodsTab() {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-muted">إغلاق الشهر يمنع أي عمليات مالية عليه. الشهر المغلق يمكن إعادة فتحه.</p>
-      {list.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {list.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       : !list.data?.length ? <Empty text="لا توجد فترات محاسبية" />
       : (

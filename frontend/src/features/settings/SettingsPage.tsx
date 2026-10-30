@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { Button, Card, ErrorBox, Input, Spinner } from "@/components/ui";
 
@@ -41,7 +42,10 @@ export default function SettingsPage() {
     { key: "low_stock_threshold", label: "حد المخزون المنخفض" },
   ];
 
-  if (q.isLoading) return <Card className="grid place-items-center p-10"><Spinner /></Card>;
+  if (q.isLoading) return <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>;
   if (q.isError) return <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />;
 
   return (

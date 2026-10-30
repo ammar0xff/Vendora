@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarSync, Plus, Upload, UserPlus, Usb } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { D, date as fmtDate, dateTime, money, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
@@ -61,7 +62,10 @@ function EmployeesTab() {
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}><UserPlus size={16} /> موظف جديد</Button>
       </div>
-      {list.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {list.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       : !list.data?.length ? <Empty text="لا يوجد موظفون" />
       : (
@@ -151,7 +155,10 @@ function AttendanceTab() {
         <input type="month" className="num rounded-lg border border-line bg-surface px-3 py-2 text-sm" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="الشهر" />
         <Button onClick={() => setAdding(true)}><Plus size={16} /> تسجيل حضور</Button>
       </div>
-      {att.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {att.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : att.isError ? <ErrorBox message={(att.error as Error).message} onRetry={() => att.refetch()} />
       : !att.data?.length ? <Empty text="لا توجد سجلات حضور هذا الشهر" />
       : (
@@ -229,7 +236,10 @@ function AdvancesTab() {
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}><Plus size={16} /> سلفة جديدة</Button>
       </div>
-      {list.isLoading ? <Card className="grid place-items-center p-10"><Spinner /></Card>
+      {list.isLoading ? <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       : !list.data?.length ? <Empty text="لا توجد سلف" />
       : (
         <Card className="overflow-x-auto p-0">

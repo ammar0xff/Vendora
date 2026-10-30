@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calculator, CheckCircle2, Coins, FileText, LockOpen, Send } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api, openPrintDoc } from "@/lib/api";
 import { money, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, ErrorBox, Spinner, useToast } from "@/components/ui";
@@ -132,7 +133,10 @@ export default function PayrollPage() {
       </Card>
 
       {entries.isLoading ? (
-        <Card className="grid place-items-center p-10"><Spinner /></Card>
+        <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       ) : entries.isError ? (
         <ErrorBox message={(entries.error as Error).message} onRetry={() => entries.refetch()} />
       ) : !entries.data?.length ? (

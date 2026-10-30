@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, LockKeyhole, Printer, Unlock } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api, openPrintDoc } from "@/lib/api";
 import { dateTime, D, money, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Input, Select, Spinner } from "@/components/ui";
@@ -78,7 +79,10 @@ export default function ShiftsPage() {
       </div>
 
       {current.isLoading ? (
-        <Card className="grid place-items-center p-10"><Spinner /></Card>
+        <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       ) : !shift ? (
         <Card className="space-y-4">
           <p className="flex items-center gap-2 font-bold"><Unlock size={18} /> لا توجد وردية مفتوحة</p>

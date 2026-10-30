@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackageCheck, Plus, Trash2, X } from "lucide-react";
+import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { dateTime, D, money, moneyEGP } from "@/lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
@@ -72,7 +73,10 @@ export default function PurchasesPage() {
       </div>
 
       {list.isLoading ? (
-        <Card className="grid place-items-center p-10"><Spinner /></Card>
+        <div className="flex flex-col gap-2" aria-busy="true" aria-label="جارٍ التحميل">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
       ) : list.isError ? (
         <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       ) : !list.data?.length ? (
