@@ -40,9 +40,13 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
 
 export default function App() {
   const token = useAuth((s) => s.token);
+  const user = useAuth((s) => s.user);
   return (
     <Routes>
-      <Route path="/login" element={token ? <Navigate to="/" replace /> : <LoginPage />} />
+      {/* Flip away from /login only when the FULL session exists (token + user).
+          token alone caused a redirect ping-pong with Guard (which requires both)
+          while /auth/me was still in flight — visible as navigation throttling. */}
+      <Route path="/login" element={token && user ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route
         element={
           <Guard perm="">
