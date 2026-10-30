@@ -1,3 +1,14 @@
+/**
+ * PAGE CONTRACT
+ * Page: المنتجات (/products)
+ * User: أمين مخزن أو مدير يدير الكتالوج (إضافة/تعديل صنف)
+ * Outcome: العثور على صنف وفتحه للتعديل، أو إضافة صنف جديد
+ * Primary information: الاسم، الكود، أسعار التجزئة/الجملة، حالة النشاط
+ * Primary action (per state): populated → فتح صنف (الصف)؛ filtered-empty → «مسح البحث»؛ first-empty → «منتج جديد»؛ error → «إعادة المحاولة»
+ * Secondary action: «منتج جديد» دائمًا في رأس الصفحة
+ * Required states: loading (skeleton), error (retry), filtered-empty (reset), first-use-empty, populated
+ * Responsive: 1440 جدول كامل؛ 768 إخفاء الجملة/الشركة؛ 390 كود + اسم مقصوص + تجزئة + حالة
+ */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -86,7 +97,15 @@ export default function ProductsPage() {
       ) : list.isError ? (
         <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       ) : !list.data!.items.length ? (
-        <Empty text="لا توجد منتجات" hint="أضف أول منتج" />
+        <Empty
+          text={search ? "لا توجد نتائج للبحث" : "لا توجد منتجات بعد"}
+          hint={search ? `لا يوجد صنف يطابق «${search}» — امسح البحث وحاول مجددًا.` : "أضف أول منتج لتبدأ الكتالوج."}
+          action={search ? (
+            <Button variant="outline" onClick={() => { setSearch(""); setPage(1); }}>مسح البحث</Button>
+          ) : (
+            <Button onClick={openNew}><Plus size={16} /> منتج جديد</Button>
+          )}
+        />
       ) : (
         <TableShell>
           <Table>

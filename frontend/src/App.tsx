@@ -16,8 +16,12 @@ const InventoryPage = lazy(() => import("@/features/inventory/InventoryPage"));
 const ReportsPage = lazy(() => import("@/features/reports/ReportsPage"));
 const ArchivePage = lazy(() => import("@/features/archive/ArchivePage"));
 const OperationsPage = lazy(() => import("@/features/operations/OperationsPage"));
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Lock } from "lucide-react";
 import { useAuth } from "@/stores/auth";
+import { NAV_ITEMS } from "@/lib/nav";
+import { Button } from "@/components/kit/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/kit/empty";
 import Shell from "@/components/AppShell";
 import LoginPage from "@/features/auth/LoginPage";
 
@@ -29,10 +33,26 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
   const { token, user } = useAuth();
   if (!token || !user) return <Navigate to="/login" replace />;
   if (perm && !user.permissions.includes(perm)) {
+    const fallback = NAV_ITEMS.find((n) => !n.perm || user.permissions.includes(n.perm));
     return (
-      <div className="p-10 text-center text-muted">
-        ليس لديك صلاحية للوصول إلى هذه الصفحة
-      </div>
+      <Empty className="mx-auto mt-16 max-w-md border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Lock />
+          </EmptyMedia>
+          <EmptyTitle>لا تملك صلاحية الوصول</EmptyTitle>
+          <EmptyDescription>
+            دورك الحالي لا يتضمن هذه الشاشة. تواصل مع مدير النظام لمنحك الصلاحية، أو انتقل إلى شاشة متاحة لك.
+          </EmptyDescription>
+        </EmptyHeader>
+        {fallback && (
+          <EmptyContent>
+            <Button nativeButton={false} render={<Link to={fallback.to} />}>
+              الانتقال إلى {fallback.label}
+            </Button>
+          </EmptyContent>
+        )}
+      </Empty>
     );
   }
   return <Page>{children}</Page>;

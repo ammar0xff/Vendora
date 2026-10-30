@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "figma": {
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "gantry": {
+      "command": "gantry",
+      "args": [
+        "mcp"
+      ]
+    },
+    "tailgrids": {
+      "url": "https://mcp.tailgrids.com/mcp"
+    }
+  }
+}

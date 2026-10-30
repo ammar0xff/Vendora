@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { D } from "@/lib/format";
 
-export const spring = { type: "spring", stiffness: 400, damping: 34 } as const;
+export const spring = { type: "spring", stiffness: 300, damping: 30 } as const; // kit spec: motion-principles.md
 export const softSpring = { type: "spring", stiffness: 260, damping: 28 } as const;
 
 /** Route-level page transition: gentle rise + fade, keyed by pathname. */

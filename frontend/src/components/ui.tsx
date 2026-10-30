@@ -174,12 +174,13 @@ export function ConfirmDialog({
   );
 }
 
-export function Empty({ text, hint, icon }: { text: string; hint?: string; icon?: ReactNode }) {
+export function Empty({ text, hint, icon, action }: { text: string; hint?: string; icon?: ReactNode; action?: ReactNode }) {
   return (
     <div className="grid place-items-center gap-2 rounded-xl border border-dashed border-line p-12 text-center">
       <span className="text-muted-foreground/60">{icon ?? <Inbox className="size-10" strokeWidth={1.25} />}</span>
       <p className="font-medium text-muted-foreground">{text}</p>
       {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }

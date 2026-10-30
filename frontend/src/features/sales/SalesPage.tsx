@@ -1,3 +1,14 @@
+/**
+ * PAGE CONTRACT
+ * Page: المبيعات (/sales)
+ * User: مدير أو محاسب يراجع الفواتير ويتعامل مع حالة واحدة (طباعة/مرتجع/إلغاء)
+ * Outcome: الوصول لفاتورة محددة وتنفيذ إجراء واحد عليها
+ * Primary information: رقم الفاتورة + تاريخها، العميل، الإجمالي/المتبقي، الحالة
+ * Primary action (per state): populated → فتح تفاصيل الفاتورة (الصف كله)؛ filtered-empty → «مسح البحث»؛ first-empty → «ابدأ البيع»؛ error → «إعادة المحاولة»
+ * Secondary action: طباعة، تحويل عرض سعر لفاتورة، تصدير Excel
+ * Required states: loading (skeleton), error (retry), filtered-empty (reset), first-use-empty, populated
+ * Responsive: 1440 جدول كامل + Sheet تفاصيل؛ 768 إخفاء أعمدة ثانوية؛ 390 أعمدة أساسية فقط مع قصّ الاسم المرن
+ */
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -129,8 +140,18 @@ export default function SalesPage() {
         isEmpty={rows.length === 0}
         onRetry={() => list.refetch()}
         emptyIcon={Receipt}
-        emptyTitle="لا توجد فواتير"
-        emptyDescription="لا توجد فواتير تطابق البحث أو الفلاتر الحالية."
+        emptyTitle={search ? "لا توجد نتائج للبحث" : "لا توجد فواتير بعد"}
+        emptyDescription={search ? `لا توجد فواتير تطابق «${search}» — وسّع البحث أو امسحه للمحاولة من جديد.` : "ستظهر الفواتير هنا بمجرد تسجيل أول عملية بيع."}
+        emptyAction={search ? (
+          <Button variant="outline" onClick={() => { setSearch(""); setPage(1); }}>
+            مسح البحث
+          </Button>
+        ) : (
+          <Button nativeButton={false} render={<Link to="/pos" />}>
+            <ShoppingCart data-icon="inline-start" />
+            ابدأ البيع
+          </Button>
+        )}
       >
         <TableShell>
           <Table>

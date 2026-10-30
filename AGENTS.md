@@ -249,3 +249,8 @@ Vendora — POS + Inventory + Accounting system for a plumbing/building supplies
 | `docker-compose.yml` | 4 services: db, backend, frontend, nginxpm |
 | `SYSTEM.md` | Complete system architecture reference |
 | `TASKS.md` | Features & bugs tracking |
+
+
+## Frontend UI/UX methodology
+
+All frontend work follows `frontend/DESIGN_SYSTEM.md` (visual canon) and `docs/ui-ux-kit/` (methodology: page contracts, states, preflight, AI-tell score). Fill a page contract before building or materially redesigning any page; run the preflight before shipping.

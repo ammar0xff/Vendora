@@ -1,3 +1,14 @@
+/**
+ * PAGE CONTRACT
+ * Page: لوحة التحكم (/)
+ * User: مدير الفرع يفتح النظام في بداية اليوم (أو بعد عودة من العمل الميداني)
+ * Outcome: تشخيص حالة اليوم (مبيعات/نواقص/وردية) والانتقال إلى الإجراء التالي
+ * Primary information: مبيعات اليوم، مبيعات الشهر، النواقص، حالة الوردية — بهذا الترتيب
+ * Primary action (per state): populated → «فاتورة جديدة»؛ empty-no-sales → «ابدأ البيع»؛ error → «إعادة المحاولة»
+ * Secondary action: مراجعة النواقص / كل الفواتير / اقتراح طلب شراء
+ * Required states: loading (skeletons), error (retry), populated — empty handled per-card
+ * Responsive: 1440 شبكة 4 مؤشرات + رسمان؛ 768 عمودان؛ 390 عمود واحد، الإجراء الأساسي ثابت
+ */
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CalendarRange, Clock, Receipt, ShoppingCart, TrendingUp } from "lucide-react";

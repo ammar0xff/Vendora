@@ -1,3 +1,14 @@
+/**
+ * PAGE CONTRACT
+ * Page: تسجيل الدخول (/login)
+ * User: موظف الشركة يبدأ ورديته من جهاز الفرع أو منزله
+ * Outcome: مصادقة ناجحة والوصول إلى لوحة التحكم بصلاحيات دوره
+ * Primary information: حقلا اسم المستخدم وكلمة المرور؛ رسالة الخطأ عند الفشل
+ * Primary action (per state): idle → «تسجيل الدخول»؛ error → إعادة المحاولة بنفس النموذج
+ * Secondary action: إظهار/إخفاء كلمة المرور
+ * Required states: idle, submitting (busy), invalid-credentials (ErrorBox), network-error
+ * Responsive: 1440 لوحتا هوية/نموذج؛ <lg شريط هوية مصغّر فوق النموذج
+ */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
@@ -51,15 +62,7 @@ export default function LoginPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel — the navy identity, right side in RTL */}
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-side p-10 lg:flex">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: "url(/Vendora/products/pvc-pipe.png), url(/Vendora/products/mixer-faucet.png)",
-            backgroundSize: "420px, 340px",
-            backgroundPosition: "top -60px left -40px, bottom -50px right -30px",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+        <div className="login-brand-art pointer-events-none absolute inset-0 opacity-[0.07]" />
         <div className="relative flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-side-primary text-xl font-black text-side-primary-ink">ف</div>
           <div className="leading-tight">

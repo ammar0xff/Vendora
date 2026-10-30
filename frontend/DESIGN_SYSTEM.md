@@ -52,6 +52,15 @@ Springs via `@/components/motion`; page transitions 150ms fade/4px-rise keyed by
 
 Minimum interactive size 36px (`size="icon"` / h-9); absolute floor 32px in dense tables. Mobile primary action: fixed bottom bar (safe-area padded) — pattern used by POS. Focus: kit ring (`focus-visible:ring-[3px] ring-ring/30`) — no global outlines. RTL first: `dir="rtl"` document, logical properties (`ms-`, `ps-`, `end-`).
 
+## Methodology — docs/ui-ux-kit (binding)
+
+`docs/ui-ux-kit/` is the governing methodology (user-provided kit v2): page contracts before UI (`prompts/page-contract.md`, concise contract comment at the top of each page TSX), repair order contract → structure → tokens/components → states/responsive → polish, preflight gate (`checks/preflight-checklist.md`), and AI-tell scoring (`checks/ai-tell-score.md`, target 0). Its token scaffold is superseded by this file's established steel-blue palette (the kit itself mandates starting from the existing system). Adopted from the kit:
+
+- Motion constants: spring `stiffness 300 / damping 30` (`components/motion.tsx`), stagger 0.04s, reveal ≤ 0.6s, hover/press ≤ 0.25s — centralized, no per-component timing.
+- No inline `style` props in feature code (brand-art pattern lives in `styles.css` classes; kit chart CSS-var injection is the one sanctioned exception).
+- Every state carries exactly one dominant action — including filtered-empty (reset) vs first-use-empty (create/start), and permission-denied (designed Empty with fallback navigation).
+- Status never by color alone (badge text + tone), touch target ~44px where feasible — documented deviation: kit controls at h-9 (36px) matching the approved prototype, 32px floor in dense tables.
+
 ## Data states
 
 Loading = skeletons shaped like the content. Empty = kit `Empty` with icon + one primary action. Error = `ErrorBox`/`ListState` error with Arabic message + retry. Network failure message: «تعذر الاتصال بالخادم — تحقق من اتصال الإنترنت» (thrown by `lib/api.ts`).

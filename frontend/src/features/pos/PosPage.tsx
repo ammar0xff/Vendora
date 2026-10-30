@@ -1,3 +1,14 @@
+/**
+ * PAGE CONTRACT
+ * Page: نقطة البيع (/pos)
+ * User: كاشير يخدم عميلًا أماميًا تحت ضغط الوقت
+ * Outcome: إتمام بيع (نقدي/آجل/مقسّم) أو تعليق الفاتورة لعميل آخر
+ * Primary information: نتائج البحث/الباركود، سلة الفاتورة (أصناف/كميات)، الإجمالي، حالة الوردية
+ * Primary action (per state): empty-cart → مسح/اختيار منتج؛ populated → «إتمام الدفع (F2)»؛ no-shift → «فتح وردية»
+ * Secondary action: تعليق/استئناف، تجزئة/جملة، مزامنة المبيعات دون اتصال
+ * Required states: loading, error, no-shift (blocking), offline-queued, populated, cart-empty
+ * Responsive: 1440 شبكة + سلة جانبية؛ <lg السلة كاملة ثم شريط إجراء سفلي ثابت بالإجمالي والدفع
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, TriangleAlert, X } from "lucide-react";
