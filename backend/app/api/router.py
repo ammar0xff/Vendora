@@ -60,3 +60,6 @@ router.include_router(periods.router)
 router.include_router(export_router.router)
 router.include_router(notifications.router)
 router.include_router(updater_router.router)
+
+from app.api.routers import platform as platform_router
+router.include_router(platform_router.router)

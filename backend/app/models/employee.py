@@ -7,10 +7,11 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, fun
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class Employee(Base):
+class Employee(TenantScoped, Base):
     """Maps to employees table — legacy payroll employee table."""
     __tablename__ = "employees"
 

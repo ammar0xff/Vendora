@@ -7,10 +7,11 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class StockBalance(Base):
+class StockBalance(TenantScoped, Base):
     """Maps to stock_balances table — per-product per-warehouse balance maintained atomically."""
     __tablename__ = "stock_balances"
 

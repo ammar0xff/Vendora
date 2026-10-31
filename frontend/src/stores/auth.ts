@@ -12,9 +12,22 @@ export interface User {
   default_warehouse_id: string | null;
 }
 
+export interface TenantInfo {
+  id: string;
+  name: string;
+  sector: string;
+  scale: string;
+  palette: { hue?: number };
+  features: string[];
+  plan: string;
+  trial_ends_at: string | null;
+}
+
 interface AuthState {
   token: string | null;
   user: User | null;
+  tenant: TenantInfo | null;
+  setTenant: (t: TenantInfo | null) => void;
   login: (token: string, user: User) => void;
   setToken: (token: string) => void;
   setUser: (user: User) => void;
@@ -24,9 +37,16 @@ interface AuthState {
 
 const KEY = "vendora.session";
 
-function persist(token: string | null, user: User | null) {
-  if (token) localStorage.setItem(KEY, JSON.stringify({ token, user }));
+function persist(token: string | null, user: User | null, tenant: TenantInfo | null) {
+  if (token) localStorage.setItem(KEY, JSON.stringify({ token, user, tenant }));
   else localStorage.removeItem(KEY);
+}
+
+/** Apply the tenant's chosen brand hue to the document (onboarding wizard option). */
+export function applyBrandHue(hue?: number) {
+  if (hue && Number.isFinite(hue)) {
+    document.documentElement.style.setProperty("--brand-hue", String(Math.round(hue)));
+  }
 }
 
 function load(): { token: string | null; user: User | null } {
@@ -41,12 +61,19 @@ function load(): { token: string | null; user: User | null } {
 
 export const useAuth = create<AuthState>((set, get) => ({
   ...load(),
+  tenant: null,
+  setTenant: (tenant) => {
+    set({ tenant });
+    applyBrandHue(tenant?.palette?.hue);
+    if (tenant) localStorage.setItem("vendora.tenant", JSON.stringify(tenant));
+    else localStorage.removeItem("vendora.tenant");
+  },
   login: (token, user) => {
-    persist(token, user);
+    persist(token, user, get().tenant);
     set({ token, user });
   },
   setToken: (token) => {
-    persist(token, get().user);
+    persist(token, get().user, get().tenant);
     set({ token });
   },
   setUser: (user) => {
@@ -56,7 +83,8 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
   logout: () => {
     localStorage.removeItem(KEY);
-    set({ token: null, user: null });
+    localStorage.removeItem("vendora.tenant");
+    set({ token: null, user: null, tenant: null });
   },
   can: (perm) => {
     const u = get().user;

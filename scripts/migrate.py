@@ -400,6 +400,722 @@ MIGRATIONS = [
         ALTER TABLE hr_sync_log ALTER COLUMN added   SET DEFAULT 0;
         ALTER TABLE hr_sync_log ALTER COLUMN updated SET DEFAULT 0;
     """),
+    # v29 — multi-tenancy: tenants + tenant_id on all business tables (backfill = tenant #1)
+    ("v29_multi_tenancy", """
+        CREATE TABLE IF NOT EXISTS tenants (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL, sector text NOT NULL DEFAULT 'plumbing', scale text NOT NULL DEFAULT 'medium', palette jsonb NOT NULL DEFAULT '{}'::jsonb, features jsonb NOT NULL DEFAULT '[]'::jsonb, plan text NOT NULL DEFAULT 'trial', trial_ends_at timestamptz, storefront_slug text UNIQUE, created_at timestamptz NOT NULL DEFAULT now());
+        CREATE TABLE IF NOT EXISTS subscriptions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, plan text NOT NULL, status text NOT NULL DEFAULT 'requested', contact_phone text, created_at timestamptz NOT NULL DEFAULT now());
+        INSERT INTO tenants (name, sector, scale, plan) SELECT 'المصرية الألمانية للأدوات الصحية', 'plumbing', 'large', 'enterprise' WHERE NOT EXISTS (SELECT 1 FROM tenants);
+        ALTER TABLE accounting_periods ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE archived_documents ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE categories ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE collection_items ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE customer_payments ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE device_tokens ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE drawer_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE expense_vendors ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE expenses ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE financial_categories ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_advances ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_attendance ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_audit_log ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_payroll ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_payroll_entries ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_payroll_periods ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_settings ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_shifts ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE hr_sync_log ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE payment_wallets ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE payroll_entries ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE product_barcodes ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE product_collections ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE product_images ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE purchase_price_history ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE safe_deposits ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE safe_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE safes ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE sale_payments ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE sales ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE stock_balances ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE subcategories ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE supplier_prices ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE supplier_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE warehouse_product_status ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        UPDATE users SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE accounting_periods SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE archived_documents SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE audit_log SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE categories SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE customer_payments SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE collection_items SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE employees SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE customers SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE device_tokens SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE drawer_transactions SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE expense_vendors SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE expenses SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE financial_categories SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_advances SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_attendance SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_audit_log SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_employees SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_payroll SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_payroll_entries SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_payroll_periods SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_settings SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_shifts SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE hr_sync_log SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE payment_wallets SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE payroll_entries SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE product_barcodes SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE product_collections SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE product_images SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE products SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE purchase_order_items SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE purchase_orders SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE purchase_price_history SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE safe_deposits SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE safe_transactions SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE safes SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE sale_items SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE sale_payments SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE sales SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE shifts SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE stock_balances SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE stock_movements SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE store_settings SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE subcategories SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE supplier_prices SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE supplier_transactions SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE suppliers SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE wallet_transactions SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE warehouse_product_status SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        UPDATE warehouses SET tenant_id = (SELECT id FROM tenants ORDER BY created_at LIMIT 1) WHERE tenant_id IS NULL;
+        CREATE INDEX IF NOT EXISTS ix_accounting_periods_tenant_id ON accounting_periods(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_archived_documents_tenant_id ON archived_documents(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_audit_log_tenant_id ON audit_log(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_categories_tenant_id ON categories(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_customer_payments_tenant_id ON customer_payments(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_collection_items_tenant_id ON collection_items(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_employees_tenant_id ON employees(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_customers_tenant_id ON customers(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_device_tokens_tenant_id ON device_tokens(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_drawer_transactions_tenant_id ON drawer_transactions(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_expense_vendors_tenant_id ON expense_vendors(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_expenses_tenant_id ON expenses(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_financial_categories_tenant_id ON financial_categories(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_advances_tenant_id ON hr_advances(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_attendance_tenant_id ON hr_attendance(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_audit_log_tenant_id ON hr_audit_log(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_employees_tenant_id ON hr_employees(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_payroll_tenant_id ON hr_payroll(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_payroll_entries_tenant_id ON hr_payroll_entries(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_payroll_periods_tenant_id ON hr_payroll_periods(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_settings_tenant_id ON hr_settings(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_shifts_tenant_id ON hr_shifts(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_hr_sync_log_tenant_id ON hr_sync_log(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_payment_wallets_tenant_id ON payment_wallets(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_payroll_entries_tenant_id ON payroll_entries(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_product_barcodes_tenant_id ON product_barcodes(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_product_collections_tenant_id ON product_collections(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_product_images_tenant_id ON product_images(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_products_tenant_id ON products(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_purchase_order_items_tenant_id ON purchase_order_items(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_purchase_orders_tenant_id ON purchase_orders(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_purchase_price_history_tenant_id ON purchase_price_history(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_safe_deposits_tenant_id ON safe_deposits(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_safe_transactions_tenant_id ON safe_transactions(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_safes_tenant_id ON safes(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_sale_items_tenant_id ON sale_items(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_sale_payments_tenant_id ON sale_payments(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_sales_tenant_id ON sales(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_shifts_tenant_id ON shifts(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_stock_balances_tenant_id ON stock_balances(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_stock_movements_tenant_id ON stock_movements(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_store_settings_tenant_id ON store_settings(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_subcategories_tenant_id ON subcategories(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_supplier_prices_tenant_id ON supplier_prices(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_supplier_transactions_tenant_id ON supplier_transactions(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_suppliers_tenant_id ON suppliers(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_wallet_transactions_tenant_id ON wallet_transactions(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_warehouse_product_status_tenant_id ON warehouse_product_status(tenant_id);
+        CREATE INDEX IF NOT EXISTS ix_warehouses_tenant_id ON warehouses(tenant_id);
+        ALTER TABLE accounting_periods ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE archived_documents ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE audit_log ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE categories ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE customer_payments ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE collection_items ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE employees ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE customers ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE device_tokens ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE drawer_transactions ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE expense_vendors ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE expenses ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE financial_categories ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_advances ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_attendance ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_audit_log ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_employees ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_payroll ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_payroll_entries ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_payroll_periods ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_settings ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_shifts ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE hr_sync_log ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE payment_wallets ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE payroll_entries ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE product_barcodes ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE product_collections ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE product_images ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE products ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE purchase_order_items ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE purchase_orders ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE purchase_price_history ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE safe_deposits ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE safe_transactions ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE safes ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE sale_items ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE sale_payments ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE sales ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE shifts ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE stock_balances ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE stock_movements ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE store_settings ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE subcategories ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE supplier_prices ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE supplier_transactions ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE suppliers ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE wallet_transactions ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE warehouse_product_status ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE warehouses ALTER COLUMN tenant_id SET NOT NULL;
+        ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_name_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_categories_name') THEN ALTER TABLE categories ADD CONSTRAINT uq_categories_name UNIQUE (tenant_id, name); END IF; END $$;
+        ALTER TABLE warehouses DROP CONSTRAINT IF EXISTS warehouses_code_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_warehouses_code') THEN ALTER TABLE warehouses ADD CONSTRAINT uq_warehouses_code UNIQUE (tenant_id, code); END IF; END $$;
+        ALTER TABLE payment_wallets DROP CONSTRAINT IF EXISTS payment_wallets_name_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_payment_wallets_name') THEN ALTER TABLE payment_wallets ADD CONSTRAINT uq_payment_wallets_name UNIQUE (tenant_id, name); END IF; END $$;
+        ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_invoice_number_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_sales_invoice_number') THEN ALTER TABLE sales ADD CONSTRAINT uq_sales_invoice_number UNIQUE (tenant_id, invoice_number); END IF; END $$;
+        ALTER TABLE purchase_orders DROP CONSTRAINT IF EXISTS purchase_orders_po_number_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_purchase_orders_po_number') THEN ALTER TABLE purchase_orders ADD CONSTRAINT uq_purchase_orders_po_number UNIQUE (tenant_id, po_number); END IF; END $$;
+        ALTER TABLE hr_payroll_periods DROP CONSTRAINT IF EXISTS hr_payroll_periods_month_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_hr_payroll_periods_month') THEN ALTER TABLE hr_payroll_periods ADD CONSTRAINT uq_hr_payroll_periods_month UNIQUE (tenant_id, month); END IF; END $$;
+        ALTER TABLE accounting_periods DROP CONSTRAINT IF EXISTS accounting_periods_month_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_accounting_periods_month') THEN ALTER TABLE accounting_periods ADD CONSTRAINT uq_accounting_periods_month UNIQUE (tenant_id, month); END IF; END $$;
+        ALTER TABLE hr_settings DROP CONSTRAINT IF EXISTS hr_settings_key_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_hr_settings_key') THEN ALTER TABLE hr_settings ADD CONSTRAINT uq_hr_settings_key UNIQUE (tenant_id, key); END IF; END $$;
+        ALTER TABLE hr_employees DROP CONSTRAINT IF EXISTS hr_employees_emp_code_key;
+        DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_hr_employees_emp_code') THEN ALTER TABLE hr_employees ADD CONSTRAINT uq_hr_employees_emp_code UNIQUE (tenant_id, emp_code); END IF; END $$;
+    """),
+    # v30 — row-level security: DB-enforced tenancy for ORM AND raw SQL
+    ("v30_rls", """
+        ALTER TABLE accounting_periods ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE accounting_periods FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'accounting_periods' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON accounting_periods
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE archived_documents ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE archived_documents FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'archived_documents' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON archived_documents
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_log' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON audit_log
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE categories FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'categories' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON categories
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE collection_items FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'collection_items' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON collection_items
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE customer_payments ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE customer_payments FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'customer_payments' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON customer_payments
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE customers FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'customers' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON customers
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE device_tokens FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'device_tokens' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON device_tokens
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE drawer_transactions ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE drawer_transactions FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'drawer_transactions' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON drawer_transactions
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE employees FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'employees' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON employees
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE expense_vendors ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE expense_vendors FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'expense_vendors' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON expense_vendors
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE expenses FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'expenses' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON expenses
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE financial_categories ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE financial_categories FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'financial_categories' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON financial_categories
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_advances ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_advances FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_advances' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_advances
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_attendance ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_attendance FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_attendance' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_attendance
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_audit_log ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_audit_log FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_audit_log' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_audit_log
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_employees ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_employees FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_employees' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_employees
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_payroll ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_payroll FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_payroll' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_payroll
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_payroll_entries ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_payroll_entries FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_payroll_entries' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_payroll_entries
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_payroll_periods ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_payroll_periods FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_payroll_periods' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_payroll_periods
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_settings ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_settings FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_settings' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_settings
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_shifts ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_shifts FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_shifts' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_shifts
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE hr_sync_log ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE hr_sync_log FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hr_sync_log' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON hr_sync_log
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE payment_wallets ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE payment_wallets FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'payment_wallets' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON payment_wallets
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE payroll_entries ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE payroll_entries FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'payroll_entries' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON payroll_entries
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE product_barcodes ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE product_barcodes FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'product_barcodes' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON product_barcodes
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE product_collections ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE product_collections FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'product_collections' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON product_collections
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE product_images FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'product_images' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON product_images
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE products FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'products' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON products
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE purchase_order_items ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE purchase_order_items FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'purchase_order_items' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON purchase_order_items
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE purchase_orders ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE purchase_orders FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'purchase_orders' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON purchase_orders
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE purchase_price_history ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE purchase_price_history FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'purchase_price_history' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON purchase_price_history
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE safe_deposits ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE safe_deposits FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'safe_deposits' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON safe_deposits
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE safe_transactions ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE safe_transactions FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'safe_transactions' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON safe_transactions
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE safes ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE safes FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'safes' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON safes
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE sale_items ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE sale_items FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'sale_items' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON sale_items
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE sale_payments ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE sale_payments FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'sale_payments' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON sale_payments
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE sales FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'sales' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON sales
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE shifts ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE shifts FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'shifts' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON shifts
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE stock_balances ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE stock_balances FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'stock_balances' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON stock_balances
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE stock_movements ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE stock_movements FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'stock_movements' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON stock_movements
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE store_settings ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE store_settings FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'store_settings' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON store_settings
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE subcategories ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE subcategories FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'subcategories' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON subcategories
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE supplier_prices ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE supplier_prices FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'supplier_prices' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON supplier_prices
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE supplier_transactions ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE supplier_transactions FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'supplier_transactions' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON supplier_transactions
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE suppliers FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON suppliers
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE wallet_transactions ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE wallet_transactions FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'wallet_transactions' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON wallet_transactions
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE warehouse_product_status ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE warehouse_product_status FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'warehouse_product_status' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON warehouse_product_status
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+        ALTER TABLE warehouses ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE warehouses FORCE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'warehouses' AND policyname = 'tenant_isolation') THEN
+            CREATE POLICY tenant_isolation ON warehouses
+              USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on')
+              WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid OR current_setting('app.bypass', true) = 'on');
+          END IF;
+        END $$;
+    """),
+    # v31 — raw-SQL inserts get tenant_id from the RLS GUC automatically
+    ("v31_tenant_default", """
+        ALTER TABLE accounting_periods ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE archived_documents ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE audit_log ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE categories ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE collection_items ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE customer_payments ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE customers ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE device_tokens ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE drawer_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE employees ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE expense_vendors ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE expenses ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE financial_categories ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_advances ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_attendance ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_audit_log ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_employees ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_payroll ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_payroll_entries ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_payroll_periods ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_settings ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_shifts ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE hr_sync_log ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE payment_wallets ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE payroll_entries ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE product_barcodes ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE product_collections ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE product_images ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE products ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE purchase_order_items ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE purchase_orders ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE purchase_price_history ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE safe_deposits ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE safe_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE safes ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE sale_items ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE sale_payments ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE sales ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE shifts ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE stock_balances ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE stock_movements ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE store_settings ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE subcategories ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE supplier_prices ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE supplier_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE suppliers ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE wallet_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE warehouse_product_status ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+        ALTER TABLE warehouses ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+    """),
 ]
 
 def run():

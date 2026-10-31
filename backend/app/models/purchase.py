@@ -3,11 +3,12 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import UniqueConstraint, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
@@ -18,11 +19,11 @@ class POStatus(enum.StrEnum):
     cancelled = "cancelled"
 
 
-class PurchaseOrder(Base):
+class PurchaseOrder(TenantScoped, Base):
     __tablename__ = "purchase_orders"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    po_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    po_number: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True)
     warehouse_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
@@ -34,9 +35,9 @@ class PurchaseOrder(Base):
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     items: Mapped[list["PurchaseOrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
+    __table_args__ = (UniqueConstraint("tenant_id", "po_number", name="uq_purchase_orders_po_number"),)
 
-
-class PurchaseOrderItem(Base):
+class PurchaseOrderItem(TenantScoped, Base):
     __tablename__ = "purchase_order_items"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

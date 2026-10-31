@@ -2,19 +2,20 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import UniqueConstraint, Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class HrEmployee(Base):
+class HrEmployee(TenantScoped, Base):
     """Maps to hr_employees table — the actual HR employee records used by raw SQL in hr.py."""
     __tablename__ = "hr_employees"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    emp_code: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
+    emp_code: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     position: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -23,14 +24,14 @@ class HrEmployee(Base):
     hire_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint("tenant_id", "emp_code", name="uq_hr_employees_emp_code"),)
 
-
-class HrPayrollPeriod(Base):
+class HrPayrollPeriod(TenantScoped, Base):
     """Maps to hr_payroll_periods table — payroll month tracking."""
     __tablename__ = "hr_payroll_periods"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    month: Mapped[str] = mapped_column(String(7), unique=True, nullable=False)
+    month: Mapped[str] = mapped_column(String(7), index=True, nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     submitted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -40,9 +41,9 @@ class HrPayrollPeriod(Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    __table_args__ = (UniqueConstraint("tenant_id", "month", name="uq_hr_payroll_periods_month"),)
 
-
-class HrPayrollEntry(Base):
+class HrPayrollEntry(TenantScoped, Base):
     """Maps to hr_payroll_entries table — per-employee payroll entries (replaces old hr_payroll table)."""
     __tablename__ = "hr_payroll_entries"
 

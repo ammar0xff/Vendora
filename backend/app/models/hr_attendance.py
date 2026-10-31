@@ -6,10 +6,11 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class HrAttendance(Base):
+class HrAttendance(TenantScoped, Base):
     """Maps to hr_attendance table."""
     __tablename__ = "hr_attendance"
 

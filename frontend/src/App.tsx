@@ -17,6 +17,10 @@ const ReportsPage = lazy(() => import("@/features/reports/ReportsPage"));
 const ArchivePage = lazy(() => import("@/features/archive/ArchivePage"));
 const OperationsPage = lazy(() => import("@/features/operations/OperationsPage"));
 import { Link, Navigate, Route, Routes } from "react-router-dom";
+import LandingPage from "@/features/marketing/LandingPage";
+import PricingPage from "@/features/marketing/PricingPage";
+import SignupPage from "@/features/marketing/SignupPage";
+import OnboardingWizard from "@/features/marketing/OnboardingWizard";
 import { Lock } from "lucide-react";
 import { useAuth } from "@/stores/auth";
 import { NAV_ITEMS } from "@/lib/nav";
@@ -67,6 +71,17 @@ export default function App() {
           token alone caused a redirect ping-pong with Guard (which requires both)
           while /auth/me was still in flight — visible as navigation throttling. */}
       <Route path="/login" element={token && user ? <Navigate to="/" replace /> : <LoginPage />} />
+
+      {/* Public SaaS surfaces — the landing doubles as the app root for signed-in users */}
+      <Route
+        path="/"
+        element={token && user ? <Guard perm=""><Shell /></Guard> : <LandingPage />}
+      >
+        <Route index element={<Page><DashboardPage /></Page>} />
+      </Route>
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/signup" element={token && user ? <Navigate to="/" replace /> : <SignupPage />} />
+      <Route path="/onboarding" element={<OnboardingWizard />} />
       <Route
         element={
           <Guard perm="">
@@ -74,7 +89,6 @@ export default function App() {
           </Guard>
         }
       >
-        <Route index element={<DashboardPage />} />
         <Route path="/pos" element={<Guard perm="pos"><PosPage /></Guard>} />
         <Route path="/products" element={<Guard perm="inventory"><ProductsPage /></Guard>} />
         <Route path="/sales" element={<Guard perm="sales"><SalesPage /></Guard>} />

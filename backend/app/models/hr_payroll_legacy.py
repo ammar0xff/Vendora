@@ -7,10 +7,11 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class HrPayrollLegacy(Base):
+class HrPayrollLegacy(TenantScoped, Base):
     """Maps to hr_payroll table — legacy payroll table (replaced by normalized tables)."""
     __tablename__ = "hr_payroll"
 

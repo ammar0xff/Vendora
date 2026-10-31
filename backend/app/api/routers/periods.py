@@ -58,7 +58,7 @@ async def close_period(month: str, db: AsyncSession = Depends(get_db), current_u
     await db.execute(text("""
         INSERT INTO accounting_periods (month, status, closed_by, closed_at)
         VALUES (:m, 'closed', :by, now())
-        ON CONFLICT (month) DO UPDATE SET status='closed', closed_by=:by, closed_at=now(), updated_at=now()
+        ON CONFLICT (tenant_id, month) DO UPDATE SET status='closed', closed_by=:by, closed_at=now(), updated_at=now()
     """), {"m": month, "by": current_user.id})
     await db.commit()
     return {"detail": f"شهر {month} مغلق"}

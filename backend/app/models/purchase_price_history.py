@@ -7,10 +7,11 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class PurchasePriceHistory(Base):
+class PurchasePriceHistory(TenantScoped, Base):
     """Maps to purchase_price_history table."""
     __tablename__ = "purchase_price_history"
 

@@ -5,10 +5,11 @@ from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class DeviceToken(Base):
+class DeviceToken(TenantScoped, Base):
     __tablename__ = "device_tokens"
     __table_args__ = (
         Index("idx_device_tokens_user_id", "user_id"),

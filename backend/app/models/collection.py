@@ -7,10 +7,11 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class ProductCollection(Base):
+class ProductCollection(TenantScoped, Base):
     """Maps to product_collections table."""
     __tablename__ = "product_collections"
 
@@ -24,7 +25,7 @@ class ProductCollection(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class CollectionItem(Base):
+class CollectionItem(TenantScoped, Base):
     """Maps to collection_items table."""
     __tablename__ = "collection_items"
 

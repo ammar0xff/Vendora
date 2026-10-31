@@ -210,7 +210,7 @@ async def update_period_status(
         text(f"""
             INSERT INTO hr_payroll_periods (month, status, {new_status}_by, {new_status}_at)
             VALUES (:m, '{new_status}', :by, now())
-            ON CONFLICT (month) DO UPDATE SET status='{new_status}', {new_status}_by=:by, {new_status}_at=now(), updated_at=now()
+            ON CONFLICT (tenant_id, month) DO UPDATE SET status='{new_status}', {new_status}_by=:by, {new_status}_at=now(), updated_at=now()
         """),
         {"m": month, "by": current_user_id},
     )

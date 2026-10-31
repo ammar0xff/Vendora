@@ -7,10 +7,11 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class Safe(Base):
+class Safe(TenantScoped, Base):
     __tablename__ = "safes"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -22,7 +23,7 @@ class Safe(Base):
     safe_type: Mapped[str] = mapped_column(Text, nullable=False, default="permanent")
 
 
-class SafeTransaction(Base):
+class SafeTransaction(TenantScoped, Base):
     """Maps to safe_transactions table."""
     __tablename__ = "safe_transactions"
 
@@ -36,7 +37,7 @@ class SafeTransaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class SafeDeposit(Base):
+class SafeDeposit(TenantScoped, Base):
     """Maps to safe_deposits table."""
     __tablename__ = "safe_deposits"
 

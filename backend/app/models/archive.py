@@ -8,6 +8,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
@@ -26,7 +27,7 @@ class DocType(enum.StrEnum):
     other           = "other"
 
 
-class ArchivedDocument(Base):
+class ArchivedDocument(TenantScoped, Base):
     __tablename__ = "archived_documents"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

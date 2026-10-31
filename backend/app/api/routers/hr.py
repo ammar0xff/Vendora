@@ -71,7 +71,7 @@ async def get_hr_settings(db: AsyncSession = Depends(get_db), _=Depends(require_
 @router.put("/settings")
 async def update_hr_settings(data: HRSettingsUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_perm("payroll"))):
     for k, v in data.settings.items():
-        await db.execute(text("INSERT INTO hr_settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value"),
+        await db.execute(text("INSERT INTO hr_settings (key, value) VALUES (:k,:v) ON CONFLICT (tenant_id, key) DO UPDATE SET value=EXCLUDED.value"),
                          {'k': k, 'v': str(v)})
     await db.commit()
     return {"detail": "saved"}
@@ -485,7 +485,7 @@ async def submit_payroll_period(month: str, db: AsyncSession = Depends(get_db), 
     await db.execute(text("""
         INSERT INTO hr_payroll_periods (month, status, submitted_by, submitted_at)
         VALUES (:m, 'review', :by, now())
-        ON CONFLICT (month) DO UPDATE SET status='review', submitted_by=:by, submitted_at=now(), updated_at=now()
+        ON CONFLICT (tenant_id, month) DO UPDATE SET status='review', submitted_by=:by, submitted_at=now(), updated_at=now()
     """), {"m": month, "by": current_user.id})
     await db.execute(text("""
         UPDATE hr_payroll_entries SET status='draft'
@@ -533,7 +533,7 @@ async def approve_payroll_period(month: str, db: AsyncSession = Depends(get_db),
     await db.execute(text("""
         INSERT INTO hr_payroll_periods (month, status, approved_by, approved_at)
         VALUES (:m, 'approved', :by, now())
-        ON CONFLICT (month) DO UPDATE SET status='approved', approved_by=:by, approved_at=now(), updated_at=now()
+        ON CONFLICT (tenant_id, month) DO UPDATE SET status='approved', approved_by=:by, approved_at=now(), updated_at=now()
     """), {"m": month, "by": current_user.id})
     await db.execute(text("""
         UPDATE hr_payroll_entries SET status='approved'
@@ -566,7 +566,7 @@ async def reopen_payroll_period(month: str, db: AsyncSession = Depends(get_db), 
         raise BusinessError("لا يمكن إعادة فتح شهر تم صرفه")
     await db.execute(text("""
         INSERT INTO hr_payroll_periods (month, status) VALUES (:m, 'draft')
-        ON CONFLICT (month) DO UPDATE SET status='draft', updated_at=now()
+        ON CONFLICT (tenant_id, month) DO UPDATE SET status='draft', updated_at=now()
     """), {"m": month})
     await db.execute(text("""
         UPDATE hr_payroll_entries SET status='draft'

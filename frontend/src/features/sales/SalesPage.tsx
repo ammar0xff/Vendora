@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, MoreHorizontal, Printer, Receipt, ShoppingCart, Undo2, Wallet } from "lucide-react";
 import { api, downloadExport, openPrintDoc } from "@/lib/api";
 import { dateTime, formatDateTime, moneyEGP } from "@/lib/format";
-import { ListState, Money, Num, PageHeader, SearchField, StatCard, StatusBadge, TableShell } from "@/components/app/shared";
+import { ListState, Money, Num, PageHeader, SearchField, StatCard, StatusBadge, TablePagination, TableShell } from "@/components/app/shared";
 import { Button } from "@/components/kit/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger,
@@ -48,6 +48,7 @@ const statusLabel = (s: SaleRow): string =>
 export default function SalesPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [search, setSearch] = useState("");
   const [view, setView] = useState("invoices");
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export default function SalesPage() {
 
   const list = useQuery({
     queryKey: ["sales", page, search],
-    queryFn: () => api.get<SaleRow[]>("/sales", { page, page_size: 25, search: search || undefined }),
+    queryFn: () => api.get<SaleRow[]>("/sales", { page, page_size: pageSize, search: search || undefined }),
   });
   const detail = useQuery({
     queryKey: ["sale", detailId],
@@ -221,13 +222,13 @@ export default function SalesPage() {
         </TableShell>
       </ListState>
 
-      {rows.length === 25 && (
-        <div className="flex items-center justify-center gap-3 text-sm">
-          <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>السابق</Button>
-          <span className="num text-muted-foreground">صفحة {page}</span>
-          <Button variant="outline" onClick={() => setPage((p) => p + 1)}>التالي</Button>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pages={rows.length === pageSize ? page + 1 : page}
+        onPage={(p) => setPage(p)}
+        pageSize={pageSize}
+        onPageSize={(n) => { setPageSize(n); setPage(1); }}
+      />
 
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <SheetContent side="left" className="w-full overflow-y-auto sm:max-w-lg">

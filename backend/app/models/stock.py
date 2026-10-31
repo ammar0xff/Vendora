@@ -8,6 +8,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
@@ -31,7 +32,7 @@ IN_TYPES = ("opening_stock", "purchase", "return_in", "adjustment_in", "transfer
 OUT_TYPES = ("sale", "damage", "adjustment_out", "transfer_out")
 
 
-class StockMovement(Base):
+class StockMovement(TenantScoped, Base):
     __tablename__ = "stock_movements"
     __table_args__ = (
         Index("idx_stock_movements_product_warehouse", "product_id", "warehouse_id"),

@@ -24,9 +24,23 @@ from app.services.storefront_page import get_storefront_html
 router = APIRouter(prefix="/store", tags=["storefront"])
 page_router = APIRouter(tags=["storefront"])
 
+async def _public_store_ctx(db: AsyncSession) -> None:
+    """Public storefront operates on the founding tenant's shop: ORM reads
+    (products/categories) are tenant-scoped, so resolve the store's tenant."""
+    from sqlalchemy import text as _text
+    from app.core.tenancy import current_tenant_id
+    if current_tenant_id.get() is not None:
+        return
+    row = (await db.execute(_text("SELECT tenant_id FROM store_settings ORDER BY key LIMIT 1"))).first()
+    if row and row[0]:
+        from app.core.tenancy import bind_tenant
+        await bind_tenant(db, row[0])
+
+
 
 @page_router.get("/storefront", response_class=HTMLResponse)
 async def storefront_page(db: AsyncSession = Depends(get_db)):
+    await _public_store_ctx(db)
     """The public customer-facing storefront page (custom template or built-in)."""
     return HTMLResponse(await get_storefront_html(db))
 
@@ -85,6 +99,7 @@ async def store_products(
     page_size: int = Query(24, ge=1, le=60),
     db: AsyncSession = Depends(get_db),
 ):
+    await _public_store_ctx(db)
     base = select(Product).where(Product.is_active)
     countq = select(func.count(Product.id)).where(Product.is_active)
 
@@ -110,6 +125,7 @@ async def store_products(
 
 @router.get("/products/{product_id}", response_model=StoreProductOut)
 async def store_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    await _public_store_ctx(db)
     row = (
         await db.execute(
             select(Product)
@@ -127,6 +143,7 @@ async def store_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 @router.get("/categories", response_model=list[StoreCategoryOut])
 async def store_categories(db: AsyncSession = Depends(get_db)):
+    await _public_store_ctx(db)
     counts = dict(
         (await db.execute(
             sqlt(

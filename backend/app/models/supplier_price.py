@@ -7,10 +7,11 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, UniqueCon
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class SupplierPrice(Base):
+class SupplierPrice(TenantScoped, Base):
     __tablename__ = "supplier_prices"
     __table_args__ = (
         UniqueConstraint("supplier_id", "product_id", name="uq_supplier_product"),

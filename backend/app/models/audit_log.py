@@ -6,10 +6,11 @@ from sqlalchemy import DateTime, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class AuditLog(Base):
+class AuditLog(TenantScoped, Base):
     """Maps to audit_log table — general audit trail."""
     __tablename__ = "audit_log"
 

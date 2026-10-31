@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CalendarRange, Receipt, ShoppingCart } from "lucide-react";
 import { api } from "@/lib/api";
 import { useBranch } from "@/components/AppShell";
-import { ListState, Money, Num, StatCard, StatusBadge, TableShell } from "@/components/app/shared";
+import { Delta, KpiTile, ListState, Money, Num, StatusBadge, TableShell } from "@/components/app/shared";
 import { Button } from "@/components/kit/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/kit/table";
 import { Skeleton } from "@/components/kit/skeleton";
@@ -117,9 +117,12 @@ export default function DashboardPage() {
 
   const trend = buildTrend(recent.data ?? []);
   const trendTotal = trend.reduce((s, d) => s + d.sales, 0);
+
   const dayTotal = Number(daily.data?.total_sales ?? 0);
   const dayCount = daily.data?.invoice_count ?? 0;
   const dayAvg = dayCount > 0 ? dayTotal / dayCount : 0;
+  const yesterday = trend[trend.length - 2]?.sales ?? 0;
+  const dayDelta = yesterday > 0 ? ((dayTotal - yesterday) / yesterday) * 100 : null;
   const lowCount = lowStock.data?.length ?? 0;
   const today = new Intl.DateTimeFormat("ar-EG-u-nu-latn", { dateStyle: "full", timeZone: "Africa/Cairo" }).format(new Date());
 
@@ -190,20 +193,35 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Ledger stats — supporting figures, ranked by decision value */}
-      <section aria-label="ملخص الشهر والمخزون" className="grid grid-cols-2 gap-6 sm:grid-cols-3">
-        <StatCard label="مبيعات الشهر" icon={CalendarRange} value={monthly.isError ? "—" : <Money value={Number(monthly.data?.total_sales ?? 0)} />} hint={<span>حتى تاريخ اليوم</span>} />
-        <StatCard label="فواتير الشهر" icon={Receipt} value={monthly.isError ? "—" : <Num value={monthly.data?.invoice_count ?? 0} />} />
-        <StatCard
+      {/* KPI tiles — colored, with real deltas (today vs yesterday) and a live sparkline */}
+      <section aria-label="مؤشرات الأداء" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <KpiTile
+          label="مبيعات الشهر"
+          icon={CalendarRange}
+          tone="default"
+          value={monthly.isError ? "—" : <Money value={Number(monthly.data?.total_sales ?? 0)} />}
+          hint={monthly.isError ? "غير متاح حاليًا" : <span>حتى تاريخ اليوم · <Num value={monthly.data?.invoice_count ?? 0} /> فاتورة</span>}
+        />
+        <KpiTile
           label="منتجات تحت الحد"
           icon={AlertTriangle}
           tone={lowCount > 0 ? "warning" : "success"}
           value={<Num value={lowCount} />}
-          hint={
-            <Link to="/inventory" className="underline-offset-4 hover:underline">
-              عرض قائمة النواقص
-            </Link>
-          }
+          hint={<Link to="/inventory" className="underline-offset-4 hover:underline">عرض قائمة النواقص</Link>}
+        />
+        <KpiTile
+          label="مبيعات أمس"
+          icon={Receipt}
+          tone="info"
+          value={<Money value={trend[trend.length - 2]?.sales ?? 0} />}
+          hint={<Delta percent={dayDelta} />}
+        />
+        <KpiTile
+          label="إجمالي ١٤ يومًا"
+          icon={CalendarRange}
+          tone="success"
+          value={<Money value={trendTotal} />}
+          hint={<span>متوسط يومي <Money value={trendTotal / 14} /></span>}
         />
       </section>
 

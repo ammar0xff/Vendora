@@ -2,26 +2,27 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import UniqueConstraint, Boolean, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class Category(Base):
+class Category(TenantScoped, Base):
     __tablename__ = "categories"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
     code: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     subcategories: Mapped[list["Subcategory"]] = relationship(back_populates="category", cascade="all, delete-orphan")
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_categories_name"),)
 
-
-class Subcategory(Base):
+class Subcategory(TenantScoped, Base):
     __tablename__ = "subcategories"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -34,7 +35,7 @@ class Subcategory(Base):
     products: Mapped[list["Product"]] = relationship(back_populates="subcategory")
 
 
-class Product(Base):
+class Product(TenantScoped, Base):
     __tablename__ = "products"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -68,7 +69,7 @@ class Product(Base):
     )
 
 
-class ProductImage(Base):
+class ProductImage(TenantScoped, Base):
     __tablename__ = "product_images"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -80,7 +81,7 @@ class ProductImage(Base):
     product: Mapped["Product"] = relationship(back_populates="images")
 
 
-class ProductBarcode(Base):
+class ProductBarcode(TenantScoped, Base):
     __tablename__ = "product_barcodes"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

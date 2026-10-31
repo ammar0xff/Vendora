@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Clock, Droplets, LogOut, Menu, Moon, Sun, UserRound } from "lucide-react";
+import { Building2, Clock, LogOut, Menu, Moon, Scale, Search, Sun, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { NAV_GROUPS, NAV_ITEMS, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from "@/components/kit/sheet";
 import { PageTransition } from "@/components/motion";
 import { dateTime } from "@/lib/format";
+import { CommandPalette, TrialBanner, useHotkeySearch } from "@/components/shell-parts";
 
 interface Warehouse {
   id: string;
@@ -37,7 +38,10 @@ export function useBranch() {
 
 function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useLocation().pathname;
-  const { can } = useAuth();
+  const { can, tenant } = useAuth();
+  const tenantTrialEnds = tenant?.trial_ends_at
+    ? new Intl.DateTimeFormat("ar-EG-u-nu-latn", { day: "numeric", month: "long" }).format(new Date(tenant.trial_ends_at))
+    : "";
   const visible = NAV_ITEMS.filter((n) => !n.perm || can(n.perm));
   const groups = (Object.keys(NAV_GROUPS) as NavItem["group"][])
     .map((g) => ({ id: g, label: NAV_GROUPS[g], items: visible.filter((n) => n.group === g) }))
@@ -47,11 +51,11 @@ function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
         <span className="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-          <Droplets className="size-5" aria-hidden />
+          <Scale className="size-5" aria-hidden />
         </span>
         <div className="flex flex-col leading-tight">
-          <span className="font-semibold">فيندورا</span>
-          <span className="text-xs text-sidebar-foreground/60">المصرية الألمانية</span>
+          <span className="font-bold">ميزان</span>
+          <span className="truncate text-xs text-sidebar-foreground/60">{tenant?.name ?? "مساحة العمل"}</span>
         </div>
       </div>
       <nav aria-label="القائمة الرئيسية" className="flex-1 overflow-y-auto px-3 py-4">
@@ -82,16 +86,26 @@ function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           ))}
         </div>
       </nav>
-      <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-sidebar-foreground/50">
-        الإصدار <span className="num">2.4.0</span>
+      <div className="border-t border-sidebar-border p-4">
+        {tenant?.plan === "trial" && (
+          <Link to="/pricing" className="mb-3 block rounded-xl bg-sidebar-primary/15 p-3 ring-1 ring-sidebar-primary/30 transition hover:bg-sidebar-primary/25">
+            <p className="text-xs font-bold text-sidebar-foreground">فعّل خطتك</p>
+            <p className="mt-0.5 text-[11px] leading-5 text-sidebar-foreground/70">
+              النسخة التجريبية حتى {tenantTrialEnds} — بياناتك محفوظة
+            </p>
+          </Link>
+        )}
+        <p className="px-1 text-[11px] text-sidebar-foreground/50">
+          ميزان <span className="num">3.0</span> — نظام إدارة التجار
+        </p>
       </div>
     </div>
   );
 }
 
-function AppTopbar({ onOpenMenu }: { onOpenMenu: () => void }) {
+function AppTopbar({ onOpenMenu, onOpenSearch }: { onOpenMenu: () => void; onOpenSearch: () => void }) {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, tenant, logout } = useAuth();
   const { warehouses, branchId, branchName, setBranchId } = useBranch();
 
   const shift = useQuery({
@@ -153,6 +167,18 @@ function AppTopbar({ onOpenMenu }: { onOpenMenu: () => void }) {
       </Link>
 
       <div className="ms-auto flex items-center gap-1">
+        <button
+          onClick={onOpenSearch}
+          className="hidden h-9 items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground transition hover:bg-accent md:flex md:w-64"
+          aria-label="بحث شامل (Ctrl+K)"
+        >
+          <Search className="size-4" aria-hidden />
+          <span className="flex-1 text-start">ابحث أو انتقل…</span>
+          <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">Ctrl K</kbd>
+        </button>
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenSearch} aria-label="بحث شامل">
+          <Search />
+        </Button>
         <Button variant="ghost" size="icon" aria-label="تبديل الوضع الليلي" onClick={toggleTheme}>
           <Sun className="dark:hidden" />
           <Moon className="hidden dark:block" />
@@ -165,7 +191,7 @@ function AppTopbar({ onOpenMenu }: { onOpenMenu: () => void }) {
             </Avatar>
             <span className="hidden flex-col items-start leading-tight md:flex">
               <span className="text-sm font-medium">{user?.full_name}</span>
-              <span className="text-xs text-muted-foreground">{user?.role}</span>
+              <span className="text-xs text-muted-foreground">{tenant?.plan === "trial" ? "تجربة مجانية" : tenant?.name ?? user?.role}</span>
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -194,7 +220,9 @@ function AppTopbar({ onOpenMenu }: { onOpenMenu: () => void }) {
 
 export default function Shell() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const pathname = useLocation().pathname;
+  useHotkeySearch(() => setSearchOpen(true));
 
   return (
     <div className="flex min-h-svh">
@@ -208,7 +236,9 @@ export default function Shell() {
         </SheetContent>
       </Sheet>
       <div className="flex min-w-0 flex-1 flex-col">
-        <AppTopbar onOpenMenu={() => setMenuOpen(true)} />
+        <AppTopbar onOpenMenu={() => setMenuOpen(true)} onOpenSearch={() => setSearchOpen(true)} />
+        <TrialBanner />
+        <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
         <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">
           <PageTransition routeKey={pathname}>
             <Outlet />

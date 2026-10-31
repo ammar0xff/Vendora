@@ -66,7 +66,7 @@ export default function LoginPage() {
         <div className="relative flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-side-primary text-xl font-black text-side-primary-ink">ف</div>
           <div className="leading-tight">
-            <div className="text-lg font-extrabold text-side-ink">فيندورا</div>
+            <div className="text-lg font-extrabold text-side-ink">ميزان</div>
             <div className="text-xs text-side-muted">المصرية الألمانية</div>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function LoginPage() {
           <div className="mb-6 flex items-center gap-3 lg:hidden">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-lg font-black text-brand-ink">ف</div>
             <div className="leading-tight">
-              <div className="font-extrabold">فيندورا</div>
+              <div className="font-extrabold">ميزان</div>
               <div className="text-xs text-muted">المصرية الألمانية</div>
             </div>
           </div>

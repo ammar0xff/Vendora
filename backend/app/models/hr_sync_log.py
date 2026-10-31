@@ -6,10 +6,11 @@ from sqlalchemy import DateTime, Integer, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class HrSyncLog(Base):
+class HrSyncLog(TenantScoped, Base):
     """Maps to hr_sync_log table — ZK device sync history."""
     __tablename__ = "hr_sync_log"
 

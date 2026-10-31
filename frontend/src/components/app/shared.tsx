@@ -2,6 +2,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { AlertTriangle, Inbox, RotateCcw, Search } from 'lucide-react'
 import { Button } from '@/components/kit/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kit/card'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/kit/empty'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/kit/input-group'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/kit/select'
@@ -272,20 +273,20 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'in
   suspended: 'destructive',
 }
 
-const STATUS_DOT: Record<string, string> = {
-  success: 'bg-success',
-  warning: 'bg-warning',
-  destructive: 'bg-destructive',
-  info: 'bg-chart-4',
-  secondary: 'bg-muted-foreground/40',
-  outline: 'border border-border bg-transparent',
+const STATUS_PILL: Record<string, string> = {
+  success: 'bg-success/15 text-success',
+  warning: 'bg-warning/20 text-warning',
+  destructive: 'bg-destructive/15 text-destructive',
+  info: 'bg-chart-4/15 text-chart-4',
+  secondary: 'bg-muted text-muted-foreground',
+  outline: 'border border-border text-muted-foreground',
 }
 
 export function StatusBadge({ status }: { status: string }) {
   const variant = STATUS_VARIANT[status] ?? 'outline'
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-foreground/80">
-      <span className={cn('size-1.5 shrink-0 rounded-full', STATUS_DOT[variant])} aria-hidden />
+    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold', STATUS_PILL[variant])}>
+      <span className="size-1.5 shrink-0 rounded-full bg-current opacity-70" aria-hidden />
       {status}
     </span>
   )
@@ -293,4 +294,93 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function TableShell({ children }: { children: React.ReactNode }) {
   return <div className="overflow-x-auto">{children}</div>
+}
+
+/* ── KPI tile — colored icon square, value, real delta, optional sparkline ── */
+import { TrendingDown, TrendingUp } from 'lucide-react'
+
+export function KpiTile({
+  label, value, icon: Icon, tone = 'default', hint, spark,
+}: {
+  label: string
+  value: React.ReactNode
+  icon?: LucideIcon
+  tone?: 'default' | 'success' | 'warning' | 'destructive' | 'info'
+  hint?: React.ReactNode
+  spark?: React.ReactNode
+}) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardDescription className="flex items-center justify-between gap-2">
+          <span>{label}</span>
+          {Icon && (
+            <span
+              className={cn(
+                'grid size-10 place-items-center rounded-lg',
+                tone === 'success' && 'bg-success/15 text-success',
+                tone === 'warning' && 'bg-warning/20 text-warning',
+                tone === 'destructive' && 'bg-destructive/12 text-destructive',
+                tone === 'info' && 'bg-chart-4/15 text-chart-4',
+              )}
+            >
+              <Icon className="size-5" aria-hidden />
+            </span>
+          )}
+        </CardDescription>
+        <CardTitle className="flex items-end justify-between gap-2">
+          <span className="text-2xl font-semibold tracking-tight">{value}</span>
+          {spark}
+        </CardTitle>
+      </CardHeader>
+      {hint && <CardContent className="text-xs text-muted-foreground">{hint}</CardContent>}
+    </Card>
+  )
+}
+
+export function Delta({ percent }: { percent: number | null }) {
+  if (percent === null || !Number.isFinite(percent)) return null
+  const up = percent >= 0
+  return (
+    <span className={cn('inline-flex items-center gap-1 text-xs font-semibold', up ? 'text-success' : 'text-destructive')}>
+      {up ? <TrendingUp className="size-3.5" aria-hidden /> : <TrendingDown className="size-3.5" aria-hidden />}
+      <span className="num">{up ? '+' : ''}{percent.toFixed(0)}%</span>
+    </span>
+  )
+}
+
+/* ── Table footer — pagination + rows-per-page (list screens) ── */
+export function TablePagination({
+  page, pages, onPage, pageSize, onPageSize,
+}: {
+  page: number
+  pages: number
+  onPage: (p: number) => void
+  pageSize: number
+  onPageSize: (n: number) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+      <span>
+        صفحة <span className="num font-semibold text-foreground">{page}</span> من <span className="num">{Math.max(pages, 1)}</span>
+      </span>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2">
+          صفوف لكل صفحة
+          <select
+            className="h-8 rounded-md border bg-card px-2 text-sm"
+            value={pageSize}
+            onChange={(e) => onPageSize(Number(e.target.value))}
+            aria-label="عدد الصفوف في الصفحة"
+          >
+            {[10, 25, 50].map((n) => <option key={n} value={n} className="num">{n}</option>)}
+          </select>
+        </label>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>السابق</Button>
+          <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>التالي</Button>
+        </div>
+      </div>
+    </div>
+  )
 }

@@ -6,10 +6,11 @@ from sqlalchemy import Boolean, DateTime, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class FinancialCategory(Base):
+class FinancialCategory(TenantScoped, Base):
     """Maps to financial_categories table."""
     __tablename__ = "financial_categories"
 

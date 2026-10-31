@@ -32,6 +32,7 @@ CSRF_EXEMPT_SUFFIXES = (
     "/auth/login",
     "/auth/reauthenticate",
     "/auth/print-token",
+    "/platform/signup",
 )
 
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}

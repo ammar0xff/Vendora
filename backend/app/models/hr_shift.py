@@ -6,10 +6,11 @@ from sqlalchemy import Boolean, DateTime, Text, Time, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class HrShift(Base):
+class HrShift(TenantScoped, Base):
     """Maps to hr_shifts table — work shift definitions."""
     __tablename__ = "hr_shifts"
 

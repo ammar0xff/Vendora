@@ -15,7 +15,7 @@ import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { money } from "@/lib/format";
 import { Button, Empty, ErrorBox, Modal, Select, Spinner, Input } from "@/components/ui";
-import { PageHeader, SearchField, TableShell } from "@/components/app/shared";
+import { PageHeader, SearchField, TablePagination, TableShell } from "@/components/app/shared";
 import { Badge as KitBadge } from "@/components/kit/badge";
 import { Skeleton } from "@/components/kit/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/kit/table";
@@ -139,13 +139,13 @@ export default function ProductsPage() {
         </TableShell>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 text-sm">
-          <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>السابق</Button>
-          <span className="num text-muted">{page} / {totalPages}</span>
-          <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>التالي</Button>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pages={totalPages}
+        onPage={(p) => setPage(p)}
+        pageSize={25}
+        onPageSize={() => setPage(1)}
+      />
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "تعديل منتج" : "منتج جديد"}>
         <div className="flex flex-col gap-3">

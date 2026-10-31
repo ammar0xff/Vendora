@@ -3,14 +3,15 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, Text, func
+from sqlalchemy import UniqueConstraint, DateTime, ForeignKey, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
-class PayrollPeriodLegacy(Base):
+class PayrollPeriodLegacy(TenantScoped, Base):
     """Maps to payroll_periods table — legacy payroll period table."""
     __tablename__ = "payroll_periods"
 
@@ -18,8 +19,7 @@ class PayrollPeriodLegacy(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-
-class PayrollEntryLegacy(Base):
+class PayrollEntryLegacy(TenantScoped, Base):
     """Maps to payroll_entries table — legacy payroll entry table."""
     __tablename__ = "payroll_entries"
 

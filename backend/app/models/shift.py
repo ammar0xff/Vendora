@@ -8,6 +8,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.tenancy import TenantScoped
 from app.db.base import Base
 
 
@@ -25,7 +26,7 @@ class DrawerTxType(enum.StrEnum):
     revenue_delivery = "revenue_delivery"
 
 
-class Shift(Base):
+class Shift(TenantScoped, Base):
     __tablename__ = "shifts"
     __table_args__ = (
         Index("idx_shifts_warehouse_status", "warehouse_id", "status"),
@@ -51,7 +52,7 @@ class Shift(Base):
     transactions: Mapped[list["DrawerTransaction"]] = relationship(back_populates="shift", cascade="all, delete-orphan")
 
 
-class DrawerTransaction(Base):
+class DrawerTransaction(TenantScoped, Base):
     __tablename__ = "drawer_transactions"
     __table_args__ = (
         Index("idx_drawer_tx_shift_id", "shift_id"),

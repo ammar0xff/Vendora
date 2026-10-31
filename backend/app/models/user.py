@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, fun
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.tenancy import primary_tenant_id  # noqa: F401 (used by deps)
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -31,6 +32,8 @@ class User(Base):
     is_manager: Mapped[bool] = mapped_column(Boolean, default=False)
     permissions: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     default_warehouse_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="SET NULL"), nullable=True)
+    # NULL = platform/legacy user, resolved to the primary workspace at auth time
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="RESTRICT"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

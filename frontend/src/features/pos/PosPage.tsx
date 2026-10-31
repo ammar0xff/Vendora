@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, TriangleAlert, X } from "lucide-react";
+import { Banknote, CalendarClock, CloudUpload, Minus, Package, Pause, Play, Plus, Printer, ScanBarcode, ShoppingCart, Trash2, TriangleAlert, X } from "lucide-react";
 import { Skeleton } from "@/components/kit/skeleton";
 import { api, ApiError, openPrintDoc } from "@/lib/api";
 import { D, money } from "@/lib/format";
@@ -472,10 +472,28 @@ export default function PosPage() {
             <p className="num text-3xl font-black text-brand">{money(total)} ج.م</p>
           </div>
 
-          <label className="flex items-center gap-2 text-sm font-semibold">
-            <input type="checkbox" checked={isCredit} onChange={(e) => setIsCredit(e.target.checked)} />
-            بيع آجل (على حساب العميل)
-          </label>
+          {/* Payment method tiles — the two ways money leaves the counter */}
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="طريقة الدفع">
+            {([["cash", "نقدي / محفظة", false], ["credit", "بيع آجل", true]] as const).map(([key, label, credit]) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={isCredit === credit}
+                onClick={() => setIsCredit(credit)}
+                className={`rounded-xl border p-4 text-center transition ${
+                  isCredit === credit
+                    ? "border-primary bg-primary/10 ring-2 ring-primary/25"
+                    : "border-line hover:border-foreground/25"
+                }`}
+              >
+                <span className="mx-auto mb-1.5 grid size-10 w-fit place-items-center rounded-lg bg-primary/10 text-primary" aria-hidden>
+                  {credit ? <CalendarClock className="size-5" /> : <Banknote className="size-5" />}
+                </span>
+                <span className="mt-1 block text-sm font-bold">{label}</span>
+              </button>
+            ))}
+          </div>
 
           {isCredit && (
             <div className="space-y-2 rounded-xl border border-line p-3">
