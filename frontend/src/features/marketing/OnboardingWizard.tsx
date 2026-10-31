@@ -70,7 +70,9 @@ export default function OnboardingWizard() {
       });
       applyBrandHue(r.tenant.palette?.hue);
       useAuth.getState().setToken(r.access_token);
-      useAuth.getState().setUser(r.user);
+      // the signup response is a token stub — fetch the full profile (permissions!) like login does
+      const me = await api.get<import("@/stores/auth").User>("/auth/me");
+      useAuth.getState().setUser(me);
       useAuth.getState().setTenant(r.tenant);
       sessionStorage.removeItem("mizan.owner");
       nav("/app", { replace: true });

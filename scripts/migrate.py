@@ -9,15 +9,45 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 COMPOSE = ["docker", "compose", "-f", str(ROOT / "docker-compose.yml")]
 
+def split_statements(sql: str):
+    """Split on top-level semicolons, respecting $$...$$ dollar-quoted blocks."""
+    stmts, buf, in_dollar = [], [], False
+    i = 0
+    while i < len(sql):
+        if sql.startswith("$$", i):
+            in_dollar = not in_dollar
+            buf.append("$$"); i += 2
+            continue
+        ch = sql[i]
+        if ch == ";" and not in_dollar:
+            stmt = "".join(buf).strip()
+            if stmt:
+                stmts.append(stmt)
+            buf = []
+        else:
+            buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        stmts.append(tail)
+    return stmts
+
+
 def psql(sql: str):
-    result = subprocess.run(
-        COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-d", "inventory_db"],
-        input=sql, capture_output=True, text=True
-    )
-    errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l and "duplicate" not in l.lower()]
-    if errors:
-        print(f"  ⚠️  {errors[0]}")
-    return result.returncode == 0
+    """Execute a migration statement-by-statement so one failure never
+    silently aborts the rest of the migration (single-transaction psql -c
+    did exactly that). Returns True when every statement applied."""
+    ok = True
+    for stmt in split_statements(sql):
+        result = subprocess.run(
+            COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-d", "inventory_db"],
+            input=stmt + ";", capture_output=True, text=True
+        )
+        errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l and "does not exist, skipping" not in l]
+        if errors or result.returncode != 0:
+            ok = False
+            print(f"    ⚠️  {errors[0] if errors else result.returncode}: {stmt[:90]}")
+    return ok
 
 MIGRATIONS = [
     # v0 — migration tracking table
@@ -404,12 +434,13 @@ MIGRATIONS = [
     ("v29_multi_tenancy", """
         CREATE TABLE IF NOT EXISTS tenants (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL, sector text NOT NULL DEFAULT 'plumbing', scale text NOT NULL DEFAULT 'medium', palette jsonb NOT NULL DEFAULT '{}'::jsonb, features jsonb NOT NULL DEFAULT '[]'::jsonb, plan text NOT NULL DEFAULT 'trial', trial_ends_at timestamptz, storefront_slug text UNIQUE, created_at timestamptz NOT NULL DEFAULT now());
         CREATE TABLE IF NOT EXISTS subscriptions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, plan text NOT NULL, status text NOT NULL DEFAULT 'requested', contact_phone text, created_at timestamptz NOT NULL DEFAULT now());
-        INSERT INTO tenants (name, sector, scale, plan) SELECT 'المصرية الألمانية للأدوات الصحية', 'plumbing', 'large', 'enterprise' WHERE NOT EXISTS (SELECT 1 FROM tenants);
+        INSERT INTO tenants (id, name, sector, scale, palette, features, plan) SELECT gen_random_uuid(), 'المصرية الألمانية للأدوات الصحية', 'plumbing', 'large', '{}'::jsonb, '[]'::jsonb, 'enterprise' WHERE NOT EXISTS (SELECT 1 FROM tenants);
         ALTER TABLE accounting_periods ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE archived_documents ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE categories ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE collection_items ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE customer_payments ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE device_tokens ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
