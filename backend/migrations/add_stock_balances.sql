@@ -14,8 +14,13 @@ CREATE TABLE IF NOT EXISTS stock_balances (
 CREATE INDEX IF NOT EXISTS idx_stock_balances_warehouse ON stock_balances(warehouse_id);
 
 -- Backfill from stock_movements: compute current balance per product/warehouse
-INSERT INTO stock_balances (product_id, warehouse_id, qty, updated_at)
+DO $$ BEGIN
+IF to_regclass('public.tenants') IS NOT NULL AND EXISTS (SELECT 1 FROM tenants) THEN
+ALTER TABLE stock_balances ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+ALTER TABLE stock_balances ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+INSERT INTO stock_balances (tenant_id, product_id, warehouse_id, qty, updated_at)
 SELECT 
+    (SELECT id FROM tenants ORDER BY created_at LIMIT 1) AS tenant_id,
     product_id,
     warehouse_id,
     COALESCE(SUM(
@@ -30,3 +35,5 @@ GROUP BY product_id, warehouse_id
 ON CONFLICT (product_id, warehouse_id) DO UPDATE SET
     qty = EXCLUDED.qty,
     updated_at = now();
+END IF;
+END $$;

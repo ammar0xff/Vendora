@@ -10,16 +10,25 @@ ROOT = Path(__file__).parent.parent
 COMPOSE = ["docker", "compose", "-f", str(ROOT / "docker-compose.yml")]
 
 def split_statements(sql: str):
-    """Split on top-level semicolons, respecting $$...$$ dollar-quoted blocks."""
-    stmts, buf, in_dollar = [], [], False
+    """Split on top-level semicolons, respecting dollar-quoted blocks
+    ($$...$$ and $tag$...$tag$)."""
+    import re as _re
+    stmts, buf = [], []
+    dollar_tag = None
     i = 0
     while i < len(sql):
-        if sql.startswith("$$", i):
-            in_dollar = not in_dollar
-            buf.append("$$"); i += 2
+        m = _re.match(r"\$[A-Za-z_]*\$", sql[i:])
+        if m:
+            tag = m.group(0)
+            if dollar_tag is None:
+                dollar_tag = tag
+            elif tag == dollar_tag:
+                dollar_tag = None
+            buf.append(tag)
+            i += len(tag)
             continue
         ch = sql[i]
-        if ch == ";" and not in_dollar:
+        if ch == ";" and dollar_tag is None:
             stmt = "".join(buf).strip()
             if stmt:
                 stmts.append(stmt)
@@ -36,12 +45,15 @@ def split_statements(sql: str):
 def psql(sql: str):
     """Execute a migration statement-by-statement so one failure never
     silently aborts the rest of the migration (single-transaction psql -c
-    did exactly that). Returns True when every statement applied."""
+    did exactly that). Every statement runs with app.bypass=on and the
+    primary tenant bound — pre-tenancy migration INSERTs into scoped
+    tables resolve their tenant_id column default correctly."""
     ok = True
     for stmt in split_statements(sql):
         result = subprocess.run(
             COMPOSE + ["exec", "-T", "db", "psql", "-U", "postgres", "-d", "inventory_db"],
-            input=stmt + ";", capture_output=True, text=True
+            input=("SELECT set_config('app.tenant_id', COALESCE((SELECT id::text FROM tenants ORDER BY created_at LIMIT 1), ''), false), set_config('app.bypass', 'on', false);\n"
+                   + stmt + ";"), capture_output=True, text=True
         )
         errors = [l for l in result.stderr.splitlines() if "ERROR" in l and "already exists" not in l and "does not exist, skipping" not in l]
         if errors or result.returncode != 0:
@@ -161,8 +173,10 @@ MIGRATIONS = [
              status       text NOT NULL DEFAULT 'untracked',
              PRIMARY KEY (warehouse_id, product_id)
          );
-         INSERT INTO warehouse_product_status (warehouse_id, product_id, status)
-         SELECT DISTINCT warehouse_id, product_id, 'tracked'
+         ALTER TABLE warehouse_product_status ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+         ALTER TABLE warehouse_product_status ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid;
+         INSERT INTO warehouse_product_status (tenant_id, warehouse_id, product_id, status)
+         SELECT (SELECT id FROM tenants ORDER BY created_at LIMIT 1), warehouse_id, product_id, 'tracked'
          FROM stock_movements
          ON CONFLICT DO NOTHING;
      """),
@@ -440,6 +454,7 @@ MIGRATIONS = [
         ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE categories ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE collection_items ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
+        ALTER TABLE employees ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE customer_payments ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES tenants(id);
@@ -1149,8 +1164,86 @@ MIGRATIONS = [
     """),
 ]
 
+def ensure_foundation():
+    """tenants table + primary workspace must exist before ANY migration —
+    scoped-table column defaults and backfills depend on them."""
+    foundation = """
+        CREATE TABLE IF NOT EXISTS tenants (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            name text NOT NULL,
+            sector text NOT NULL DEFAULT 'plumbing',
+            scale text NOT NULL DEFAULT 'medium',
+            palette jsonb NOT NULL DEFAULT '{}'::jsonb,
+            features jsonb NOT NULL DEFAULT '[]'::jsonb,
+            plan text NOT NULL DEFAULT 'trial',
+            trial_ends_at timestamptz,
+            storefront_slug text UNIQUE,
+            created_at timestamptz NOT NULL DEFAULT now()
+        );
+        INSERT INTO tenants (id, name, sector, scale, palette, features, plan)
+        SELECT gen_random_uuid(), 'المصرية الألمانية للأدوات الصحية', 'plumbing', 'large', '{}'::jsonb, '[]'::jsonb, 'enterprise'
+        WHERE NOT EXISTS (SELECT 1 FROM tenants);
+        -- pre-tenancy migration INSERTs resolve tenant_id from this GUC default
+        DO $fn$
+        BEGIN
+            IF to_regclass('public.accounting_periods') IS NOT NULL THEN ALTER TABLE accounting_periods ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.archived_documents') IS NOT NULL THEN ALTER TABLE archived_documents ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.audit_log') IS NOT NULL THEN ALTER TABLE audit_log ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.categories') IS NOT NULL THEN ALTER TABLE categories ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.collection_items') IS NOT NULL THEN ALTER TABLE collection_items ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.customer_payments') IS NOT NULL THEN ALTER TABLE customer_payments ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.customers') IS NOT NULL THEN ALTER TABLE customers ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.device_tokens') IS NOT NULL THEN ALTER TABLE device_tokens ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.drawer_transactions') IS NOT NULL THEN ALTER TABLE drawer_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.employees') IS NOT NULL THEN ALTER TABLE employees ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.expense_vendors') IS NOT NULL THEN ALTER TABLE expense_vendors ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.expenses') IS NOT NULL THEN ALTER TABLE expenses ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.financial_categories') IS NOT NULL THEN ALTER TABLE financial_categories ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_advances') IS NOT NULL THEN ALTER TABLE hr_advances ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_attendance') IS NOT NULL THEN ALTER TABLE hr_attendance ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_audit_log') IS NOT NULL THEN ALTER TABLE hr_audit_log ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_employees') IS NOT NULL THEN ALTER TABLE hr_employees ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_payroll') IS NOT NULL THEN ALTER TABLE hr_payroll ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_payroll_entries') IS NOT NULL THEN ALTER TABLE hr_payroll_entries ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_payroll_periods') IS NOT NULL THEN ALTER TABLE hr_payroll_periods ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_settings') IS NOT NULL THEN ALTER TABLE hr_settings ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_shifts') IS NOT NULL THEN ALTER TABLE hr_shifts ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.hr_sync_log') IS NOT NULL THEN ALTER TABLE hr_sync_log ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.payment_wallets') IS NOT NULL THEN ALTER TABLE payment_wallets ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.payroll_entries') IS NOT NULL THEN ALTER TABLE payroll_entries ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.product_barcodes') IS NOT NULL THEN ALTER TABLE product_barcodes ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.product_collections') IS NOT NULL THEN ALTER TABLE product_collections ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.product_images') IS NOT NULL THEN ALTER TABLE product_images ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.products') IS NOT NULL THEN ALTER TABLE products ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.purchase_order_items') IS NOT NULL THEN ALTER TABLE purchase_order_items ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.purchase_orders') IS NOT NULL THEN ALTER TABLE purchase_orders ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.purchase_price_history') IS NOT NULL THEN ALTER TABLE purchase_price_history ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.safe_deposits') IS NOT NULL THEN ALTER TABLE safe_deposits ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.safe_transactions') IS NOT NULL THEN ALTER TABLE safe_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.safes') IS NOT NULL THEN ALTER TABLE safes ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.sale_items') IS NOT NULL THEN ALTER TABLE sale_items ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.sale_payments') IS NOT NULL THEN ALTER TABLE sale_payments ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.sales') IS NOT NULL THEN ALTER TABLE sales ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.shifts') IS NOT NULL THEN ALTER TABLE shifts ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.stock_balances') IS NOT NULL THEN ALTER TABLE stock_balances ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.stock_movements') IS NOT NULL THEN ALTER TABLE stock_movements ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.store_settings') IS NOT NULL THEN ALTER TABLE store_settings ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.subcategories') IS NOT NULL THEN ALTER TABLE subcategories ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.supplier_prices') IS NOT NULL THEN ALTER TABLE supplier_prices ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.supplier_transactions') IS NOT NULL THEN ALTER TABLE supplier_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.suppliers') IS NOT NULL THEN ALTER TABLE suppliers ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.wallet_transactions') IS NOT NULL THEN ALTER TABLE wallet_transactions ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.warehouse_product_status') IS NOT NULL THEN ALTER TABLE warehouse_product_status ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+            IF to_regclass('public.warehouses') IS NOT NULL THEN ALTER TABLE warehouses ALTER COLUMN tenant_id SET DEFAULT current_setting('app.tenant_id', true)::uuid; END IF;
+        END
+        $fn$;
+    """
+    psql(foundation)
+
+
 def run():
     print("🔄 Running DB migrations...")
+    ensure_foundation()
     ok = 0
     for name, sql in MIGRATIONS:
         # Check if already applied
