@@ -14,12 +14,9 @@ Scripts and migrations run with no context and see everything.
 import uuid
 from contextvars import ContextVar
 
-from sqlalchemy import event
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped, Session, declared_attr, mapped_column, with_loader_criteria
+from sqlalchemy import ForeignKey, event
 from sqlalchemy.dialects.postgresql import UUID
-
-from app.db.base import Base
+from sqlalchemy.orm import Mapped, Session, declared_attr, mapped_column, with_loader_criteria
 
 current_tenant_id: ContextVar[uuid.UUID | None] = ContextVar("current_tenant_id", default=None)
 
@@ -67,6 +64,7 @@ def install_tenancy_events() -> None:
 async def primary_tenant_id(db) -> uuid.UUID | None:
     """The platform's first (founding) workspace — legacy users land here."""
     from sqlalchemy import select
+
     from app.models.tenant import Tenant
 
     res = await db.execute(select(Tenant.id).order_by(Tenant.created_at).limit(1))

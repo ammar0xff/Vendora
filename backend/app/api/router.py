@@ -9,7 +9,7 @@ from app.api.routers import (
     hr,
     notifications,
     operations,
-parties,
+    parties,
     periods,
     print_router,
     products,
@@ -28,6 +28,7 @@ parties,
 from app.api.routers import collections as collections_router
 from app.api.routers import export as export_router
 from app.api.routers import ledger as ledger_router
+from app.api.routers import platform as platform_router
 from app.api.routers import updater as updater_router
 
 router = APIRouter()
@@ -53,6 +54,7 @@ router.include_router(suppliers.router)
 router.include_router(print_router.router)
 router.include_router(admin_overview.router)
 router.include_router(safes.router)
+router.include_router(platform_router.router)
 router.include_router(collections_router.router)
 router.include_router(wallets.router)
 router.include_router(expenses.router)
@@ -61,5 +63,3 @@ router.include_router(export_router.router)
 router.include_router(notifications.router)
 router.include_router(updater_router.router)
 
-from app.api.routers import platform as platform_router
-router.include_router(platform_router.router)

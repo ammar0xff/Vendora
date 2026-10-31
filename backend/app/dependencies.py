@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
-from app.core.tenancy import bind_tenant, unbind_tenant
+from app.core.tenancy import bind_tenant
 from app.db.base import get_db
 from app.models.user import User, user_warehouses
 

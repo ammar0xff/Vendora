@@ -7,7 +7,7 @@ feels like *their* shop, not a generic sandbox.
 """
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,7 +70,7 @@ async def seed_demo(db: AsyncSession, tenant_id: uuid.UUID, owner_id: uuid.UUID,
     sector = sector if sector in SECTORS else "plumbing"
     n_branches, n_products, n_customers, n_suppliers, n_sales = SCALES.get(scale, SCALES["medium"])
     catalog = SECTORS[sector]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # branches
     warehouses: list[Warehouse] = []
@@ -85,9 +85,7 @@ async def seed_demo(db: AsyncSession, tenant_id: uuid.UUID, owner_id: uuid.UUID,
     # catalog
     categories: list[Category] = []
     products: list[Product] = []
-    cat_seq = 0
-    for cat_name, items in catalog:
-        cat_seq += 1
+    for cat_seq, (cat_name, items) in enumerate(catalog, start=1):
         cat = Category(id=uuid.uuid4(), name=cat_name, code=f"C{cat_seq:02d}")
         sub = Subcategory(id=uuid.uuid4(), category=cat, name=cat_name, code=f"S{cat_seq:02d}")
         categories.append(cat)

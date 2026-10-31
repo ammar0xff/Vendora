@@ -28,6 +28,7 @@ async def _public_store_ctx(db: AsyncSession) -> None:
     """Public storefront operates on the founding tenant's shop: ORM reads
     (products/categories) are tenant-scoped, so resolve the store's tenant."""
     from sqlalchemy import text as _text
+
     from app.core.tenancy import current_tenant_id
     if current_tenant_id.get() is not None:
         return

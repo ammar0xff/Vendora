@@ -6,22 +6,22 @@ a trial; the banner routes them to pricing where a subscription request
 is recorded until payment integration lands.
 """
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.ratelimit import RateLimiter
 from app.core.security import hash_password
 from app.core.tenancy import bind_tenant, current_tenant_id
 from app.db.base import get_db
+from app.dependencies import get_current_user
 from app.models.tenant import Subscription, Tenant
 from app.models.user import User
-from app.dependencies import get_current_user
 from app.services.demo_seed import seed_demo
-from app.core.ratelimit import RateLimiter
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 
@@ -84,7 +84,7 @@ async def signup(data: SignupRequest, request: Request, db: AsyncSession = Depen
         palette={"hue": {"water": 250, "emerald": 155, "copper": 55, "midnight": 230}.get(data.palette, 250)},
         features=data.features,
         plan="trial",
-        trial_ends_at=datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS),
+        trial_ends_at=datetime.now(UTC) + timedelta(days=TRIAL_DAYS),
     )
     db.add(tenant)
     await db.flush()

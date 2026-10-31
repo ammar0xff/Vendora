@@ -48,9 +48,9 @@ import app.models.warehouse
 import app.models.warehouse_product_status
 from app.api.router import router
 from app.core.config import settings
+from app.core.tenancy import install_tenancy_events
 from app.db.base import Base, engine
 from app.middleware import add_csrf_middleware
-from app.core.tenancy import install_tenancy_events
 
 install_tenancy_events()
 
