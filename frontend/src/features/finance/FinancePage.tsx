@@ -89,7 +89,7 @@ function ExpensesTab() {
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       : !list.data?.length ? <Empty text="لا توجد مصروفات" />
       : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -118,7 +118,7 @@ function ExpensesTab() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
       {approve.isError && <ErrorBox message={(approve.error as Error).message} />}
 
@@ -326,7 +326,7 @@ function LedgerTab() {
       : ledger.isError ? <ErrorBox message={(ledger.error as Error).message} onRetry={() => ledger.refetch()} />
       : !ledger.data?.length ? <Empty text="لا توجد حركات في هذه الفترة" />
       : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -352,7 +352,7 @@ function LedgerTab() {
               </tr>
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
     </div>
   );
@@ -377,7 +377,7 @@ function PeriodsTab() {
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       : !list.data?.length ? <Empty text="لا توجد فترات محاسبية" />
       : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -410,7 +410,7 @@ function PeriodsTab() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
       {act.isError && <ErrorBox message={(act.error as Error).message} />}
     </div>

@@ -52,6 +52,17 @@ Springs via `@/components/motion`; page transitions 150ms fade/4px-rise keyed by
 
 Minimum interactive size 36px (`size="icon"` / h-9); absolute floor 32px in dense tables. Mobile primary action: fixed bottom bar (safe-area padded) — pattern used by POS. Focus: kit ring (`focus-visible:ring-[3px] ring-ring/30`) — no global outlines. RTL first: `dir="rtl"` document, logical properties (`ms-`, `ps-`, `end-`).
 
+## Composition language — دفتر اليوم (the daily ledger)
+
+The app composes like a trading-house daily sheet, not a SaaS admin template. This is the anti-generic-AI layer: hierarchy comes from type scale and hairline rules, not from boxes, gradients, or grids of equal cards.
+
+- **Dashboard is a masthead**: one dominant tabular figure (مبيعات اليوم, 5xl), inline SVG sparkline, ruled sections with overline labels — no PageHeader, no KPI card grid, no chart card.
+- **Tables are open ledgers**: `TableShell` = scroll container only (no border/bg box); kit Table hairlines carry the structure.
+- **Status is quiet**: `StatusBadge` = small dot + text; solid chips only inside dense contexts that need them.
+- **Stats are borderless**: `StatCard` = overline label / 2xl value / hint — rhythm by type, not by card.
+- **Money is typographic**: large figures `num font-bold tracking-tight`, currency suffix `text-base font-medium text-muted-foreground`; POS total separated by a dashed rule like a receipt.
+- Cards (`Card`) remain for genuine containers: POS cart, forms, modals — never for wrapping every section.
+
 ## Methodology — docs/ui-ux-kit (binding)
 
 `docs/ui-ux-kit/` is the governing methodology (user-provided kit v2): page contracts before UI (`prompts/page-contract.md`, concise contract comment at the top of each page TSX), repair order contract → structure → tokens/components → states/responsive → polish, preflight gate (`checks/preflight-checklist.md`), and AI-tell scoring (`checks/ai-tell-score.md`, target 0). Its token scaffold is superseded by this file's established steel-blue palette (the kit itself mandates starting from the existing system). Adopted from the kit:

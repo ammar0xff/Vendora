@@ -64,7 +64,7 @@ export default function SuppliersPage() {
       ) : !list.data?.length ? (
         <Empty text="لا يوجد موردون" hint="أضف أول مورد" />
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -95,7 +95,7 @@ export default function SuppliersPage() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="مورد جديد">

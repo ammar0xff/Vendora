@@ -66,7 +66,7 @@ export default function CustomersPage() {
       ) : !list.data?.length ? (
         <Empty text="لا يوجد عملاء" hint="أضف أول عميل" />
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -99,7 +99,7 @@ export default function CustomersPage() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
 
       {/* Create */}

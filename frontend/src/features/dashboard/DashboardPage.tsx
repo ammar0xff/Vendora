@@ -1,31 +1,26 @@
 /**
  * PAGE CONTRACT
- * Page: لوحة التحكم (/)
- * User: مدير الفرع يفتح النظام في بداية اليوم (أو بعد عودة من العمل الميداني)
- * Outcome: تشخيص حالة اليوم (مبيعات/نواقص/وردية) والانتقال إلى الإجراء التالي
- * Primary information: مبيعات اليوم، مبيعات الشهر، النواقص، حالة الوردية — بهذا الترتيب
- * Primary action (per state): populated → «فاتورة جديدة»؛ empty-no-sales → «ابدأ البيع»؛ error → «إعادة المحاولة»
- * Secondary action: مراجعة النواقص / كل الفواتير / اقتراح طلب شراء
- * Required states: loading (skeletons), error (retry), populated — empty handled per-card
- * Responsive: 1440 شبكة 4 مؤشرات + رسمان؛ 768 عمودان؛ 390 عمود واحد، الإجراء الأساسي ثابت
+ * Page: صحيفة اليوم (/)
+ * User: مدير الفرع يفتح النظام في بداية اليوم (أو يعود من جولة الفروع)
+ * Outcome: قراءة رقم اليوم بثوانٍ، ثم الانتقال إلى الإجراء التالي (بيع / نواقص / فواتير)
+ * Primary information: مبيعات اليوم (الرقم المهيمن) → سياقه (عدد الفواتير، المتوسط، اتجاه 14 يومًا) → مبيعات الشهر → النواقص → الوردية
+ * Primary action (per state): populated → «فاتورة جديدة»؛ error → «إعادة المحاولة»؛ لا نواقص → «مراجعة المخزون»
+ * Secondary action: كل الفواتير · اقتراح طلب شراء
+ * Real content only: لا نسب مُختلقة ولا أهداف غير مسجلة — كل رقم من مصدره
+ * Required states: loading (skeleton), error (retry), populated; كل قسم يتحمّل فراغه بنفسه
+ * Composition: دفتر اليوم — طباعي مسطّر بلا بطاقات؛ التسلسل الهرمي بالحجم والقواعد لا بالصناديق
+ * Responsive: 1440 شريط البطل بثلاث رُكنات؛ 768 يلتفّ؛ 390 عمود واحد والرقم أولًا
  */
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarRange, Clock, Receipt, ShoppingCart, TrendingUp } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { AlertTriangle, CalendarRange, Receipt, ShoppingCart } from "lucide-react";
 import { api } from "@/lib/api";
 import { useBranch } from "@/components/AppShell";
-import { ListState, Money, Num, PageHeader, StatCard, StatusBadge, TableShell } from "@/components/app/shared";
-import { Badge } from "@/components/kit/badge";
+import { ListState, Money, Num, StatCard, StatusBadge, TableShell } from "@/components/app/shared";
 import { Button } from "@/components/kit/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/kit/card";
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/kit/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/kit/table";
+import { Skeleton } from "@/components/kit/skeleton";
 import { formatDateTime, formatNumber } from "@/lib/format";
-
-const chartConfig = {
-  sales: { label: "المبيعات", color: "var(--chart-1)" },
-} satisfies ChartConfig;
 
 interface DailyReport {
   date: string;
@@ -35,6 +30,7 @@ interface DailyReport {
 }
 interface MonthlyReport {
   total_sales?: string | number;
+  invoice_count?: number;
   [k: string]: unknown;
 }
 interface SaleRow {
@@ -46,12 +42,10 @@ interface SaleRow {
   created_at: string;
 }
 interface LowStockRow {
-  id: string;
-  name: string;
-  code?: string;
-  sku?: string;
-  quantity?: number;
-  min_quantity?: number;
+  product_id: string;
+  product_name: string;
+  current_qty: number;
+  unit: string;
 }
 
 /** Build a 14-day series (oldest → newest) from the recent-sales list. */
@@ -75,6 +69,19 @@ function buildTrend(sales: SaleRow[]): { day: string; sales: number }[] {
     });
   }
   return days;
+}
+
+/** Inline 14-day sparkline — pure SVG, no chart library needed at this size. */
+function Sparkline({ data, className }: { data: { sales: number }[]; className?: string }) {
+  const max = Math.max(...data.map((d) => d.sales), 1);
+  const pts = data
+    .map((d, i) => `${(i / Math.max(data.length - 1, 1)) * 100},${28 - (d.sales / max) * 26}`)
+    .join(" ");
+  return (
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" className={className} aria-hidden>
+      <polyline points={pts} fill="none" stroke="var(--chart-1)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
 }
 
 export default function DashboardPage() {
@@ -110,205 +117,183 @@ export default function DashboardPage() {
 
   const trend = buildTrend(recent.data ?? []);
   const trendTotal = trend.reduce((s, d) => s + d.sales, 0);
-  const monthTotal = Number(monthly.data?.total_sales ?? 0);
+  const dayTotal = Number(daily.data?.total_sales ?? 0);
+  const dayCount = daily.data?.invoice_count ?? 0;
+  const dayAvg = dayCount > 0 ? dayTotal / dayCount : 0;
+  const lowCount = lowStock.data?.length ?? 0;
   const today = new Intl.DateTimeFormat("ar-EG-u-nu-latn", { dateStyle: "full", timeZone: "Africa/Cairo" }).format(new Date());
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="لوحة التحكم"
-        description={`نظرة عامة على ${branchName} — ${today}`}
-        actions={
-          <Button nativeButton={false} render={<Link to="/pos" />}>
-            <ShoppingCart data-icon="inline-start" />
-            فاتورة جديدة
-          </Button>
-        }
-      />
+    <div className="flex flex-col gap-8">
+      {/* Masthead — the sheet's overline and the one action that matters */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="sr-only">لوحة التحكم</h1>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground">
+            صحيفة اليوم — {today} · {branchName}
+          </p>
+        </div>
+        <Button nativeButton={false} render={<Link to="/pos" />}>
+          <ShoppingCart data-icon="inline-start" />
+          فاتورة جديدة
+        </Button>
+      </div>
 
-      <section aria-label="المؤشرات الرئيسية" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard
-          label="مبيعات اليوم"
-          icon={Receipt}
-          value={<Money value={daily.data?.total_sales ?? 0} />}
-          hint={
-            <span>
-              <Num value={daily.data?.invoice_count ?? 0} /> فاتورة · <Num value={daily.data?.total_items ?? 0} /> قطعة
-            </span>
-          }
-        />
-        <StatCard
-          label="مبيعات الشهر"
-          icon={CalendarRange}
-          value={<Money value={monthTotal} />}
-          hint={<span>حتى تاريخ اليوم</span>}
-        />
+      {/* Hero band — the number the whole page exists for */}
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-border pb-8">
+        <div className="flex flex-col gap-1">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Receipt className="size-3.5" aria-hidden />
+            مبيعات اليوم
+          </p>
+          {daily.isLoading ? (
+            <Skeleton className="h-12 w-56" />
+          ) : daily.isError ? (
+            <p className="flex items-center gap-2 text-sm text-destructive">
+              تعذّر تحميل مبيعات اليوم
+              <Button variant="outline" size="sm" onClick={() => daily.refetch()}>
+                إعادة المحاولة
+              </Button>
+            </p>
+          ) : (
+            <p className="flex items-baseline gap-2">
+              <span className="num text-5xl font-bold tracking-tight">{formatNumber(dayTotal)}</span>
+              <span className="text-lg text-muted-foreground">ج.م</span>
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            <Num value={dayCount} /> فاتورة · متوسط الفاتورة <Money value={dayAvg} />
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-muted-foreground">
+            آخر ١٤ يومًا — إجمالي <Money value={trendTotal} />
+          </p>
+          <Sparkline data={trend} className="h-10 w-44" />
+        </div>
+
+        <div className="flex flex-col gap-1 text-xs">
+          <p className="font-medium text-muted-foreground">الوردية</p>
+          {shift.data ? (
+            <p>
+              مفتوحة · <span className="num">{formatDateTime(shift.data.started_at)}</span>
+            </p>
+          ) : (
+            <p>
+              <span className="text-destructive">مغلقة</span> —{" "}
+              <Link to="/shifts" className="underline-offset-4 hover:underline">
+                افتح وردية لبدء البيع
+              </Link>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Ledger stats — supporting figures, ranked by decision value */}
+      <section aria-label="ملخص الشهر والمخزون" className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+        <StatCard label="مبيعات الشهر" icon={CalendarRange} value={monthly.isError ? "—" : <Money value={Number(monthly.data?.total_sales ?? 0)} />} hint={<span>حتى تاريخ اليوم</span>} />
+        <StatCard label="فواتير الشهر" icon={Receipt} value={monthly.isError ? "—" : <Num value={monthly.data?.invoice_count ?? 0} />} />
         <StatCard
           label="منتجات تحت الحد"
           icon={AlertTriangle}
-          tone={(lowStock.data?.length ?? 0) > 0 ? "warning" : "success"}
-          value={<Num value={lowStock.data?.length ?? 0} />}
+          tone={lowCount > 0 ? "warning" : "success"}
+          value={<Num value={lowCount} />}
           hint={
-            <Link to="/inventory" className="inline-flex min-h-8 items-center underline-offset-4 hover:underline">
+            <Link to="/inventory" className="underline-offset-4 hover:underline">
               عرض قائمة النواقص
             </Link>
           }
         />
-        <StatCard
-          label="حالة الوردية"
-          icon={Clock}
-          tone={shift.data ? "success" : "destructive"}
-          value={shift.data ? "مفتوحة" : "مغلقة"}
-          hint={
-            shift.data ? (
-              <span>
-                منذ <span className="num">{formatDateTime(shift.data.started_at)}</span>
-              </span>
-            ) : (
-              <Link to="/shifts" className="inline-flex min-h-8 items-center underline-offset-4 hover:underline">
-                افتح وردية لبدء البيع
-              </Link>
-            )
-          }
-        />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>المبيعات — آخر 14 يومًا</CardTitle>
-            <CardDescription>
-              إجمالي الفترة <Money value={trendTotal} />
-            </CardDescription>
-            <CardAction>
-              <Badge variant="secondary">
-                <TrendingUp data-icon="inline-start" />
-                {branchName}
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full" dir="ltr">
-              <AreaChart data={trend} margin={{ left: 8, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="fillSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-sales)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--color-sales)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} reversed />
-                <YAxis
-                  orientation="right"
-                  tickLine={false}
-                  axisLine={false}
-                  width={48}
-                  tickFormatter={(v: number) => `${formatNumber(v / 1000)}k`}
-                />
-                <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                <Area dataKey="sales" type="monotone" stroke="var(--color-sales)" fill="url(#fillSales)" strokeWidth={2} />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>نواقص {branchName}</CardTitle>
-            <CardDescription>أصناف وصلت أقل من حد الطلب</CardDescription>
-            <CardAction>
-              <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/purchases" />}>
-                اقتراح طلب شراء
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <ListState
-              status={lowStock.isLoading ? "loading" : lowStock.isError ? "error" : "ready"}
-              isEmpty={(lowStock.data?.length ?? 0) === 0}
-              onRetry={() => lowStock.refetch()}
-              emptyTitle="لا توجد نواقص"
-              emptyDescription="كل الأصناف فوق حد الطلب في هذا الفرع."
-              emptyAction={
-                <Button variant="outline" nativeButton={false} render={<Link to="/inventory" />}>
-                  مراجعة المخزون
-                </Button>
-              }
-            >
-              <ul className="flex flex-col divide-y">
-                {(lowStock.data ?? []).slice(0, 6).map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium">{p.name}</span>
-                      <span className="num text-xs text-muted-foreground">{p.code ?? p.sku ?? ""}</span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2 text-sm">
-                      <Num value={p.quantity ?? 0} className="font-semibold text-destructive" />
-                      <span className="text-muted-foreground">/ <Num value={p.min_quantity ?? 0} /></span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </ListState>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>أحدث المبيعات</CardTitle>
-          <CardDescription>آخر الفواتير المسجلة</CardDescription>
-          <CardAction>
-            <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/sales" />}>
-              كل الفواتير
+      {/* نواقص — a ruled section, not a card */}
+      <section aria-label="نواقص المخزن" className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+          <h2 className="text-sm font-semibold">
+            نواقص {branchName} {lowCount > 0 && <span className="num text-muted-foreground">({lowCount})</span>}
+          </h2>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/purchases" />}>
+            اقتراح طلب شراء
+          </Button>
+        </div>
+        <ListState
+          status={lowStock.isLoading ? "loading" : lowStock.isError ? "error" : "ready"}
+          isEmpty={lowCount === 0}
+          onRetry={() => lowStock.refetch()}
+          emptyTitle="لا توجد نواقص"
+          emptyDescription="كل الأصناف فوق حد الطلب في هذا الفرع."
+          emptyAction={
+            <Button variant="outline" nativeButton={false} render={<Link to="/inventory" />}>
+              مراجعة المخزون
             </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <ListState
-            status={recent.isLoading ? "loading" : recent.isError ? "error" : "ready"}
-            isEmpty={(recent.data?.length ?? 0) === 0}
-            onRetry={() => recent.refetch()}
-            emptyTitle="لا توجد مبيعات بعد"
-            emptyDescription="ستظهر الفواتير هنا بمجرد تسجيل أول عملية بيع."
-            emptyAction={
-              <Button nativeButton={false} render={<Link to="/pos" />}>
-                <ShoppingCart data-icon="inline-start" />
-                ابدأ البيع
-              </Button>
-            }
-          >
-            <TableShell>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>الفاتورة</TableHead>
-                    <TableHead>العميل</TableHead>
-                    <TableHead className="text-end">الإجمالي</TableHead>
-                    <TableHead>الحالة</TableHead>
-                    <TableHead>التاريخ</TableHead>
+          }
+        >
+          <ul className="flex flex-col divide-y divide-border">
+            {(lowStock.data ?? []).slice(0, 6).map((p) => (
+              <li key={p.product_id} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="min-w-0 truncate text-sm font-medium">{p.product_name}</span>
+                <span className="shrink-0 text-sm">
+                  <Num value={p.current_qty} className="font-semibold text-destructive" />
+                  <span className="text-xs text-muted-foreground"> {p.unit}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </ListState>
+      </section>
+
+      {/* أحدث الفواتير — ledger rows */}
+      <section aria-label="أحدث الفواتير" className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+          <h2 className="text-sm font-semibold">أحدث الفواتير</h2>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/sales" />}>
+            كل الفواتير
+          </Button>
+        </div>
+        <ListState
+          status={recent.isLoading ? "loading" : recent.isError ? "error" : "ready"}
+          isEmpty={(recent.data?.length ?? 0) === 0}
+          onRetry={() => recent.refetch()}
+          emptyTitle="لا توجد مبيعات بعد"
+          emptyDescription="ستظهر الفواتير هنا بمجرد تسجيل أول عملية بيع."
+          emptyAction={
+            <Button nativeButton={false} render={<Link to="/pos" />}>
+              <ShoppingCart data-icon="inline-start" />
+              ابدأ البيع
+            </Button>
+          }
+        >
+          <TableShell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الفاتورة</TableHead>
+                  <TableHead>العميل</TableHead>
+                  <TableHead className="text-end">الإجمالي</TableHead>
+                  <TableHead>الحالة</TableHead>
+                  <TableHead className="hidden sm:table-cell">التاريخ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(recent.data ?? []).slice(0, 7).map((inv) => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="num font-medium">{inv.invoice_number}</TableCell>
+                    <TableCell>{inv.customer_name ?? "عميل نقدي"}</TableCell>
+                    <TableCell className="text-end">
+                      <Money value={Number(inv.total)} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={inv.status} />
+                    </TableCell>
+                    <TableCell className="num hidden text-muted-foreground sm:table-cell">{formatDateTime(inv.created_at)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(recent.data ?? []).slice(0, 7).map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="num font-medium">{inv.invoice_number}</TableCell>
-                      <TableCell>{inv.customer_name ?? "عميل نقدي"}</TableCell>
-                      <TableCell className="text-end">
-                        <Money value={Number(inv.total)} />
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={inv.status} />
-                      </TableCell>
-                      <TableCell className="num text-muted-foreground">{formatDateTime(inv.created_at)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableShell>
-          </ListState>
-        </CardContent>
-      </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </TableShell>
+        </ListState>
+      </section>
     </div>
   );
 }

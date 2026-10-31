@@ -74,7 +74,7 @@ function ValuationTab({ wid }: { wid: string }) {
       : v.isError ? <ErrorBox message={(v.error as Error).message} onRetry={() => v.refetch()} />
       : !rows.length ? <Empty text="لا توجد أصناف في هذا الفرع" />
       : (
-        <Card className="max-h-[60vh] overflow-auto p-0">
+        <div className="max-h-[60vh] overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-line text-xs text-muted">
@@ -93,7 +93,7 @@ function ValuationTab({ wid }: { wid: string }) {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
     </div>
   );
@@ -112,7 +112,7 @@ function LowTab({ wid }: { wid: string }) {
     : q.isError ? <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
     : !q.data?.length ? <Empty text="لا توجد أصناف تحت الحد ✓" />
     : (
-      <Card className="overflow-x-auto p-0">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-xs text-muted">
@@ -131,7 +131,7 @@ function LowTab({ wid }: { wid: string }) {
             ))}
           </tbody>
         </table>
-      </Card>
+      </div>
     );
 }
 
@@ -318,7 +318,7 @@ function MovementsTab({ wid }: { wid: string }) {
     : q.isError ? <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
     : !q.data?.length ? <Empty text="لا توجد حركات" />
     : (
-      <Card className="overflow-x-auto p-0">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-xs text-muted">
@@ -337,6 +337,6 @@ function MovementsTab({ wid }: { wid: string }) {
             ))}
           </tbody>
         </table>
-      </Card>
+      </div>
     );
 }

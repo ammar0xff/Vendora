@@ -142,7 +142,7 @@ export default function PayrollPage() {
       ) : !entries.data?.length ? (
         <Card className="p-10 text-center text-sm text-muted">لم تُحسب رواتب هذا الشهر بعد — ابدأ بالحساب</Card>
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -182,7 +182,7 @@ export default function PayrollPage() {
               </tr>
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { PackageCheck, Plus, Trash2, X } from "lucide-react";
 import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
 import { dateTime, D, money, moneyEGP } from "@/lib/format";
-import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
+import { Badge, Button, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
 
 interface PO {
   id: string; doc_number: string; supplier_name: string | null; status: string;
@@ -82,7 +82,7 @@ export default function PurchasesPage() {
       ) : !list.data?.length ? (
         <Empty text="لا توجد أوامر شراء" hint="أنشئ أول أمر شراء" />
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -117,7 +117,7 @@ export default function PurchasesPage() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
 
       {receive.isError && <ErrorBox message={(receive.error as Error).message} />}

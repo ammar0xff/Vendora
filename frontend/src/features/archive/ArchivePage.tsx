@@ -53,7 +53,7 @@ export default function ArchivePage() {
       ) : !q.data?.length ? (
         <Empty text="لا توجد مستندات مطابقة" hint="كل عملية بيع أو شراء أو صرف تؤرشف تلقائياً" />
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -92,7 +92,7 @@ export default function ArchivePage() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
     </div>
   );

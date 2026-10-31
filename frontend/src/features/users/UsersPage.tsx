@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Plus } from "lucide-react";
 import { Skeleton } from "@/components/kit/skeleton";
 import { api } from "@/lib/api";
-import { Badge, Button, Card, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
+import { Badge, Button, Empty, ErrorBox, Input, Modal, Select, Spinner } from "@/components/ui";
 
 interface UserRow {
   id: string; username: string; full_name: string; role: string; is_active: boolean;
@@ -70,7 +70,7 @@ export default function UsersPage() {
       ) : !list.data?.length ? (
         <Empty text="لا يوجد مستخدمون" />
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -106,7 +106,7 @@ export default function UsersPage() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="مستخدم جديد">

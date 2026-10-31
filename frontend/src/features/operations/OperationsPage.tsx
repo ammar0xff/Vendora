@@ -229,7 +229,7 @@ function History() {
     : q.isError ? <ErrorBox message={(q.error as Error).message} onRetry={() => q.refetch()} />
     : !q.data?.length ? <Empty text="لا توجد عمليات" />
     : (
-      <Card className="overflow-x-auto p-0">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-xs text-muted">
@@ -248,6 +248,6 @@ function History() {
             ))}
           </tbody>
         </table>
-      </Card>
+      </div>
     );
 }

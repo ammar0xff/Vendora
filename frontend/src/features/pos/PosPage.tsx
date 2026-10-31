@@ -19,7 +19,6 @@ import { Button, Card, ConfirmDialog, ErrorBox, Input, Modal, Select, Spinner, u
 import { Stagger, StaggerItem } from "@/components/motion";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/kit/input-group";
 import { Kbd } from "@/components/kit/kbd";
-import { Separator } from "@/components/kit/separator";
 import { Badge as KitBadge } from "@/components/kit/badge";
 import { PageHeader } from "@/components/app/shared";
 import { enqueueSale, listQueue, replayQueue, removeSale, type QueuedSale } from "@/lib/offline";
@@ -427,10 +426,10 @@ export default function PosPage() {
 
         <Card className="space-y-3 p-4">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-muted">الإجمالي</span>
-            <span className="num text-2xl font-black text-brand">{money(total)} ج.م</span>
+            <span className="text-sm text-muted-foreground">الإجمالي</span>
+            <span className="num text-3xl font-bold tracking-tight">{money(total)} <span className="text-base font-medium text-muted-foreground">ج.م</span></span>
           </div>
-          <Separator />
+          <div className="border-t border-dashed border-line" aria-hidden />
           <div className="flex gap-2">
             <Button
               variant="outline"

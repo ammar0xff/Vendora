@@ -1,9 +1,7 @@
 
 import type { LucideIcon } from 'lucide-react'
 import { AlertTriangle, Inbox, RotateCcw, Search } from 'lucide-react'
-import { Badge } from '@/components/kit/badge'
 import { Button } from '@/components/kit/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kit/card'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/kit/empty'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/kit/input-group'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/kit/select'
@@ -58,27 +56,24 @@ export function StatCard({
   tone?: 'default' | 'success' | 'warning' | 'destructive'
 }) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription className="flex items-center justify-between gap-2">
-          <span>{label}</span>
-          {Icon && (
-            <span
-              className={cn(
-                'flex size-8 items-center justify-center rounded-md bg-secondary text-muted-foreground',
-                tone === 'success' && 'bg-success/12 text-success',
-                tone === 'warning' && 'bg-warning/14 text-warning',
-                tone === 'destructive' && 'bg-destructive/10 text-destructive',
-              )}
-            >
-              <Icon className="size-4" aria-hidden />
-            </span>
-          )}
-        </CardDescription>
-        <CardTitle className="text-2xl font-semibold">{value}</CardTitle>
-      </CardHeader>
-      {hint && <CardContent className="text-xs text-muted-foreground">{hint}</CardContent>}
-    </Card>
+    <div className="flex flex-col gap-1">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        {Icon && (
+          <Icon
+            className={cn(
+              'size-3.5 shrink-0',
+              tone === 'success' && 'text-success',
+              tone === 'warning' && 'text-warning',
+              tone === 'destructive' && 'text-destructive',
+            )}
+            aria-hidden
+          />
+        )}
+        <span>{label}</span>
+      </p>
+      <p className="text-2xl font-semibold tracking-tight">{value}</p>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
   )
 }
 
@@ -277,10 +272,25 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'in
   suspended: 'destructive',
 }
 
+const STATUS_DOT: Record<string, string> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  destructive: 'bg-destructive',
+  info: 'bg-chart-4',
+  secondary: 'bg-muted-foreground/40',
+  outline: 'border border-border bg-transparent',
+}
+
 export function StatusBadge({ status }: { status: string }) {
-  return <Badge variant={STATUS_VARIANT[status] ?? 'outline'}>{status}</Badge>
+  const variant = STATUS_VARIANT[status] ?? 'outline'
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-foreground/80">
+      <span className={cn('size-1.5 shrink-0 rounded-full', STATUS_DOT[variant])} aria-hidden />
+      {status}
+    </span>
+  )
 }
 
 export function TableShell({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-hidden rounded-xl border bg-card">{children}</div>
+  return <div className="overflow-x-auto">{children}</div>
 }

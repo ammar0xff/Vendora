@@ -69,7 +69,7 @@ function EmployeesTab() {
       : list.isError ? <ErrorBox message={(list.error as Error).message} onRetry={() => list.refetch()} />
       : !list.data?.length ? <Empty text="لا يوجد موظفون" />
       : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -92,7 +92,7 @@ function EmployeesTab() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
       <Modal open={creating} onClose={() => setCreating(false)} title="موظف جديد">
         <div className="flex flex-col gap-3">
@@ -162,7 +162,7 @@ function AttendanceTab() {
       : att.isError ? <ErrorBox message={(att.error as Error).message} onRetry={() => att.refetch()} />
       : !att.data?.length ? <Empty text="لا توجد سجلات حضور هذا الشهر" />
       : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -185,7 +185,7 @@ function AttendanceTab() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
       <Modal open={adding} onClose={() => setAdding(false)} title="تسجيل حضور">
         <div className="flex flex-col gap-3">
@@ -242,7 +242,7 @@ function AdvancesTab() {
           </div>
       : !list.data?.length ? <Empty text="لا توجد سلف" />
       : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-xs text-muted">
@@ -263,7 +263,7 @@ function AdvancesTab() {
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
       <Modal open={creating} onClose={() => setCreating(false)} title="سلفة جديدة">
         <div className="flex flex-col gap-3">
